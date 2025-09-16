@@ -2,6 +2,10 @@
 
 A web application for viewing and analyzing CQL (Clinical Quality Language) test results created from [CQL Tests Runner](https://github.com/cqframework/cql-tests-runner/issues/40).
 
+![viewer](doc/screenshots/viewer.png)
+![loader](doc/screenshots/loader.png)
+![documentation](doc/screenshots/documentation.png)
+
 ## Quick Start with Docker
 
 The easiest way to run this application is using Docker:
