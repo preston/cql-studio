@@ -1,0 +1,145 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-lg-8 mx-auto">
+      <h1 class="mb-4">Launching CQL Test Results Viewer</h1>
+      
+      <div class="card mb-4">
+        <div class="card-header">
+          <h2 class="h4 mb-0">Query Parameters</h2>
+        </div>
+        <div class="card-body">
+          <p class="lead">The application supports advanced query parameters for programmatic access and deep linking to specific filtered views.</p>
+          
+          <h3>Supported Parameters</h3>
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Description</th>
+                <th>Values</th>
+                <th>Example</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>url</code></td>
+                <td>URL to a JSON results file</td>
+                <td>Valid HTTP/HTTPS URL</td>
+                <td><code>?url=https://api.example.com/results.json</code></td>
+              </tr>
+              <tr>
+                <td><code>status</code></td>
+                <td>Initial status filter</td>
+                <td>all, pass, fail, skip, error</td>
+                <td><code>?status=fail</code></td>
+              </tr>
+              <tr>
+                <td><code>search</code></td>
+                <td>Initial search term</td>
+                <td>Any text string</td>
+                <td><code>?search=arithmetic</code></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Combined Usage Examples</h3>
+          <div class="mb-3">
+            <h4>Load results and filter to failed tests:</h4>
+            <code>?url=https://api.example.com/results.json&status=fail</code>
+          </div>
+          
+          <div class="mb-3">
+            <h4>Load results and search for specific tests:</h4>
+            <code>?url=https://api.example.com/results.json&search=arithmetic</code>
+          </div>
+          
+          <div class="mb-3">
+            <h4>Load results with both status and search filters:</h4>
+            <code>?url=https://api.example.com/results.json&status=error&search=division</code>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h2 class="h4 mb-0">Programmatic Integration</h2>
+        </div>
+        <div class="card-body">
+          <h3>Deep Linking for CI/CD</h3>
+          <p>Integrate the viewer into your continuous integration pipeline by generating direct links to filtered results:</p>
+          
+
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h2 class="h4 mb-0">Schema Validation Details</h2>
+        </div>
+        <div class="card-body">
+          <h3>Validation Rules</h3>
+          <p>The application performs comprehensive validation against the CQL Test Results schema:</p>
+          
+          <h4>Required Fields Validation</h4>
+          <ul>
+            <li><code>cqlengine.apiUrl</code> - Must be a non-empty string</li>
+            <li><code>testResultsSummary</code> - Must contain all count fields as numbers</li>
+            <li><code>testsRunDateTime</code> - Must be a valid ISO 8601 date string</li>
+            <li><code>results</code> - Must be an array of test result objects</li>
+          </ul>
+
+          <h4>Test Result Object Validation</h4>
+          <ul>
+            <li><code>testStatus</code> - Must be one of: pass, fail, skip, error</li>
+            <li><code>testsName</code>, <code>groupName</code>, <code>testName</code>, <code>expression</code> - Required strings</li>
+            <li><code>invalid</code> - Must be one of: true, false, semantic (if present)</li>
+            <li><code>responseStatus</code> - Must be a valid HTTP status code (if present)</li>
+          </ul>
+
+          <h3>Validation Error Handling</h3>
+          <p>When validation fails, the application:</p>
+          <ul>
+            <li>Displays detailed error messages for each validation failure</li>
+            <li>Still attempts to load the file for partial viewing</li>
+            <li>Maintains filter functionality even with invalid data</li>
+            <li>Provides guidance on fixing schema issues</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">
+          <h2 class="h4 mb-0">Advanced Filtering</h2>
+        </div>
+        <div class="card-body">
+          <h3>Search Capabilities</h3>
+          <p>The search functionality performs case-insensitive matching across multiple fields:</p>
+          <ul>
+            <li><strong>Test Name</strong> - Exact and partial matches</li>
+            <li><strong>Group Name</strong> - Category-based filtering</li>
+            <li><strong>Test Suite Name</strong> - Suite-level organization</li>
+            <li><strong>CQL Expression</strong> - Code content searching</li>
+          </ul>
+
+          <h3>Status Filter Combinations</h3>
+          <p>Status filters work in combination with search terms:</p>
+          <ul>
+            <li>Search for "arithmetic" + filter by "fail" = Failed arithmetic tests only</li>
+            <li>Search for "division" + filter by "error" = Division tests with errors only</li>
+            <li>Search for "string" + filter by "pass" = Successful string operation tests only</li>
+          </ul>
+
+          <h3>URL Encoding for Special Characters</h3>
+          <p>When using query parameters with special characters, ensure proper URL encoding:</p>
+          <ul>
+            <li>Spaces: <code>%20</code> or <code>+</code></li>
+            <li>Special characters: Use percent encoding</li>
+            <li>Unicode characters: UTF-8 encoding</li>
+          </ul>
+          <p><strong>Example:</strong> <code>?search=arithmetic%20operations&status=fail</code></p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

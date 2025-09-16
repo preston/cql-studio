@@ -1,0 +1,36 @@
+<footer class="footer">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-6">
+        <p class="mb-0">
+          <i class="bi bi-clipboard-data me-1"></i>2025 CQL Test Results Viewer &copy; Preston Lee | 
+          <i class="bi bi-shield-check me-1"></i>Apache 2.0 Open Source
+        </p>
+        <div class="form-check form-switch mt-2">
+          <input 
+            class="form-check-input" 
+            type="checkbox" 
+            id="validateSchemaSwitch"
+            [(ngModel)]="settingsService.settings().validateSchema"
+            (ngModelChange)="onValidateSchemaChange()">
+          <label class="form-check-label" for="validateSchemaSwitch">
+            <i class="bi bi-check-circle me-1"></i>Validate Against Schema
+          </label>
+        </div>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <p class="mb-0">
+          <a href="https://github.com/preston/cql-tests-ui" target="_blank" rel="noopener" class="me-3">
+            <i class="bi bi-github me-1"></i>UI (this project)
+          </a>
+          <a href="https://github.com/cqframework/cql-tests-runner" target="_blank" rel="noopener" class="me-3">
+            <i class="bi bi-github me-1"></i>CQL Tests Runner
+          </a>
+          <a href="https://github.com/cqframework/cql-tests" target="_blank" rel="noopener">
+            <i class="bi bi-github me-1"></i>CQL Tests
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+</footer>

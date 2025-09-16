@@ -1,0 +1,11 @@
+.angular
+.cursor
+.git
+.vscode
+dist/
+node_modules/
+Dockerfile
+.dockerignore
+.drone.yml
+.git
+.gitignore

@@ -1,0 +1,47 @@
+body:has([data-bs-theme=light]) {
+  background: url("/images/textures/crossword.png") repeat;
+
+  // Ensure proper text contrast in light theme
+  .navbar {
+    .navbar-brand,
+    .nav-link {
+      color: white !important;
+    }
+    
+    .navbar-brand:hover,
+    .nav-link:hover {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+    
+    .nav-link.active {
+      color: white !important;
+    }
+  }
+}
+
+body:has([data-bs-theme=dark]) {
+  background: url("/images/textures/binding_dark.png") repeat;
+
+  .h1,
+  .h2,
+  .h3,
+  .h4,
+  .h5,
+  .h6,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  label,
+  p,
+  li,
+  b,
+  span,
+  // a,
+  .lead {
+    // Simplex override for the default font color that's way too dark.
+    color: #aaa;
+  }
+}

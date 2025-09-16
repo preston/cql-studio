@@ -1,0 +1,97 @@
+<div class="container mt-5">
+	<div class="row justify-content-center">
+		<div class="col-md-8">
+			<div class="card">
+				<div class="card-header">
+					<h2 class="card-title mb-0">Open a results file</h2>
+					<p class="text-muted mb-0">Upload a results file or provide a URL to view CQL test results</p>
+				</div>
+				<div class="card-body">
+					<!-- File Upload Section -->
+					<div class="mb-4">
+						<h5>Upload File</h5>
+						<div class="input-group">
+							<input type="file" class="form-control" id="fileInput" accept=".json"
+								(change)="onFileSelected($event)" [disabled]="isLoading()">
+							<!-- Action buttons shown when validation fails -->
+							<button *ngIf="validationErrors().length > 0 && selectedFile()" class="btn btn-outline-secondary" type="button" (click)="clearSelectedFile()"
+								[disabled]="isLoading()" title="Clear selected file">
+								<i class="bi bi-x-circle"></i> Clear
+							</button>
+							<button *ngIf="validationErrors().length > 0 && selectedFile()" class="btn btn-outline-secondary" type="button" (click)="rerunValidation()"
+								[disabled]="isLoading()" title="Rerun validation">
+								<i class="bi bi-arrow-clockwise"></i> Retry
+							</button>
+						</div>
+						<div class="form-text">Select a JSON file containing CQL test results</div>
+					</div>
+
+					<div class="text-center mb-4">
+						<span class="text-muted">OR</span>
+					</div>
+
+					<!-- URL Input Section -->
+					<div class="mb-4">
+						<h5>Load from URL</h5>
+						<div class="input-group">
+							<input type="url" class="form-control" placeholder="https://example.com/results.json"
+								[ngModel]="urlInput()" (ngModelChange)="urlInput.set($event)" [disabled]="isLoading()">
+							<button class="btn btn-primary" type="button" (click)="onUrlSubmit()"
+								[disabled]="isLoading() || !urlInput().trim()">
+								Load
+							</button>
+						</div>
+						<div class="form-text">Enter a URL to a JSON file containing CQL test results</div>
+					</div>
+
+					<!-- Settings Section -->
+					<div class="mb-4">
+						<h5>Settings</h5>
+						<div class="card">
+							<div class="card-body">
+								<div class="form-check form-switch">
+									<input class="form-check-input" type="checkbox" id="validateSchemaSwitch"
+										[(ngModel)]="settingsService.settings().validateSchema"
+										(ngModelChange)="onValidateSchemaChange()" [disabled]="isLoading()">
+									<label class="form-check-label" for="validateSchemaSwitch">
+										<i class="bi bi-check-circle me-1"></i>Validate against schema before loading
+									</label>
+								</div>
+								<div class="form-text mt-2">
+									<small class="text-muted">
+										When enabled, files will be validated against the CQL test results schema before
+										loading.
+										Disable this for faster loading or when working with non-standard files.
+									</small>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Loading State -->
+					<div *ngIf="isLoading()" class="text-center">
+						<div class="spinner-border text-primary" role="status">
+							<span class="visually-hidden">Loading...</span>
+						</div>
+						<p class="mt-2">Loading and validating results...</p>
+					</div>
+
+					<!-- Error Messages -->
+					<div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+						<h6 class="alert-heading">Error</h6>
+						<p class="mb-0">{{ errorMessage() }}</p>
+					</div>
+
+					<!-- Validation Errors -->
+					<div *ngIf="validationErrors().length > 0" class="alert alert-warning" role="alert">
+						<h6 class="alert-heading">Validation Errors</h6>
+						<p>The file does not conform to the expected schema:</p>
+						<ul class="mb-0">
+							<li *ngFor="let error of validationErrors()">{{ error }}</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

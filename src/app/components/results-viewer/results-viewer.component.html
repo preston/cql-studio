@@ -1,0 +1,238 @@
+<div class="container-fluid mt-3">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2>CQL Test Results</h2>
+        <button class="btn btn-outline-secondary" (click)="goBack()">
+          ← Back to Upload
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Validation Errors -->
+  <div class="row mb-4" *ngIf="getValidationErrors().length > 0">
+    <div class="col">
+      <div class="alert alert-warning" role="alert">
+        <h6 class="alert-heading">Schema Validation Warnings</h6>
+        <p>The loaded file has some validation issues but is still viewable:</p>
+        <ul class="mb-0">
+          <li *ngFor="let error of getValidationErrors()">{{ error }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row mb-4" *ngIf="testResults()">
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title text-success">{{ testResults()?.testResultsSummary?.passCount || 0 }}</h5>
+          <p class="card-text">Passed</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title text-danger">{{ testResults()?.testResultsSummary?.failCount || 0 }}</h5>
+          <p class="card-text">Failed</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title text-warning">{{ testResults()?.testResultsSummary?.skipCount || 0 }}</h5>
+          <p class="card-text">Skipped</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center">
+        <div class="card-body">
+          <h5 class="card-title text-danger">{{ testResults()?.testResultsSummary?.errorCount || 0 }}</h5>
+          <p class="card-text">Errors</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overall Stats -->
+  <div class="row mb-4" *ngIf="testResults()">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title">Test Run Information</h6>
+          <p class="mb-1"><strong>Total Tests:</strong> {{ getTotalTests() }}</p>
+          <p class="mb-1"><strong>Pass Rate:</strong> {{ getPassRate() | number:'1.1-1' }}%</p>
+          <p class="mb-1"><strong>Run Date:</strong> {{ testResults()?.testsRunDateTime | date:'medium' }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h6 class="card-title">CQL Engine Information</h6>
+          <p class="mb-1"><strong>API URL:</strong> {{ testResults()?.cqlengine?.apiUrl }}</p>
+          <p class="mb-1" *ngIf="testResults()?.cqlengine?.description">
+            <strong>Description:</strong> {{ testResults()?.cqlengine?.description }}
+          </p>
+          <p class="mb-1" *ngIf="testResults()?.cqlengine?.cqlVersion">
+            <strong>CQL Version:</strong> {{ testResults()?.cqlengine?.cqlVersion }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters and Controls -->
+  <div class="row mb-3">
+    <div class="col-md-4">
+      <div class="input-group">
+        <span class="input-group-text">Filter by Status:</span>
+        <select 
+          class="form-select" 
+          [ngModel]="selectedStatus()"
+          (change)="onStatusFilterChange($event)"
+        >
+          <option value="all">All</option>
+          <option value="pass">Passed</option>
+          <option value="fail">Failed</option>
+          <option value="skip">Skipped</option>
+          <option value="error">Errors</option>
+        </select>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="input-group">
+        <span class="input-group-text">Search:</span>
+        <input 
+          type="text" 
+          class="form-control" 
+          placeholder="Search tests..."
+          [ngModel]="searchTerm()"
+          (input)="onSearchChange($event)"
+        >
+      </div>
+    </div>
+    <div class="col-md-4" *ngIf="hasDetailedInfo()">
+      <div class="d-flex gap-2">
+        <button 
+          class="btn btn-outline-primary btn-sm" 
+          (click)="toggleAllDetails()"
+        >
+          {{ showAllDetails() ? 'Hide All Details' : 'Show All Details' }}
+        </button>
+        <span class="text-muted small align-self-center">
+          Click any row to toggle details
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results Table -->
+  <div class="row">
+    <div class="col">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">Test Results ({{ filteredResults().length }} of {{ testResults()?.results?.length || 0 }})</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 40px;"></th>
+                  <th>Status</th>
+                  <th>Test Name</th>
+                  <th>Group</th>
+                  <th>Expression</th>
+                  <th>Response Status</th>
+                  <th>Invalid</th>
+                </tr>
+              </thead>
+              <tbody>
+                <ng-container *ngFor="let result of filteredResults()">
+                  <!-- Main result row -->
+                  <tr 
+                    class="table-row-clickable" 
+                    [class.table-active]="isResultExpanded(getResultId(result))"
+                    (click)="hasResultDetails(result) && toggleResultDetails(getResultId(result))"
+                    [style.cursor]="hasResultDetails(result) ? 'pointer' : 'default'"
+                  >
+                    <td>
+                      <span *ngIf="hasResultDetails(result)" class="expand-icon">
+                        {{ isResultExpanded(getResultId(result)) ? '▼' : '▶' }}
+                      </span>
+                    </td>
+                    <td>
+                      <span [class]="getStatusClass(result.testStatus)">
+                        {{ getStatusIcon(result.testStatus) }} {{ result.testStatus | titlecase }}
+                      </span>
+                    </td>
+                    <td>
+                      <strong>{{ result.testName }}</strong>
+                      <div class="text-muted small">{{ result.testsName }}</div>
+                    </td>
+                    <td>{{ result.groupName }}</td>
+                    <td>
+                      <code class="small">{{ result.expression }}</code>
+                    </td>
+                    <td>
+                      <span *ngIf="result.responseStatus" class="badge bg-secondary">
+                        {{ result.responseStatus }}
+                      </span>
+                    </td>
+                    <td>
+                      <span *ngIf="result.invalid" class="badge bg-warning">
+                        {{ result.invalid }}
+                      </span>
+                    </td>
+                  </tr>
+                  
+                  <!-- Expanded details row -->
+                  <tr *ngIf="isResultExpanded(getResultId(result)) && hasResultDetails(result)" class="details-row">
+                    <td colspan="7" class="p-0">
+                      <div class="details-content p-3 border-top">
+                        <div class="row">
+                          <div class="col-12">
+                            <h6 class="mb-3">Detailed Information for {{ result.testName }}</h6>
+                            
+                            <div *ngIf="result.error" class="mb-3">
+                              <strong class="text-danger">Error:</strong>
+                              <div class="alert alert-danger mb-0 mt-2">
+                                <strong>{{ result.error.message }}</strong>
+                                <div *ngIf="result.error.stack" class="mt-2">
+                                  <small><pre class="mb-0">{{ result.error.stack }}</pre></small>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div class="row" *ngIf="result.expected || result.actual">
+                              <div class="col-md-6" *ngIf="result.expected">
+                                <strong>Expected:</strong>
+                                <pre class="p-2 rounded bg-white border mt-1">{{ result.expected }}</pre>
+                              </div>
+                              <div class="col-md-6" *ngIf="result.actual">
+                                <strong>Actual:</strong>
+                                <pre class="p-2 rounded bg-white border mt-1">{{ result.actual }}</pre>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </ng-container>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

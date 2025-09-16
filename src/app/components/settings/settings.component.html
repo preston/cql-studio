@@ -1,0 +1,65 @@
+<div id="settings" class="container">
+
+    <div class="row">
+        <div class="col-sm-6">
+            <h4><span class="bi bi-person"></span> Preferences</h4>
+            <div class="form-floating">
+                <select class="form-select" name="theme" [(ngModel)]="settingsService.settings().theme_preferred" (ngModelChange)="themePreferenceChanged($event)">
+                    <option [value]="themeTypes().AUTOMATIC" [selected]="settingsService.settings().theme_preferred == themeTypes().AUTOMATIC">
+                        Automatic
+                    </option>
+                    <option [value]="themeTypes().LIGHT" [selected]="settingsService.settings().theme_preferred == themeTypes().LIGHT">
+                        Light
+                    </option>
+                    <option [value]="themeTypes().DARK" [selected]="settingsService.settings().theme_preferred == themeTypes().DARK">
+                        Dark
+                    </option>
+                </select>
+                <label for="theme">Theme</label>
+            </div>
+
+            <div class="form-check mt-3 ms-1 ">
+                <input id="validate_schema_switch" class="form-check-input" type="checkbox" name="validate_schema_switch"
+                    [(ngModel)]="settingsService.settings().validateSchema" (ngModelChange)="onValidateSchemaChange()" />
+                <label class="form-check-label" for="validate_schema_switch"><span class="bi bi-check-circle"></span> Validate Against Schema</label>
+                <br />
+                <small class="form-text">Enable validation of data files against the JSON schema prior to loading.</small>
+
+            </div>
+        </div>
+
+        <div class="col-sm-6">
+            <h4><span class="bi bi-code-slash"></span> Advanced</h4>
+            <div class="form-check mt-3 ms-1 ">
+                <input id="experimental_switch" class="form-check-input" type="checkbox" name="experimental_switch"
+                    [(ngModel)]="settingsService.settings().experimental" />
+                <label class="form-check-label" for="experimental_switch"><span
+                        class="bi bi-exclamation-diamond"></span> Experimental
+                    Features</label>
+                <br />
+
+                <small class="form-text">This is used for testing upcoming features and may break existing
+                    functionality. You probably don't want to use this!</small>
+
+            </div>
+            <div class="form-check mt-3 ms-1 ">
+                <input id="developer_switch" class="form-check-input" type="checkbox" name="developer_switch"
+                    [(ngModel)]="settingsService.settings().developer" />
+                <label class="form-check-label" for="developer_switch"><span class="bi bi-code"></span> Developer
+                    Mode</label>
+                <br />
+                <small class="form-text">Enable more advanced technical settings and messages. This is mostly for
+                    development.</small>
+
+            </div>
+
+        </div>
+        <div class="col-sm-12">
+            <br>
+            <button class="btn btn-primary" (click)="save()"><span class="bi bi-file-check"></span> Save to
+                Browser</button> &nbsp;
+            <button class="btn float-end" (click)="restore()"><span class="bi bi-arrow-counterclockwise"></span>
+                Reset to Defaults</button>
+        </div>
+    </div>
+</div>
