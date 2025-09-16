@@ -16,7 +16,7 @@
   <!-- Test Run & CQL Engine Information - Compact Prominent Section -->
   <div class="row mb-3" *ngIf="testResults()">
     <div class="col">
-      <div class="card cql-engine-card">
+      <div class="card bg-info cql-engine-card">
         <div class="card-header">
           <div class="d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center">
@@ -92,10 +92,51 @@
     </div>
   </div>
 
+  <!-- Interactive Charts Section -->
+  <div class="row mb-4" *ngIf="testResults()">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0">
+            <i class="fas fa-chart-pie me-2"></i>
+            Test Results Distribution
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas baseChart
+              [data]="pieChartData"
+              [options]="pieChartOptions"
+              type="pie">
+            </canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0">
+            <i class="fas fa-chart-bar me-2"></i>
+            Test Results by Group (Top 10)
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="chart-container">
+            <canvas baseChart
+              [data]="barChartData"
+              [options]="barChartOptions"
+              type="bar">
+            </canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Filters and Controls -->
   <div class="row mb-3">
-    <div class="col-md-4">
+    <div class="col-md-3">
       <div class="input-group">
         <span class="input-group-text">Filter by Status:</span>
         <select class="form-select" [ngModel]="selectedStatus()" (change)="onStatusFilterChange($event)">
@@ -107,14 +148,50 @@
         </select>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
       <div class="input-group">
         <span class="input-group-text">Search:</span>
         <input type="text" class="form-control" placeholder="Search tests..." [ngModel]="searchTerm()"
           (input)="onSearchChange($event)">
       </div>
     </div>
-    <div class="col-md-4" *ngIf="hasDetailedInfo()">
+    <div class="col-md-2">
+      <div class="input-group">
+        <span class="input-group-text">Group by:</span>
+        <select class="form-select" [ngModel]="groupBy()" (change)="onGroupByChange($event)">
+          <option value="none">None</option>
+          <option value="group">Group Name</option>
+          <option value="status">Status</option>
+          <option value="testsName">Tests Name</option>
+        </select>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="input-group">
+        <span class="input-group-text">Sort by:</span>
+        <select class="form-select" [ngModel]="sortBy()" (change)="onSortByChange($event)">
+          <option value="name">Test Name</option>
+          <option value="group">Group Name</option>
+          <option value="status">Status</option>
+          <option value="expression">Expression</option>
+          <option value="testsName">Tests Name</option>
+        </select>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="input-group">
+        <span class="input-group-text">Order:</span>
+        <select class="form-select" [ngModel]="sortOrder()" (change)="onSortOrderChange($event)">
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Additional Controls Row -->
+  <div class="row mb-3" *ngIf="hasDetailedInfo()">
+    <div class="col">
       <div class="d-flex gap-2">
         <button class="btn btn-outline-primary btn-sm" (click)="toggleAllDetails()">
           {{ showAllDetails() ? 'Hide All Details' : 'Show All Details' }}
@@ -149,76 +226,87 @@
                 </tr>
               </thead>
               <tbody>
-                <ng-container *ngFor="let result of filteredResults()">
-                  <!-- Main result row -->
-                  <tr class="table-row-clickable" [class.table-active]="isResultExpanded(getResultId(result))"
-                    (click)="hasResultDetails(result) && toggleResultDetails(getResultId(result))"
-                    [style.cursor]="hasResultDetails(result) ? 'pointer' : 'default'">
-                    <td>
-                      <span *ngIf="hasResultDetails(result)" class="expand-icon">
-                        {{ isResultExpanded(getResultId(result)) ? '▼' : '▶' }}
-                      </span>
-                    </td>
-                    <td>
-                      <span [class]="getStatusClass(result.testStatus)">
-                        {{ getStatusIcon(result.testStatus) }} {{ result.testStatus | titlecase }}
-                      </span>
-                    </td>
-                    <td>
-                      <strong>{{ result.testName }}</strong>
-                      <div class="text-muted small">{{ result.testsName }}</div>
-                    </td>
-                    <td>{{ result.groupName }}</td>
-                    <td>
-                      <code class="small">{{ result.expression }}</code>
-                    </td>
-                    <td>
-                      <span *ngIf="result.responseStatus" class="badge bg-secondary">
-                        {{ result.responseStatus }}
-                      </span>
-                    </td>
-                    <td>
-                      <span *ngIf="result.invalid" class="badge bg-warning">
-                        {{ result.invalid }}
-                      </span>
+                <ng-container *ngFor="let group of getGroupedResults()">
+                  <!-- Group header row (only show if grouping is enabled) -->
+                  <tr *ngIf="groupBy() !== 'none'" class="table-group-header">
+                    <td colspan="7" class="bg-light fw-bold py-2">
+                      <i class="fas fa-folder me-2"></i>
+                      {{ group.group }} ({{ group.results.length }} {{ group.results.length === 1 ? 'test' : 'tests' }})
                     </td>
                   </tr>
+                  
+                  <!-- Results within group -->
+                  <ng-container *ngFor="let result of group.results">
+                    <!-- Main result row -->
+                    <tr class="table-row-clickable" [class.table-active]="isResultExpanded(getResultId(result))"
+                      (click)="hasResultDetails(result) && toggleResultDetails(getResultId(result))"
+                      [style.cursor]="hasResultDetails(result) ? 'pointer' : 'default'">
+                      <td>
+                        <span *ngIf="hasResultDetails(result)" class="expand-icon">
+                          {{ isResultExpanded(getResultId(result)) ? '▼' : '▶' }}
+                        </span>
+                      </td>
+                      <td>
+                        <span [class]="getStatusClass(result.testStatus)">
+                          {{ getStatusIcon(result.testStatus) }} {{ result.testStatus | titlecase }}
+                        </span>
+                      </td>
+                      <td>
+                        <strong>{{ result.testName }}</strong>
+                        <div class="text-muted small">{{ result.testsName }}</div>
+                      </td>
+                      <td>{{ result.groupName }}</td>
+                      <td>
+                        <code class="small">{{ result.expression }}</code>
+                      </td>
+                      <td>
+                        <span *ngIf="result.responseStatus" class="badge bg-secondary">
+                          {{ result.responseStatus }}
+                        </span>
+                      </td>
+                      <td>
+                        <span *ngIf="result.invalid" class="badge bg-warning">
+                          {{ result.invalid }}
+                        </span>
+                      </td>
+                    </tr>
 
-                  <!-- Expanded details row -->
-                  <tr *ngIf="isResultExpanded(getResultId(result)) && hasResultDetails(result)" class="details-row">
-                    <td colspan="7" class="p-0">
-                      <div class="details-content p-3 border-top">
-                        <div class="row">
-                          <div class="col-12">
-                            <h6 class="mb-3">Detailed Information for {{ result.testName }}</h6>
+                    <!-- Expanded details row -->
+                    <tr *ngIf="isResultExpanded(getResultId(result)) && hasResultDetails(result)" class="details-row">
+                      <td colspan="7" class="p-0">
+                        <div class="details-content p-3 border-top">
+                          <div class="row">
+                            <div class="col-12">
+                              <h6 class="mb-3">Detailed Information for {{ result.testName }}</h6>
 
-                            <div *ngIf="result.error" class="mb-3">
-                              <strong class="text-danger">Error:</strong>
-                              <div class="alert alert-danger mb-0 mt-2">
-                                <strong>{{ result.error.message }}</strong>
-                                <div *ngIf="result.error.stack" class="mt-2">
-                                  <small>
-                                    <pre class="mb-0">{{ result.error.stack }}</pre>
-                                  </small>
+                              <div *ngIf="result.error" class="mb-3">
+                                <strong class="text-danger">Error:</strong>
+                                <div class="alert alert-danger mb-0 mt-2">
+                                  <strong>{{ result.error.message }}</strong>
+                                  <div *ngIf="result.error.stack" class="mt-2">
+                                    <small>
+                                      <pre class="mb-0">{{ result.error.stack }}</pre>
+                                    </small>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
 
-                            <div class="row" *ngIf="result.expected || result.actual">
-                              <div class="col-md-6" *ngIf="result.expected">
-                                <strong>Expected:</strong>
-                                <pre class="p-2 rounded bg-white border mt-1">{{ result.expected }}</pre>
-                              </div>
-                              <div class="col-md-6" *ngIf="result.actual">
-                                <strong>Actual:</strong>
-                                <pre class="p-2 rounded bg-white border mt-1">{{ result.actual }}</pre>
+                              <div class="row" *ngIf="result.expected || result.actual">
+                                <div class="col-md-6" *ngIf="result.expected">
+                                  <strong>Expected:</strong>
+                                  <pre class="p-2 rounded bg-white border mt-1">{{ result.expected }}</pre>
+                                </div>
+                                <div class="col-md-6" *ngIf="result.actual">
+                                  <strong>Actual:</strong>
+                                  <pre class="p-2 rounded bg-white border mt-1">{{ result.actual }}</pre>
+                                </div>
                               </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                  </ng-container>
                 </ng-container>
               </tbody>
             </table>

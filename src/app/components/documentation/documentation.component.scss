@@ -38,3 +38,9 @@ ul, ol {
 li {
   margin-bottom: 0.25rem;
 }
+
+// Prevent text wrapping in the 4th column of the parameters table
+.table th:last-child,
+.table td:last-child {
+  white-space: nowrap;
+}

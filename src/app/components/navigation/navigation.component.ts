@@ -13,7 +13,9 @@ import { filter } from 'rxjs/operators';
   styleUrl: './navigation.component.scss'
 })
 export class NavigationComponent {
-  protected readonly title = signal('CQL Test Results Viewer');
+  protected readonly title = signal(
+    (window as any)['CQL_TESTS_UI_NAME'] || 'CQL Test Results'
+  );
   protected readonly showFileMenu = signal(false);
 
   constructor(private router: Router) {

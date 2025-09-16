@@ -39,6 +39,24 @@
                 <td>Any text string</td>
                 <td><code>?search=arithmetic</code></td>
               </tr>
+              <tr>
+                <td><code>groupBy</code></td>
+                <td>Initial grouping option</td>
+                <td>none, group, status, testsName</td>
+                <td><code>?groupBy=group</code></td>
+              </tr>
+              <tr>
+                <td><code>sortBy</code></td>
+                <td>Initial sorting field</td>
+                <td>name, group, status, expression, testsName</td>
+                <td><code>?sortBy=name</code></td>
+              </tr>
+              <tr>
+                <td><code>sortOrder</code></td>
+                <td>Initial sort order</td>
+                <td>asc, desc</td>
+                <td><code>?sortOrder=desc</code></td>
+              </tr>
             </tbody>
           </table>
 
@@ -57,18 +75,44 @@
             <h4>Load results with both status and search filters:</h4>
             <code>?url=https://api.example.com/results.json&status=error&search=division</code>
           </div>
+          
+          <div class="mb-3">
+            <h4>Load results grouped by test group and sorted by name:</h4>
+            <code>?url=https://api.example.com/results.json&groupBy=group&sortBy=name&sortOrder=asc</code>
+          </div>
+          
+          <div class="mb-3">
+            <h4>Load failed tests grouped by status and sorted by expression:</h4>
+            <code>?url=https://api.example.com/results.json&status=fail&groupBy=status&sortBy=expression&sortOrder=desc</code>
+          </div>
+          
+          <div class="mb-3">
+            <h4>Complete example with all parameters:</h4>
+            <code>?url=https://api.example.com/results.json&status=error&search=arithmetic&groupBy=group&sortBy=name&sortOrder=asc</code>
+          </div>
         </div>
       </div>
 
       <div class="card mb-4">
         <div class="card-header">
-          <h2 class="h4 mb-0">Programmatic Integration</h2>
+          <h2 class="h4 mb-0">Programmatic Integration & Deep Linking</h2>
         </div>
         <div class="card-body">
           <h3>Deep Linking for CI/CD</h3>
-          <p>Integrate the viewer into your continuous integration pipeline by generating direct links to filtered results:</p>
+          <p>Integrate the viewer into your continuous integration pipeline by generating direct links to filtered results. The application automatically updates the URL when users change controls, enabling easy sharing of specific views.</p>
           
-
+          <h3>Real-time URL Synchronization</h3>
+          <p>The application automatically updates the URL query parameters when users interact with controls:</p>
+          <ul>
+            <li><strong>Status Filter</strong> - Updates <code>status</code> parameter</li>
+            <li><strong>Search Term</strong> - Updates <code>search</code> parameter</li>
+            <li><strong>Grouping</strong> - Updates <code>groupBy</code> parameter</li>
+            <li><strong>Sorting</strong> - Updates <code>sortBy</code> and <code>sortOrder</code> parameters</li>
+          </ul>
+          
+          <div class="alert alert-info">
+            <strong>Pro Tip:</strong> Bookmark URLs with specific filters for quick access to commonly used views, or share them in team communications for collaborative analysis. The complete URL including the data source can be shared and will load the exact same view.
+          </div>
         </div>
       </div>
 
@@ -109,7 +153,7 @@
 
       <div class="card mb-4">
         <div class="card-header">
-          <h2 class="h4 mb-0">Advanced Filtering</h2>
+          <h2 class="h4 mb-0">Advanced Filtering & Organization</h2>
         </div>
         <div class="card-body">
           <h3>Search Capabilities</h3>
@@ -129,6 +173,32 @@
             <li>Search for "string" + filter by "pass" = Successful string operation tests only</li>
           </ul>
 
+          <h3>Grouping & Sorting Features</h3>
+          <p>The application provides powerful organization tools for large test result sets:</p>
+          
+          <h4>Grouping Options</h4>
+          <ul>
+            <li><strong>None</strong> - Display all results in a single list</li>
+            <li><strong>Group Name</strong> - Group tests by their category/group</li>
+            <li><strong>Status</strong> - Group tests by pass/fail/skip/error status</li>
+            <li><strong>Tests Name</strong> - Group tests by their test suite name</li>
+          </ul>
+
+          <h4>Sorting Options</h4>
+          <ul>
+            <li><strong>Test Name</strong> - Alphabetical sorting by test name</li>
+            <li><strong>Group Name</strong> - Alphabetical sorting by group name</li>
+            <li><strong>Status</strong> - Sort by test status (pass, fail, skip, error)</li>
+            <li><strong>Expression</strong> - Alphabetical sorting by CQL expression</li>
+            <li><strong>Tests Name</strong> - Alphabetical sorting by test suite name</li>
+          </ul>
+
+          <h4>Sort Order</h4>
+          <ul>
+            <li><strong>Ascending</strong> - A-Z, 0-9, or status priority order</li>
+            <li><strong>Descending</strong> - Z-A, 9-0, or reverse status priority order</li>
+          </ul>
+
           <h3>URL Encoding for Special Characters</h3>
           <p>When using query parameters with special characters, ensure proper URL encoding:</p>
           <ul>
@@ -136,7 +206,7 @@
             <li>Special characters: Use percent encoding</li>
             <li>Unicode characters: UTF-8 encoding</li>
           </ul>
-          <p><strong>Example:</strong> <code>?search=arithmetic%20operations&status=fail</code></p>
+          <p><strong>Example:</strong> <code>?search=arithmetic%20operations&status=fail&groupBy=group</code></p>
         </div>
       </div>
 

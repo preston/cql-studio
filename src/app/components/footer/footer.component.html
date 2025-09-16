@@ -2,9 +2,9 @@
   <div class="container">
     <div class="row">
       <div class="col-md-6">
-        <p class="mb-0">
-          <i class="bi bi-clipboard-data me-1"></i>2025 CQL Test Results Viewer &copy; Preston Lee | 
-          <i class="bi bi-shield-check me-1"></i>Apache 2.0 Open Source
+        <p class="mb-0 text-muted">
+          <i class="bi bi-shield-check me-1"></i>Apache 2.0 Open Source |
+          <i class="bi bi-c-circle me-1"></i>2025 Preston Lee. All rights reserved.
         </p>
         <div class="form-check form-switch mt-2">
           <input 
@@ -30,6 +30,20 @@
             <i class="bi bi-github me-1"></i>CQL Tests
           </a>
         </p>
+        <div class="theme-selector mt-2">
+          <label for="themeSelect" class="theme-label me-2">
+            <i class="bi bi-palette me-1"></i>Theme
+          </label>
+          <select 
+            class="form-select form-select-sm" 
+            id="themeSelect"
+            [(ngModel)]="settingsService.settings().theme_preferred"
+            (ngModelChange)="onThemeChange()">
+            <option value="automatic">Automatic</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
       </div>
     </div>
   </div>

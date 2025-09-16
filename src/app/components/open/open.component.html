@@ -4,7 +4,7 @@
 			<div class="card">
 				<div class="card-header">
 					<h2 class="card-title mb-0">Open a results file</h2>
-					<p class="text-muted mb-0">Upload a results file or provide a URL to view CQL test results</p>
+					<!-- <p class="text-muted mb-0">Upload a results file or provide a URL to view CQL test results</p> -->
 				</div>
 				<div class="card-body">
 					<!-- File Upload Section -->
@@ -43,28 +43,24 @@
 						</div>
 						<div class="form-text">Enter a URL to a JSON file containing CQL test results</div>
 					</div>
-
+<hr>
 					<!-- Settings Section -->
 					<div class="mb-4">
 						<h5>Settings</h5>
-						<div class="card">
-							<div class="card-body">
-								<div class="form-check form-switch">
-									<input class="form-check-input" type="checkbox" id="validateSchemaSwitch"
-										[(ngModel)]="settingsService.settings().validateSchema"
-										(ngModelChange)="onValidateSchemaChange()" [disabled]="isLoading()">
-									<label class="form-check-label" for="validateSchemaSwitch">
-										<i class="bi bi-check-circle me-1"></i>Validate against schema before loading
-									</label>
-								</div>
-								<div class="form-text mt-2">
-									<small class="text-muted">
-										When enabled, files will be validated against the CQL test results schema before
-										loading.
-										Disable this for faster loading or when working with non-standard files.
-									</small>
-								</div>
-							</div>
+						<div class="form-check form-switch">
+							<input class="form-check-input" type="checkbox" id="validateSchemaSwitch"
+								[(ngModel)]="settingsService.settings().validateSchema"
+								(ngModelChange)="onValidateSchemaChange()" [disabled]="isLoading()">
+							<label class="form-check-label" for="validateSchemaSwitch">
+								<i class="bi bi-check-circle me-1"></i>Validate against schema before loading
+							</label>
+						</div>
+						<div class="form-text mt-2">
+							<small class="text-muted">
+								When enabled, files will be validated against the CQL test results schema before
+								loading.
+								Disable this for faster loading or when working with non-standard files.
+							</small>
 						</div>
 					</div>
 

@@ -31,12 +31,26 @@ export class App implements OnInit {
     // Check for URL query parameters
     this.route.queryParams.subscribe(params => {
       if (params['url']) {
-        this.loadFromUrl(params['url'], params['status'], params['search']);
+        this.loadFromUrl(
+          params['url'], 
+          params['status'], 
+          params['search'],
+          params['groupBy'],
+          params['sortBy'],
+          params['sortOrder']
+        );
       }
     });
   }
 
-  private async loadFromUrl(url: string, status?: string, search?: string): Promise<void> {
+  private async loadFromUrl(
+    url: string, 
+    status?: string, 
+    search?: string, 
+    groupBy?: string, 
+    sortBy?: string, 
+    sortOrder?: string
+  ): Promise<void> {
     try {
       const data = await this.fileLoader.loadFromUrl(url);
       
@@ -47,12 +61,7 @@ export class App implements OnInit {
         if (validation.isValid) {
           sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
           // Store filter parameters if provided
-          if (status) {
-            sessionStorage.setItem('initialStatus', status);
-          }
-          if (search) {
-            sessionStorage.setItem('initialSearch', search);
-          }
+          this.storeInitialParameters(status, search, groupBy, sortBy, sortOrder);
           this.router.navigate(['/results']);
         } else {
           console.error('Validation errors:', validation.errors);
@@ -60,28 +69,42 @@ export class App implements OnInit {
           sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
           sessionStorage.setItem('validationErrors', JSON.stringify(validation.errors));
           // Store filter parameters even with validation errors
-          if (status) {
-            sessionStorage.setItem('initialStatus', status);
-          }
-          if (search) {
-            sessionStorage.setItem('initialSearch', search);
-          }
+          this.storeInitialParameters(status, search, groupBy, sortBy, sortOrder);
           this.router.navigate(['/results']);
         }
       } else {
         // Skip validation, just store and navigate
         sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
         // Store filter parameters if provided
-        if (status) {
-          sessionStorage.setItem('initialStatus', status);
-        }
-        if (search) {
-          sessionStorage.setItem('initialSearch', search);
-        }
+        this.storeInitialParameters(status, search, groupBy, sortBy, sortOrder);
         this.router.navigate(['/results']);
       }
     } catch (error) {
       console.error('Error loading from URL:', error);
+    }
+  }
+
+  private storeInitialParameters(
+    status?: string, 
+    search?: string, 
+    groupBy?: string, 
+    sortBy?: string, 
+    sortOrder?: string
+  ): void {
+    if (status) {
+      sessionStorage.setItem('initialStatus', status);
+    }
+    if (search) {
+      sessionStorage.setItem('initialSearch', search);
+    }
+    if (groupBy) {
+      sessionStorage.setItem('initialGroupBy', groupBy);
+    }
+    if (sortBy) {
+      sessionStorage.setItem('initialSortBy', sortBy);
+    }
+    if (sortOrder) {
+      sessionStorage.setItem('initialSortOrder', sortOrder);
     }
   }
 }

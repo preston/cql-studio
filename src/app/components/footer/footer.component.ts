@@ -18,4 +18,9 @@ export class FooterComponent {
   onValidateSchemaChange(): void {
     this.settingsService.saveSettings();
   }
+
+  onThemeChange(): void {
+    this.settingsService.setEffectiveTheme();
+    this.settingsService.saveSettings();
+  }
 }
