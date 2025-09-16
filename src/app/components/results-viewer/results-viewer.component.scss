@@ -101,3 +101,101 @@ pre {
     overflow-y: auto;
   }
 }
+
+// Test Run & CQL Engine Information - Compact prominent styling
+.cql-engine-card {
+  border: 2px solid #0d6efd;
+  box-shadow: 0 0.25rem 0.5rem rgba(13, 110, 253, 0.15);
+  
+  .card-header {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+    border-bottom: none;
+    padding: 0.75rem 1rem;
+    
+    h6 {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+    
+    i {
+      font-size: 1rem;
+    }
+    
+    code {
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.2rem 0.4rem;
+      border-radius: 0.25rem;
+      word-break: break-all;
+      max-width: 400px;
+      display: inline-block;
+    }
+    
+    .badge {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+    }
+    
+    .text-white-50 {
+      color: rgba(255, 255, 255, 0.7) !important;
+      font-size: 0.7rem;
+    }
+    
+    .text-white-75 {
+      color: rgba(255, 255, 255, 0.9) !important;
+      font-size: 0.8rem;
+    }
+    
+    .text-white {
+      font-size: 0.8rem;
+    }
+    
+    small.text-white {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+// Responsive adjustments for different screen sizes
+@media (max-width: 1200px) {
+  .cql-engine-card .card-header {
+    .gap-4 {
+      gap: 1.5rem !important;
+    }
+    
+    code {
+      max-width: 300px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .cql-engine-card .card-header {
+    .d-flex.justify-content-between {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 0.75rem;
+    }
+    
+    .gap-4 {
+      gap: 1rem !important;
+      flex-wrap: wrap;
+    }
+    
+    code {
+      max-width: 100%;
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .cql-engine-card .card-header {
+    .gap-4 {
+      gap: 0.75rem !important;
+    }
+    
+    .text-end {
+      text-align: left !important;
+    }
+  }
+}
