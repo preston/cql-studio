@@ -47,6 +47,10 @@ export class OpenComponent {
     }
   }
 
+  onLoadExample(): void {
+    this.loadExampleFile();
+  }
+
   onValidateSchemaChange(): void {
     this.settingsService.saveSettings();
   }
@@ -99,6 +103,22 @@ export class OpenComponent {
       // Extract filename from URL
       const filename = this.extractFilenameFromUrl(url);
       sessionStorage.setItem('originalFilename', filename);
+      await this.validateAndNavigate(data);
+    } catch (error) {
+      this.errorMessage.set((error as Error).message);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  private async loadExampleFile(): Promise<void> {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    this.validationErrors.set([]);
+
+    try {
+      const data = await this.fileLoader.loadFromExample();
+      sessionStorage.setItem('originalFilename', 'results.json');
       await this.validateAndNavigate(data);
     } catch (error) {
       this.errorMessage.set((error as Error).message);

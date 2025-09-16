@@ -43,4 +43,18 @@ export class FileLoaderService {
       throw new Error('Error loading file from URL: ' + (error as Error).message);
     }
   }
+
+  async loadFromExample(): Promise<CqlTestResults> {
+    try {
+      const response = await fetch('/examples/results.json');
+      if (!response.ok) {
+        throw new Error(`Failed to load example file: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data as CqlTestResults;
+    } catch (error) {
+      throw new Error('Error loading example file: ' + (error as Error).message);
+    }
+  }
 }

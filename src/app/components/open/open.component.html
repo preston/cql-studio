@@ -9,7 +9,7 @@
 				<div class="card-body">
 					<!-- File Upload Section -->
 					<div class="mb-4">
-						<h5>Upload File</h5>
+						<h5>Open Local File</h5>
 						<div class="input-group">
 							<input type="file" class="form-control" id="fileInput" accept=".json"
 								(change)="onFileSelected($event)" [disabled]="isLoading()">
@@ -23,7 +23,7 @@
 								<i class="bi bi-arrow-clockwise"></i> Retry
 							</button>
 						</div>
-						<div class="form-text">Select a JSON file containing CQL test results</div>
+						<div class="form-text">Select a JSON file containing CQL test results. It will <b>not</b> be uploaded to any server.</div>
 					</div>
 
 					<div class="text-center mb-4">
@@ -41,8 +41,25 @@
 								Load
 							</button>
 						</div>
-						<div class="form-text">Enter a URL to a JSON file containing CQL test results</div>
+						<div class="form-text">Enter a URL to a JSON file containing CQL test results.</div>
 					</div>
+
+					<div class="text-center mb-4">
+						<span class="text-muted">OR</span>
+					</div>
+
+					<!-- Example File Section -->
+					<div class="mb-4">
+						<h5>Load Example</h5>
+						<div class="d-grid">
+							<button class="btn btn-outline-secondary" type="button" (click)="onLoadExample()"
+								[disabled]="isLoading()">
+								<i class="bi bi-file-earmark-code me-2"></i>Load Example Results File
+							</button>
+						</div>
+						<div class="form-text">Load the bundled example CQL test results file.</div>
+					</div>
+
 <hr>
 					<!-- Settings Section -->
 					<div class="mb-4">
