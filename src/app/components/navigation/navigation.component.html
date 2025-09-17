@@ -18,7 +18,7 @@
           <ul class="dropdown-menu" aria-labelledby="fileDropdown">
             <li>
               <a class="dropdown-item" routerLink="/" (click)="onOpenNew()">
-                <i class="bi bi-folder2-open me-2"></i>Open...
+                <i class="bi bi-folder2-open me-2"></i>Close
               </a>
             </li>
             <li>
@@ -26,6 +26,14 @@
                 <i class="bi bi-download me-2"></i>Download
               </a>
             </li>
+            @if (hasIndexUrl()) {
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item" href="#" (click)="goBackToIndex(); $event.preventDefault()">
+                  <i class="bi bi-arrow-left me-2"></i>Back to Index
+                </a>
+              </li>
+            }
           </ul>
         </li>
         <li class="nav-item">

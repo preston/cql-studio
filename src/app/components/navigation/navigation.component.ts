@@ -64,4 +64,17 @@ export class NavigationComponent {
       }
     }
   }
+
+  goBackToIndex(): void {
+    const indexUrl = sessionStorage.getItem('indexUrl');
+    if (indexUrl) {
+      this.router.navigate(['/'], { queryParams: { index: indexUrl } });
+    } else {
+      this.router.navigate(['/']);
+    }
+  }
+
+  hasIndexUrl(): boolean {
+    return !!sessionStorage.getItem('indexUrl');
+  }
 }

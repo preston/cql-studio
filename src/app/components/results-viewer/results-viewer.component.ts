@@ -7,6 +7,9 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { CqlTestResults, TestResult } from '../../models/cql-test-results.model';
 import { BaseChartDirective } from 'ng2-charts';
 import { Chart, registerables } from 'chart.js';
+import { FileLoaderService } from '../../services/file-loader.service';
+import { SchemaValidationService } from '../../services/schema-validation.service';
+import { SettingsService } from '../../services/settings.service';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -30,6 +33,9 @@ export class ResultsViewerComponent implements OnInit {
   groupBy = signal<string>('none');
   sortBy = signal<string>('name');
   sortOrder = signal<string>('asc');
+  
+  // Store the original URL parameter to preserve it
+  private originalUrl: string | null = null;
 
   // Chart data properties
   pieChartData: any = {
@@ -189,7 +195,10 @@ export class ResultsViewerComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private fileLoader: FileLoaderService,
+    private schemaValidation: SchemaValidationService,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
@@ -205,18 +214,35 @@ export class ResultsViewerComponent implements OnInit {
         // Apply filters with initial values
         this.applyFilters();
         this.updateChartData(); // Initial chart data load
+        
+        // Ensure URL parameter is set in the browser address bar after initialization
+        this.updateUrlWithPreservedParams();
       } catch (error) {
         console.error('Error parsing stored data:', error);
         this.router.navigate(['/']);
       }
     } else {
-      this.router.navigate(['/']);
+      // Check if there's a URL parameter to load data from
+      const params = this.route.snapshot.queryParams;
+      if (params['url']) {
+        this.loadFromUrl(params['url']);
+      } else {
+        this.router.navigate(['/']);
+      }
     }
   }
 
   private loadInitialParameters(): void {
     // Get current query parameters
     const params = this.route.snapshot.queryParams;
+    
+    // Handle URL parameter (for files loaded from index)
+    if (params['url']) {
+      // Store the URL for potential future use
+      sessionStorage.setItem('currentFileUrl', params['url']);
+      // Store the URL in component property to preserve it
+      this.originalUrl = params['url'];
+    }
     
     // Priority: URL params > sessionStorage > defaults
     const initialStatus = params['status'] || sessionStorage.getItem('initialStatus');
@@ -279,7 +305,7 @@ export class ResultsViewerComponent implements OnInit {
     this.selectedStatus.set(target.value);
     this.applyFilters();
     this.updateChartData(); // Only update charts for status filter changes
-    this.updateUrl();
+    this.updateUrlWithPreservedParams();
   }
 
   onSearchChange(event: Event): void {
@@ -287,14 +313,14 @@ export class ResultsViewerComponent implements OnInit {
     this.searchTerm.set(target.value);
     this.applyFilters();
     this.updateChartData(); // Only update charts for search changes
-    this.updateUrl();
+    this.updateUrlWithPreservedParams();
   }
 
   onGroupByChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
     this.groupBy.set(target.value);
     this.applyFilters();
-    this.updateUrl();
+    this.updateUrlWithPreservedParams();
     // No chart update needed for grouping changes
   }
 
@@ -302,7 +328,7 @@ export class ResultsViewerComponent implements OnInit {
     const target = event.target as HTMLSelectElement;
     this.sortBy.set(target.value);
     this.applyFilters();
-    this.updateUrl();
+    this.updateUrlWithPreservedParams();
     // No chart update needed for sorting changes
   }
 
@@ -310,7 +336,7 @@ export class ResultsViewerComponent implements OnInit {
     const target = event.target as HTMLSelectElement;
     this.sortOrder.set(target.value);
     this.applyFilters();
-    this.updateUrl();
+    this.updateUrlWithPreservedParams();
     // No chart update needed for sort order changes
   }
 
@@ -435,6 +461,19 @@ export class ResultsViewerComponent implements OnInit {
     this.router.navigate(['/']);
   }
 
+  goBackToIndex(): void {
+    const indexUrl = sessionStorage.getItem('indexUrl');
+    if (indexUrl) {
+      this.router.navigate(['/'], { queryParams: { index: indexUrl } });
+    } else {
+      this.router.navigate(['/']);
+    }
+  }
+
+  hasIndexUrl(): boolean {
+    return !!sessionStorage.getItem('indexUrl');
+  }
+
   hasDetailedInfo(): boolean {
     return this.filteredResults().some(r => r.error || r.actual || r.expected);
   }
@@ -544,13 +583,12 @@ export class ResultsViewerComponent implements OnInit {
     };
   }
 
-  private updateUrl(): void {
+  private updateUrlWithPreservedParams(): void {
     const queryParams: any = {};
     
-    // Preserve the original URL parameter if it exists
-    const currentParams = this.route.snapshot.queryParams;
-    if (currentParams['url']) {
-      queryParams.url = currentParams['url'];
+    // Always include the original URL parameter if it exists
+    if (this.originalUrl) {
+      queryParams.url = this.originalUrl;
     }
     
     // Only add parameters that are not default values
@@ -581,5 +619,46 @@ export class ResultsViewerComponent implements OnInit {
       queryParamsHandling: 'merge',
       replaceUrl: true
     });
+  }
+
+  private async loadFromUrl(url: string): Promise<void> {
+    try {
+      const data = await this.fileLoader.loadFromUrl(url);
+      
+      // Check if schema validation is enabled
+      if (this.settingsService.settings().validateSchema) {
+        const validation = await this.schemaValidation.validateResults(data);
+        
+        if (validation.isValid) {
+          sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+          this.testResults.set(data);
+          this.loadInitialParameters();
+          this.applyFilters();
+          this.updateChartData();
+          this.updateUrlWithPreservedParams();
+        } else {
+          console.error('Validation errors:', validation.errors);
+          // Still load results but show validation errors
+          sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+          sessionStorage.setItem('validationErrors', JSON.stringify(validation.errors));
+          this.testResults.set(data);
+          this.loadInitialParameters();
+          this.applyFilters();
+          this.updateChartData();
+          this.updateUrlWithPreservedParams();
+        }
+      } else {
+        // Skip validation, just store and load
+        sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+        this.testResults.set(data);
+        this.loadInitialParameters();
+        this.applyFilters();
+        this.updateChartData();
+        this.updateUrlWithPreservedParams();
+      }
+    } catch (error) {
+      console.error('Error loading from URL:', error);
+      this.router.navigate(['/']);
+    }
   }
 }
