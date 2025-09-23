@@ -39,6 +39,12 @@ export class OpenComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // Check for URL query parameter
+    const urlParam = this.route.snapshot.queryParams['url'];
+    if (urlParam) {
+      this.loadFromUrl(urlParam);
+    }
+    
     // Check for index query parameter
     const indexParam = this.route.snapshot.queryParams['index'];
     if (indexParam) {
@@ -262,16 +268,25 @@ export class OpenComponent implements OnInit {
       if (validation.isValid) {
         // Store data in sessionStorage for the results viewer
         sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
-        // Navigate with the file URL as a query parameter
-        this.router.navigate(['/results'], { queryParams: { url: fileUrl } });
+        // Navigate with the file URL and preserve all existing query parameters
+        this.navigateToResultsWithParams(fileUrl);
       } else {
         this.validationErrors.set(validation.errors);
       }
     } else {
       // Skip validation, just store and navigate
       sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
-      // Navigate with the file URL as a query parameter
-      this.router.navigate(['/results'], { queryParams: { url: fileUrl } });
+      // Navigate with the file URL and preserve all existing query parameters
+      this.navigateToResultsWithParams(fileUrl);
     }
+  }
+
+  private navigateToResultsWithParams(fileUrl: string): void {
+    // Get current query parameters and preserve them
+    const currentParams = this.route.snapshot.queryParams;
+    const queryParams = { ...currentParams, url: fileUrl };
+    
+    // Navigate to results page with all parameters
+    this.router.navigate(['/results'], { queryParams });
   }
 }

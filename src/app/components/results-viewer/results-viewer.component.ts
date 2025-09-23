@@ -10,6 +10,16 @@ import { Chart, registerables } from 'chart.js';
 import { FileLoaderService } from '../../services/file-loader.service';
 import { SchemaValidationService } from '../../services/schema-validation.service';
 import { SettingsService } from '../../services/settings.service';
+import { 
+  StatusFilter, 
+  GroupByOption, 
+  SortByOption, 
+  SortOrder,
+  isValidStatusFilter,
+  isValidGroupByOption,
+  isValidSortByOption,
+  isValidSortOrder
+} from '../../models/query-params.model';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -24,15 +34,21 @@ Chart.register(...registerables);
 export class ResultsViewerComponent implements OnInit {
   testResults = signal<CqlTestResults | null>(null);
   filteredResults = signal<TestResult[]>([]);
-  selectedStatus = signal<string>('all');
+  selectedStatus = signal<StatusFilter>(StatusFilter.ALL);
   searchTerm = signal<string>('');
   expandedResults = signal<Set<string>>(new Set());
   showAllDetails = signal<boolean>(false);
   
   // Grouping and sorting controls
-  groupBy = signal<string>('none');
-  sortBy = signal<string>('name');
-  sortOrder = signal<string>('asc');
+  groupBy = signal<GroupByOption>(GroupByOption.NONE);
+  sortBy = signal<SortByOption>(SortByOption.NAME);
+  sortOrder = signal<SortOrder>(SortOrder.ASC);
+  
+  // Expose enums to template
+  readonly StatusFilter = StatusFilter;
+  readonly GroupByOption = GroupByOption;
+  readonly SortByOption = SortByOption;
+  readonly SortOrder = SortOrder;
   
   // Store the original URL parameter to preserve it
   private originalUrl: string | null = null;
@@ -251,36 +267,62 @@ export class ResultsViewerComponent implements OnInit {
     const initialSortBy = params['sortBy'] || sessionStorage.getItem('initialSortBy');
     const initialSortOrder = params['sortOrder'] || sessionStorage.getItem('initialSortOrder');
     
+    // Validate and set status filter
     if (initialStatus) {
-      this.selectedStatus.set(initialStatus);
+      if (isValidStatusFilter(initialStatus)) {
+        this.selectedStatus.set(initialStatus);
+      } else {
+        console.warn(`Invalid status parameter: ${initialStatus}. Using default: '${StatusFilter.ALL}'`);
+        this.selectedStatus.set(StatusFilter.ALL);
+      }
       if (sessionStorage.getItem('initialStatus')) {
         sessionStorage.removeItem('initialStatus'); // Clean up after use
       }
     }
     
+    // Validate and set search term
     if (initialSearch) {
-      this.searchTerm.set(initialSearch);
+      // Search term can be any string, but we'll trim it
+      this.searchTerm.set(initialSearch.trim());
       if (sessionStorage.getItem('initialSearch')) {
         sessionStorage.removeItem('initialSearch'); // Clean up after use
       }
     }
     
+    // Validate and set group by filter
     if (initialGroupBy) {
-      this.groupBy.set(initialGroupBy);
+      if (isValidGroupByOption(initialGroupBy)) {
+        this.groupBy.set(initialGroupBy);
+      } else {
+        console.warn(`Invalid groupBy parameter: ${initialGroupBy}. Using default: '${GroupByOption.NONE}'`);
+        this.groupBy.set(GroupByOption.NONE);
+      }
       if (sessionStorage.getItem('initialGroupBy')) {
         sessionStorage.removeItem('initialGroupBy'); // Clean up after use
       }
     }
     
+    // Validate and set sort by filter
     if (initialSortBy) {
-      this.sortBy.set(initialSortBy);
+      if (isValidSortByOption(initialSortBy)) {
+        this.sortBy.set(initialSortBy);
+      } else {
+        console.warn(`Invalid sortBy parameter: ${initialSortBy}. Using default: '${SortByOption.NAME}'`);
+        this.sortBy.set(SortByOption.NAME);
+      }
       if (sessionStorage.getItem('initialSortBy')) {
         sessionStorage.removeItem('initialSortBy'); // Clean up after use
       }
     }
     
+    // Validate and set sort order filter
     if (initialSortOrder) {
-      this.sortOrder.set(initialSortOrder);
+      if (isValidSortOrder(initialSortOrder)) {
+        this.sortOrder.set(initialSortOrder);
+      } else {
+        console.warn(`Invalid sortOrder parameter: ${initialSortOrder}. Using default: '${SortOrder.ASC}'`);
+        this.sortOrder.set(SortOrder.ASC);
+      }
       if (sessionStorage.getItem('initialSortOrder')) {
         sessionStorage.removeItem('initialSortOrder'); // Clean up after use
       }
@@ -302,7 +344,16 @@ export class ResultsViewerComponent implements OnInit {
 
   onStatusFilterChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
-    this.selectedStatus.set(target.value);
+    const value = target.value;
+    if (isValidStatusFilter(value)) {
+      this.selectedStatus.set(value);
+    } else {
+      console.warn(`Invalid status value: ${value}. Using default: '${StatusFilter.ALL}'`);
+      this.selectedStatus.set(StatusFilter.ALL);
+      // Reset the select element to the default value
+      target.value = StatusFilter.ALL;
+    }
+    
     this.applyFilters();
     this.updateChartData(); // Only update charts for status filter changes
     this.updateUrlWithPreservedParams();
@@ -318,23 +369,54 @@ export class ResultsViewerComponent implements OnInit {
 
   onGroupByChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
-    this.groupBy.set(target.value);
+    const value = target.value;
+    if (isValidGroupByOption(value)) {
+      this.groupBy.set(value);
+    } else {
+      console.warn(`Invalid groupBy value: ${value}. Using default: '${GroupByOption.NONE}'`);
+      this.groupBy.set(GroupByOption.NONE);
+      // Reset the select element to the default value
+      target.value = GroupByOption.NONE;
+    }
+    
     this.applyFilters();
     this.updateUrlWithPreservedParams();
     // No chart update needed for grouping changes
   }
 
   onSortByChange(event: Event): void {
+    console.log('onSortByChange called!');
     const target = event.target as HTMLSelectElement;
-    this.sortBy.set(target.value);
+    const value = target.value;
+    console.log('Sort by value:', value);
+    if (isValidSortByOption(value)) {
+      this.sortBy.set(value);
+    } else {
+      console.warn(`Invalid sortBy value: ${value}. Using default: '${SortByOption.NAME}'`);
+      this.sortBy.set(SortByOption.NAME);
+      // Reset the select element to the default value
+      target.value = SortByOption.NAME;
+    }
+    
     this.applyFilters();
     this.updateUrlWithPreservedParams();
     // No chart update needed for sorting changes
   }
 
   onSortOrderChange(event: Event): void {
+    console.log('onSortOrderChange called!');
     const target = event.target as HTMLSelectElement;
-    this.sortOrder.set(target.value);
+    const value = target.value;
+    console.log('Sort order value:', value);
+    if (isValidSortOrder(value)) {
+      this.sortOrder.set(value);
+    } else {
+      console.warn(`Invalid sortOrder value: ${value}. Using default: '${SortOrder.ASC}'`);
+      this.sortOrder.set(SortOrder.ASC);
+      // Reset the select element to the default value
+      target.value = SortOrder.ASC;
+    }
+    
     this.applyFilters();
     this.updateUrlWithPreservedParams();
     // No chart update needed for sort order changes
@@ -345,7 +427,7 @@ export class ResultsViewerComponent implements OnInit {
     let filtered = results;
 
     // Filter by status
-    if (this.selectedStatus() !== 'all') {
+    if (this.selectedStatus() !== StatusFilter.ALL) {
       filtered = filtered.filter(result => result.testStatus === this.selectedStatus());
     }
 
@@ -374,26 +456,26 @@ export class ResultsViewerComponent implements OnInit {
       let comparison = 0;
       
       switch (sortBy) {
-        case 'name':
+        case SortByOption.NAME:
           comparison = a.testName.localeCompare(b.testName);
           break;
-        case 'group':
+        case SortByOption.GROUP:
           comparison = a.groupName.localeCompare(b.groupName);
           break;
-        case 'status':
+        case SortByOption.STATUS:
           comparison = a.testStatus.localeCompare(b.testStatus);
           break;
-        case 'expression':
+        case SortByOption.EXPRESSION:
           comparison = a.expression.localeCompare(b.expression);
           break;
-        case 'testsName':
+        case SortByOption.TESTS_NAME:
           comparison = a.testsName.localeCompare(b.testsName);
           break;
         default:
           comparison = 0;
       }
       
-      return sortOrder === 'desc' ? -comparison : comparison;
+      return sortOrder === SortOrder.DESC ? -comparison : comparison;
     });
   }
 
@@ -401,16 +483,17 @@ export class ResultsViewerComponent implements OnInit {
     const results = this.filteredResults();
     const groupBy = this.groupBy();
     
-    if (groupBy === 'none') {
-      return [{ group: 'All Results', results }];
+    if (groupBy === GroupByOption.NONE) {
+      // Ensure results are sorted even when not grouped
+      return [{ group: 'All Results', results: this.sortResults(results) }];
     }
     
     const groups = new Map<string, TestResult[]>();
     
     results.forEach(result => {
-      const groupKey = groupBy === 'group' ? result.groupName : 
-                      groupBy === 'status' ? result.testStatus :
-                      groupBy === 'testsName' ? result.testsName : 'Ungrouped';
+      const groupKey = groupBy === GroupByOption.GROUP ? result.groupName : 
+                      groupBy === GroupByOption.STATUS ? result.testStatus :
+                      groupBy === GroupByOption.TESTS_NAME ? result.testsName : 'Ungrouped';
       
       if (!groups.has(groupKey)) {
         groups.set(groupKey, []);
@@ -418,9 +501,12 @@ export class ResultsViewerComponent implements OnInit {
       groups.get(groupKey)!.push(result);
     });
     
-    // Sort groups alphabetically
+    // Sort groups alphabetically and preserve sorting within each group
     return Array.from(groups.entries())
-      .map(([group, groupResults]) => ({ group, results: groupResults }))
+      .map(([group, groupResults]) => ({ 
+        group, 
+        results: this.sortResults(groupResults) // Apply sorting within each group
+      }))
       .sort((a, b) => a.group.localeCompare(b.group));
   }
 
@@ -592,7 +678,7 @@ export class ResultsViewerComponent implements OnInit {
     }
     
     // Only add parameters that are not default values
-    if (this.selectedStatus() !== 'all') {
+    if (this.selectedStatus() !== StatusFilter.ALL) {
       queryParams.status = this.selectedStatus();
     }
     
@@ -600,15 +686,15 @@ export class ResultsViewerComponent implements OnInit {
       queryParams.search = this.searchTerm().trim();
     }
     
-    if (this.groupBy() !== 'none') {
+    if (this.groupBy() !== GroupByOption.NONE) {
       queryParams.groupBy = this.groupBy();
     }
     
-    if (this.sortBy() !== 'name') {
+    if (this.sortBy() !== SortByOption.NAME) {
       queryParams.sortBy = this.sortBy();
     }
     
-    if (this.sortOrder() !== 'asc') {
+    if (this.sortOrder() !== SortOrder.ASC) {
       queryParams.sortOrder = this.sortOrder();
     }
     
@@ -616,7 +702,7 @@ export class ResultsViewerComponent implements OnInit {
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: queryParams,
-      queryParamsHandling: 'merge',
+      queryParamsHandling: 'replace',
       replaceUrl: true
     });
   }

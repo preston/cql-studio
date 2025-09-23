@@ -1,0 +1,103 @@
+{
+  "cqlengine": {
+    "apiUrl": "http://localhost:8080/fhir/$cql",
+    "cqlVersion": "1.5"
+  },
+  "testsRunDateTime": "2024-01-15T10:30:00.000Z",
+  "testResultsSummary": {
+    "passCount": 2,
+    "skipCount": 0,
+    "failCount": 5,
+    "errorCount": 1
+  },
+  "results": [
+    {
+      "testStatus": "fail",
+      "responseStatus": 200,
+      "actual": 1,
+      "expected": "2",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Addition",
+      "testName": "AddInteger",
+      "invalid": "false",
+      "expression": "1 + 1"
+    },
+    {
+      "testStatus": "fail",
+      "responseStatus": 200,
+      "actual": 2.0,
+      "expected": "2.5",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Addition",
+      "testName": "AddDecimal",
+      "invalid": "false",
+      "expression": "1.5 + 1.0"
+    },
+    {
+      "testStatus": "fail",
+      "responseStatus": 200,
+      "actual": 1,
+      "expected": "3",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Subtraction",
+      "testName": "SubtractInteger",
+      "invalid": "false",
+      "expression": "5 - 2"
+    },
+    {
+      "testStatus": "fail",
+      "responseStatus": 200,
+      "actual": 8,
+      "expected": "10",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Multiplication",
+      "testName": "MultiplyInteger",
+      "invalid": "false",
+      "expression": "2 * 5"
+    },
+    {
+      "testStatus": "error",
+      "responseStatus": 500,
+      "actual": null,
+      "expected": "2",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Division",
+      "testName": "DivideByZero",
+      "invalid": "false",
+      "expression": "10 / 0"
+    },
+    {
+      "testStatus": "fail",
+      "responseStatus": 200,
+      "actual": "Hello",
+      "expected": "Hello World",
+      "testsName": "CqlStringFunctionsTest",
+      "groupName": "Concatenation",
+      "testName": "ConcatStrings",
+      "invalid": "false",
+      "expression": "'Hello' + ' ' + 'World'"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": 5,
+      "expected": "5",
+      "testsName": "CqlStringFunctionsTest",
+      "groupName": "Length",
+      "testName": "StringLength",
+      "invalid": "false",
+      "expression": "Length('Hello')"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": true,
+      "expected": "true",
+      "testsName": "CqlBooleanFunctionsTest",
+      "groupName": "Logic",
+      "testName": "AndTrue",
+      "invalid": "false",
+      "expression": "true and true"
+    }
+  ]
+}

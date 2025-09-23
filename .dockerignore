@@ -10,3 +10,4 @@ dist/
 doc/
 Dockerfile
 node_modules/
+test-results/

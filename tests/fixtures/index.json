@@ -1,0 +1,10 @@
+{
+  "files": [
+    "test-results.json",
+    "test-results-2024-01-15.json",
+    "test-results-2024-01-16.json",
+    "test-results-2024-01-17.json",
+    "test-results-failed.json",
+    "test-results-large.json"
+  ]
+}

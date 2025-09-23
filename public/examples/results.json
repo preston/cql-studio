@@ -8,9 +8,20 @@
     "passCount": 1476,
     "skipCount": 39,
     "failCount": 168,
-    "errorCount": 0
+    "errorCount": 1
   },
   "results": [
+    {
+      "testStatus": "error",
+      "responseStatus": 500,
+      "actual": null,
+      "expected": "2",
+      "testsName": "FakeErrorNotARealTest",
+      "groupName": "MockTests",
+      "testName": "DivideByZero",
+      "invalid": "false",
+      "expression": "10 / 0"
+    },
     {
       "testStatus": "pass",
       "responseStatus": 200,

@@ -1,0 +1,191 @@
+{
+  "cqlengine": {
+    "apiUrl": "http://localhost:8080/fhir/$cql",
+    "cqlVersion": "1.5"
+  },
+  "testsRunDateTime": "2024-01-15T10:30:00.000Z",
+  "testResultsSummary": {
+    "passCount": 10,
+    "skipCount": 2,
+    "failCount": 3,
+    "errorCount": 1
+  },
+  "results": [
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": true,
+      "expected": "true",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Addition",
+      "testName": "AddInteger",
+      "invalid": "false",
+      "expression": "1 + 1"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": 2.5,
+      "expected": "2.5",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Addition",
+      "testName": "AddDecimal",
+      "invalid": "false",
+      "expression": "1.5 + 1.0"
+    },
+    {
+      "testStatus": "fail",
+      "responseStatus": 200,
+      "actual": 3,
+      "expected": "4",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Subtraction",
+      "testName": "SubtractInteger",
+      "invalid": "false",
+      "expression": "5 - 2"
+    },
+    {
+      "testStatus": "skip",
+      "responseStatus": 200,
+      "actual": null,
+      "expected": "10",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Multiplication",
+      "testName": "MultiplyInteger",
+      "invalid": "false",
+      "expression": "2 * 5"
+    },
+    {
+      "testStatus": "error",
+      "responseStatus": 500,
+      "actual": null,
+      "expected": "2",
+      "testsName": "CqlArithmeticFunctionsTest",
+      "groupName": "Division",
+      "testName": "DivideByZero",
+      "invalid": "false",
+      "expression": "10 / 0"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": "Hello World",
+      "expected": "Hello World",
+      "testsName": "CqlStringFunctionsTest",
+      "groupName": "Concatenation",
+      "testName": "ConcatStrings",
+      "invalid": "false",
+      "expression": "'Hello' + ' ' + 'World'"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": 5,
+      "expected": "5",
+      "testsName": "CqlStringFunctionsTest",
+      "groupName": "Length",
+      "testName": "StringLength",
+      "invalid": "false",
+      "expression": "Length('Hello')"
+    },
+    {
+      "testStatus": "fail",
+      "responseStatus": 200,
+      "actual": "HELLO",
+      "expected": "hello",
+      "testsName": "CqlStringFunctionsTest",
+      "groupName": "Case",
+      "testName": "ToLower",
+      "invalid": "false",
+      "expression": "ToLower('HELLO')"
+    },
+    {
+      "testStatus": "skip",
+      "responseStatus": 200,
+      "actual": null,
+      "expected": "true",
+      "testsName": "CqlBooleanFunctionsTest",
+      "groupName": "Logic",
+      "testName": "AndTrue",
+      "invalid": "false",
+      "expression": "true and true"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": false,
+      "expected": "false",
+      "testsName": "CqlBooleanFunctionsTest",
+      "groupName": "Logic",
+      "testName": "OrFalse",
+      "invalid": "false",
+      "expression": "false or false"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": true,
+      "expected": "true",
+      "testsName": "CqlBooleanFunctionsTest",
+      "groupName": "Logic",
+      "testName": "NotFalse",
+      "invalid": "false",
+      "expression": "not false"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": 2024,
+      "expected": "2024",
+      "testsName": "CqlDateTimeFunctionsTest",
+      "groupName": "Year",
+      "testName": "YearOfDate",
+      "invalid": "false",
+      "expression": "Year of @2024-01-15"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": 1,
+      "expected": "1",
+      "testsName": "CqlDateTimeFunctionsTest",
+      "groupName": "Month",
+      "testName": "MonthOfDate",
+      "invalid": "false",
+      "expression": "Month of @2024-01-15"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": 15,
+      "expected": "15",
+      "testsName": "CqlDateTimeFunctionsTest",
+      "groupName": "Day",
+      "testName": "DayOfDate",
+      "invalid": "false",
+      "expression": "Day of @2024-01-15"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": 0,
+      "expected": "0",
+      "testsName": "CqlDateTimeFunctionsTest",
+      "groupName": "Hour",
+      "testName": "HourOfTime",
+      "invalid": "false",
+      "expression": "Hour of @T00:00:00"
+    },
+    {
+      "testStatus": "pass",
+      "responseStatus": 200,
+      "actual": 30,
+      "expected": "30",
+      "testsName": "CqlDateTimeFunctionsTest",
+      "groupName": "Minute",
+      "testName": "MinuteOfTime",
+      "invalid": "false",
+      "expression": "Minute of @T00:30:00"
+    }
+  ]
+}

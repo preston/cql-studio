@@ -1,6 +1,6 @@
 {
   "name": "cql-tests-ui",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": "Preston Lee",
   "license": "Apache-2.0",
   "repository": {
@@ -16,7 +16,11 @@
     "start": "envsubst < public/configuration.template.js > public/configuration.js && ng serve",
     "build": "ng build",
     "watch": "envsubst < public/configuration.template.js > public/configuration.js && ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug"
   },
   "prettier": {
     "printWidth": 100,
@@ -52,6 +56,7 @@
     "@angular/build": "^20.3.1",
     "@angular/cli": "^20.3.1",
     "@angular/compiler-cli": "^20.3.0",
+    "@playwright/test": "^1.55.1",
     "@types/jasmine": "~5.1.9",
     "jasmine-core": "~5.10.0",
     "karma": "~6.4.4",

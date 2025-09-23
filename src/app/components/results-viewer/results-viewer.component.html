@@ -139,51 +139,51 @@
     <div class="col-md-3">
       <div class="input-group">
         <span class="input-group-text">Filter by Status:</span>
-        <select class="form-select" [ngModel]="selectedStatus()" (change)="onStatusFilterChange($event)">
-          <option value="all">All</option>
-          <option value="pass">Passed</option>
-          <option value="fail">Failed</option>
-          <option value="skip">Skipped</option>
-          <option value="error">Errors</option>
+        <select id="status-filter" class="form-select" [ngModel]="selectedStatus()" (change)="onStatusFilterChange($event)">
+          <option [value]="StatusFilter.ALL">All</option>
+          <option [value]="StatusFilter.PASS">Passed</option>
+          <option [value]="StatusFilter.FAIL">Failed</option>
+          <option [value]="StatusFilter.SKIP">Skipped</option>
+          <option [value]="StatusFilter.ERROR">Errors</option>
         </select>
       </div>
     </div>
     <div class="col-md-3">
       <div class="input-group">
         <span class="input-group-text">Search:</span>
-        <input type="text" class="form-control" placeholder="Search tests..." [ngModel]="searchTerm()"
+        <input id="search-input" type="text" class="form-control" placeholder="Search tests..." [ngModel]="searchTerm()"
           (change)="onSearchChange($event)">
       </div>
     </div>
     <div class="col-md-2">
       <div class="input-group">
         <span class="input-group-text">Group by:</span>
-        <select class="form-select" [ngModel]="groupBy()" (change)="onGroupByChange($event)">
-          <option value="none">None</option>
-          <option value="group">Group Name</option>
-          <option value="status">Status</option>
-          <option value="testsName">Tests Name</option>
+        <select id="group-by-filter" class="form-select" [ngModel]="groupBy()" (change)="onGroupByChange($event)">
+          <option [value]="GroupByOption.NONE">None</option>
+          <option [value]="GroupByOption.GROUP">Group Name</option>
+          <option [value]="GroupByOption.STATUS">Status</option>
+          <option [value]="GroupByOption.TESTS_NAME">Tests Name</option>
         </select>
       </div>
     </div>
     <div class="col-md-2">
       <div class="input-group">
         <span class="input-group-text">Sort by:</span>
-        <select class="form-select" [ngModel]="sortBy()" (change)="onSortByChange($event)">
-          <option value="name">Test Name</option>
-          <option value="group">Group Name</option>
-          <option value="status">Status</option>
-          <option value="expression">Expression</option>
-          <option value="testsName">Tests Name</option>
+        <select id="sort-by-filter" class="form-select" [ngModel]="sortBy()" (change)="onSortByChange($event)">
+          <option [value]="SortByOption.NAME">Test Name</option>
+          <option [value]="SortByOption.GROUP">Group Name</option>
+          <option [value]="SortByOption.STATUS">Status</option>
+          <option [value]="SortByOption.EXPRESSION">Expression</option>
+          <option [value]="SortByOption.TESTS_NAME">Tests Name</option>
         </select>
       </div>
     </div>
     <div class="col-md-2">
       <div class="input-group">
         <span class="input-group-text">Order:</span>
-        <select class="form-select" [ngModel]="sortOrder()" (change)="onSortOrderChange($event)">
-          <option value="asc">Ascending</option>
-          <option value="desc">Descending</option>
+        <select id="sort-order-filter" class="form-select" [ngModel]="sortOrder()" (change)="onSortOrderChange($event)">
+          <option [value]="SortOrder.ASC">Ascending</option>
+          <option [value]="SortOrder.DESC">Descending</option>
         </select>
       </div>
     </div>
@@ -216,7 +216,7 @@
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table id="results-table" class="table table-hover mb-0">
               <thead>
                 <tr>
                   <th style="width: 40px;"></th>
@@ -241,7 +241,7 @@
                   <!-- Results within group -->
                   <ng-container *ngFor="let result of group.results">
                     <!-- Main result row -->
-                    <tr class="table-row-clickable" [class.table-active]="isResultExpanded(getResultId(result))"
+                    <tr class="table-row-clickable" data-testid="test-result-row" [class.table-active]="isResultExpanded(getResultId(result))"
                       (click)="hasResultDetails(result) && toggleResultDetails(getResultId(result))"
                       [style.cursor]="hasResultDetails(result) ? 'pointer' : 'default'">
                       <td>
@@ -249,17 +249,17 @@
                           {{ isResultExpanded(getResultId(result)) ? '▼' : '▶' }}
                         </span>
                       </td>
-                      <td>
+                      <td data-testid="status-cell">
                         <span [class]="getStatusClass(result.testStatus)">
                           {{ getStatusIcon(result.testStatus) }} {{ result.testStatus | titlecase }}
                         </span>
                       </td>
-                      <td>
+                      <td data-testid="test-name-cell">
                         <strong>{{ result.testName }}</strong>
                         <div class="text-muted small">{{ result.testsName }}</div>
                       </td>
-                      <td>{{ result.groupName }}</td>
-                      <td>
+                      <td data-testid="group-cell">{{ result.groupName }}</td>
+                      <td data-testid="expression-cell">
                         <code class="small">{{ result.expression }}</code>
                       </td>
                       <td>
