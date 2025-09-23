@@ -7,6 +7,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { FileLoaderService } from '../../services/file-loader.service';
 import { SchemaValidationService } from '../../services/schema-validation.service';
 import { SettingsService } from '../../services/settings.service';
+import { SessionStorageKeys } from '../../constants/session-storage.constants';
 import { CqlTestResults } from '../../models/cql-test-results.model';
 
 @Component({
@@ -84,7 +85,7 @@ export class OpenComponent implements OnInit {
     const fileUrl = `${baseUrl}/${filename}`;
     
     // Store the index URL for the "Back to Index" functionality
-    sessionStorage.setItem('indexUrl', this.indexUrl());
+    sessionStorage.setItem(SessionStorageKeys.INDEX_URL, this.indexUrl());
     
     // Load the file and update URL with the specific file URL
     this.loadFromUrlWithIndex(fileUrl);
@@ -123,7 +124,7 @@ export class OpenComponent implements OnInit {
       const data = await this.fileLoader.loadFromFile(file);
       this.lastLoadedData.set(data);
       // Store the original filename
-      sessionStorage.setItem('originalFilename', file.name);
+      sessionStorage.setItem(SessionStorageKeys.ORIGINAL_FILENAME, file.name);
       await this.validateAndNavigate(data);
     } catch (error) {
       this.errorMessage.set((error as Error).message);
@@ -141,7 +142,7 @@ export class OpenComponent implements OnInit {
       const data = await this.fileLoader.loadFromUrl(url);
       // Extract filename from URL
       const filename = this.extractFilenameFromUrl(url);
-      sessionStorage.setItem('originalFilename', filename);
+      sessionStorage.setItem(SessionStorageKeys.ORIGINAL_FILENAME, filename);
       await this.validateAndNavigateWithUrl(data, url);
     } catch (error) {
       this.errorMessage.set((error as Error).message);
@@ -159,7 +160,7 @@ export class OpenComponent implements OnInit {
       const data = await this.fileLoader.loadFromUrl(url);
       // Extract filename from URL
       const filename = this.extractFilenameFromUrl(url);
-      sessionStorage.setItem('originalFilename', filename);
+      sessionStorage.setItem(SessionStorageKeys.ORIGINAL_FILENAME, filename);
       await this.validateAndNavigateWithUrl(data, url);
     } catch (error) {
       this.errorMessage.set((error as Error).message);
@@ -175,7 +176,7 @@ export class OpenComponent implements OnInit {
 
     try {
       const data = await this.fileLoader.loadFromExample();
-      sessionStorage.setItem('originalFilename', 'results.json');
+      sessionStorage.setItem(SessionStorageKeys.ORIGINAL_FILENAME, 'results.json');
       // Use the example file URL for deep linking support
       const exampleUrl = '/examples/results.json';
       await this.validateAndNavigateWithUrl(data, exampleUrl);
@@ -240,7 +241,7 @@ export class OpenComponent implements OnInit {
 
   private async validateAndNavigate(data: CqlTestResults): Promise<void> {
     // Clear indexUrl since this file is not loaded from an index
-    sessionStorage.removeItem('indexUrl');
+    sessionStorage.removeItem(SessionStorageKeys.INDEX_URL);
     
     // Check if schema validation is enabled
     if (this.settingsService.settings().validateSchema) {
@@ -248,14 +249,14 @@ export class OpenComponent implements OnInit {
       
       if (validation.isValid) {
         // Store data in sessionStorage for the results viewer
-        sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+        sessionStorage.setItem(SessionStorageKeys.CQL_TEST_RESULTS, JSON.stringify(data));
         this.router.navigate(['/results']);
       } else {
         this.validationErrors.set(validation.errors);
       }
     } else {
       // Skip validation, just store and navigate
-      sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+      sessionStorage.setItem(SessionStorageKeys.CQL_TEST_RESULTS, JSON.stringify(data));
       this.router.navigate(['/results']);
     }
   }
@@ -267,7 +268,7 @@ export class OpenComponent implements OnInit {
       
       if (validation.isValid) {
         // Store data in sessionStorage for the results viewer
-        sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+        sessionStorage.setItem(SessionStorageKeys.CQL_TEST_RESULTS, JSON.stringify(data));
         // Navigate with the file URL and preserve all existing query parameters
         this.navigateToResultsWithParams(fileUrl);
       } else {
@@ -275,7 +276,7 @@ export class OpenComponent implements OnInit {
       }
     } else {
       // Skip validation, just store and navigate
-      sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+      sessionStorage.setItem(SessionStorageKeys.CQL_TEST_RESULTS, JSON.stringify(data));
       // Navigate with the file URL and preserve all existing query parameters
       this.navigateToResultsWithParams(fileUrl);
     }

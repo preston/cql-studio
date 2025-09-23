@@ -4,6 +4,7 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { SessionStorageKeys } from '../../constants/session-storage.constants';
 
 @Component({
   selector: 'app-navigation',
@@ -30,16 +31,16 @@ export class NavigationComponent {
 
   onOpenNew(): void {
     // Clear any stored data and navigate to home
-    sessionStorage.removeItem('cqlTestResults');
-    sessionStorage.removeItem('validationErrors');
-    sessionStorage.removeItem('initialStatus');
-    sessionStorage.removeItem('initialSearch');
-    sessionStorage.removeItem('originalFilename');
+    sessionStorage.removeItem(SessionStorageKeys.CQL_TEST_RESULTS);
+    sessionStorage.removeItem(SessionStorageKeys.VALIDATION_ERRORS);
+    sessionStorage.removeItem(SessionStorageKeys.INITIAL_STATUS);
+    sessionStorage.removeItem(SessionStorageKeys.INITIAL_SEARCH);
+    sessionStorage.removeItem(SessionStorageKeys.ORIGINAL_FILENAME);
     this.router.navigate(['/']);
   }
 
   onDownloadResults(): void {
-    const storedData = sessionStorage.getItem('cqlTestResults');
+    const storedData = sessionStorage.getItem(SessionStorageKeys.CQL_TEST_RESULTS);
     if (storedData) {
       try {
         // Parse and re-stringify to ensure valid JSON formatting
@@ -47,7 +48,7 @@ export class NavigationComponent {
         const jsonString = JSON.stringify(data, null, 2);
         
         // Get the original filename or use default
-        const originalFilename = sessionStorage.getItem('originalFilename') || 'cql-test-results.json';
+        const originalFilename = sessionStorage.getItem(SessionStorageKeys.ORIGINAL_FILENAME) || 'cql-test-results.json';
         
         // Create a blob and download it
         const blob = new Blob([jsonString], { type: 'application/json' });
@@ -66,7 +67,7 @@ export class NavigationComponent {
   }
 
   goBackToIndex(): void {
-    const indexUrl = sessionStorage.getItem('indexUrl');
+    const indexUrl = sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
     if (indexUrl) {
       this.router.navigate(['/'], { queryParams: { index: indexUrl } });
     } else {
@@ -75,6 +76,6 @@ export class NavigationComponent {
   }
 
   hasIndexUrl(): boolean {
-    return !!sessionStorage.getItem('indexUrl');
+    return !!sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
   }
 }

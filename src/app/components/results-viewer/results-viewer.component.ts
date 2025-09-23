@@ -10,6 +10,7 @@ import { Chart, registerables } from 'chart.js';
 import { FileLoaderService } from '../../services/file-loader.service';
 import { SchemaValidationService } from '../../services/schema-validation.service';
 import { SettingsService } from '../../services/settings.service';
+import { SessionStorageKeys } from '../../constants/session-storage.constants';
 import { 
   StatusFilter, 
   GroupByOption, 
@@ -218,7 +219,7 @@ export class ResultsViewerComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const storedData = sessionStorage.getItem('cqlTestResults');
+    const storedData = sessionStorage.getItem(SessionStorageKeys.CQL_TEST_RESULTS);
     if (storedData) {
       try {
         const data = JSON.parse(storedData) as CqlTestResults;
@@ -255,17 +256,17 @@ export class ResultsViewerComponent implements OnInit {
     // Handle URL parameter (for files loaded from index)
     if (params['url']) {
       // Store the URL for potential future use
-      sessionStorage.setItem('currentFileUrl', params['url']);
+      sessionStorage.setItem(SessionStorageKeys.CURRENT_FILE_URL, params['url']);
       // Store the URL in component property to preserve it
       this.originalUrl = params['url'];
     }
     
     // Priority: URL params > sessionStorage > defaults
-    const initialStatus = params['status'] || sessionStorage.getItem('initialStatus');
-    const initialSearch = params['search'] || sessionStorage.getItem('initialSearch');
-    const initialGroupBy = params['groupBy'] || sessionStorage.getItem('initialGroupBy');
-    const initialSortBy = params['sortBy'] || sessionStorage.getItem('initialSortBy');
-    const initialSortOrder = params['sortOrder'] || sessionStorage.getItem('initialSortOrder');
+    const initialStatus = params['status'] || sessionStorage.getItem(SessionStorageKeys.INITIAL_STATUS);
+    const initialSearch = params['search'] || sessionStorage.getItem(SessionStorageKeys.INITIAL_SEARCH);
+    const initialGroupBy = params['groupBy'] || sessionStorage.getItem(SessionStorageKeys.INITIAL_GROUP_BY);
+    const initialSortBy = params['sortBy'] || sessionStorage.getItem(SessionStorageKeys.INITIAL_SORT_BY);
+    const initialSortOrder = params['sortOrder'] || sessionStorage.getItem(SessionStorageKeys.INITIAL_SORT_ORDER);
     
     // Validate and set status filter
     if (initialStatus) {
@@ -275,8 +276,8 @@ export class ResultsViewerComponent implements OnInit {
         console.warn(`Invalid status parameter: ${initialStatus}. Using default: '${StatusFilter.ALL}'`);
         this.selectedStatus.set(StatusFilter.ALL);
       }
-      if (sessionStorage.getItem('initialStatus')) {
-        sessionStorage.removeItem('initialStatus'); // Clean up after use
+      if (sessionStorage.getItem(SessionStorageKeys.INITIAL_STATUS)) {
+        sessionStorage.removeItem(SessionStorageKeys.INITIAL_STATUS); // Clean up after use
       }
     }
     
@@ -284,8 +285,8 @@ export class ResultsViewerComponent implements OnInit {
     if (initialSearch) {
       // Search term can be any string, but we'll trim it
       this.searchTerm.set(initialSearch.trim());
-      if (sessionStorage.getItem('initialSearch')) {
-        sessionStorage.removeItem('initialSearch'); // Clean up after use
+      if (sessionStorage.getItem(SessionStorageKeys.INITIAL_SEARCH)) {
+        sessionStorage.removeItem(SessionStorageKeys.INITIAL_SEARCH); // Clean up after use
       }
     }
     
@@ -297,8 +298,8 @@ export class ResultsViewerComponent implements OnInit {
         console.warn(`Invalid groupBy parameter: ${initialGroupBy}. Using default: '${GroupByOption.NONE}'`);
         this.groupBy.set(GroupByOption.NONE);
       }
-      if (sessionStorage.getItem('initialGroupBy')) {
-        sessionStorage.removeItem('initialGroupBy'); // Clean up after use
+      if (sessionStorage.getItem(SessionStorageKeys.INITIAL_GROUP_BY)) {
+        sessionStorage.removeItem(SessionStorageKeys.INITIAL_GROUP_BY); // Clean up after use
       }
     }
     
@@ -310,8 +311,8 @@ export class ResultsViewerComponent implements OnInit {
         console.warn(`Invalid sortBy parameter: ${initialSortBy}. Using default: '${SortByOption.NAME}'`);
         this.sortBy.set(SortByOption.NAME);
       }
-      if (sessionStorage.getItem('initialSortBy')) {
-        sessionStorage.removeItem('initialSortBy'); // Clean up after use
+      if (sessionStorage.getItem(SessionStorageKeys.INITIAL_SORT_BY)) {
+        sessionStorage.removeItem(SessionStorageKeys.INITIAL_SORT_BY); // Clean up after use
       }
     }
     
@@ -323,14 +324,14 @@ export class ResultsViewerComponent implements OnInit {
         console.warn(`Invalid sortOrder parameter: ${initialSortOrder}. Using default: '${SortOrder.ASC}'`);
         this.sortOrder.set(SortOrder.ASC);
       }
-      if (sessionStorage.getItem('initialSortOrder')) {
-        sessionStorage.removeItem('initialSortOrder'); // Clean up after use
+      if (sessionStorage.getItem(SessionStorageKeys.INITIAL_SORT_ORDER)) {
+        sessionStorage.removeItem(SessionStorageKeys.INITIAL_SORT_ORDER); // Clean up after use
       }
     }
   }
 
   getValidationErrors(): string[] {
-    const storedErrors = sessionStorage.getItem('validationErrors');
+    const storedErrors = sessionStorage.getItem(SessionStorageKeys.VALIDATION_ERRORS);
     if (storedErrors) {
       try {
         return JSON.parse(storedErrors);
@@ -548,7 +549,7 @@ export class ResultsViewerComponent implements OnInit {
   }
 
   goBackToIndex(): void {
-    const indexUrl = sessionStorage.getItem('indexUrl');
+    const indexUrl = sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
     if (indexUrl) {
       this.router.navigate(['/'], { queryParams: { index: indexUrl } });
     } else {
@@ -557,7 +558,7 @@ export class ResultsViewerComponent implements OnInit {
   }
 
   hasIndexUrl(): boolean {
-    return !!sessionStorage.getItem('indexUrl');
+    return !!sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
   }
 
   hasDetailedInfo(): boolean {
@@ -716,7 +717,7 @@ export class ResultsViewerComponent implements OnInit {
         const validation = await this.schemaValidation.validateResults(data);
         
         if (validation.isValid) {
-          sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+          sessionStorage.setItem(SessionStorageKeys.CQL_TEST_RESULTS, JSON.stringify(data));
           this.testResults.set(data);
           this.loadInitialParameters();
           this.applyFilters();
@@ -725,8 +726,8 @@ export class ResultsViewerComponent implements OnInit {
         } else {
           console.error('Validation errors:', validation.errors);
           // Still load results but show validation errors
-          sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
-          sessionStorage.setItem('validationErrors', JSON.stringify(validation.errors));
+          sessionStorage.setItem(SessionStorageKeys.CQL_TEST_RESULTS, JSON.stringify(data));
+          sessionStorage.setItem(SessionStorageKeys.VALIDATION_ERRORS, JSON.stringify(validation.errors));
           this.testResults.set(data);
           this.loadInitialParameters();
           this.applyFilters();
@@ -735,7 +736,7 @@ export class ResultsViewerComponent implements OnInit {
         }
       } else {
         // Skip validation, just store and load
-        sessionStorage.setItem('cqlTestResults', JSON.stringify(data));
+        sessionStorage.setItem(SessionStorageKeys.CQL_TEST_RESULTS, JSON.stringify(data));
         this.testResults.set(data);
         this.loadInitialParameters();
         this.applyFilters();
