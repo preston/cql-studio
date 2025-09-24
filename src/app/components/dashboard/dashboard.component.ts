@@ -334,7 +334,7 @@ export class DashboardComponent implements OnInit {
         filename,
         summary: data.testResultsSummary,
         results: data.results,
-        engine: data.cqlengine.description || data.cqlengine.apiUrl,
+        engine: data.cqlengine.cqlEngine || data.cqlengine.apiUrl,
         timestamp: data.testsRunDateTime
       };
     } catch (error) {
