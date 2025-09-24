@@ -1,3 +1,5 @@
+@use '../../styles/_colors' as colors;
+
 .navbar {
   margin-bottom: 0;
 }
@@ -16,8 +18,8 @@
 }
 
 .dropdown-menu {
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.175);
+  border: 1px solid colors.$color-border-medium;
+  box-shadow: 0 0.5rem 1rem colors.$color-shadow-medium;
 }
 
 .dropdown-item {
@@ -26,7 +28,7 @@
 }
 
 .dropdown-item:hover {
-  color: #495057;
+  color: colors.$color-text-primary;
 }
 
 .dropdown-item:active {

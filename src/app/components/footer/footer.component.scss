@@ -1,36 +1,38 @@
+@use '../../styles/_colors' as colors;
+
 .footer {
-  color: #ffffff;
+  color: colors.$color-text-light;
   padding: 1rem 0;
   margin-top: auto;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: colors.$color-bg-dark;
 }
 
 .footer a {
-  color: #ffffff;
+  color: colors.$color-text-light;
   text-decoration: none;
 }
 
 .footer a:hover {
-  color: #adb5bd;
+  color: colors.$color-text-muted;
   text-decoration: underline;
 }
 
 .footer .form-check-label {
-  color: #ffffff;
+  color: colors.$color-text-light;
   font-size: 0.875rem;
 }
 
 .footer .form-check-input:checked {
-  background-color: #28a745;
-  border-color: #28a745;
+  background-color: colors.$color-success;
+  border-color: colors.$color-success;
 }
 
 .footer .form-check-input:focus {
-  box-shadow: 0 0 0 0.25rem rgba(40, 167, 69, 0.25);
+  box-shadow: 0 0 0 0.25rem colors.$color-hover-success;
 }
 
 .footer .theme-selector .theme-label {
-  color: #ffffff;
+  color: colors.$color-text-light;
   font-size: 0.875rem;
   margin-bottom: 0;
   display: inline;
@@ -38,22 +40,22 @@
 }
 
 .footer .theme-selector .form-select {
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  background-color: colors.$color-border-white;
+  border: 1px solid colors.$color-border-white-medium;
+  color: colors.$color-text-light;
   font-size: 0.875rem;
 }
 
 .footer .theme-selector .form-select:focus {
   background-color: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  border-color: colors.$color-border-white-dark;
+  box-shadow: 0 0 0 0.25rem colors.$color-hover-white;
+  color: colors.$color-text-light;
 }
 
 .footer .theme-selector .form-select option {
-  background-color: #343a40;
-  color: #ffffff;
+  background-color: colors.$color-dark;
+  color: colors.$color-text-light;
 }
 
 .footer .theme-selector {

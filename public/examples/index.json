@@ -1,5 +1,10 @@
 {
   "files": [
-    "results.json"
+    "results.json",
+    "results-passing.json",
+    "results-failing.json",
+    "results-mixed.json",
+    "results-minimal.json",
+    "results-errors.json"
   ]
 }

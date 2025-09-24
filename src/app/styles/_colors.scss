@@ -1,0 +1,81 @@
+// Author: Preston Lee
+
+// =============================================================================
+// CQL Tests UI - Color Variables
+// =============================================================================
+// This file contains all color constants used across the application
+// for consistent theming and easy maintenance.
+
+// =============================================================================
+// Core Status Colors
+// =============================================================================
+$color-success: #198754;
+$color-danger: #dc3545;
+$color-warning: #ffc107;
+$color-secondary: #6c757d;
+
+// Status color variants (darker for borders, etc.)
+$color-success-dark: #1e7e34;
+$color-danger-dark: #bd2130;
+$color-warning-dark: #e0a800;
+$color-secondary-dark: #5a32a3;
+
+// =============================================================================
+// Primary UI Colors
+// =============================================================================
+$color-primary: #0d6efd;
+
+// =============================================================================
+// Neutral Colors
+// =============================================================================
+$color-white: #ffffff;
+$color-dark: #212529;
+
+// Text colors
+$color-text-primary: #495057;
+$color-text-secondary: #6c757d;
+$color-text-muted: #adb5bd;
+$color-text-light: #ffffff;
+
+// =============================================================================
+// Background Colors
+// =============================================================================
+$color-bg-primary: #ffffff;
+$color-bg-secondary: #f8f9fa;
+$color-bg-dark: rgba(0, 0, 0, 0.8);
+$color-bg-primary-overlay: rgba(0, 123, 255, 0.1);
+
+// =============================================================================
+// Border Colors
+// =============================================================================
+$color-border-light: rgba(0, 0, 0, 0.125);
+$color-border-medium: rgba(0, 0, 0, 0.15);
+$color-border-white: rgba(255, 255, 255, 0.1);
+$color-border-white-medium: rgba(255, 255, 255, 0.2);
+$color-border-white-dark: rgba(255, 255, 255, 0.3);
+
+// =============================================================================
+// Interactive Colors
+// =============================================================================
+$color-hover-light: rgba(0, 0, 0, 0.05);
+$color-hover-primary: rgba(13, 110, 253, 0.25);
+$color-hover-success: rgba(40, 167, 69, 0.25);
+$color-hover-white: rgba(255, 255, 255, 0.25);
+
+// =============================================================================
+// Shadow Colors
+// =============================================================================
+$color-shadow-light: rgba(0, 0, 0, 0.075);
+$color-shadow-medium: rgba(0, 0, 0, 0.175);
+
+// =============================================================================
+// Scrollbar Colors
+// =============================================================================
+$color-scrollbar-track: #f1f1f1;
+$color-scrollbar-thumb: #c1c1c1;
+$color-scrollbar-thumb-hover: #a8a8a8;
+
+// =============================================================================
+// Special UI Colors
+// =============================================================================
+$color-code-bg: rgba(255, 255, 255, 0.1);

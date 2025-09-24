@@ -1,5 +1,5 @@
 <div class="container-fluid mt-3">
-  
+
   <!-- Validation Errors -->
   <div class="row mb-4" *ngIf="getValidationErrors().length > 0">
     <div class="col">
@@ -21,7 +21,7 @@
           <div class="d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center">
               <i class="fas fa-info-circle me-2"></i>
-              <h6 class="mb-0">Test Run & Engine Information</h6>
+              <h6 class="mb-0">{{ testResults()?.cqlengine?.cqlEngine ? testResults()?.cqlengine?.cqlEngine : 'Test Run & Engine Information' }}</h6>
             </div>
             <div class="d-flex align-items-center gap-4">
               <!-- Test Run Info -->
@@ -85,7 +85,7 @@
     <div class="col-md-3">
       <div class="card text-center">
         <div class="card-body">
-          <h5 class="card-title text-danger">{{ testResults()?.testResultsSummary?.errorCount || 0 }}</h5>
+          <h5 class="card-title text-secondary">{{ testResults()?.testResultsSummary?.errorCount || 0 }}</h5>
           <p class="card-text">Errors</p>
         </div>
       </div>
@@ -104,10 +104,7 @@
         </div>
         <div class="card-body">
           <div class="chart-container">
-            <canvas baseChart
-              [data]="pieChartData"
-              [options]="pieChartOptions"
-              type="pie">
+            <canvas baseChart [data]="pieChartData" [options]="pieChartOptions" type="pie">
             </canvas>
           </div>
         </div>
@@ -123,10 +120,7 @@
         </div>
         <div class="card-body">
           <div class="chart-container">
-            <canvas baseChart
-              [data]="barChartData"
-              [options]="barChartOptions"
-              type="bar">
+            <canvas baseChart [data]="barChartData" [options]="barChartOptions" type="bar">
             </canvas>
           </div>
         </div>
@@ -139,7 +133,8 @@
     <div class="col-md-3">
       <div class="input-group">
         <span class="input-group-text">Filter by Status:</span>
-        <select id="status-filter" class="form-select" [ngModel]="selectedStatus()" (change)="onStatusFilterChange($event)">
+        <select id="status-filter" class="form-select" [ngModel]="selectedStatus()"
+          (change)="onStatusFilterChange($event)">
           <option [value]="StatusFilter.ALL">All</option>
           <option [value]="StatusFilter.PASS">Passed</option>
           <option [value]="StatusFilter.FAIL">Failed</option>
@@ -197,7 +192,7 @@
         <button class="btn btn-outline-primary btn-sm" (click)="toggleAllDetails()">
           {{ showAllDetails() ? 'Hide All Details' : 'Show All Details' }}
         </button>
-        
+
         <!-- Help text (only show if there are detailed info) -->
         <span class="text-muted small align-self-center">
           Click any row to toggle details
@@ -237,11 +232,12 @@
                       {{ group.group }} ({{ group.results.length }} {{ group.results.length === 1 ? 'test' : 'tests' }})
                     </td>
                   </tr>
-                  
+
                   <!-- Results within group -->
                   <ng-container *ngFor="let result of group.results">
                     <!-- Main result row -->
-                    <tr class="table-row-clickable" data-testid="test-result-row" [class.table-active]="isResultExpanded(getResultId(result))"
+                    <tr class="table-row-clickable" data-testid="test-result-row"
+                      [class.table-active]="isResultExpanded(getResultId(result))"
                       (click)="hasResultDetails(result) && toggleResultDetails(getResultId(result))"
                       [style.cursor]="hasResultDetails(result) ? 'pointer' : 'default'">
                       <td>

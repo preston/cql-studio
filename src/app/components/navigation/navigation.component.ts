@@ -24,8 +24,8 @@ export class NavigationComponent {
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: NavigationEnd) => {
-        // Show file menu everywhere except on the open component (root path)
-        this.showFileMenu.set(event.url !== '/' && event.url !== '');
+        // Show file menu only on the results-viewer component
+        this.showFileMenu.set(event.url.startsWith('/results'));
       });
   }
 

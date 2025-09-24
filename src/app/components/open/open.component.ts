@@ -84,11 +84,20 @@ export class OpenComponent implements OnInit {
     const baseUrl = this.getBaseUrlFromIndexUrl();
     const fileUrl = `${baseUrl}/${filename}`;
     
-    // Store the index URL for the "Back to Index" functionality
+    // Store the index URL for the "Back to Home" functionality
     sessionStorage.setItem(SessionStorageKeys.INDEX_URL, this.indexUrl());
     
     // Load the file and update URL with the specific file URL
     this.loadFromUrlWithIndex(fileUrl);
+  }
+
+  onOpenDashboard(): void {
+    // Store the index URL and files for the dashboard
+    sessionStorage.setItem(SessionStorageKeys.INDEX_URL, this.indexUrl());
+    sessionStorage.setItem(SessionStorageKeys.INDEX_FILES, JSON.stringify(this.indexFiles()));
+    
+    // Navigate to dashboard
+    this.router.navigate(['/dashboard']);
   }
 
   onValidateSchemaChange(): void {

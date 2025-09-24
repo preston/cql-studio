@@ -21,6 +21,18 @@ import {
   isValidSortByOption,
   isValidSortOrder
 } from '../../models/query-params.model';
+import { 
+  COLOR_SUCCESS, 
+  COLOR_DANGER, 
+  COLOR_WARNING, 
+  COLOR_SECONDARY,
+  COLOR_SUCCESS_DARK,
+  COLOR_DANGER_DARK,
+  COLOR_WARNING_DARK,
+  COLOR_SECONDARY_DARK,
+  COLOR_BG_DARK,
+  COLOR_TEXT_LIGHT
+} from '../../constants/colors.constants';
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -59,8 +71,8 @@ export class ResultsViewerComponent implements OnInit {
     labels: ['Passed', 'Failed', 'Skipped', 'Errors'],
     datasets: [{
       data: [0, 0, 0, 0],
-      backgroundColor: ['#28a745', '#dc3545', '#ffc107', '#6f42c1'],
-      borderColor: ['#1e7e34', '#bd2130', '#e0a800', '#5a32a3'],
+      backgroundColor: [COLOR_SUCCESS, COLOR_DANGER, COLOR_WARNING, COLOR_SECONDARY],
+      borderColor: [COLOR_SUCCESS_DARK, COLOR_DANGER_DARK, COLOR_WARNING_DARK, COLOR_SECONDARY_DARK],
       borderWidth: 0
     }]
   };
@@ -78,10 +90,10 @@ export class ResultsViewerComponent implements OnInit {
       },
       tooltip: {
         enabled: true,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        borderColor: '#fff',
+        backgroundColor: COLOR_BG_DARK,
+        titleColor: COLOR_TEXT_LIGHT,
+        bodyColor: COLOR_TEXT_LIGHT,
+        borderColor: COLOR_TEXT_LIGHT,
         borderWidth: 1,
         cornerRadius: 6,
         displayColors: true,
@@ -113,29 +125,29 @@ export class ResultsViewerComponent implements OnInit {
       {
         label: 'Passed',
         data: [],
-        backgroundColor: '#28a745',
-        borderColor: '#1e7e34',
+        backgroundColor: COLOR_SUCCESS,
+        borderColor: COLOR_SUCCESS_DARK,
         borderWidth: 1
       },
       {
         label: 'Failed',
         data: [],
-        backgroundColor: '#dc3545',
-        borderColor: '#bd2130',
+        backgroundColor: COLOR_DANGER,
+        borderColor: COLOR_DANGER_DARK,
         borderWidth: 1
       },
       {
         label: 'Skipped',
         data: [],
-        backgroundColor: '#ffc107',
-        borderColor: '#e0a800',
+        backgroundColor: COLOR_WARNING,
+        borderColor: COLOR_WARNING_DARK,
         borderWidth: 1
       },
       {
         label: 'Errors',
         data: [],
-        backgroundColor: '#6f42c1',
-        borderColor: '#5a32a3',
+        backgroundColor: COLOR_SECONDARY,
+        borderColor: COLOR_SECONDARY_DARK,
         borderWidth: 1
       }
     ]
@@ -169,10 +181,10 @@ export class ResultsViewerComponent implements OnInit {
         enabled: true,
         mode: 'index',
         intersect: false,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        borderColor: '#fff',
+        backgroundColor: COLOR_BG_DARK,
+        titleColor: COLOR_TEXT_LIGHT,
+        bodyColor: COLOR_TEXT_LIGHT,
+        borderColor: COLOR_TEXT_LIGHT,
         borderWidth: 1,
         cornerRadius: 6,
         displayColors: true,

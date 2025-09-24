@@ -1,3 +1,6 @@
+// Import color variables
+@use 'app/styles/_colors' as colors;
+
 body:has([data-bs-theme=light]) {
   background: url("/images/textures/crossword.png") repeat;
 
@@ -42,6 +45,6 @@ body:has([data-bs-theme=dark]) {
   // a,
   .lead {
     // Simplex override for the default font color that's way too dark.
-    color: #aaa;
+    color: colors.$color-text-muted;
   }
 }
