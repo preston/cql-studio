@@ -66,7 +66,7 @@
 
 					<!-- Index File Section -->
 					<div class="mb-4">
-						<h5>Load from Index</h5>
+						<h5>Load an Entire Index</h5>
 						<div class="input-group mb-3">
 							<input id="index-url-input" type="url" class="form-control" placeholder="https://example.com/index.json"
 								[ngModel]="indexUrl()" (ngModelChange)="indexUrl.set($event)" [disabled]="isLoading() || indexLoading()">
@@ -75,7 +75,7 @@
 								Load Index
 							</button>
 						</div>
-						<div class="form-text">Enter a URL to an index JSON file containing a "files" array.</div>
+						<div class="form-text">Enter a URL to an index file in JSON format. It must contain an object with a "files" array of URLs to individual result files. For example, {{'{"files": ["...","..."]}'}}</div>
 						
 						<!-- Index Loading State -->
 						<div *ngIf="indexLoading()" class="text-center">
