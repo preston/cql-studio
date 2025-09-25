@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Page, expect } from '@playwright/test';
+import { Page } from '@playwright/test';
 import path from 'path';
 import { 
   StatusFilter, 
@@ -17,7 +17,7 @@ export class TestHelpers {
    */
   async waitForAppLoad() {
     await this.page.waitForLoadState('networkidle');
-    await this.page.waitForSelector('app-open, app-results-viewer', { timeout: 10000 });
+    await this.page.waitForSelector('app-open, app-results-viewer, app-dashboard', { timeout: 10000 });
   }
 
   /**
@@ -28,31 +28,6 @@ export class TestHelpers {
     await this.waitForAppLoad();
   }
 
-  /**
-   * Upload a test file using the file input
-   */
-  async uploadTestFile(filename: string) {
-    const filePath = path.join(__dirname, '..', 'fixtures', filename);
-    const fileInput = this.page.locator('input[type="file"]');
-    await fileInput.setInputFiles(filePath);
-    
-    // Wait for file to be processed
-    await this.page.waitForSelector('.alert-success, .alert-danger', { timeout: 10000 });
-  }
-
-  /**
-   * Load data from URL
-   */
-  async loadFromUrl(url: string) {
-    const urlInput = this.page.locator('#url-input');
-    await urlInput.fill(url);
-    
-    const loadButton = this.page.locator('#url-load-button');
-    await loadButton.click();
-    
-    // Wait for loading to complete
-    await this.page.waitForSelector('.alert-success, .alert-danger', { timeout: 10000 });
-  }
 
   /**
    * Load example data
@@ -79,16 +54,6 @@ export class TestHelpers {
     await this.page.waitForSelector('.list-group-item, .alert-danger', { timeout: 10000 });
   }
 
-  /**
-   * Select a file from the index list
-   */
-  async selectFileFromIndex(filename: string) {
-    const fileItem = this.page.locator(`.list-group-item:has-text("${filename}")`);
-    await fileItem.click();
-    
-    // Wait for file to load
-    await this.page.waitForSelector('.alert-success, .alert-danger', { timeout: 10000 });
-  }
 
   /**
    * Check if we're on the results viewer page
@@ -118,13 +83,6 @@ export class TestHelpers {
     await this.page.waitForSelector('.table, .card', { timeout: 10000 });
   }
 
-  /**
-   * Get the test results summary
-   */
-  async getTestSummary() {
-    const summary = await this.page.locator('.card-body').first().textContent();
-    return summary;
-  }
 
   /**
    * Check if error message is displayed
@@ -140,19 +98,6 @@ export class TestHelpers {
     return await this.page.locator('.alert-danger').textContent();
   }
 
-  /**
-   * Check if success message is displayed
-   */
-  async hasSuccessMessage() {
-    return await this.page.locator('.alert-success').isVisible();
-  }
-
-  /**
-   * Get success message text
-   */
-  async getSuccessMessage() {
-    return await this.page.locator('.alert-success').textContent();
-  }
 
   /**
    * Apply status filter
@@ -258,21 +203,6 @@ export class TestHelpers {
     return this.page.locator('[data-testid="expression-cell"]').allTextContents();
   }
 
-
-  /**
-   * Check if validation errors are displayed
-   */
-  async hasValidationErrors() {
-    return await this.page.locator('.alert-warning').isVisible();
-  }
-
-  /**
-   * Get validation error messages
-   */
-  async getValidationErrors() {
-    return await this.page.locator('.alert-warning').textContent();
-  }
-
   /**
    * Clear all filters
    */
@@ -310,19 +240,54 @@ export class TestHelpers {
     await this.page.waitForSelector('h4:has-text("Preferences")');
   }
 
+
   /**
-   * Toggle schema validation setting
+   * Check if we're on the dashboard page
    */
-  async toggleSchemaValidation() {
-    const validationCheckbox = this.page.locator('#validate-schema-switch');
-    await validationCheckbox.click();
+  async isOnDashboardPage() {
+    return await this.page.locator('app-dashboard').isVisible();
   }
 
   /**
-   * Check if schema validation is enabled
+   * Navigate to dashboard page
    */
-  async isSchemaValidationEnabled() {
-    const validationCheckbox = this.page.locator('#validate-schema-switch');
-    return await validationCheckbox.isChecked();
+  async goToDashboard() {
+    await this.page.goto('/dashboard');
+    await this.waitForAppLoad();
+  }
+
+  /**
+   * Wait for dashboard to load completely
+   */
+  async waitForDashboardLoad() {
+    await this.page.waitForSelector('app-dashboard', { timeout: 10000 });
+    // Wait for either content to load or error to show
+    await this.page.waitForSelector('.card, .alert-danger, .spinner-border', { timeout: 15000 });
+  }
+
+  /**
+   * Check if dashboard is in loading state
+   */
+  async isDashboardLoading() {
+    return await this.page.locator('.spinner-border').isVisible();
+  }
+
+
+  /**
+   * Set session storage for dashboard tests
+   */
+  async setSessionStorage(key: string, value: string) {
+    await this.page.evaluate(({ key, value }) => {
+      sessionStorage.setItem(key, value);
+    }, { key, value });
+  }
+
+  /**
+   * Clear session storage
+   */
+  async clearSessionStorage() {
+    await this.page.evaluate(() => {
+      sessionStorage.clear();
+    });
   }
 }

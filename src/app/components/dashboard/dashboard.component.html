@@ -4,12 +4,12 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="mb-1">
+                    <h1 id="dashboard-title" class="mb-1">
                         <i class="bi bi-graph-up me-2"></i>All Results Summary Dashboard
                     </h1>
                     <p class="text-muted mb-0">Compare and analyze CQL test results across multiple files</p>
                 </div>
-                <button class="btn btn-outline-secondary" (click)="onBackToIndex()">
+                <button id="back-to-home-btn" class="btn btn-outline-secondary" (click)="onBackToIndex()">
                     <i class="bi bi-arrow-left me-2"></i>Back to Home
                 </button>
             </div>
@@ -17,7 +17,7 @@
     </div>
 
     <!-- Loading State -->
-    <div *ngIf="isLoading()" class="text-center py-5">
+    <div id="loading-state" *ngIf="isLoading()" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
         </div>
@@ -25,7 +25,7 @@
     </div>
 
     <!-- Error State -->
-    <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    <div id="error-state" *ngIf="errorMessage()" class="alert alert-danger" role="alert">
         <h6 class="alert-heading">Error</h6>
         <p class="mb-0">{{ errorMessage() }}</p>
     </div>
@@ -36,13 +36,13 @@
         <div class="row mb-4">
             <!-- Engine Comparison Chart -->
             <div class="col-md-6">
-                <div class="card">
+                <div id="engine-comparison-chart" class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Results by Engine</h5>
                     </div>
                     <div class="card-body">
                         <div style="height: 300px;">
-                            <canvas baseChart [data]="fileComparisonChartData()" [options]="fileComparisonChartOptions"
+                            <canvas id="engine-chart-canvas" baseChart [data]="fileComparisonChartData()" [options]="fileComparisonChartOptions"
                                 type="bar">
                             </canvas>
                         </div>
@@ -52,13 +52,13 @@
 
             <!-- Summary Chart -->
             <div class="col-md-6">
-                <div class="card">
+                <div id="summary-chart" class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Aggregated Summary</h5>
                     </div>
                     <div class="card-body">
                         <div style="height: 300px;">
-                            <canvas baseChart [data]="summaryChartData()" [options]="summaryChartOptions"
+                            <canvas id="summary-chart-canvas" baseChart [data]="summaryChartData()" [options]="summaryChartOptions"
                                 type="doughnut">
                             </canvas>
                         </div>
@@ -70,7 +70,7 @@
         <!-- Filters & Controls Section -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card">
+                <div id="filters-controls-card" class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Filters & Controls</h5>
                     </div>
@@ -79,12 +79,12 @@
                             <!-- Left Column: File Selection and Controls -->
                             <div class="col-md-4">
                                 <!-- File Selection -->
-                                <div class="mb-4">
+                                <div id="file-selection-section" class="mb-4">
                                     <label class="form-label">Files to Include:</label>
                                     <div class="mb-2">
-                                        <button class="btn btn-sm btn-outline-primary me-2"
+                                        <button id="select-all-btn" class="btn btn-sm btn-outline-primary me-2"
                                             (click)="onSelectAllFiles()">Select All</button>
-                                        <button class="btn btn-sm btn-outline-secondary"
+                                        <button id="deselect-all-btn" class="btn btn-sm btn-outline-secondary"
                                             (click)="onDeselectAllFiles()">Deselect All</button>
                                     </div>
                                     <div class="form-check" *ngFor="let item of dashboardData()">
@@ -127,7 +127,7 @@
 
                                 <!-- Sort Order -->
                                 <div class="mb-3">
-                                    <button class="btn btn-outline-secondary w-100" (click)="onSortOrderChange()">
+                                    <button id="sort-order-btn" class="btn btn-outline-secondary w-100" (click)="onSortOrderChange()">
                                         <i class="bi" [class.bi-sort-alpha-down]="sortOrder() === 'asc'"
                                             [class.bi-sort-alpha-up]="sortOrder() === 'desc'"></i>
                                         {{ sortOrder() === 'asc' ? 'Ascending' : 'Descending' }}
@@ -137,9 +137,9 @@
 
                             <!-- Right Column: Summary Cards -->
                             <div class="col-md-4">
-                                <div class="row">
+                                <div id="summary-cards-row" class="row">
                                     <div class="col-6 mb-3">
-                                        <div class="card text-center">
+                                        <div id="total-passed-card" class="card text-center">
                                             <div class="card-body">
                                                 <h5 class="card-title text-success">{{ totalPass() }}</h5>
                                                 <p class="card-text">Total Passed</p>
@@ -147,7 +147,7 @@
                                         </div>
                                     </div>
                                     <div class="col-6 mb-3">
-                                        <div class="card text-center">
+                                        <div id="total-failed-card" class="card text-center">
                                             <div class="card-body">
                                                 <h5 class="card-title text-danger">{{ totalFail() }}</h5>
                                                 <p class="card-text">Total Failed</p>
@@ -155,7 +155,7 @@
                                         </div>
                                     </div>
                                     <div class="col-6">
-                                        <div class="card text-center">
+                                        <div id="total-skipped-card" class="card text-center">
                                             <div class="card-body">
                                                 <h5 class="card-title text-warning">{{ totalSkip() }}</h5>
                                                 <p class="card-text">Total Skipped</p>
@@ -163,7 +163,7 @@
                                         </div>
                                     </div>
                                     <div class="col-6">
-                                        <div class="card text-center">
+                                        <div id="total-errors-card" class="card text-center">
                                             <div class="card-body">
                                                 <h5 class="card-title text-secondary">{{ totalError() }}</h5>
                                                 <p class="card-text">Total Errors</p>
@@ -181,48 +181,48 @@
         <!-- Detailed Results Table -->
         <div class="row">
             <div class="col-12">
-                <div class="card">
+                <div id="detailed-results-card" class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Detailed Results</h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover">
+                            <table id="results-table" class="table table-striped table-hover">
                                 <thead>
                                     <tr>
-                                        <th class="fw-bold text-primary" style="cursor: pointer;" (click)="onSortBy('engine')" title="Click to sort by Engine">
+                                        <th id="engine-header" class="fw-bold text-primary" style="cursor: pointer;" (click)="onSortBy('engine')" title="Click to sort by Engine">
                                             Engine
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'engine' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'engine' && sortOrder() === 'desc'"></i>
                                         </th>
-                                        <th style="cursor: pointer;" (click)="onSortBy('filename')" title="Click to sort by Filename">
+                                        <th id="filename-header" style="cursor: pointer;" (click)="onSortBy('filename')" title="Click to sort by Filename">
                                             Filename
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'filename' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'filename' && sortOrder() === 'desc'"></i>
                                         </th>
-                                        <th style="cursor: pointer;" (click)="onSortBy('timestamp')" title="Click to sort by Timestamp">
+                                        <th id="timestamp-header" style="cursor: pointer;" (click)="onSortBy('timestamp')" title="Click to sort by Timestamp">
                                             Timestamp
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'timestamp' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'timestamp' && sortOrder() === 'desc'"></i>
                                         </th>
-                                        <th class="text-center" style="cursor: pointer;" (click)="onSortBy('passCount')" title="Click to sort by Pass Count">
+                                        <th id="pass-header" class="text-center" style="cursor: pointer;" (click)="onSortBy('passCount')" title="Click to sort by Pass Count">
                                             Pass
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'passCount' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'passCount' && sortOrder() === 'desc'"></i>
                                         </th>
-                                        <th class="text-center" style="cursor: pointer;" (click)="onSortBy('failCount')" title="Click to sort by Fail Count">
+                                        <th id="fail-header" class="text-center" style="cursor: pointer;" (click)="onSortBy('failCount')" title="Click to sort by Fail Count">
                                             Fail
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'failCount' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'failCount' && sortOrder() === 'desc'"></i>
                                         </th>
-                                        <th class="text-center" style="cursor: pointer;" (click)="onSortBy('skipCount')" title="Click to sort by Skip Count">
+                                        <th id="skip-header" class="text-center" style="cursor: pointer;" (click)="onSortBy('skipCount')" title="Click to sort by Skip Count">
                                             Skip
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'skipCount' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'skipCount' && sortOrder() === 'desc'"></i>
                                         </th>
-                                        <th class="text-center" style="cursor: pointer;" (click)="onSortBy('errorCount')" title="Click to sort by Error Count">
+                                        <th id="error-header" class="text-center" style="cursor: pointer;" (click)="onSortBy('errorCount')" title="Click to sort by Error Count">
                                             Error
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'errorCount' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'errorCount' && sortOrder() === 'desc'"></i>
                                         </th>
-                                        <th class="text-center" style="cursor: pointer;" (click)="onSortBy('totalTests')" title="Click to sort by Total Tests">
+                                        <th id="total-header" class="text-center" style="cursor: pointer;" (click)="onSortBy('totalTests')" title="Click to sort by Total Tests">
                                             Total
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'totalTests' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'totalTests' && sortOrder() === 'desc'"></i>
                                         </th>
-                                        <th class="text-center">Actions</th>
+                                        <th id="actions-header" class="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -256,7 +256,7 @@
                                                 item.summary.skipCount + item.summary.errorCount }}</strong>
                                         </td>
                                         <td class="text-center">
-                                            <button class="btn btn-sm btn-outline-primary"
+                                            <button class="btn btn-sm btn-outline-primary view-file-btn"
                                                 (click)="onViewFile(item.filename)">
                                                 <i class="bi bi-eye me-1"></i>View
                                             </button>
