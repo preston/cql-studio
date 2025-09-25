@@ -30,7 +30,9 @@
               }
             ],
             "styles": [
-              "src/styles.scss"
+              "src/simplex.css",
+              "src/styles.scss",
+              "node_modules/bootstrap-icons/font/bootstrap-icons.css"
             ]
           },
           "configurations": {
