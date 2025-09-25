@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { Component, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
@@ -9,7 +9,7 @@ import { SessionStorageKeys } from '../../constants/session-storage.constants';
 @Component({
   selector: 'app-navigation',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './navigation.component.html',
   styleUrl: './navigation.component.scss'
 })

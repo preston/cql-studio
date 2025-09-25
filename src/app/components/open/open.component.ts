@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { Component, signal, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { FileLoaderService } from '../../services/file-loader.service';
@@ -13,7 +13,7 @@ import { CqlTestResults } from '../../models/cql-test-results.model';
 @Component({
   selector: 'app-open',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './open.component.html',
   styleUrl: './open.component.scss'
 })

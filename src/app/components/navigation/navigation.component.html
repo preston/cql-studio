@@ -11,7 +11,8 @@
 
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav me-auto">
-        <li class="nav-item dropdown" *ngIf="showFileMenu()">
+        @if (showFileMenu()) {
+          <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="fileDropdown" role="button" data-bs-toggle="dropdown">
             <i class="bi bi-folder me-1"></i>File
           </a>
@@ -35,7 +36,8 @@
               </li>
             }
           </ul>
-        </li>
+          </li>
+        }
         <li class="nav-item">
           <a class="nav-link" routerLink="/documentation" routerLinkActive="active">
             <i class="bi bi-book me-1"></i>Documentation

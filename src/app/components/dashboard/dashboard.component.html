@@ -17,21 +17,25 @@
     </div>
 
     <!-- Loading State -->
-    <div id="loading-state" *ngIf="isLoading()" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
+    @if (isLoading()) {
+        <div id="loading-state" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading test results...</p>
         </div>
-        <p class="mt-3">Loading test results...</p>
-    </div>
+    }
 
     <!-- Error State -->
-    <div id="error-state" *ngIf="errorMessage()" class="alert alert-danger" role="alert">
-        <h6 class="alert-heading">Error</h6>
-        <p class="mb-0">{{ errorMessage() }}</p>
-    </div>
+    @if (errorMessage()) {
+        <div id="error-state" class="alert alert-danger" role="alert">
+            <h6 class="alert-heading">Error</h6>
+            <p class="mb-0">{{ errorMessage() }}</p>
+        </div>
+    }
 
     <!-- Dashboard Content -->
-    <div *ngIf="!isLoading() && !errorMessage()">
+    @if (!isLoading() && !errorMessage()) {
         <!-- Charts Row -->
         <div class="row mb-4">
             <!-- Engine Comparison Chart -->
@@ -87,14 +91,16 @@
                                         <button id="deselect-all-btn" class="btn btn-sm btn-outline-secondary"
                                             (click)="onDeselectAllFiles()">Deselect All</button>
                                     </div>
-                                    <div class="form-check" *ngFor="let item of dashboardData()">
-                                        <input class="form-check-input" type="checkbox" [id]="'file-' + item.filename"
-                                            [checked]="selectedFiles().includes(item.filename)"
-                                            (change)="onFileSelectionChange(item.filename, $event.target.checked)">
-                                        <label class="form-check-label" [for]="'file-' + item.filename">
-                                            {{ item.filename }}
-                                        </label>
-                                    </div>
+                                    @for (item of dashboardData(); track item.filename) {
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" [id]="'file-' + item.filename"
+                                                [checked]="selectedFiles().includes(item.filename)"
+                                                (change)="onFileSelectionChange(item.filename, $event.target.checked)">
+                                            <label class="form-check-label" [for]="'file-' + item.filename">
+                                                {{ item.filename }}
+                                            </label>
+                                        </div>
+                                    }
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -226,42 +232,44 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr *ngFor="let item of filteredData()">
-                                        <td class="fw-bold text-primary" style="cursor: pointer;"
-                                            (click)="onViewFile(item.filename)" title="Click to view file details">
-                                            <i class="bi bi-gear-fill me-2"></i>
-                                            {{ item.engine }}
-                                        </td>
-                                        <td>
-                                            <i class="bi bi-file-earmark-json me-2"></i>
-                                            {{ item.filename }}
-                                        </td>
-                                        <td>
-                                            <small>{{ item.timestamp | date:'short' }}</small>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-success">{{ item.summary.passCount }}</span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-danger">{{ item.summary.failCount }}</span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-warning">{{ item.summary.skipCount }}</span>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-secondary">{{ item.summary.errorCount }}</span>
-                                        </td>
-                                        <td class="text-center">
-                                            <strong>{{ item.summary.passCount + item.summary.failCount +
-                                                item.summary.skipCount + item.summary.errorCount }}</strong>
-                                        </td>
-                                        <td class="text-center">
-                                            <button class="btn btn-sm btn-outline-primary view-file-btn"
-                                                (click)="onViewFile(item.filename)">
-                                                <i class="bi bi-eye me-1"></i>View
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    @for (item of filteredData(); track item.filename) {
+                                        <tr>
+                                            <td class="fw-bold text-primary" style="cursor: pointer;"
+                                                (click)="onViewFile(item.filename)" title="Click to view file details">
+                                                <i class="bi bi-gear-fill me-2"></i>
+                                                {{ item.engine }}
+                                            </td>
+                                            <td>
+                                                <i class="bi bi-file-earmark-json me-2"></i>
+                                                {{ item.filename }}
+                                            </td>
+                                            <td>
+                                                <small>{{ item.timestamp | date:'short' }}</small>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-success">{{ item.summary.passCount }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-danger">{{ item.summary.failCount }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-warning">{{ item.summary.skipCount }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-secondary">{{ item.summary.errorCount }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <strong>{{ item.summary.passCount + item.summary.failCount +
+                                                    item.summary.skipCount + item.summary.errorCount }}</strong>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-outline-primary view-file-btn"
+                                                    (click)="onViewFile(item.filename)">
+                                                    <i class="bi bi-eye me-1"></i>View
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
                                 </tbody>
                             </table>
                         </div>
@@ -269,5 +277,5 @@
                 </div>
             </div>
         </div>
-    </div>
+    }
 </div>

@@ -2,7 +2,7 @@
 
 import { Component, OnInit } from '@angular/core';
 import { SettingsService } from '../../services/settings.service';
-import { CommonModule, Location } from '@angular/common';
+import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ThemeType } from '../../models/settings.model';
@@ -10,7 +10,7 @@ import { ThemeType } from '../../models/settings.model';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss'
 })
