@@ -1,7 +1,5 @@
 # CQL Tests UI
 
-***This project has been contributed to `cqframework` at https://github.com/cqframework/cql-tests-ui! This original version will be archived.***
-
 A web application for viewing and analyzing CQL (Clinical Quality Language) test results created from [CQL Tests Runner](https://github.com/cqframework/cql-tests-runner/issues/40).
 
 #### Cross-Engine Comparison Summary
