@@ -1,15 +1,15 @@
 {
   "name": "cql-tests-ui",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "author": "Preston Lee",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/preston/cql-tests-ui"
+    "url": "https://github.com/cqframework/cql-tests-ui"
   },
-  "homepage": "https://github.com/preston/cql-tests-ui",
+  "homepage": "https://github.com/cqframework/cql-tests-ui",
   "bugs": {
-    "url": "https://github.com/preston/cql-tests-ui/issues"
+    "url": "https://github.com/cqframework/cql-tests-ui/issues"
   },
   "scripts": {
     "ng": "ng",
@@ -36,12 +36,12 @@
   },
   "private": true,
   "dependencies": {
-    "@angular/common": "^20.3.1",
-    "@angular/compiler": "^20.3.1",
-    "@angular/core": "^20.3.1",
-    "@angular/forms": "^20.3.1",
-    "@angular/platform-browser": "^20.3.1",
-    "@angular/router": "^20.3.1",
+    "@angular/common": "^20.3.2",
+    "@angular/compiler": "^20.3.2",
+    "@angular/core": "^20.3.2",
+    "@angular/forms": "^20.3.2",
+    "@angular/platform-browser": "^20.3.2",
+    "@angular/router": "^20.3.2",
     "@types/fhir": "^0.0.41",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
@@ -54,9 +54,9 @@
     "zone.js": "~0.15.1"
   },
   "devDependencies": {
-    "@angular/build": "^20.3.2",
-    "@angular/cli": "^20.3.2",
-    "@angular/compiler-cli": "^20.3.1",
+    "@angular/build": "^20.3.3",
+    "@angular/cli": "^20.3.3",
+    "@angular/compiler-cli": "^20.3.2",
     "@playwright/test": "^1.55.1",
     "@types/jasmine": "~5.1.9",
     "jasmine-core": "~5.10.0",
