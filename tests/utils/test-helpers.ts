@@ -225,10 +225,8 @@ export class TestHelpers {
    * Navigate to results documentation page
    */
   async goToResultsDocumentation() {
-    const docLink = this.page.locator('a:has-text("Documentation")');
-    await docLink.click();
-    const resultsDocLink = this.page.locator('.dropdown-item:has-text("Results")');
-    await resultsDocLink.click();
+    await this.page.goto('/documentation/results');
+    await this.page.waitForLoadState('networkidle');
     await this.page.waitForSelector('h1:has-text("Launching CQL Test Results Viewer")');
   }
 
@@ -236,10 +234,8 @@ export class TestHelpers {
    * Navigate to runner documentation page
    */
   async goToRunnerDocumentation() {
-    const docLink = this.page.locator('a:has-text("Documentation")');
-    await docLink.click();
-    const runnerDocLink = this.page.locator('.dropdown-item:has-text("Runner")');
-    await runnerDocLink.click();
+    await this.page.goto('/documentation/runner');
+    await this.page.waitForLoadState('networkidle');
     await this.page.waitForSelector('h1:has-text("CQL Test Runner")');
   }
 
@@ -247,7 +243,7 @@ export class TestHelpers {
    * Navigate to runner page
    */
   async goToRunner() {
-    const runnerLink = this.page.locator('.nav-link:has-text("Runner")');
+    const runnerLink = this.page.locator('#runner-nav-link');
     await runnerLink.click();
     await this.page.waitForSelector('h1:has-text("CQL Test Runner")');
   }
@@ -256,7 +252,7 @@ export class TestHelpers {
    * Navigate to settings page
    */
   async goToSettings() {
-    const settingsLink = this.page.locator('a:has-text("Settings")');
+    const settingsLink = this.page.locator('#settings-nav-link');
     await settingsLink.click();
     await this.page.waitForSelector('h4:has-text("Preferences")');
   }

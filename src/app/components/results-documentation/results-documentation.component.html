@@ -10,6 +10,7 @@
     <div class="col-md-3">
       <div class="nav flex-column nav-pills documentation-nav" role="tablist">
         <button 
+          id="query-parameters-tab"
           class="nav-link" 
           [class.active]="activeTab === 'query-parameters'"
           (click)="setActiveTab('query-parameters')"
@@ -17,6 +18,7 @@
           Query Parameters
         </button>
         <button 
+          id="index-files-tab"
           class="nav-link" 
           [class.active]="activeTab === 'index-files'"
           (click)="setActiveTab('index-files')"
@@ -24,6 +26,7 @@
           Index File Support
         </button>
         <button 
+          id="integration-tab"
           class="nav-link" 
           [class.active]="activeTab === 'integration'"
           (click)="setActiveTab('integration')"
@@ -31,6 +34,7 @@
           Integration & Deep Linking
         </button>
         <button 
+          id="validation-tab"
           class="nav-link" 
           [class.active]="activeTab === 'validation'"
           (click)="setActiveTab('validation')"
@@ -38,6 +42,7 @@
           Schema Validation
         </button>
         <button 
+          id="filtering-tab"
           class="nav-link" 
           [class.active]="activeTab === 'filtering'"
           (click)="setActiveTab('filtering')"

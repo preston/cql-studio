@@ -217,7 +217,7 @@ test.describe('Dashboard Tests', () => {
       await sortOrderButton.click();
       
       // Should show descending order
-      await expect(helpers.page.locator('button:has-text("Descending")')).toBeVisible();
+      await expect(helpers.page.locator('#sort-order-btn:has-text("Descending")')).toBeVisible();
     });
 
     test('should select and deselect files', async () => {

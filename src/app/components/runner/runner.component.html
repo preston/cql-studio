@@ -7,6 +7,7 @@
         </h1>
         <div class="btn-group">
           <button 
+            id="check-api-health-btn"
             type="button" 
             class="btn btn-outline-info" 
             (click)="checkApiHealth()"
@@ -19,11 +20,11 @@
               Check Runner API Health
             }
           </button>
-          <button type="button" class="btn btn-outline-secondary" (click)="toggleJsonEditor()">
+          <button id="toggle-json-editor-btn" type="button" class="btn btn-outline-secondary" (click)="toggleJsonEditor()">
             <i class="bi bi-code-slash me-1"></i>
             {{ showJsonEditor() ? 'Form Editor' : 'JSON Editor' }}
           </button>
-          <button type="button" class="btn btn-outline-danger" (click)="reset()">
+          <button id="reset-config-btn" type="button" class="btn btn-outline-danger" (click)="reset()">
             <i class="bi bi-arrow-clockwise me-1"></i>Reset
           </button>
         </div>
@@ -51,15 +52,15 @@
                 </small>
               </div>
               <div class="d-flex gap-2 flex-wrap">
-                <button type="button" class="btn btn-outline-danger btn-sm" (click)="checkApiHealth()">
+                <button id="retry-connection-btn" type="button" class="btn btn-outline-danger btn-sm" (click)="checkApiHealth()">
                   <i class="bi bi-arrow-clockwise me-1"></i>Retry Connection
                 </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="apiUnavailable.set(false)">
+                <button id="dismiss-warning-btn" type="button" class="btn btn-outline-secondary btn-sm" (click)="apiUnavailable.set(false)">
                   <i class="bi bi-x me-1"></i>Dismiss Warning
                 </button>
               </div>
             </div>
-            <button type="button" class="btn-close" (click)="apiUnavailable.set(false)"></button>
+            <button id="close-api-warning-btn" type="button" class="btn-close" (click)="apiUnavailable.set(false)"></button>
           </div>
         </div>
       }
@@ -69,7 +70,7 @@
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
           <i class="bi bi-exclamation-triangle me-2"></i>
           {{ error() }}
-          <button type="button" class="btn-close" (click)="error.set(null)"></button>
+          <button id="close-error-btn" type="button" class="btn-close" (click)="error.set(null)"></button>
         </div>
       }
 
@@ -117,10 +118,10 @@
               </div>
             </div>
             <div class="d-flex gap-2 flex-wrap mt-3">
-              <button type="button" class="btn btn-primary" (click)="loadFromJson()">
+              <button id="load-from-json-btn" type="button" class="btn btn-primary" (click)="loadFromJson()">
                 <i class="bi bi-upload me-1"></i>Load from JSON
               </button>
-              <button type="button" class="btn btn-outline-secondary" (click)="updateJsonConfig()">
+              <button id="update-json-config-btn" type="button" class="btn btn-outline-secondary" (click)="updateJsonConfig()">
                 <i class="bi bi-arrow-clockwise me-1"></i>Update from Form
               </button>
             </div>
@@ -255,7 +256,7 @@
                 <h5 class="card-title mb-0">
                   <i class="bi bi-skip-backward me-2"></i>Skip List
                 </h5>
-                <button type="button" class="btn btn-sm btn-outline-primary" (click)="addSkipItem()">
+                <button id="add-skip-item-btn" type="button" class="btn btn-sm btn-outline-primary" (click)="addSkipItem()">
                   <i class="bi bi-plus me-1"></i>Add Skip Item
                 </button>
               </div>
@@ -307,6 +308,7 @@
                             </td>
                             <td>
                               <button 
+                                id="remove-skip-item-btn-{{ $index }}"
                                 type="button" 
                                 class="btn btn-sm btn-outline-danger" 
                                 (click)="removeSkipItem($index)">
@@ -330,6 +332,7 @@
         <div class="card-body">
           <div class="d-flex gap-2 flex-wrap">
             <button 
+              id="run-tests-btn"
               type="button" 
               class="btn btn-primary btn-lg" 
               (click)="createJob()"
@@ -388,7 +391,7 @@
                   </div>
                   
                   <div class="mt-3">
-                    <button type="button" class="btn btn-outline-danger" (click)="checkApiHealth()">
+                    <button id="test-connection-again-btn" type="button" class="btn btn-outline-danger" (click)="checkApiHealth()">
                       <i class="bi bi-arrow-clockwise me-1"></i>Test Connection Again
                     </button>
                   </div>
@@ -513,11 +516,11 @@
                 
                 <!-- Action buttons for completed job -->
                 <div class="d-flex gap-2 mt-3 flex-wrap">
-                  <button type="button" class="btn btn-success" (click)="downloadResults()">
+                  <button id="download-results-btn" type="button" class="btn btn-success" (click)="downloadResults()">
                     <i class="bi bi-download me-1"></i>
                     Download Results JSON
                   </button>
-                  <button type="button" class="btn btn-primary" (click)="viewResults()">
+                  <button id="view-results-btn" type="button" class="btn btn-primary" (click)="viewResults()">
                     <i class="bi bi-eye me-1"></i>
                     View Results
                   </button>

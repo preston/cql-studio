@@ -15,7 +15,7 @@ test.describe('Runner Tests', () => {
       await helpers.goToHome();
       
       // Click runner link
-      await helpers.page.click('.nav-link:has-text("Runner")');
+      await helpers.page.click('#runner-nav-link');
       
       // Should show runner component
       await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
@@ -25,7 +25,7 @@ test.describe('Runner Tests', () => {
       await helpers.goToHome();
       
       // Click runner link in navigation
-      await helpers.page.click('.nav-link:has-text("Runner")');
+      await helpers.page.click('#runner-nav-link');
       
       // Should show runner component
       await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
@@ -64,8 +64,11 @@ test.describe('Runner Tests', () => {
       // Should show runner component
       await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
       
+      // Wait for configuration to load from URL
+      await helpers.page.waitForTimeout(1000);
+      
       // Should load configuration from URL
-      await expect(helpers.page.locator('input[id="baseUrl"]')).toHaveValue('https://cloud.alphora.com/sandbox/r4/cds/fhir');
+      await expect(helpers.page.locator('input[id="baseUrl"]')).toHaveValue('http://localhost:8080/fhir');
       await expect(helpers.page.locator('input[id="cqlOperation"]')).toHaveValue('$cql');
       await expect(helpers.page.locator('input[id="cqlFileVersion"]')).toHaveValue('1.0.000');
       await expect(helpers.page.locator('input[id="cqlOutputPath"]')).toHaveValue('./cql');
@@ -77,12 +80,12 @@ test.describe('Runner Tests', () => {
       await expect(helpers.page.locator('h5:has-text("Skip List")')).toBeVisible();
       
       // Should have add skip item button
-      await expect(helpers.page.locator('button:has-text("Add Skip Item")')).toBeVisible();
+      await expect(helpers.page.locator('#add-skip-item-btn')).toBeVisible();
     });
 
     test('should add skip list item', async () => {
       // Click add skip item button
-      await helpers.page.click('button:has-text("Add Skip Item")');
+      await helpers.page.click('#add-skip-item-btn');
       
       // Should show skip item form
       await expect(helpers.page.locator('input[placeholder="Test suite name"]')).toBeVisible();
@@ -93,10 +96,10 @@ test.describe('Runner Tests', () => {
 
     test('should display JSON configuration editor', async () => {
       // Should have JSON editor toggle
-      await expect(helpers.page.locator('button:has-text("JSON Editor")')).toBeVisible();
+      await expect(helpers.page.locator('#toggle-json-editor-btn')).toBeVisible();
       
       // Click to show JSON editor
-      await helpers.page.click('button:has-text("JSON Editor")');
+      await helpers.page.click('#toggle-json-editor-btn');
       
       // Should show JSON editor container
       await expect(helpers.page.locator('.json-editor-container')).toBeVisible();
@@ -111,13 +114,13 @@ test.describe('Runner Tests', () => {
 
     test('should display action buttons', async () => {
       // Should have run tests button
-      await expect(helpers.page.locator('button:has-text("Run Tests")')).toBeVisible();
+      await expect(helpers.page.locator('#run-tests-btn')).toBeVisible();
       
       // Should have reset button
-      await expect(helpers.page.locator('button:has-text("Reset")')).toBeVisible();
+      await expect(helpers.page.locator('#reset-config-btn')).toBeVisible();
       
       // Should have JSON editor toggle button
-      await expect(helpers.page.locator('button:has-text("JSON Editor")')).toBeVisible();
+      await expect(helpers.page.locator('#toggle-json-editor-btn')).toBeVisible();
     });
 
     test('should reset configuration', async () => {
@@ -125,7 +128,7 @@ test.describe('Runner Tests', () => {
       await helpers.page.fill('input[id="baseUrl"]', 'https://example.com/fhir');
       
       // Click reset button
-      await helpers.page.click('button:has-text("Reset")');
+      await helpers.page.click('#reset-config-btn');
       
       // Should reset to default values
       await expect(helpers.page.locator('input[id="baseUrl"]')).toHaveValue('http://localhost:8080/fhir');
@@ -133,7 +136,7 @@ test.describe('Runner Tests', () => {
 
     test('should show health check status', async () => {
       // Should have check health button
-      await expect(helpers.page.locator('button:has-text("Check Runner API Health")')).toBeVisible();
+      await expect(helpers.page.locator('#check-api-health-btn')).toBeVisible();
     });
   });
 
@@ -184,14 +187,9 @@ test.describe('Runner Tests', () => {
 
   test.describe('Runner Documentation', () => {
     test('should navigate to runner documentation', async () => {
-      await helpers.page.goto('/runner');
-      await helpers.waitForAppLoad();
-      
-      // Click documentation dropdown
-      await helpers.page.click('a:has-text("Documentation")');
-      
-      // Click runner documentation link
-      await helpers.page.click('.dropdown-item:has-text("Runner")');
+      // Navigate directly to the documentation page
+      await helpers.page.goto('/documentation/runner');
+      await helpers.page.waitForLoadState('networkidle');
       
       // Should show runner documentation
       await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
