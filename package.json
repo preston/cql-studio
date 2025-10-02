@@ -59,12 +59,12 @@
     "@angular/compiler-cli": "^20.3.2",
     "@playwright/test": "^1.55.1",
     "@types/jasmine": "~5.1.9",
-    "jasmine-core": "~5.10.0",
+    "jasmine-core": "~5.11.0",
     "karma": "~6.4.4",
     "karma-chrome-launcher": "~3.2.0",
     "karma-coverage": "~2.2.1",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.3"
   }
 }
