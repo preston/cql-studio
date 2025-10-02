@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Page } from '@playwright/test';
-import path from 'path';
 import { 
   StatusFilter, 
   GroupByOption, 
@@ -17,7 +16,7 @@ export class TestHelpers {
    */
   async waitForAppLoad() {
     await this.page.waitForLoadState('networkidle');
-    await this.page.waitForSelector('app-open, app-results-viewer, app-dashboard', { timeout: 10000 });
+    await this.page.waitForSelector('app-open, app-results-viewer, app-dashboard, app-runner', { timeout: 10000 });
   }
 
   /**
@@ -223,12 +222,34 @@ export class TestHelpers {
   }
 
   /**
-   * Navigate to documentation page
+   * Navigate to results documentation page
    */
-  async goToDocumentation() {
+  async goToResultsDocumentation() {
     const docLink = this.page.locator('a:has-text("Documentation")');
     await docLink.click();
+    const resultsDocLink = this.page.locator('.dropdown-item:has-text("Results")');
+    await resultsDocLink.click();
     await this.page.waitForSelector('h1:has-text("Launching CQL Test Results Viewer")');
+  }
+
+  /**
+   * Navigate to runner documentation page
+   */
+  async goToRunnerDocumentation() {
+    const docLink = this.page.locator('a:has-text("Documentation")');
+    await docLink.click();
+    const runnerDocLink = this.page.locator('.dropdown-item:has-text("Runner")');
+    await runnerDocLink.click();
+    await this.page.waitForSelector('h1:has-text("CQL Test Runner")');
+  }
+
+  /**
+   * Navigate to runner page
+   */
+  async goToRunner() {
+    const runnerLink = this.page.locator('.nav-link:has-text("Runner")');
+    await runnerLink.click();
+    await this.page.waitForSelector('h1:has-text("CQL Test Runner")');
   }
 
   /**

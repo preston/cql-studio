@@ -21,6 +21,6 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('.navbar-brand')?.textContent).toContain('CQL Test Results');
+    expect(compiled.querySelector('.navbar-brand')?.textContent).toContain('CQL Tests');
   });
 });

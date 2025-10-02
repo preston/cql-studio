@@ -15,7 +15,7 @@ import { SessionStorageKeys } from '../../constants/session-storage.constants';
 })
 export class NavigationComponent {
   protected readonly title = signal(
-    (window as any)['CQL_TESTS_UI_NAME'] || 'CQL Test Results'
+    (window as any)['CQL_TESTS_UI_NAME'] || 'CQL Tests'
   );
   protected readonly showFileMenu = signal(false);
 

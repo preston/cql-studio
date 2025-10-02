@@ -11,6 +11,7 @@ export class Settings {
     public developer: boolean = false;
     public theme_preferred: ThemeType = ThemeType.AUTOMATIC;
     public validateSchema: boolean = false;
+    public runnerApiBaseUrl: string = '';
 
     public static DEFAULT_THEME = ThemeType.AUTOMATIC;
 }

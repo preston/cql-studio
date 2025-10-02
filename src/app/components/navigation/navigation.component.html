@@ -39,12 +39,34 @@
           </li>
         }
         <li class="nav-item">
-          <a class="nav-link" routerLink="/documentation" routerLinkActive="active">
-            <i class="bi bi-book me-1"></i>Documentation
+          <a class="nav-link" routerLink="/" routerLinkActive="active">
+            <i class="bi bi-file-earmark-text me-1"></i>Results
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/runner" routerLinkActive="active">
+            <i class="bi bi-play-circle me-1"></i>Runner
           </a>
         </li>
       </ul>
       <ul class="navbar-nav">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="documentationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-book me-1"></i>Documentation
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="documentationDropdown">
+            <li>
+              <a class="dropdown-item" routerLink="/documentation/results" routerLinkActive="active">
+                <i class="bi bi-clipboard-data me-2"></i>Results
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" routerLink="/documentation/runner" routerLinkActive="active">
+                <i class="bi bi-play-circle me-2"></i>Runner
+              </a>
+            </li>
+          </ul>
+        </li>
         <li class="nav-item">
           <a class="nav-link" routerLink="/settings" routerLinkActive="active">
             <i class="bi bi-gear me-1"></i>Settings

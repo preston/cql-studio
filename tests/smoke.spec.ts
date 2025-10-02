@@ -20,15 +20,43 @@ test.describe('Smoke Tests', () => {
     await expect(page.locator('button:has-text("Load Example Results File")')).toBeVisible();
   });
 
-  test('should navigate to documentation page', async ({ page }) => {
+  test('should navigate to results documentation page', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     
-    // Click documentation link
+    // Click documentation dropdown
     await page.click('a:has-text("Documentation")');
     
-    // Should show documentation content
+    // Click results documentation link
+    await page.click('.dropdown-item:has-text("Results")');
+    
+    // Should show results documentation content
     await expect(page.locator('h1:has-text("Launching CQL Test Results Viewer")')).toBeVisible();
+  });
+
+  test('should navigate to runner documentation page', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    
+    // Click documentation dropdown
+    await page.click('a:has-text("Documentation")');
+    
+    // Click runner documentation link
+    await page.click('.dropdown-item:has-text("Runner")');
+    
+    // Should show runner documentation content
+    await expect(page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+  });
+
+  test('should navigate to runner page', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    
+    // Click runner link
+    await page.click('.nav-link:has-text("Runner")');
+    
+    // Should show runner content
+    await expect(page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
   });
 
   test('should navigate to settings page', async ({ page }) => {
@@ -71,5 +99,24 @@ test.describe('Smoke Tests', () => {
     
     // Should show test results
     await expect(page.locator('table')).toBeVisible();
+  });
+
+  test('should load runner configuration from URL parameter', async ({ page }) => {
+    // Navigate to runner page with URL parameter
+    await page.goto('/runner?url=/examples/runner-config.json');
+    await page.waitForLoadState('networkidle');
+    
+    // Should show runner component
+    await expect(page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+    
+    // Should load configuration from URL
+    await expect(page.locator('input[id="baseUrl"]')).toHaveValue('https://cloud.alphora.com/sandbox/r4/cds/fhir');
+    await expect(page.locator('input[id="cqlOperation"]')).toHaveValue('$cql');
+    await expect(page.locator('input[id="cqlFileVersion"]')).toHaveValue('1.0.000');
+    await expect(page.locator('input[id="cqlOutputPath"]')).toHaveValue('./cql');
+    await expect(page.locator('input[id="resultsPath"]')).toHaveValue('./results');
+    
+    // Should have skip list section visible (skip list items might not be pre-populated)
+    await expect(page.locator('h5:has-text("Skip List")')).toBeVisible();
   });
 });

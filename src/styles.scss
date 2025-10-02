@@ -1,6 +1,9 @@
 // Import color variables
 @use 'app/styles/_colors' as colors;
 
+// Import Bootstrap
+@use 'bootstrap/scss/bootstrap';
+
 body:has([data-bs-theme=light]) {
   background: url("/images/textures/crossword.png") repeat;
 

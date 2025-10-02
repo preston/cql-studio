@@ -69,6 +69,11 @@ The Docker setup includes:
 
 The application supports runtime configuration through environment variables. The `entrypoint.sh` script processes `configuration.template.js` to generate the final configuration at runtime.
 
+#### Available Environment Variables
+
+- **CQL_TESTS_UI_NAME**: Sets the display name for the CQL Tests UI application. This name appears in the browser title and throughout the user interface.
+- **CQL_TESTS_UI_RUNNER_BASE_URL**: Specifies the base URL for the CQL Tests Runner service. This URL is used to communicate with the runner backend for executing CQL tests and retrieving results.
+
 ## Attribution & License
 
 Copyright © 2025 Preston Lee. All rights reserved. Provided under the Apache 2.0 license.
