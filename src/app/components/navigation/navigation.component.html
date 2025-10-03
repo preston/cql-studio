@@ -38,15 +38,22 @@
           </ul>
           </li>
         }
-        <li class="nav-item">
-          <a id="results-nav-link" class="nav-link" routerLink="/" routerLinkActive="active">
-            <i class="bi bi-file-earmark-text me-1"></i>Results
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="testingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-clipboard-check me-1"></i>Testing
           </a>
-        </li>
-        <li class="nav-item">
-          <a id="runner-nav-link" class="nav-link" routerLink="/runner" routerLinkActive="active">
-            <i class="bi bi-play-circle me-1"></i>Runner
-          </a>
+          <ul class="dropdown-menu" aria-labelledby="testingDropdown">
+            <li>
+              <a id="results-nav-link" class="dropdown-item" routerLink="/" routerLinkActive="active">
+                <i class="bi bi-file-earmark-text me-2"></i>Results
+              </a>
+            </li>
+            <li>
+              <a id="runner-nav-link" class="dropdown-item" routerLink="/runner" routerLinkActive="active">
+                <i class="bi bi-play-circle me-2"></i>Runner
+              </a>
+            </li>
+          </ul>
         </li>
       </ul>
       <ul class="navbar-nav">
