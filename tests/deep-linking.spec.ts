@@ -233,8 +233,8 @@ test.describe('Deep Linking Tests', () => {
       // Should be on results page
       expect(await helpers.isOnResultsPage()).toBe(true);
       
-      // Navigate to documentation and back
-      await helpers.goToDocumentation();
+      // Navigate to results documentation and back
+      await helpers.goToResultsDocumentation();
       await helpers.page.goBack();
       
       // Should still be on results page with same filters

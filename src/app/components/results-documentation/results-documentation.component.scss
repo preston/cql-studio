@@ -1,0 +1,96 @@
+@use '../../styles/_colors' as colors;
+
+.card {
+  box-shadow: 0 0.125rem 0.25rem colors.$color-shadow-light;
+  border: 1px solid colors.$color-border-light;
+}
+
+.card-header {
+  border-bottom: 1px solid colors.$color-border-light;
+}
+
+code {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875em;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+}
+
+.lead {
+  font-size: 1.1rem;
+  font-weight: 300;
+}
+
+h3 {
+  color: colors.$color-text-primary;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+h4 {
+  color: colors.$color-text-secondary;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+ul, ol {
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.25rem;
+}
+
+// Prevent text wrapping in the 4th column of the parameters table
+.table th:last-child,
+.table td:last-child {
+  white-space: nowrap;
+}
+
+// Vertical tabs styling
+.documentation-nav {
+  .nav-link {
+    color: colors.$color-text-secondary;
+    border: 1px solid colors.$color-border-light;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    transition: all 0.15s ease-in-out;
+    background-color: transparent;
+    
+    &:hover {
+      color: colors.$color-text-primary;
+      background-color: colors.$color-bg-secondary;
+      border-color: colors.$color-border-medium;
+    }
+    
+    &.active {
+      color: #fff;
+      background-color: colors.$color-primary;
+      border-color: colors.$color-primary;
+      font-weight: 500;
+    }
+  }
+}
+
+.tab-content {
+  .tab-pane {
+    display: none;
+    
+    &.active {
+      display: block;
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 767.98px) {
+  .documentation-nav {
+    margin-bottom: 1.5rem;
+    
+    .nav-link {
+      text-align: center;
+    }
+  }
+}

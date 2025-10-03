@@ -4,7 +4,7 @@
       <i class="bi bi-clipboard-data me-2"></i>{{ title() }}
     </a>
 
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+    <button id="navbar-toggler" class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
       aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -18,19 +18,19 @@
           </a>
           <ul class="dropdown-menu" aria-labelledby="fileDropdown">
             <li>
-              <a class="dropdown-item" routerLink="/" (click)="onOpenNew()">
+              <a id="close-file-menu-item" class="dropdown-item" routerLink="/" (click)="onOpenNew()">
                 <i class="bi bi-folder2-open me-2"></i>Close
               </a>
             </li>
             <li>
-              <a class="dropdown-item" href="#" (click)="onDownloadResults()">
+              <a id="download-results-menu-item" class="dropdown-item" href="#" (click)="onDownloadResults()">
                 <i class="bi bi-download me-2"></i>Download
               </a>
             </li>
             @if (hasIndexUrl()) {
               <li><hr class="dropdown-divider"></li>
               <li>
-                <a class="dropdown-item" href="#" (click)="goBackToIndex(); $event.preventDefault()">
+                <a id="back-to-home-menu-item" class="dropdown-item" href="#" (click)="goBackToIndex(); $event.preventDefault()">
                   <i class="bi bi-arrow-left me-2"></i>Back to Home
                 </a>
               </li>
@@ -39,14 +39,36 @@
           </li>
         }
         <li class="nav-item">
-          <a class="nav-link" routerLink="/documentation" routerLinkActive="active">
-            <i class="bi bi-book me-1"></i>Documentation
+          <a id="results-nav-link" class="nav-link" routerLink="/" routerLinkActive="active">
+            <i class="bi bi-file-earmark-text me-1"></i>Results
+          </a>
+        </li>
+        <li class="nav-item">
+          <a id="runner-nav-link" class="nav-link" routerLink="/runner" routerLinkActive="active">
+            <i class="bi bi-play-circle me-1"></i>Runner
           </a>
         </li>
       </ul>
       <ul class="navbar-nav">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="documentationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-book me-1"></i>Documentation
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="documentationDropdown">
+            <li>
+              <a id="results-documentation-menu-item" class="dropdown-item" routerLink="/documentation/results" routerLinkActive="active">
+                <i class="bi bi-clipboard-data me-2"></i>Results
+              </a>
+            </li>
+            <li>
+              <a id="runner-documentation-menu-item" class="dropdown-item" routerLink="/documentation/runner" routerLinkActive="active">
+                <i class="bi bi-play-circle me-2"></i>Runner
+              </a>
+            </li>
+          </ul>
+        </li>
         <li class="nav-item">
-          <a class="nav-link" routerLink="/settings" routerLinkActive="active">
+          <a id="settings-nav-link" class="nav-link" routerLink="/settings" routerLinkActive="active">
             <i class="bi bi-gear me-1"></i>Settings
           </a>
         </li>

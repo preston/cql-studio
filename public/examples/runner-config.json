@@ -1,0 +1,24 @@
+{
+  "FhirServer": {
+    "BaseUrl": "http://localhost:8080/fhir",
+    "CqlOperation": "$cql"
+  },
+  "Build": {
+    "CqlFileVersion": "1.0.000",
+    "CqlOutputPath": "./cql"
+  },
+  "Debug": {
+    "QuickTest": true
+  },
+  "Tests": {
+    "ResultsPath": "./results",
+    "SkipList": [
+      {
+        "TestSuite": "Example Test Suite",
+        "Group": "Example Group",
+        "Test": "Example Test",
+        "Reason": "Known issue with this test"
+      }
+    ]
+  }
+}

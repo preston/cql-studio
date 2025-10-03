@@ -73,6 +73,10 @@ export class SettingsService {
           parsedSettings.validateSchema = false;
           shouldSave = true;
         }
+        if (parsedSettings.runnerApiBaseUrl == null) {
+          parsedSettings.runnerApiBaseUrl = this.getDefaultRunnerApiBaseUrl();
+          shouldSave = true;
+        }
         if (shouldSave) {
           this.saveSettings();
           console.log("Settings have been updated to include default field values.");
@@ -106,5 +110,9 @@ export class SettingsService {
   saveSettings() {
     localStorage.setItem(SettingsService.SETTINGS_KEY, JSON.stringify(this.settings()));
     console.log("Your settings have been saved to local browser storage on this device. They will not be sync'd to any other system, even if your browser supports such features.");
+  }
+
+  getDefaultRunnerApiBaseUrl(): string {
+    return (window as any)['CQL_TESTS_UI_RUNNER_BASE_URL'] || 'http://localhost:3000';
   }
 }
