@@ -14,7 +14,7 @@ import { SessionStorageKeys } from '../../constants/session-storage.constants';
   styleUrl: './navigation.component.scss'
 })
 export class NavigationComponent {
-  protected readonly title = signal('CQL Workbench');
+  protected readonly title = signal('CQL Studio');
   protected readonly showFileMenu = signal(false);
 
   constructor(private router: Router) {

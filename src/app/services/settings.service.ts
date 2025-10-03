@@ -125,14 +125,14 @@ export class SettingsService {
   }
 
   getDefaultRunnerApiBaseUrl(): string {
-    return (window as any)['CQL_WORKBENCH_RUNNER_BASE_URL'] || 'http://localhost:3000';
+    return (window as any)['CQL_STUDIO_RUNNER_BASE_URL'] || 'http://localhost:3000';
   }
 
   getDefaultFhirBaseUrl(): string {
-    return (window as any)['CQL_WORKBENCH_FHIR_BASE_URL'] || 'http://localhost:8080/fhir';
+    return (window as any)['CQL_STUDIO_FHIR_BASE_URL'] || 'http://localhost:8080/fhir';
   }
 
   getDefaultTranslationBaseUrl(): string {
-    return (window as any)['CQL_WORKBENCH_TRANSLATION_BASE_URL'] || 'http://localhost:3001';
+    return (window as any)['CQL_STUDIO_TRANSLATION_BASE_URL'] || 'http://localhost:3001';
   }
 }

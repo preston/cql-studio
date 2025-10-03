@@ -1,4 +1,4 @@
-<div id="settings" class="container">
+<div id="settings" class="container mt-5">
 
     <div class="row">
         <div class="col-sm-6">
@@ -43,7 +43,7 @@
                     [(ngModel)]="settingsService.settings().runnerApiBaseUrl" 
                     placeholder="http://localhost:3000">
                 <label for="runnerApiBaseUrl">Runner API Base URL</label>
-                <small class="form-text">Base URL for the CQL Tests Runner API. Defaults to window.CQL_WORKBENCH_RUNNER_BASE_URL or http://localhost:3000</small>
+                <small class="form-text">Base URL for the CQL Tests Runner API. Defaults to window.CQL_STUDIO_RUNNER_BASE_URL or http://localhost:3000</small>
             </div>
 
             <div class="form-floating mt-3">
@@ -51,7 +51,7 @@
                     [(ngModel)]="settingsService.settings().fhirBaseUrl" 
                     placeholder="http://localhost:8080/fhir">
                 <label for="fhirBaseUrl">FHIR Base URL</label>
-                <small class="form-text">Base URL for the FHIR server. Defaults to window.CQL_WORKBENCH_FHIR_BASE_URL or http://localhost:8080/fhir</small>
+                <small class="form-text">Base URL for the FHIR server. Defaults to window.CQL_STUDIO_FHIR_BASE_URL or http://localhost:8080/fhir</small>
             </div>
 
             <div class="form-floating mt-3">
@@ -59,7 +59,7 @@
                     [(ngModel)]="settingsService.settings().translationBaseUrl" 
                     placeholder="http://localhost:3001">
                 <label for="translationBaseUrl">Translation Base URL</label>
-                <small class="form-text">Base URL for the translation service. Defaults to window.CQL_WORKBENCH_TRANSLATION_BASE_URL or http://localhost:3001</small>
+                <small class="form-text">Base URL for the translation service. Defaults to window.CQL_STUDIO_TRANSLATION_BASE_URL or http://localhost:3001</small>
             </div>
         </div>
 

@@ -33,6 +33,23 @@ export class LibraryService extends BaseService {
 		return this.http.get<Bundle<Library>>(this.url() + "?title:contains=" + searchTerm, { headers: this.headers() });
 	}
 
+	// Get paginated list of all libraries
+	getAll(page: number = 1, pageSize: number = 10, sortBy: string = 'name', order: 'asc' | 'desc' = 'asc'): Observable<Bundle<Library>> {
+		const offset = (page - 1) * pageSize;
+		let url = this.url() + `?_count=${pageSize}&_offset=${offset}`;
+		
+		// Add sorting parameters
+		if (sortBy === 'name') {
+			url += `&_sort=${order === 'asc' ? 'name' : '-name'}`;
+		} else if (sortBy === 'version') {
+			url += `&_sort=${order === 'asc' ? 'version' : '-version'}`;
+		} else if (sortBy === 'date') {
+			url += `&_sort=${order === 'asc' ? 'date' : '-date'}`;
+		}
+		
+		return this.http.get<Bundle<Library>>(url, { headers: this.headers() });
+	}
+
 	urlFor(id: string) {
 		const baseUrl = this.settingsService.settings().fhirBaseUrl || this.settingsService.getDefaultFhirBaseUrl();
 		return baseUrl + '/Library/' + id;

@@ -14,7 +14,7 @@ export class PatientService extends BaseService {
 
 	public static readonly PATIENT_PATH = '/Patient';
 
-	public selectedPatient: Patient | null = null;
+	public selectedPatients: Patient[] = [];
 
 	constructor(protected override http: HttpClient, protected settingsService: SettingsService) { 
 		super(http);
@@ -51,6 +51,24 @@ export class PatientService extends BaseService {
 	}
 
 	clearSelection() {
-		this.selectedPatient = null;
+		this.selectedPatients = [];
+	}
+
+	addPatient(patient: Patient): void {
+		if (patient.id && !this.selectedPatients.find(p => p.id === patient.id)) {
+			this.selectedPatients.push(patient);
+		}
+	}
+
+	removePatient(patientId: string): void {
+		this.selectedPatients = this.selectedPatients.filter(p => p.id !== patientId);
+	}
+
+	hasPatient(patientId: string): boolean {
+		return this.selectedPatients.some(p => p.id === patientId);
+	}
+
+	get selectedPatient(): Patient | null {
+		return this.selectedPatients.length > 0 ? this.selectedPatients[0] : null;
 	}
 }
