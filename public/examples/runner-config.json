@@ -14,10 +14,10 @@
     "ResultsPath": "./results",
     "SkipList": [
       {
-        "TestSuite": "Example Test Suite",
-        "Group": "Example Group",
-        "Test": "Example Test",
-        "Reason": "Known issue with this test"
+        "testsName": "Example Test Suite",
+        "groupName": "Example Group",
+        "testName": "Example Test",
+        "reason": "Known issue with this test"
       }
     ]
   }

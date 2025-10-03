@@ -15,6 +15,7 @@ export interface CQLTestConfiguration {
   Build: {
     CqlFileVersion: string;
     CqlOutputPath: string;
+    CqlVersion?: string;
   };
   Debug: {
     QuickTest: boolean;
@@ -107,7 +108,8 @@ export class RunnerService {
       },
       Build: {
         CqlFileVersion: '1.0.000',
-        CqlOutputPath: './cql'
+        CqlOutputPath: './cql',
+        CqlVersion: '1.5.3'
       },
       Debug: {
         QuickTest: true

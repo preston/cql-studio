@@ -101,6 +101,78 @@
         </div>
       }
 
+      <!-- API Status Information -->
+      @if (apiUnavailable()) {
+        <div class="card mb-4">
+          <div class="card-header bg-danger text-white">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-wifi-off me-2"></i>API Connection Status
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-danger">
+              <div class="d-flex align-items-start">
+                <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                <div class="flex-grow-1">
+                  <h6 class="alert-heading">CQL Test Runner API is not accessible</h6>
+                  <p class="mb-3">The application cannot connect to the CQL Test Runner API. This prevents running tests and checking job status.</p>
+                  
+                  <div class="row">
+                    <div class="col-md-6">
+                      <h6 class="fw-bold">Troubleshooting Steps:</h6>
+                      <ul class="list-unstyled">
+                        <li><i class="bi bi-check-circle text-success me-2"></i>Verify the API service is running</li>
+                        <li><i class="bi bi-check-circle text-success me-2"></i>Check the API URL configuration</li>
+                        <li><i class="bi bi-check-circle text-success me-2"></i>Ensure network connectivity</li>
+                        <li><i class="bi bi-check-circle text-success me-2"></i>Check for CORS configuration issues</li>
+                      </ul>
+                    </div>
+                    <div class="col-md-6">
+                      <h6 class="fw-bold">Current Configuration:</h6>
+                      <div class="bg-light p-3 rounded">
+                        <small>
+                          <strong>API Base URL:</strong><br>
+                          <code>{{ getApiBaseUrl() }}</code>
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="mt-3">
+                    <button id="test-connection-again-btn" type="button" class="btn btn-outline-danger" (click)="checkApiHealth()">
+                      <i class="bi bi-arrow-clockwise me-1"></i>Test Connection Again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      } @else if (healthStatus()) {
+        <div class="card mb-4">
+          <div class="card-header">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-heart-pulse me-2"></i>API Health Status
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-success">
+              <div class="d-flex align-items-center">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <div>
+                  <strong>API is healthy!</strong>
+                  <br>
+                  <small class="text-muted">
+                    Status: {{ healthStatus()!.status }} | 
+                    Checked at: {{ healthStatus()!.timestamp | date:'medium' }}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- JSON Editor -->
       @if (showJsonEditor()) {
         <div class="card mb-4">
@@ -200,6 +272,17 @@
                     [(ngModel)]="config().Build.CqlOutputPath"
                     placeholder="./cql">
                 </div>
+                <div class="mb-3">
+                  <label for="cqlVersion" class="form-label">CQL Version (Optional)</label>
+                  <input 
+                    type="text" 
+                    class="form-control" 
+                    id="cqlVersion"
+                    [(ngModel)]="config().Build.CqlVersion"
+                    placeholder="1.5.3"
+                    pattern="^\d+\.\d+(\.\d+)?$">
+                  <div class="form-text">CQL engine version for version-based test filtering</div>
+                </div>
               </div>
             </div>
           </div>
@@ -281,28 +364,28 @@
                             <td>
                               <input 
                                 type="text" 
-                                class="form-control form-control-sm" 
+                                class="form-control form-control-sm"
                                 [(ngModel)]="item.testsName"
                                 placeholder="Test suite name">
                             </td>
                             <td>
                               <input 
                                 type="text" 
-                                class="form-control form-control-sm" 
+                                class="form-control form-control-sm"
                                 [(ngModel)]="item.groupName"
                                 placeholder="Group name">
                             </td>
                             <td>
                               <input 
                                 type="text" 
-                                class="form-control form-control-sm" 
+                                class="form-control form-control-sm"
                                 [(ngModel)]="item.testName"
                                 placeholder="Test name">
                             </td>
                             <td>
                               <input 
                                 type="text" 
-                                class="form-control form-control-sm" 
+                                class="form-control form-control-sm"
                                 [(ngModel)]="item.reason"
                                 placeholder="Skip reason">
                             </td>
@@ -353,77 +436,6 @@
         </div>
       </div>
 
-      <!-- API Status Information -->
-      @if (apiUnavailable()) {
-        <div class="card mt-4">
-          <div class="card-header bg-danger text-white">
-            <h5 class="card-title mb-0">
-              <i class="bi bi-wifi-off me-2"></i>API Connection Status
-            </h5>
-          </div>
-          <div class="card-body">
-            <div class="alert alert-danger">
-              <div class="d-flex align-items-start">
-                <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
-                <div class="flex-grow-1">
-                  <h6 class="alert-heading">CQL Test Runner API is not accessible</h6>
-                  <p class="mb-3">The application cannot connect to the CQL Test Runner API. This prevents running tests and checking job status.</p>
-                  
-                  <div class="row">
-                    <div class="col-md-6">
-                      <h6 class="fw-bold">Troubleshooting Steps:</h6>
-                      <ul class="list-unstyled">
-                        <li><i class="bi bi-check-circle text-success me-2"></i>Verify the API service is running</li>
-                        <li><i class="bi bi-check-circle text-success me-2"></i>Check the API URL configuration</li>
-                        <li><i class="bi bi-check-circle text-success me-2"></i>Ensure network connectivity</li>
-                        <li><i class="bi bi-check-circle text-success me-2"></i>Check for CORS configuration issues</li>
-                      </ul>
-                    </div>
-                    <div class="col-md-6">
-                      <h6 class="fw-bold">Current Configuration:</h6>
-                      <div class="bg-light p-3 rounded">
-                        <small>
-                          <strong>API Base URL:</strong><br>
-                          <code>{{ getApiBaseUrl() }}</code>
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="mt-3">
-                    <button id="test-connection-again-btn" type="button" class="btn btn-outline-danger" (click)="checkApiHealth()">
-                      <i class="bi bi-arrow-clockwise me-1"></i>Test Connection Again
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      } @else if (healthStatus()) {
-        <div class="card mt-4">
-          <div class="card-header">
-            <h5 class="card-title mb-0">
-              <i class="bi bi-heart-pulse me-2"></i>API Health Status
-            </h5>
-          </div>
-          <div class="card-body">
-            <div class="alert alert-success">
-              <div class="d-flex align-items-center">
-                <i class="bi bi-check-circle-fill me-2"></i>
-                <div>
-                  <strong>API is healthy!</strong>
-                  <br>
-                  <small class="text-muted">
-                    Status: {{ healthStatus()!.status }} | 
-                    Checked at: {{ healthStatus()!.timestamp | date:'medium' }}
-                  </small>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      }
 
       <!-- Job Status -->
       @if (currentJob() || jobStatus()) {

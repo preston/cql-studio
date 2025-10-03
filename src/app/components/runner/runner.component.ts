@@ -31,7 +31,8 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     },
     Build: {
       CqlFileVersion: '1.0.000',
-      CqlOutputPath: './cql'
+      CqlOutputPath: './cql',
+      CqlVersion: '1.5.3'
     },
     Debug: {
       QuickTest: true
@@ -247,7 +248,8 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       Build: {
         CqlFileVersion: '1.0.000',
-        CqlOutputPath: './cql'
+        CqlOutputPath: './cql',
+        CqlVersion: '1.5.3'
       },
       Debug: {
         QuickTest: true
