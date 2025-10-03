@@ -96,8 +96,13 @@ export class OpenComponent implements OnInit {
     sessionStorage.setItem(SessionStorageKeys.INDEX_URL, this.indexUrl());
     sessionStorage.setItem(SessionStorageKeys.INDEX_FILES, JSON.stringify(this.indexFiles()));
     
-    // Navigate to dashboard
-    this.router.navigate(['/dashboard']);
+    // Navigate to dashboard with index query parameter preserved
+    const queryParams: any = {};
+    if (this.indexUrl()) {
+      queryParams['index'] = this.indexUrl();
+    }
+    
+    this.router.navigate(['/dashboard'], { queryParams });
   }
 
   onValidateSchemaChange(): void {
