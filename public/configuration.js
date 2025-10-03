@@ -1,5 +1,6 @@
 (function(window) {
     // Environment variables
-    window["CQL_TESTS_UI_NAME"] = "";
-    window["CQL_TESTS_UI_RUNNER_BASE_URL"] = "";
+    window["CQL_WORKBENCH_RUNNER_BASE_URL"] = "";
+    window["CQL_WORKBENCH_FHIR_BASE_URL"] = "";
+    window["CQL_WORKBENCH_TRANSLATION_BASE_URL"] = "";
 })(this);

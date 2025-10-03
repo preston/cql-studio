@@ -8,6 +8,7 @@ import { RunnerDocumentationComponent } from './components/runner-documentation/
 import { SettingsComponent } from './components/settings/settings.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { RunnerComponent } from './components/runner/runner.component';
+import { FhirExplorerComponent } from './components/fhir-explorer/fhir-explorer.component';
 
 export const routes: Routes = [
   { path: '', component: OpenComponent },
@@ -18,5 +19,6 @@ export const routes: Routes = [
   { path: 'settings', component: SettingsComponent },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'runner', component: RunnerComponent },
+  { path: 'fhir-explorer', component: FhirExplorerComponent },
   { path: '**', redirectTo: '' }
 ];

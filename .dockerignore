@@ -11,3 +11,6 @@ doc/
 Dockerfile
 node_modules/
 test-results/
+
+# Container files
+docker-compose.yml

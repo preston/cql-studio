@@ -15,7 +15,7 @@ import { SettingsService } from './services/settings.service';
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
-  protected readonly title = signal('CQL Tests');
+  protected readonly title = signal('CQL Workbench');
 
   constructor(
     private router: Router,

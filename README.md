@@ -1,4 +1,4 @@
-# CQL Tests UI
+# CQL Workbench
 
 A web application for viewing and analyzing CQL (Clinical Quality Language) test results created from [CQL Tests Runner](https://github.com/cqframework/cql-tests-runner/issues/40).
 
@@ -71,8 +71,7 @@ The application supports runtime configuration through environment variables. Th
 
 #### Available Environment Variables
 
-- **CQL_TESTS_UI_NAME**: Sets the display name for the CQL Tests UI application. This name appears in the browser title and throughout the user interface.
-- **CQL_TESTS_UI_RUNNER_BASE_URL**: Specifies the base URL for the CQL Tests Runner service. This URL is used to communicate with the runner backend for executing CQL tests and retrieving results.
+- **CQL_WORKBENCH_RUNNER_BASE_URL**: Specifies the base URL for the CQL Tests Runner service. This URL is used to communicate with the runner backend for executing CQL tests and retrieving results.
 
 ## Attribution & License
 

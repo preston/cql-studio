@@ -1,0 +1,349 @@
+<div class="container mt-4">
+    <!-- FHIR Server Configuration Display -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center py-2 px-3 bg-light rounded border">
+                <div class="d-flex align-items-center">
+                    <span class="bi bi-server me-2 text-muted"></span>
+                    <small class="text-muted me-2">FHIR Server:</small>
+                    <code class="small">{{ getCurrentFhirUrl() }}</code>
+                </div>
+                <button class="btn btn-outline-secondary btn-sm" (click)="navigateToSettings()" title="Change FHIR Server">
+                    <span class="bi bi-gear"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Section - Library and Patient Search Side by Side -->
+    <div class="mb-4">
+        <div class="row">
+            <!-- Library Search Column -->
+            <div class="col-12 col-lg-6 mb-4">
+                <div class="mb-3">
+                    <h5 class="mb-0"><span class="bi bi-braces"></span> Search Libraries</h5>
+                </div>
+
+                <!-- Library Search -->
+                <div *ngIf="!hasSelectedLibrary">
+                    <div class="input-group mb-3">
+                        <input id="searchTerm" class="form-control" type="text" [(ngModel)]="searchTerm"
+                            placeholder="Type to search libraries..." (input)="onSearchInput($event)" autofocus>
+                        <span class="input-group-text" *ngIf="isSearching">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        </span>
+                        <button class="btn btn-outline-secondary" (click)="clearSearch()" *ngIf="searchTerm || showSearchResults">
+                            <span class="bi bi-x"></span> Clear
+                        </button>
+                    </div>
+
+                    <!-- Library Search Results -->
+                    <div *ngIf="showSearchResults">
+                        <div *ngIf="searchResults.length > 0" class="list-group">
+                            <button *ngFor="let library of searchResults"
+                                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                (click)="selectLibrary(library)">
+                                <div>
+                                    <strong>{{ library.name || library.id }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        ID: {{ library.id }} |
+                                        Version: {{ library.version || 'N/A' }}
+                                        <span *ngIf="library.description"> | {{ library.description }}</span>
+                                    </small>
+                                </div>
+                                <span class="bi bi-arrow-right"></span>
+                            </button>
+                        </div>
+                        <div *ngIf="searchResults.length === 0" class="alert alert-info">
+                            No libraries found matching your search criteria.
+                        </div>
+                    </div>
+
+                    <div class="my-3">
+                        <button class="btn btn-primary" (click)="createNewLibrary()">
+                            <span class="bi bi-plus-circle"></span> Create New Library
+                        </button>
+                    </div>
+
+                </div>
+
+
+                <!-- Selected Library Display -->
+                <div *ngIf="hasSelectedLibrary" class="alert alert-success">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong><span class="bi bi-braces"></span> Selected Library:</strong>
+                            {{ libraryService.libraryId }}
+                            <br>
+                            <small>
+                                Version: {{ libraryVersion }}
+                                <span *ngIf="libraryDescription"> | {{ libraryDescription }}</span>
+                            </small>
+                            <div *ngIf="!hasSelectedPatient" class="mt-2">
+                                <small class="text-muted">
+                                    <span class="bi bi-info-circle"></span> 
+                                    Select a patient to enable evaluation features.
+                                </small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-danger btn-sm" (click)="clearSelection()" title="Clear Library Selection">
+                            <span class="bi bi-x"></span> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Buttons - When library is selected -->
+                <div class="mb-3" *ngIf="hasSelectedLibrary">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-primary" (click)="createNewLibrary()">
+                            <span class="bi bi-plus-circle"></span> Create New Library
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Patient Search Column -->
+            <div class="col-12 col-lg-6 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><span class="bi bi-person"></span> Search Patients</h5>
+               
+                </div>
+
+                <!-- Patient Search -->
+                <div *ngIf="!hasSelectedPatient">
+                    <div class="input-group mb-3">
+                        <input id="patientSearchTerm" class="form-control" type="text" [(ngModel)]="patientSearchTerm"
+                            placeholder="Type to search patients..." (input)="onPatientSearchInput($event)">
+                        <span class="input-group-text" *ngIf="isSearchingPatients">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        </span>
+                        <button class="btn btn-outline-secondary" (click)="clearPatientSearch()" *ngIf="patientSearchTerm || showPatientSearchResults">
+                            <span class="bi bi-x"></span> Clear
+                        </button>
+                    </div>
+
+                    <!-- Patient Search Results -->
+                    <div *ngIf="showPatientSearchResults">
+                        <div *ngIf="patientSearchResults.length > 0" class="list-group">
+                            <button *ngFor="let patient of patientSearchResults"
+                                class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                                (click)="selectPatient(patient)">
+                                <div>
+                                    <strong>{{ getPatientDisplayName(patient) }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        ID: {{ patient.id }}
+                                        <span *ngIf="patient.gender"> | Gender: {{ patient.gender }}</span>
+                                        <span *ngIf="patient.birthDate"> | DOB: {{ patient.birthDate }}</span>
+                                    </small>
+                                </div>
+                                <span class="bi bi-arrow-right"></span>
+                            </button>
+                        </div>
+                        <div *ngIf="patientSearchResults.length === 0" class="alert alert-info">
+                            No patients found matching your search criteria.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Selected Patient Display -->
+                <div *ngIf="hasSelectedPatient" class="alert alert-success">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><span class="bi bi-person-check"></span> Selected Patient:</strong>
+                            {{ getPatientDisplayName(patientService.selectedPatient!) }}
+                            <br>
+                            <small>
+                                ID: {{ patientService.selectedPatient!.id }}
+                                <span *ngIf="patientService.selectedPatient!.gender"> | Gender: {{ patientService.selectedPatient!.gender }}</span>
+                                <span *ngIf="patientService.selectedPatient!.birthDate"> | DOB: {{ patientService.selectedPatient!.birthDate }}</span>
+                            </small>
+                            <div *ngIf="!hasSelectedLibrary" class="mt-2">
+                                <small class="text-muted">
+                                    <span class="bi bi-info-circle"></span> 
+                                    Select a library in the left panel to enable evaluation features.
+                                </small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-danger btn-sm" (click)="clearPatientSelection()">
+                            <span class="bi bi-x"></span> Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Library Sandbox Section - Only show when a library is selected -->
+    <section id="library-sandbox" *ngIf="hasSelectedLibrary">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+                <span class="bi bi-braces"></span> 
+                {{ isNewLibrary ? 'New Library' : 'Library: ' + (libraryService.libraryId || 'Unknown') }}
+            </h5>
+            <!-- ELM Translation Toggle and Evaluation Button - On same row as heading -->
+            <div class="d-flex align-items-center gap-3">
+                <!-- ELM Translation Toggle -->
+                <div class="form-check form-switch" *ngIf="canShowEvaluationUI()">
+                    <input class="form-check-input" type="checkbox" id="enableElmTranslation" 
+                           [(ngModel)]="settingsService.settings().enableElmTranslation">
+                    <label class="form-check-label" for="enableElmTranslation">
+                        Enable ELM Translation
+                    </label>
+                </div>
+                
+                <!-- Evaluation Button -->
+                <button class="btn btn-success btn-lg px-4 py-2" (click)="evaluateLibrary()" [disabled]="!canEvaluate() || isEvaluating" *ngIf="canShowEvaluationUI()"> 
+                    <span class="bi bi-play-circle me-2" *ngIf="!isEvaluating"></span>
+                    <span class="spinner-border spinner-border-sm me-2" *ngIf="isEvaluating"></span>
+                    {{ isEvaluating ? 'Evaluating...' : 'Evaluate Library' }}
+                </button>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Left side: Tabs -->
+            <div class="col-lg-8">
+                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="decoded-tab" data-bs-toggle="tab" data-bs-target="#decoded-tab-pane"
+                            type="button" role="tab" aria-controls="decoded-tab-pane" aria-selected="true"><span
+                                class="bi bi-cpu"></span> Decoded Logic</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link " id="library-tab" data-bs-toggle="tab" data-bs-target="#library-tab-pane"
+                            type="button" role="tab" aria-controls="library-tab-pane" aria-selected="false"><span
+                                class="bi bi-fire"></span>
+                            FHIR Resource</button>
+                    </li>
+                    <li class="nav-item" role="presentation" *ngIf="enableElmTranslation">
+                        <button class="nav-link" id="elm-tab" data-bs-toggle="tab" data-bs-target="#elm-tab-pane"
+                            type="button" role="tab" aria-controls="elm-tab-pane" aria-selected="false"><span
+                                class="bi bi-code-square"></span>
+                            ELM Translation</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane active" id="decoded-tab-pane" role="tabpanel" aria-labelledby="decoded-tab"
+                        tabindex="0">
+                        <div class="container-fluid mt-4 p-0">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <div class="form-floating">
+                                        <input id="libraryId" class="form-control" type="text"
+                                            [(ngModel)]="libraryService.libraryId">
+                                        <label for="libraryId"> Library ID</label>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-floating">
+                                        <input id="libraryVersion" class="form-control" type="text"
+                                            [(ngModel)]="libraryVersion">
+                                        <label for="libraryVersion"> Version</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-floating mt-2">
+                                <input id="libraryDescription" class="form-control" type="text"
+                                    [(ngModel)]="libraryDescription">
+                                <label for="libraryDescription"> Description</label>
+                            </div>
+                            
+                            <div class="form-floating mt-2">
+                                <textarea id="exampleCql" class="form-control" [(ngModel)]="cql" placeholder="Enter CQL here..."
+                                    style="height: 500px"></textarea>
+                                <label for="exampleCql"> CQL</label>
+                            </div>
+
+                            <button class="btn btn-danger m-2 float-end" (click)="deleteCql()" *ngIf="!isNewLibrary"> 
+                                <span class="bi bi-trash"></span> Delete from Server
+                            </button>
+                            <div class="btn-group m-2 float-end" *ngIf="!isNewLibrary">
+                                <button class="btn btn-outline-primary" (click)="reloadLibraryFromServer()"> <span
+                                        class="bi bi-arrow-clockwise"></span> Reload From Server</button>
+                            </div>
+                            <button class="btn btn-primary m-2" (click)="saveCql()" [disabled]="!isFormValid()"> 
+                                <span class="bi bi-upload"></span> 
+                                {{ isNewLibrary ? 'Create Library' : 'Update Library' }}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="tab-pane" id="library-tab-pane" role="tabpanel" aria-labelledby="library-tab" tabindex="1">
+                        <pre class="line-numbers"><code>{{ libraryAsString() }}</code></pre>
+                    </div>
+                    <div class="tab-pane" id="elm-tab-pane" role="tabpanel" aria-labelledby="elm-tab" tabindex="2" *ngIf="enableElmTranslation">
+                        <div class="container-fluid mt-4 p-0">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">
+                                    <span class="bi bi-code-square"></span> ELM Translation Results
+                                </h6>
+                                <div class="btn-group">
+                                    <button class="btn btn-outline-primary btn-sm" (click)="translateCqlToElm()" 
+                                            [disabled]="!cql || isTranslating">
+                                        <span class="bi bi-arrow-clockwise me-1" *ngIf="!isTranslating"></span>
+                                        <span class="spinner-border spinner-border-sm me-1" *ngIf="isTranslating"></span>
+                                        {{ isTranslating ? 'Translating...' : 'Translate CQL' }}
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" (click)="clearElmTranslation()" 
+                                            [disabled]="!elmTranslationResults">
+                                        <span class="bi bi-x"></span> Clear
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div *ngIf="isTranslating" class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Translating...</span>
+                                </div>
+                                <p class="mt-2 small">Translating CQL to ELM...</p>
+                            </div>
+                            
+                            <div *ngIf="!isTranslating && !elmTranslationResults" class="text-center py-4">
+                                <i class="bi bi-code-square display-6 text-muted mb-3"></i>
+                                <h6 class="text-muted">No ELM Translation</h6>
+                                <p class="text-muted small">Click "Translate CQL" to convert the CQL code to ELM format, or enable ELM translation when evaluating.</p>
+                            </div>
+                            
+                            <div *ngIf="!isTranslating && elmTranslationResults" class="border rounded p-3" style="max-height: 500px; overflow-y: auto;">
+                                <pre class="mb-0 small"><code>{{ elmTranslationResultsAsString() }}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right side: Evaluation Results -->
+            <div class="col-lg-4" *ngIf="canShowEvaluationUI()">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <span class="bi bi-play-circle"></span> Evaluation Results
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div *ngIf="isEvaluating" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Evaluating...</span>
+                            </div>
+                            <p class="mt-2 small">Evaluating library against patient data...</p>
+                        </div>
+                        
+                        <div *ngIf="!isEvaluating && !evaluationResults" class="text-center py-4">
+                            <i class="bi bi-play-circle display-6 text-muted mb-3"></i>
+                            <h6 class="text-muted">No Results</h6>
+                            <p class="text-muted small">Click "Evaluate Library" to run the evaluation and see results here.</p>
+                        </div>
+                        
+                        <div *ngIf="!isEvaluating && evaluationResults" class="border rounded p-2" style="max-height: 400px; overflow-y: auto;">
+                            <pre class="mb-0 small"><code>{{ evaluationResultsAsString() }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>

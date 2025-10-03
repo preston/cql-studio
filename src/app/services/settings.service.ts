@@ -73,8 +73,20 @@ export class SettingsService {
           parsedSettings.validateSchema = false;
           shouldSave = true;
         }
+        if (parsedSettings.enableElmTranslation == null) {
+          parsedSettings.enableElmTranslation = true;
+          shouldSave = true;
+        }
         if (parsedSettings.runnerApiBaseUrl == null) {
           parsedSettings.runnerApiBaseUrl = this.getDefaultRunnerApiBaseUrl();
+          shouldSave = true;
+        }
+        if (parsedSettings.fhirBaseUrl == null) {
+          parsedSettings.fhirBaseUrl = this.getDefaultFhirBaseUrl();
+          shouldSave = true;
+        }
+        if (parsedSettings.translationBaseUrl == null) {
+          parsedSettings.translationBaseUrl = this.getDefaultTranslationBaseUrl();
           shouldSave = true;
         }
         if (shouldSave) {
@@ -113,6 +125,14 @@ export class SettingsService {
   }
 
   getDefaultRunnerApiBaseUrl(): string {
-    return (window as any)['CQL_TESTS_UI_RUNNER_BASE_URL'] || 'http://localhost:3000';
+    return (window as any)['CQL_WORKBENCH_RUNNER_BASE_URL'] || 'http://localhost:3000';
+  }
+
+  getDefaultFhirBaseUrl(): string {
+    return (window as any)['CQL_WORKBENCH_FHIR_BASE_URL'] || 'http://localhost:8080/fhir';
+  }
+
+  getDefaultTranslationBaseUrl(): string {
+    return (window as any)['CQL_WORKBENCH_TRANSLATION_BASE_URL'] || 'http://localhost:3001';
   }
 }

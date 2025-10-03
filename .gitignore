@@ -42,3 +42,6 @@ test-results/
 # System files
 .DS_Store
 Thumbs.db
+
+# Container files
+docker-compose.yml
