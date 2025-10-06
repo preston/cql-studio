@@ -122,49 +122,24 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   // Platform detection
   public isMac: boolean = false;
   
-  // Keyboard shortcuts
-  public keyboardShortcuts = {
-    general: [
-      { key: this.getKeyCombo('N'), description: 'Create new library' },
-      { key: this.getKeyCombo('W'), description: 'Close current library' },
-      { key: this.getKeyCombo('B'), description: 'Toggle sidebar' },
-      { key: this.getKeyCombo('J'), description: 'Toggle bottom panel' },
-      { key: this.getKeyCombo('S'), description: 'Save library' },
-      { key: this.getKeyCombo('R'), description: 'Reload from server' },
-      { key: this.getKeyCombo('O'), description: 'Open library from server' }
-    ],
-    editor: [
-      { key: this.getKeyCombo('Shift+F'), description: 'Format CQL code' },
-      { key: this.getKeyCombo('K'), description: 'Clear editor content' },
-      { key: this.getKeyCombo('F'), description: 'Find in editor' },
-      { key: this.getKeyCombo('G'), description: 'Find next' },
-      { key: this.getKeyCombo('Shift+G'), description: 'Find previous' },
-      { key: this.getKeyCombo('Z'), description: 'Undo' },
-      { key: this.getKeyCombo('Y'), description: 'Redo' },
-      { key: this.getKeyCombo('A'), description: 'Select all' },
-      { key: this.getKeyCombo('C'), description: 'Copy' },
-      { key: this.getKeyCombo('V'), description: 'Paste' },
-      { key: this.getKeyCombo('X'), description: 'Cut' }
-    ],
-    execution: [
-      { key: this.getKeyCombo('Enter'), description: 'Execute current library' },
-      { key: this.getKeyCombo('Shift+Enter'), description: 'Execute all libraries' },
-      { key: this.getKeyCombo('T'), description: 'Translate CQL to ELM' },
-      { key: this.getKeyCombo('E'), description: 'Validate CQL syntax' }
-    ],
-    navigation: [
-      { key: this.getKeyCombo('1'), description: 'Focus sidebar' },
-      { key: this.getKeyCombo('2'), description: 'Focus editor' },
-      { key: this.getKeyCombo('3'), description: 'Focus right panel' },
-      { key: this.getKeyCombo('4'), description: 'Focus bottom panel' },
-      { key: this.getKeyCombo('Tab'), description: 'Next tab' },
-      { key: this.getKeyCombo('Shift+Tab'), description: 'Previous tab' }
-    ]
-  };
+  // Keyboard shortcuts - now as getter methods for reactivity
+  public get keyboardShortcuts() {
+    return {
+      general: [
+        { key: this.getKeyCombo('S'), description: 'Save library' },
+        { key: this.getKeyCombo('R'), description: 'Reload from server' }
+      ],
+      editor: [],
+      execution: [
+        { key: this.getKeyCombo('Enter'), description: 'Execute current library' },
+        { key: this.getKeyCombo('Shift+Enter'), description: 'Execute all libraries' }
+      ],
+      navigation: []
+    };
+  }
   
   // IDE Features
   public outlineItems: Array<{ name: string; type: string; line: number }> = [];
-  public outputContent: string = '';
   
   // Execution State
   public isExecuting: boolean = false;
@@ -291,24 +266,27 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   @HostListener('window:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent): void {
     // IDE keyboard shortcuts
-    if (event.ctrlKey || event.metaKey) {
-      switch (event.key) {
-        case 'b':
+    const isMac = this.isMac;
+    const isCtrlOrCmd = isMac ? event.metaKey : event.ctrlKey;
+    const isAlt = event.altKey;
+    
+    // Only handle shortcuts with Ctrl/Cmd + Alt modifier to avoid conflicts
+    if (isCtrlOrCmd && isAlt) {
+      switch (event.key.toLowerCase()) {
+        case 's':
           event.preventDefault();
-          this.toggleSidebar();
+          this.saveCql();
           break;
-        case 'j':
+        case 'r':
           event.preventDefault();
-          this.toggleBottomPanel();
+          this.reloadLibraryFromServer();
           break;
-        case 'n':
+        case 'enter':
           event.preventDefault();
-          this.createNewLibraryResource();
-          break;
-        case 'w':
-          event.preventDefault();
-          if (this.libraryResources.length > 1) {
-            this.removeLibraryResource(this.activeLibraryId);
+          if (event.shiftKey) {
+            this.executeAll();
+          } else {
+            this.executeLibrary();
           }
           break;
       }
@@ -1547,12 +1525,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
     // Get all selected patients
     const patients = this.patientService.selectedPatients;
     
-    // Add execution header
-    if (patients.length > 0) {
-      this.outputContent = 'Executing all libraries with all patients...\n\n';
-    } else {
-      this.outputContent = 'Executing all libraries without patient data...\n\n';
-    }
 
     // Execute all library-patient combinations
     this.executeAllCombinations(patients);
@@ -1573,13 +1545,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
     const totalExecutions = this.libraryResources.length * Math.max(patients.length, 1);
     const startTime = Date.now();
 
-    if (patients.length > 0) {
-      this.outputContent = `Executing ${this.libraryResources.length} library(ies) with ${patients.length} patient(s)...\n`;
-      this.outputContent += `Total combinations: ${totalExecutions}\n\n`;
-    } else {
-      this.outputContent = `Executing ${this.libraryResources.length} library(ies) without patient data...\n`;
-      this.outputContent += `Total executions: ${totalExecutions}\n\n`;
-    }
 
     this.libraryResources.forEach((library, libraryIndex) => {
       if (patients.length > 0) {
@@ -1742,7 +1707,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
 
   // Output Panel Methods
   clearOutput(): void {
-    this.outputContent = '';
     this.outputSections = [];
     this.executionProgress = 0;
     this.executionStatus = '';
@@ -2103,8 +2067,10 @@ ${JSON.stringify(result.result, null, 2)}`;
     // Switch to output tab to show results
     this.setBottomTab('output');
     
-    // Clear previous output
-    this.outputContent = 'Executing library...\n\n';
+    // Clear previous output if preserve logs is disabled
+    if (!this.preserveLogs) {
+      this.clearOutput();
+    }
     
     // Get selected patient
     const selectedPatient = this.patientService.selectedPatient;
@@ -2124,6 +2090,17 @@ ${JSON.stringify(result.result, null, 2)}`;
       parameter: []
     };
 
+    const executionStartTime = Date.now();
+    const sectionId = `execution-${Date.now()}`;
+    
+    // Add execution section
+    this.outputSections.push({
+      title: `Library Execution (${this.libraryService.libraryId})`,
+      content: 'Executing library without patient context...',
+      status: 'pending',
+      expanded: true
+    });
+
     this.libraryService.evaluate(
       this.libraryService.libraryId,
       parameters
@@ -2131,11 +2108,35 @@ ${JSON.stringify(result.result, null, 2)}`;
       next: (response: any) => {
         this.isExecuting = false;
         this.executionResults = response;
-        this.outputContent = this.formatExecutionResults(response, null);
+        const executionTime = Date.now() - executionStartTime;
+        
+        // Update the section with results
+        const sectionIndex = this.outputSections.findIndex(s => s.title.includes('Library Execution'));
+        if (sectionIndex !== -1) {
+          this.outputSections[sectionIndex] = {
+            title: `Library Execution (${this.libraryService.libraryId})`,
+            content: this.formatExecutionResults(response, null),
+            status: 'success',
+            executionTime: executionTime,
+            expanded: true
+          };
+        }
       },
       error: (error: any) => {
         this.isExecuting = false;
-        this.outputContent = `Execution failed:\n${JSON.stringify(error, null, 2)}`;
+        const executionTime = Date.now() - executionStartTime;
+        
+        // Update the section with error
+        const sectionIndex = this.outputSections.findIndex(s => s.title.includes('Library Execution'));
+        if (sectionIndex !== -1) {
+          this.outputSections[sectionIndex] = {
+            title: `Library Execution (${this.libraryService.libraryId})`,
+            content: `Execution failed:\n${JSON.stringify(error, null, 2)}`,
+            status: 'error',
+            executionTime: executionTime,
+            expanded: true
+          };
+        }
         console.error('Library execution error:', error);
       }
     });
@@ -2145,8 +2146,15 @@ ${JSON.stringify(result.result, null, 2)}`;
     let completedExecutions = 0;
     const totalExecutions = patients.length;
     const allResults: any[] = [];
+    const executionStartTime = Date.now();
 
-    this.outputContent = `Executing library for ${totalExecutions} patient(s)...\n\n`;
+    // Add execution section
+    this.outputSections.push({
+      title: `Library Execution (${this.libraryService.libraryId}) - ${totalExecutions} patient(s)`,
+      content: `Executing library for ${totalExecutions} patient(s)...`,
+      status: 'pending',
+      expanded: true
+    });
 
     patients.forEach((patient, index) => {
       const parameters: Parameters = {
@@ -2175,7 +2183,19 @@ ${JSON.stringify(result.result, null, 2)}`;
           if (completedExecutions === totalExecutions) {
             this.isExecuting = false;
             this.executionResults = allResults;
-            this.outputContent = this.formatExecutionResults(allResults, patients);
+            const executionTime = Date.now() - executionStartTime;
+            
+            // Update the section with results
+            const sectionIndex = this.outputSections.findIndex(s => s.title.includes('Library Execution'));
+            if (sectionIndex !== -1) {
+              this.outputSections[sectionIndex] = {
+                title: `Library Execution (${this.libraryService.libraryId}) - ${totalExecutions} patient(s)`,
+                content: this.formatExecutionResults(allResults, patients),
+                status: 'success',
+                executionTime: executionTime,
+                expanded: true
+              };
+            }
           }
         },
         error: (error: any) => {
@@ -2190,7 +2210,19 @@ ${JSON.stringify(result.result, null, 2)}`;
           if (completedExecutions === totalExecutions) {
             this.isExecuting = false;
             this.executionResults = allResults;
-            this.outputContent = this.formatExecutionResults(allResults, patients);
+            const executionTime = Date.now() - executionStartTime;
+            
+            // Update the section with error
+            const sectionIndex = this.outputSections.findIndex(s => s.title.includes('Library Execution'));
+            if (sectionIndex !== -1) {
+              this.outputSections[sectionIndex] = {
+                title: `Library Execution (${this.libraryService.libraryId}) - ${totalExecutions} patient(s)`,
+                content: this.formatExecutionResults(allResults, patients),
+                status: 'error',
+                executionTime: executionTime,
+                expanded: true
+              };
+            }
           }
         }
       });
@@ -2236,13 +2268,66 @@ ${JSON.stringify(result.result, null, 2)}`;
   }
 
   private detectPlatform(): void {
-    // Detect if running on macOS
-    this.isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0 || 
-                 navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+    // Detect if running on macOS with more comprehensive checks
+    const platform = navigator.platform || '';
+    const userAgent = navigator.userAgent || '';
+    
+    // Check for various Mac indicators
+    this.isMac = platform.toUpperCase().includes('MAC') || 
+                 platform.toUpperCase().includes('MACINTOSH') ||
+                 userAgent.toUpperCase().includes('MAC OS X') ||
+                 userAgent.toUpperCase().includes('MACINTOSH') ||
+                 userAgent.toUpperCase().includes('MAC OS') ||
+                 // Check for iOS devices (also use Mac shortcuts)
+                 /iPad|iPhone|iPod/.test(userAgent) ||
+                 // Check for modern Mac detection
+                 navigator.maxTouchPoints > 1 && /Mac/.test(platform);
+    
+    console.log('Platform detection:', {
+      platform: platform,
+      userAgent: userAgent,
+      isMac: this.isMac,
+      maxTouchPoints: navigator.maxTouchPoints
+    });
   }
 
   private getKeyCombo(key: string): string {
-    const modifier = this.isMac ? '⌘' : 'Ctrl';
-    return `${modifier}+${key}`;
+    if (this.isMac) {
+      // Mac-specific key mappings - only for the 4 essential shortcuts
+      switch (key) {
+        case 'S': return '⌘+Option+S'; // Save - avoid conflict with standard Save
+        case 'R': return '⌘+Option+R'; // Reload - avoid conflict with Refresh
+        case 'Enter': return '⌘+Option+Enter'; // Execute - avoid conflict with default action
+        case 'Shift+Enter': return '⌘+Option+Shift+Enter'; // Execute all - avoid conflict with default action
+        default: return `⌘+Option+${key}`;
+      }
+    } else {
+      // Windows/Linux key mappings - only for the 4 essential shortcuts
+      switch (key) {
+        case 'S': return 'Ctrl+Alt+S'; // Save - avoid conflict with standard Save
+        case 'R': return 'Ctrl+Alt+R'; // Reload - avoid conflict with Refresh
+        case 'Enter': return 'Ctrl+Alt+Enter'; // Execute - avoid conflict with default action
+        case 'Shift+Enter': return 'Ctrl+Alt+Shift+Enter'; // Execute all - avoid conflict with default action
+        default: return `Ctrl+Alt+${key}`;
+      }
+    }
   }
+
+  public getExecutionAndNavigationShortcuts(): Array<{ key: string; description: string }> {
+    return [...this.keyboardShortcuts.execution, ...this.keyboardShortcuts.navigation];
+  }
+
+  public getGeneralAndEditorShortcuts(): Array<{ key: string; description: string }> {
+    return [...this.keyboardShortcuts.general, ...this.keyboardShortcuts.editor];
+  }
+
+  public getAllShortcuts(): Array<{ key: string; description: string }> {
+    return [
+      ...this.keyboardShortcuts.general,
+      ...this.keyboardShortcuts.editor,
+      ...this.keyboardShortcuts.execution,
+      ...this.keyboardShortcuts.navigation
+    ];
+  }
+
 }
