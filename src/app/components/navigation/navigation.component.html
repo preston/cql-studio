@@ -44,7 +44,7 @@
           </a>
           <ul class="dropdown-menu" aria-labelledby="testingDropdown">
             <li>
-              <a id="results-nav-link" class="dropdown-item" routerLink="/" routerLinkActive="active">
+              <a id="results-nav-link" class="dropdown-item" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
                 <i class="bi bi-file-earmark-text me-2"></i>Test Results
               </a>
             </li>
@@ -61,8 +61,8 @@
           </a>
           <ul class="dropdown-menu" aria-labelledby="authoringDropdown">
             <li>
-              <a id="cql-with-fhir-nav-link" class="dropdown-item" routerLink="/cql-with-fhir" routerLinkActive="active">
-                <i class="bi bi-fire me-2"></i>CQL with FHIR
+              <a id="cql-with-fhir-nav-link" class="dropdown-item" routerLink="/ide" routerLinkActive="active">
+                <i class="bi bi-code-square me-2"></i>CQL IDE
               </a>
             </li>
           </ul>
@@ -76,12 +76,12 @@
           <ul class="dropdown-menu" aria-labelledby="documentationDropdown">
             <li>
               <a id="results-documentation-menu-item" class="dropdown-item" routerLink="/documentation/results" routerLinkActive="active">
-                <i class="bi bi-clipboard-data me-2"></i>Results
+                <i class="bi bi-clipboard-data me-2"></i>Test Results
               </a>
             </li>
             <li>
               <a id="runner-documentation-menu-item" class="dropdown-item" routerLink="/documentation/runner" routerLinkActive="active">
-                <i class="bi bi-play-circle me-2"></i>Runner
+                <i class="bi bi-play-circle me-2"></i>Test Runner
               </a>
             </li>
           </ul>
@@ -89,11 +89,6 @@
         <li class="nav-item">
           <a id="settings-nav-link" class="nav-link" routerLink="/settings" routerLinkActive="active">
             <i class="bi bi-gear me-1"></i>Settings
-          </a>
-        </li>
-        <li class="nav-item">
-          <a id="ide-nav-link" class="nav-link" routerLink="/ide" routerLinkActive="active">
-            <i class="bi bi-code-square me-1"></i>IDE
           </a>
         </li>
       </ul>

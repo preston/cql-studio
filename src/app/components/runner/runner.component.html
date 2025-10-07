@@ -30,43 +30,9 @@
         </div>
       </div>
 
-      <!-- API Unavailable Warning -->
-      @if (shouldShowApiWarning()) {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-          <div class="d-flex align-items-start">
-            <div class="flex-shrink-0 me-3">
-              <i class="bi bi-wifi-off fs-4"></i>
-            </div>
-            <div class="flex-grow-1">
-              <h5 class="alert-heading mb-2">
-                <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                CQL Test Runner API Unavailable
-              </h5>
-              <p class="mb-2">{{ connectionError() || 'Unable to connect to the CQL Test Runner API.' }}</p>
-              <div class="mb-3">
-                <small class="text-muted">
-                  <strong>API URL:</strong> <code>{{ getApiBaseUrl() }}</code>
-                  @if (getTimeSinceLastCheck()) {
-                    <br><strong>Last checked:</strong> {{ getTimeSinceLastCheck() }}
-                  }
-                </small>
-              </div>
-              <div class="d-flex gap-2 flex-wrap">
-                <button id="retry-connection-btn" type="button" class="btn btn-outline-danger btn-sm" (click)="checkApiHealth()">
-                  <i class="bi bi-arrow-clockwise me-1"></i>Retry Connection
-                </button>
-                <button id="dismiss-warning-btn" type="button" class="btn btn-outline-secondary btn-sm" (click)="apiUnavailable.set(false)">
-                  <i class="bi bi-x me-1"></i>Dismiss Warning
-                </button>
-              </div>
-            </div>
-            <button id="close-api-warning-btn" type="button" class="btn-close" (click)="apiUnavailable.set(false)"></button>
-          </div>
-        </div>
-      }
 
       <!-- General Error Alert -->
-      @if (error() && !shouldShowApiWarning()) {
+      @if (error() && !apiUnavailable()) {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
           <i class="bi bi-exclamation-triangle me-2"></i>
           {{ error() }}
@@ -220,7 +186,7 @@
                     class="form-control" 
                     id="baseUrl"
                     [(ngModel)]="config().FhirServer.BaseUrl"
-                    placeholder="https://cloud.alphora.com/sandbox/r4/cds/fhir">
+                    placeholder="http://localhost:8080/fhir">
                 </div>
                 <div class="mb-3">
                   <label for="cqlOperation" class="form-label">CQL Operation</label>

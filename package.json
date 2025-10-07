@@ -1,6 +1,6 @@
 {
   "name": "cql-tests-ui",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "author": "Preston Lee",
   "license": "Apache-2.0",
   "repository": {
@@ -71,7 +71,7 @@
     "@angular/build": "^20.3.4",
     "@angular/cli": "^20.3.4",
     "@angular/compiler-cli": "^20.3.3",
-    "@playwright/test": "^1.55.1",
+    "@playwright/test": "^1.56.0",
     "@types/jasmine": "~5.1.9",
     "jasmine-core": "~5.12.0",
     "karma": "~6.4.4",

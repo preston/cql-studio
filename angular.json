@@ -31,7 +31,7 @@
             ],
             "styles": [
               "src/styles.scss",
-              "src/litera.min.css",
+              "src/simplex.css",
               "node_modules/bootstrap-icons/font/bootstrap-icons.css"
             ],
             "scripts": [

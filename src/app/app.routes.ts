@@ -12,7 +12,7 @@ import { RunnerComponent } from './components/runner/runner.component';
 
 export const routes: Routes = [
   // Normal app routes
-  { path: '', component: OpenComponent },
+  { path: '', component: OpenComponent , pathMatch: 'full'},
   { path: 'results', component: ResultsViewerComponent },
   { path: 'documentation', redirectTo: '/documentation/results', pathMatch: 'full' },
   { path: 'documentation/results', component: ResultsDocumentationComponent },
@@ -20,7 +20,6 @@ export const routes: Routes = [
   { path: 'settings', component: SettingsComponent },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'runner', component: RunnerComponent },
-  { path: 'cql-with-fhir', component: CqlIdeComponent },
   
   // IDE routes
   { path: 'ide', component: CqlIdeComponent },
@@ -31,7 +30,6 @@ export const routes: Routes = [
   { path: 'ide/settings', component: CqlIdeComponent },
   { path: 'ide/dashboard', component: CqlIdeComponent },
   { path: 'ide/runner', component: CqlIdeComponent },
-  { path: 'ide/cql-with-fhir', component: CqlIdeComponent },
   
   { path: '**', redirectTo: '' }
 ];
