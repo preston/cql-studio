@@ -110,7 +110,7 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   public panelState: PanelState = {
     sidebar: { visible: true, width: 350, activeTab: 'navigation' },
     bottom: { visible: true, height: 300, activeTab: 'output' },
-    right: { visible: false, width: 350, activeTab: 'none' }
+    right: { visible: false, width: 350, activeTab: 'fhir' }
   };
   
   // Editor State
@@ -140,6 +140,10 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   
   // IDE Features
   public outlineItems: Array<{ name: string; type: string; line: number }> = [];
+  public filteredOutlineItems: Array<{ name: string; type: string; line: number }> = [];
+  public outlineSearchTerm: string = '';
+  public outlineSortBy: 'name' | 'type' | 'line' = 'line';
+  public outlineSortOrder: 'asc' | 'desc' = 'asc';
   
   // Execution State
   public isExecuting: boolean = false;
@@ -822,7 +826,11 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   private updateOutline(): void {
     this.outlineItems = [];
     const activeLibrary = this.libraryResources.find(lib => lib.id === this.activeLibraryId);
-    if (!activeLibrary) return;
+    if (!activeLibrary) {
+      // Clear filtered items when no active library
+      this.filteredOutlineItems = [];
+      return;
+    }
 
     const lines = activeLibrary.cqlContent.split('\n');
     lines.forEach((line, index) => {
@@ -848,6 +856,60 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
         this.outlineItems.push({ name, type: 'codesystem', line: lineNumber });
       }
     });
+    
+    // Update filtered items after generating outline
+    this.updateFilteredOutlineItems();
+  }
+
+  // Outline Search and Sort
+  onOutlineSearchInput(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.outlineSearchTerm = target.value;
+    this.updateFilteredOutlineItems();
+  }
+
+  changeOutlineSorting(sortBy: 'name' | 'type' | 'line'): void {
+    if (this.outlineSortBy === sortBy) {
+      this.outlineSortOrder = this.outlineSortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.outlineSortBy = sortBy;
+      this.outlineSortOrder = 'asc';
+    }
+    this.updateFilteredOutlineItems();
+  }
+
+  private updateFilteredOutlineItems(): void {
+    let filtered = [...this.outlineItems];
+    
+    // Apply search filter
+    if (this.outlineSearchTerm.trim()) {
+      const searchTerm = this.outlineSearchTerm.toLowerCase();
+      filtered = filtered.filter(item => 
+        item.name.toLowerCase().includes(searchTerm) ||
+        item.type.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (this.outlineSortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'type':
+          comparison = a.type.localeCompare(b.type);
+          break;
+        case 'line':
+          comparison = a.line - b.line;
+          break;
+      }
+      
+      return this.outlineSortOrder === 'asc' ? comparison : -comparison;
+    });
+    
+    this.filteredOutlineItems = filtered;
   }
 
   // Route-based Panel Switching
@@ -875,7 +937,7 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
       this.setBottomTab('runner');
     } else if (cleanUrl.includes('/settings')) {
       this.setBottomTab('settings');
-    } else if (cleanUrl.includes('/cql-with-fhir')) {
+    } else if (cleanUrl.includes('/ide')) {
       this.setRightTab('fhir');
       // Auto-open right panel for FHIR
       this.panelState.right.visible = true;
@@ -1003,6 +1065,9 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
           this.initializeEditor();
         }, 100);
       }
+      
+      // Update outline for the new library
+      this.updateOutline();
     } else {
       console.log('Library not found for ID:', libraryId);
     }
@@ -1087,6 +1152,9 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
         } else {
           this.clearActiveLibrary();
         }
+      } else {
+        // If we removed a different library, update outline for current active library
+        this.updateOutline();
       }
     }
   }
@@ -1110,6 +1178,9 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
         }
       });
     }
+    
+    // Clear outline when no library is active
+    this.updateOutline();
   }
 
   // FHIR Library Methods

@@ -5,7 +5,6 @@
       <span class="fw-semibold text-white">CQL IDE</span>
     </div>
     <div class="d-flex align-items-center gap-2 flex-fill justify-content-center">
-      <i class="icon-server"></i>
       <span class="text-info text-truncate" style="max-width: 300px;">{{ getCurrentFhirUrl() }}</span>
       <button class="btn btn-outline-dark btn-sm" (click)="router.navigate(['/settings'])" title="Change FHIR Server">
         <i class="icon-settings"></i>
@@ -296,13 +295,46 @@
 
         <!-- Outline Panel -->
         <div *ngIf="panelState.sidebar.activeTab === 'outline'" class="h-100">
-          <div class="bg-secondary border-bottom d-flex justify-content-between align-items-center px-3 py-2">
-            <div class="mb-0 fw-semibold text-uppercase small text-white">Outline</div>
+        
+          
+          <!-- Outline Search and Sort Controls -->
+          <div class="p-2 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <input 
+                type="text" 
+                class="form-control form-control-sm flex-fill" 
+                placeholder="Search outline items..." 
+                [(ngModel)]="outlineSearchTerm"
+                (input)="onOutlineSearchInput($event)"
+              >
+              <div class="d-flex align-items-center gap-1">
+                <label class="form-label mb-0 small text-light">Sort:</label>
+                <select 
+                  class="form-select form-select-sm" 
+                  [(ngModel)]="outlineSortBy" 
+                  (change)="changeOutlineSorting(outlineSortBy)"
+                  title="Sort by"
+                  style="min-width: 80px;"
+                >
+                  <option value="name">Name</option>
+                  <option value="type">Type</option>
+                  <option value="line">Line</option>
+                </select>
+                <button 
+                  class="btn btn-outline-dark btn-sm" 
+                  (click)="changeOutlineSorting(outlineSortBy)"
+                  [title]="'Sort ' + (outlineSortOrder === 'asc' ? 'Descending' : 'Ascending')"
+                >
+                  <i class="icon-{{ outlineSortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
+                </button>
+              </div>
+            </div>
           </div>
+          
           <div class="p-2">
             <div 
               class="outline-item d-flex align-items-center p-2 rounded cursor-pointer" 
-              *ngFor="let item of outlineItems; trackBy: trackByOutlineItem"
+              *ngFor="let item of filteredOutlineItems; trackBy: trackByOutlineItem"
               (click)="onOutlineItemClick(item)"
               title="Click to go to line {{ item.line }}"
             >
@@ -312,9 +344,13 @@
                 <div class="small text-muted">Line {{ item.line }}</div>
               </div>
             </div>
+            <div *ngIf="filteredOutlineItems.length === 0 && outlineItems.length > 0" class="text-center text-muted py-4">
+              <!-- <i class="icon-search fs-1 mb-2 d-block"></i> -->
+              <span>No matches</span>
+            </div>
             <div *ngIf="outlineItems.length === 0" class="text-center text-muted py-4">
-              <i class="icon-code fs-1 mb-2 d-block"></i>
-              <span>No outline items found</span>
+              <!-- <i class="icon-code fs-1 mb-2 d-block"></i> -->
+              <span>Edit a library to see its outline</span>
             </div>
           </div>
         </div>
@@ -400,15 +436,15 @@
         <!-- Welcome message when no library resources -->
         <div *ngIf="libraryResources.length === 0" class="welcome-message d-flex flex-column align-items-center text-muted w-100" style="height: 100%; overflow-y: auto;">
             <div class="welcome-content d-flex flex-column align-items-center py-4" style="min-height: 100%;">
-              <h4 class="mb-3">Welcome to CQL IDE</h4>
-              <p class="mb-4 text-center">Create a new library or load an existing one to start editing CQL code.</p>
+              <h4 class="mb-3">Welcome to the CQL IDE</h4>
+              <!-- <p class="mb-4 text-center">Create a new library or load an existing one to start editing CQL code.</p>
               
               <div class="d-flex gap-2 mb-4">
                 <button class="btn btn-primary btn-lg" (click)="createNewLibraryResource()">
                   <i class="icon-plus me-2"></i>
                   Create New Library
                 </button>
-              </div>
+              </div> -->
 
               <!-- Keyboard Shortcuts Section -->
               <div class="keyboard-shortcuts-section w-100" style="max-width: 600px;">
