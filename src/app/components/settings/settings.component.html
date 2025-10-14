@@ -1,4 +1,4 @@
-<div id="settings" class="container">
+<div id="settings" class="container mt-5">
 
     <div class="row">
         <div class="col-sm-6">
@@ -18,7 +18,7 @@
                 <label for="theme">Theme</label>
             </div>
 
-            <div class="form-check mt-3 ms-1 ">
+            <div class="form-check form-switch mt-3 ms-1 ">
                 <input id="validate_schema_switch" class="form-check-input" type="checkbox" name="validate_schema_switch"
                     [(ngModel)]="settingsService.settings().validateSchema" (ngModelChange)="onValidateSchemaChange()" />
                 <label class="form-check-label" for="validate_schema_switch"><span class="bi bi-check-circle"></span> Validate Against Schema</label>
@@ -27,18 +27,53 @@
 
             </div>
 
+            <div class="form-check form-switch mt-3 ms-1 ">
+                <input id="enable_elm_translation_switch" class="form-check-input" type="checkbox" name="enable_elm_translation_switch"
+                    [(ngModel)]="settingsService.settings().enableElmTranslation" />
+                <label class="form-check-label" for="enable_elm_translation_switch"><span class="bi bi-code-square"></span> Enable ELM Translation</label>
+                <br />
+                <small class="form-text">Enable automatic CQL to ELM translation when evaluating libraries.</small>
+
+            </div>
+
+            <h4 class="mt-4"><span class="bi bi-cloud"></span> Integrations</h4>
+
             <div class="form-floating mt-3">
                 <input type="url" class="form-control" id="runnerApiBaseUrl" name="runnerApiBaseUrl"
                     [(ngModel)]="settingsService.settings().runnerApiBaseUrl" 
-                    placeholder="http://localhost:3000">
+                    [placeholder]="settingsService.getDefaultRunnerApiBaseUrl()">
                 <label for="runnerApiBaseUrl">Runner API Base URL</label>
-                <small class="form-text">Base URL for the CQL Tests Runner API. Defaults to window.CQL_TESTS_UI_RUNNER_BASE_URL or http://localhost:3000</small>
+                <small class="form-text">Base URL for the CQL Tests Runner API. Defaults to CQL_STUDIO_RUNNER_BASE_URL or {{ settingsService.getDefaultRunnerApiBaseUrl() }}</small>
+            </div>
+
+            <div class="form-floating mt-3">
+                <input type="url" class="form-control" id="fhirBaseUrl" name="fhirBaseUrl"
+                    [(ngModel)]="settingsService.settings().fhirBaseUrl" 
+                    [placeholder]="settingsService.getDefaultFhirBaseUrl()">
+                <label for="fhirBaseUrl">FHIR Base URL</label>
+                <small class="form-text">Base URL for the FHIR server. Defaults to CQL_STUDIO_FHIR_BASE_URL or {{ settingsService.getDefaultFhirBaseUrl() }}</small>
+            </div>
+
+            <div class="form-floating mt-3">
+                <input type="url" class="form-control" id="translationBaseUrl" name="translationBaseUrl"
+                    [(ngModel)]="settingsService.settings().translationBaseUrl" 
+                    [placeholder]="settingsService.getDefaultTranslationBaseUrl()">
+                <label for="translationBaseUrl">Translation Base URL</label>
+                <small class="form-text">Base URL for the translation service. Defaults to CQL_STUDIO_TRANSLATION_BASE_URL or {{ settingsService.getDefaultTranslationBaseUrl() }}</small>
+            </div>
+
+            <div class="form-floating mt-3">
+                <input type="url" class="form-control" id="defaultTestResultsIndexUrl" name="defaultTestResultsIndexUrl"
+                    [(ngModel)]="settingsService.settings().defaultTestResultsIndexUrl" 
+                    [placeholder]="settingsService.getDefaultTestResultsIndexUrl()">
+                <label for="defaultTestResultsIndexUrl">Default Test Results Index URL</label>
+                <small class="form-text">Default URL for loading test results index files. Defaults to CQL_STUDIO_DEFAULT_TEST_RESULTS_INDEX_URL or {{ settingsService.getDefaultTestResultsIndexUrl() }}</small>
             </div>
         </div>
 
         <div class="col-sm-6">
             <h4><span class="bi bi-code-slash"></span> Advanced</h4>
-            <div class="form-check mt-3 ms-1 ">
+            <div class="form-check form-switch mt-3 ms-1 ">
                 <input id="experimental_switch" class="form-check-input" type="checkbox" name="experimental_switch"
                     [(ngModel)]="settingsService.settings().experimental" />
                 <label class="form-check-label" for="experimental_switch"><span
@@ -50,7 +85,7 @@
                     functionality. You probably don't want to use this!</small>
 
             </div>
-            <div class="form-check mt-3 ms-1 ">
+            <div class="form-check form-switch mt-3 ms-1 ">
                 <input id="developer_switch" class="form-check-input" type="checkbox" name="developer_switch"
                     [(ngModel)]="settingsService.settings().developer" />
                 <label class="form-check-label" for="developer_switch"><span class="bi bi-code"></span> Developer

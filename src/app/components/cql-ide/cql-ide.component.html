@@ -1,0 +1,821 @@
+<div class="ide-container d-flex flex-column">
+  <!-- IDE Header -->
+  <div class="ide-header border-bottom d-flex justify-content-between align-items-center px-3 py-2">
+    <div class="d-flex align-items-center gap-2">
+      <span class="fw-semibold text-white">CQL IDE</span>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-fill justify-content-center">
+      <span class="text-info text-truncate" style="max-width: 300px;">{{ getCurrentFhirUrl() }}</span>
+      <button class="btn btn-outline-dark btn-sm" (click)="router.navigate(['/settings'])" title="Change FHIR Server">
+        <i class="icon-settings"></i>
+      </button>
+    </div>
+    <div class="d-flex align-items-center gap-1">
+      <button class="btn btn-outline-dark btn-sm" (click)="toggleRightPanel()" [class.active]="panelState.right.visible" title="Toggle Right Panel">
+        <i class="icon-panel"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main IDE Layout -->
+  <div class="ide-layout d-flex flex-fill">
+    <!-- Left Sidebar -->
+    <div 
+      class="sidebar bg-dark border-end d-flex flex-column" 
+      [class.visible]="panelState.sidebar.visible"
+      [style.width.px]="panelState.sidebar.width"
+    >
+      <div class="bg-secondary border-bottom d-flex">
+        <button 
+          class="btn rounded-0 flex-fill" 
+          [class.active]="panelState.sidebar.activeTab === 'navigation'"
+          (click)="setSidebarTab('navigation')"
+        >
+          Navigation
+        </button>
+        <button 
+          class="btn rounded-0 flex-fill" 
+          [class.active]="panelState.sidebar.activeTab === 'outline'"
+          (click)="setSidebarTab('outline')"
+        >
+          Outline
+        </button>
+      </div>
+      
+      <div class="sidebar-content">
+        <!-- Navigation Panel -->
+        <div *ngIf="panelState.sidebar.activeTab === 'navigation'" class="h-100">
+          <div class="nav-menu">
+            <!-- Library Management -->
+            <div class="mb-3">
+              <div class="px-3 py-2 fw-semibold text-uppercase small text-muted">Open Libraries</div>
+              
+              <!-- Loaded Libraries List -->
+              <div class="border rounded mx-3 mb-3 bg-secondary">
+                <div 
+                  *ngFor="let lib of libraryResources; trackBy: trackByLibraryId"
+                  class="d-flex justify-content-between align-items-center p-2 border-bottom"
+                  [class.library-card-active]="lib.isActive"
+                  (click)="selectLibraryResource(lib.id)"
+                >
+                  <div class="flex-fill">
+                    <div class="fw-semibold text-truncate text-white">
+                      {{ lib.name }}
+                      <span *ngIf="lib.isDirty" class="text-danger ms-1">●</span>
+                    </div>
+                    <div class="small text-muted">v{{ lib.version }}</div>
+                  </div>
+                  <button 
+                    class="btn btn-sm" 
+                    (click)="removeLibraryResource(lib.id, $event)"
+                    title="Remove Library"
+                  >
+                    <i class="icon-close"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Library Search -->
+              <div class="px-3 mb-3">
+                <input 
+                  type="text" 
+                  class="form-control form-control-sm mb-2" 
+                  placeholder="Search libraries..." 
+                  [(ngModel)]="librarySearchTerm"
+                  (input)="onLibrarySearchInput($event)"
+                >
+                <div *ngIf="showLibrarySearchResults" class="border rounded bg-secondary">
+                  <button 
+                    *ngFor="let library of librarySearchResults"
+                    class="btn btn-outline-light rounded-0 w-100 text-start d-flex justify-content-between align-items-center"
+                    (click)="addLibraryFromSearch(library)"
+                  >
+                    <div class="flex-fill">
+                      <strong class="d-block text-white">{{ library.name || library.id }}</strong>
+                      <small class="text-muted">v{{ library.version || 'N/A' }}</small>
+                    </div>
+                    <i class="icon-plus"></i>
+                  </button>
+                </div>
+                <button class="btn btn-primary btn-sm w-100" (click)="createNewLibraryResource()" title="Create New Library">
+                  <i class="icon-plus me-1"></i>
+                  Create New Library
+                </button>
+              </div>
+
+              <!-- Paginated Library List -->
+              <div class="border-top pt-3">
+                <div class="d-flex justify-content-between align-items-center mb-3 px-3">
+                  <div class="mb-0 fw-semibold small text-white">Server Libraries</div>
+                  <div class="library-controls d-flex align-items-center gap-2">
+                    <!-- Sort Controls -->
+                    <div class="sort-controls d-flex align-items-center gap-1">
+                      <select 
+                        class="form-select form-select-sm" 
+                        [(ngModel)]="librarySortBy" 
+                        (change)="changeSorting(librarySortBy)"
+                        title="Sort by"
+                        style="min-width: 80px;"
+                      >
+                        <option value="name">Name</option>
+                        <option value="version">Version</option>
+                        <option value="date">Date</option>
+                      </select>
+                      <button 
+                        class="btn btn-outline-dark btn-sm" 
+                        (click)="changeSorting(librarySortBy)"
+                        [title]="'Sort ' + (librarySortOrder === 'asc' ? 'Descending' : 'Ascending')"
+                      >
+                        <i class="icon-{{ librarySortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }} me-1"></i>
+                        {{ librarySortOrder === 'asc' ? 'Asc' : 'Desc' }}
+                      </button>
+                    </div>
+                    
+                    <!-- Page Size Controls -->
+                    <select 
+                      class="form-select form-select-sm" 
+                      [(ngModel)]="pageSize" 
+                      (change)="changePageSize(pageSize)"
+                      title="Items per page"
+                      style="min-width: 60px;"
+                    >
+                      <option value="5">5</option>
+                      <option value="10">10</option>
+                      <option value="20">20</option>
+                      <option value="50">50</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Loading State -->
+                <div *ngIf="isLoadingLibraries" class="loading-state d-flex align-items-center justify-content-center py-4 text-muted">
+                  <i class="icon-loading me-2"></i>
+                  <span>Loading libraries...</span>
+                </div>
+
+                <!-- Library List -->
+                <div *ngIf="!isLoadingLibraries" class="border rounded mx-3">
+                  <div 
+                    *ngFor="let library of paginatedLibraries" 
+                    class="d-flex align-items-center justify-content-between p-2 border-bottom"
+                    (click)="addLibraryFromPaginatedList(library)"
+                  >
+                    <div class="flex-fill">
+                      <div class="fw-medium text-truncate text-white">{{ getLibraryDisplayName(library) }}</div>
+                      <div class="d-flex flex-column gap-1 small text-muted">
+                        <span class="fw-medium text-info">v{{ getLibraryVersion(library) }}</span>
+                        <span class="text-truncate" style="max-width: 150px;">{{ getLibraryDescription(library) }}</span>
+                      </div>
+                    </div>
+                    <button class="btn btn-outline-info btn-sm" title="Add to Editor">
+                      <i class="icon-plus"></i>
+                    </button>
+                  </div>
+                  
+                  <!-- Empty State -->
+                  <div *ngIf="paginatedLibraries.length === 0" class="empty-state d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                    <i class="icon-library fs-1 mb-2"></i>
+                    <span>No libraries found on server</span>
+                  </div>
+                </div>
+
+                <!-- Pagination Controls -->
+                <div *ngIf="!isLoadingLibraries && totalPages > 1" class="pagination-controls border-top pt-3 mt-3 mx-3">
+                  <div class="pagination-info text-center small text-muted mb-2">
+                    Showing {{ (currentPage - 1) * pageSize + 1 }} to {{ Math.min(currentPage * pageSize, totalLibraries) }} of {{ totalLibraries }} libraries
+                  </div>
+                  
+                  <div class="pagination-buttons d-flex align-items-center justify-content-center gap-1">
+                    <button 
+                      class="btn btn-outline-secondary btn-sm" 
+                      (click)="previousPage()" 
+                      [disabled]="currentPage === 1"
+                      title="Previous Page"
+                    >
+                      <i class="icon-chevron-left"></i>
+                    </button>
+                    
+                    <!-- Page Numbers -->
+                    <div class="page-numbers d-flex align-items-center gap-1">
+                      <button 
+                        *ngFor="let page of getPageNumbers()" 
+                        class="btn btn-outline-secondary btn-sm" 
+                        [class.active]="page === currentPage"
+                        [class.ellipsis]="page === '...'"
+                        (click)="onPageClick(page)"
+                        [disabled]="page === '...'"
+                        style="min-width: 28px;"
+                      >
+                        {{ page }}
+                      </button>
+                    </div>
+                    
+                    <button 
+                      class="btn btn-outline-secondary btn-sm" 
+                      (click)="nextPage()" 
+                      [disabled]="currentPage === totalPages"
+                      title="Next Page"
+                    >
+                      <i class="icon-chevron-right"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Patient Search and Selection -->
+            <div class="mb-3">
+              <div class="px-3 py-2 fw-semibold text-uppercase small text-muted">Patient Focus</div>
+              
+              <!-- Patient Search -->
+              <div class="px-3">
+                <input 
+                  type="text" 
+                  class="form-control form-control-sm mb-2" 
+                  placeholder="Search patients..." 
+                  [(ngModel)]="patientSearchTerm"
+                  (input)="onPatientSearchInput($event)"
+                >
+                <div *ngIf="showPatientSearchResults" class="border rounded bg-secondary">
+                  <button 
+                    *ngFor="let patient of patientSearchResults"
+                    class="btn btn-outline-light rounded-0 w-100 text-start d-flex justify-content-between align-items-center"
+                    (click)="selectPatient(patient)"
+                    [disabled]="patientService.hasPatient(patient.id!)"
+                  >
+                    <div class="flex-fill">
+                      <strong class="d-block text-white">{{ getPatientDisplayName(patient) }}</strong>
+                      <small class="text-muted">{{ patient.id }}</small>
+                    </div>
+                    <i class="icon-{{ patientService.hasPatient(patient.id!) ? 'check' : 'arrow-right' }}"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Selected Patients Display -->
+              <div *ngIf="hasSelectedPatients" class="border rounded mx-3 bg-secondary">
+                <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                  <div class="fw-semibold text-info">Selected Patients ({{ patientService.selectedPatients.length }})</div>
+                  <button class="btn btn-outline-danger btn-sm" (click)="clearPatientSelection()" title="Clear All Patients">
+                    <i class="icon-close me-1"></i>
+                    Clear All
+                  </button>
+                </div>
+                <div *ngFor="let patient of patientService.selectedPatients; trackBy: trackByPatientId" class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                  <div class="flex-fill">
+                    <div class="fw-semibold text-white text-truncate">{{ getPatientDisplayName(patient) }}</div>
+                    <div class="small text-muted">{{ patient.id }}</div>
+                  </div>
+                  <button class="btn btn-outline-danger btn-sm" (click)="removePatient(patient.id!)" title="Remove Patient">
+                    <i class="icon-close"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Evaluation Actions -->
+            <div class="mb-3" *ngIf="canShowEvaluationUI()">
+              <div class="px-3 py-2 fw-semibold text-uppercase small text-muted">Evaluation</div>
+              <div class="px-3">
+                <button 
+                  class="btn btn-success w-100" 
+                  (click)="executeAll()" 
+                  [disabled]="!canExecuteAll() || isEvaluating"
+                  title="Execute All"
+                >
+                  <i class="icon-play me-1" *ngIf="!isEvaluating"></i>
+                  <i class="icon-loading me-1" *ngIf="isEvaluating"></i>
+                  {{ isEvaluating ? 'Executing...' : 'Execute All' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- Outline Panel -->
+        <div *ngIf="panelState.sidebar.activeTab === 'outline'" class="h-100">
+        
+          
+          <!-- Outline Search and Sort Controls -->
+          <div class="p-2 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <input 
+                type="text" 
+                class="form-control form-control-sm flex-fill" 
+                placeholder="Search outline items..." 
+                [(ngModel)]="outlineSearchTerm"
+                (input)="onOutlineSearchInput($event)"
+              >
+              <div class="d-flex align-items-center gap-1">
+                <label class="form-label mb-0 small text-light">Sort:</label>
+                <select 
+                  class="form-select form-select-sm" 
+                  [(ngModel)]="outlineSortBy" 
+                  (change)="changeOutlineSorting(outlineSortBy)"
+                  title="Sort by"
+                  style="min-width: 80px;"
+                >
+                  <option value="name">Name</option>
+                  <option value="type">Type</option>
+                  <option value="line">Line</option>
+                </select>
+                <button 
+                  class="btn btn-outline-dark btn-sm" 
+                  (click)="changeOutlineSorting(outlineSortBy)"
+                  [title]="'Sort ' + (outlineSortOrder === 'asc' ? 'Descending' : 'Ascending')"
+                >
+                  <i class="icon-{{ outlineSortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="p-2">
+            <div 
+              class="outline-item d-flex align-items-center p-2 rounded cursor-pointer" 
+              *ngFor="let item of filteredOutlineItems; trackBy: trackByOutlineItem"
+              (click)="onOutlineItemClick(item)"
+              title="Click to go to line {{ item.line }}"
+            >
+              <i class="icon-{{ item.type }} me-2 text-info"></i>
+              <div class="flex-fill">
+                <div class="text-light fw-medium">{{ item.name }}</div>
+                <div class="small text-muted">Line {{ item.line }}</div>
+              </div>
+            </div>
+            <div *ngIf="filteredOutlineItems.length === 0 && outlineItems.length > 0" class="text-center text-muted py-4">
+              <!-- <i class="icon-search fs-1 mb-2 d-block"></i> -->
+              <span>No matches</span>
+            </div>
+            <div *ngIf="outlineItems.length === 0" class="text-center text-muted py-4">
+              <!-- <i class="icon-code fs-1 mb-2 d-block"></i> -->
+              <span>Edit a library to see its outline</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+      <!-- Resize Handle -->
+      <div class="resize-handle" (mousedown)="startResize('sidebar', $event)"></div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content d-flex flex-column flex-fill">
+      <!-- Editor Area -->
+      <div class="editor-area d-flex flex-column flex-fill">
+        <!-- Tab Bar for Library Resources -->
+        <div class="bg-secondary border-bottom d-flex justify-content-between align-items-center" *ngIf="libraryResources.length > 0">
+          <div class="d-flex align-items-center flex-fill">
+            <div 
+              *ngFor="let library of libraryResources; trackBy: trackByLibraryId" 
+              class="d-flex align-items-center px-3 bg-secondary border-end" 
+              [class.bg-dark]="library.isActive"
+              [class.text-white]="library.isActive"
+              (click)="selectLibraryResource(library.id)"
+            >
+              <span class="text-truncate me-2" style="max-width: 200px;">{{ library.name }}</span>
+              <span *ngIf="library.isDirty" class="text-danger me-2">●</span>
+              <span 
+                class="tab-close-btn text-muted ms-2" 
+                (click)="removeLibraryResource(library.id, $event)"
+                title="Close tab"
+              >
+                ×
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Editor Toolbar -->
+        <div class="bg-dark border-bottom d-flex align-items-center justify-content-between px-3 py-2" *ngIf="libraryResources.length > 0">
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-primary btn-sm" (click)="executeLibrary()" [disabled]="!canExecute() || isExecuting" title="Execute Library">
+              <i class="icon-play me-1" *ngIf="!isExecuting"></i>
+              <i class="icon-loading me-1" *ngIf="isExecuting"></i>
+              Execute
+            </button>
+            <button class="btn btn-secondary btn-sm" (click)="reloadLibraryFromServer()" [disabled]="isNewLibrary" title="Reload from Server">
+              <i class="icon-reload me-1"></i>
+              Reload
+            </button>
+            <div class="d-flex align-items-center gap-1">
+              <label class="form-label mb-0 small text-light">CQL:</label>
+              <select 
+                class="form-select form-select-sm" 
+                [(ngModel)]="cqlVersion" 
+                (change)="onCqlVersionChange(cqlVersion)"
+                title="CQL Version"
+                style="min-width: 120px;"
+              >
+                <option value="1.5.3">1.5.3</option>
+                <option value="2.0.0-ballot">2.0.0-ballot</option>
+              </select>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-link btn-sm" (click)="formatCqlCodeInEditor()" title="Format CQL">
+              <i class="icon-code"></i>
+            </button>
+            <button class="btn btn-link btn-sm" (click)="validateCqlCodeInEditor()" title="Validate CQL">
+              <i class="icon-check"></i>
+            </button>
+            <button class="btn btn-primary btn-sm" (click)="saveCql()" [disabled]="!isFormValid()" title="Save Library">
+              <i class="icon-upload me-1"></i>
+              Save
+            </button>
+          </div>
+        </div>
+        
+        
+        <!-- Editor Container -->
+        <div #editorContainer class="editor-wrapper" *ngIf="libraryResources.length > 0">
+        </div>
+        
+        <!-- Welcome message when no library resources -->
+        <div *ngIf="libraryResources.length === 0" class="welcome-message d-flex flex-column align-items-center text-muted w-100" style="height: 100%; overflow-y: auto;">
+            <div class="welcome-content d-flex flex-column align-items-center py-4" style="min-height: 100%;">
+              <h4 class="mb-3">Welcome to the CQL IDE</h4>
+              <!-- <p class="mb-4 text-center">Create a new library or load an existing one to start editing CQL code.</p>
+              
+              <div class="d-flex gap-2 mb-4">
+                <button class="btn btn-primary btn-lg" (click)="createNewLibraryResource()">
+                  <i class="icon-plus me-2"></i>
+                  Create New Library
+                </button>
+              </div> -->
+
+              <!-- Keyboard Shortcuts Section -->
+              <div class="keyboard-shortcuts-section w-100" style="max-width: 600px;">
+                <h5 class="text-center mb-3 text-light">Keyboard Shortcuts</h5>
+                <div class="card bg-dark border-secondary">
+                  <div class="card-header bg-secondary text-center">
+                    <h6 class="mb-0 text-white">Essential Shortcuts</h6>
+                  </div>
+                  <div class="card-body p-3">
+                    <div class="row g-2">
+                      <div class="col-6" *ngFor="let shortcut of getAllShortcuts()">
+                        <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background-color: rgba(255,255,255,0.05);">
+                          <span class="text-light small" [title]="shortcut?.description">{{ shortcut?.description }}</span>
+                          <kbd class="bg-dark text-info border border-secondary px-2 py-1 rounded" style="font-size: 0.75rem;">{{ shortcut?.key }}</kbd>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div 
+      class="right-panel bg-dark border-start d-flex flex-column" 
+      [class.visible]="panelState.right.visible"
+      [style.width.px]="panelState.right.width"
+    >
+        <div class="bg-secondary border-bottom d-flex">
+          <button 
+            class="btn rounded-0 flex-fill" 
+            [class.active]="panelState.right.activeTab === 'fhir'"
+            (click)="setRightTab('fhir')"
+          >
+            FHIR
+          </button>
+          <button 
+            class="btn rounded-0 flex-fill" 
+            [class.active]="panelState.right.activeTab === 'elm'"
+            (click)="setRightTab('elm')"
+          >
+            ELM
+          </button>
+        </div>
+        
+        <div class="flex-fill overflow-hidden">
+          <!-- FHIR Panel -->
+          <div *ngIf="panelState.right.activeTab === 'fhir'" class="h-100 overflow-auto">
+            <div class="p-3 text-light">
+
+              <!-- Library Management -->
+              <div *ngIf="hasSelectedLibrary" class="mb-3">
+
+                <!-- Library Form -->
+                <div class="mb-3">
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold small text-uppercase text-white">Library ID</label>
+                    <input 
+                      type="text" 
+                      class="form-control form-control-sm" 
+                      [(ngModel)]="libraryService.libraryId"
+                      placeholder="Enter library ID"
+                    >
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold small text-uppercase text-white">Version</label>
+                    <input 
+                      type="text" 
+                      class="form-control form-control-sm" 
+                      [(ngModel)]="libraryVersion"
+                      placeholder="0.0.0"
+                    >
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold small text-uppercase text-white">Description</label>
+                    <input 
+                      type="text" 
+                      class="form-control form-control-sm" 
+                      [(ngModel)]="libraryDescription"
+                      placeholder="Library description"
+                    >
+                  </div>
+                  
+                </div>
+
+
+                <!-- Library Actions -->
+                <div class="d-flex justify-content-end">
+                  <button 
+                    class="btn btn-danger btn-sm" 
+                    (click)="deleteCql()" 
+                    *ngIf="!isNewLibrary"
+                    title="Delete Library"
+                  >
+                    <i class="icon-trash me-1"></i> Delete from Server
+                  </button>
+                </div>
+              </div>
+
+              <!-- Resource Section -->
+              <div class="mt-4">
+                <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                  <i class="icon-document"></i>
+                  <span class="fw-semibold small text-white">Resource</span>
+                </div>
+                <div>
+                  <div *ngIf="!hasSelectedLibrary && !hasSelectedPatients" class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                    <i class="icon-document fs-1 mb-2"></i>
+                    <span>Select a library and patient(s) to view FHIR resources</span>
+                  </div>
+                  
+                  <!-- Library Resource -->
+                  <div *ngIf="hasSelectedLibrary" class="mb-3">
+                    <pre class="border rounded p-3 bg-dark text-light" style="max-height: 350px; overflow-y: auto;">{{ libraryAsString() || 'No library resource available' }}</pre>
+                  </div>
+                  
+                  <!-- Patient Resources -->
+                  <div *ngIf="hasSelectedPatients" class="mb-3">
+                    <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
+                      <i class="icon-patient text-info"></i>
+                      <span class="fw-semibold small text-white">Patient Resources ({{ patientService.selectedPatients.length }})</span>
+                    </div>
+                    <div *ngFor="let patient of patientService.selectedPatients; trackBy: trackByPatientId" class="mb-3">
+                      <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
+                        <i class="icon-patient text-info"></i>
+                        <span class="fw-medium text-white">{{ getPatientDisplayName(patient) }}</span>
+                        <span class="small text-muted">({{ patient.id }})</span>
+                      </div>
+                      <pre class="border rounded p-3 bg-dark text-light" style="max-height: 200px; overflow-y: auto;">{{ patientAsString(patient) || 'No patient resource available' }}</pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ELM Panel -->
+          <div *ngIf="panelState.right.activeTab === 'elm'" class="h-100">
+            <div class="p-3 h-100 overflow-auto text-light">
+              <!-- ELM Translation Header -->
+              <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="icon-code"></i>
+                  <span class="fw-semibold small text-white">ELM Translation</span>
+                </div>
+                <div class="d-flex gap-2">
+                  <button 
+                    class="btn btn-primary btn-sm" 
+                    (click)="translateCqlToElm()" 
+                    [disabled]="!_value || isTranslating"
+                    title="Translate CQL to ELM"
+                  >
+                    <i class="icon-reload me-1" *ngIf="!isTranslating"></i>
+                    <i class="icon-loading me-1" *ngIf="isTranslating"></i>
+                    {{ isTranslating ? 'Translating...' : 'Translate' }}
+                  </button>
+                  <button 
+                    class="btn btn-outline-light btn-sm" 
+                    (click)="clearElmTranslation()" 
+                    [disabled]="!elmTranslationResults"
+                    title="Clear Translation"
+                  >
+                    <i class="icon-eraser"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- ELM Translation Results -->
+              <div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <span class="fw-semibold small text-uppercase text-white">Translation Results</span>
+                  <div>
+                    <div class="form-check" *ngIf="enableElmTranslation">
+                      <input 
+                        class="form-check-input" 
+                        type="checkbox" 
+                        id="enableElmTranslation" 
+                        [(ngModel)]="settingsService.settings().enableElmTranslation"
+                      >
+                      <label class="form-check-label small text-light" for="enableElmTranslation">
+                        Auto-translate
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="border rounded p-2 bg-secondary" style="max-height: 300px; overflow-y: auto;">
+                  <div *ngIf="isTranslating" class="d-flex align-items-center justify-content-center py-4 text-muted">
+                    <i class="icon-loading me-2"></i>
+                    <span>Translating CQL to ELM...</span>
+                  </div>
+                  
+                  <div *ngIf="!isTranslating && !elmTranslationResults" class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                    <i class="icon-code fs-1 mb-2"></i>
+                    <span>Click "Translate" to convert CQL to ELM format</span>
+                  </div>
+                  
+                  <div *ngIf="!isTranslating && elmTranslationResults">
+                    <pre class="mb-0 small text-light">{{ elmTranslationResultsAsString() }}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Resize Handle -->
+        <div class="resize-handle" (mousedown)="startResize('right', $event)"></div>
+    </div>
+  </div>
+
+  <!-- Bottom Panel -->
+  <div 
+    class="bottom-panel bg-dark border-top d-flex flex-column" 
+    [class.visible]="panelState.bottom.visible"
+    [style.height.px]="panelState.bottom.height"
+  >
+    <div class="bg-secondary border-bottom d-flex">
+      <button 
+        class="btn rounded-0 flex-fill" 
+        [class.active]="panelState.bottom.activeTab === 'problems'"
+        (click)="setBottomTab('problems')"
+      >
+        Problems
+        <span *ngIf="syntaxErrors.length > 0" class="badge bg-danger ms-1">{{ syntaxErrors.length }}</span>
+      </button>
+      <button 
+        class="btn rounded-0 flex-fill" 
+        [class.active]="panelState.bottom.activeTab === 'output'"
+        (click)="setBottomTab('output')"
+      >
+        Output
+      </button>
+    </div>
+    
+    <div class="flex-fill overflow-hidden">
+      <!-- Problems Panel -->
+      <div *ngIf="panelState.bottom.activeTab === 'problems'" class="h-100 overflow-auto">
+        <div class="p-2">
+          <div *ngFor="let error of syntaxErrors; let i = index" class="d-flex align-items-start p-2 border-bottom">
+            <i class="icon-error text-danger me-2 mt-1"></i>
+            <div class="flex-fill">
+              <div class="fw-medium text-light">{{ error }}</div>
+              <div class="small text-muted">Line {{ i + 1 }}</div>
+            </div>
+          </div>
+          <div *ngIf="syntaxErrors.length === 0" class="d-flex align-items-center justify-content-center py-4 text-muted">
+            <i class="icon-check me-2"></i>
+            <span>No problems found</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output Panel -->
+      <div *ngIf="panelState.bottom.activeTab === 'output'" class="d-flex flex-column h-100 bg-dark text-light">
+        <div class="d-flex align-items-center gap-2 p-2 border-bottom bg-secondary">
+          <button class="btn btn-outline-dark btn-sm" (click)="clearOutput()" title="Clear Output">
+            <i class="icon-trash me-1"></i> Clear
+          </button>
+          <button class="btn btn-outline-dark btn-sm" (click)="copyOutput()" title="Copy Output">
+            <i class="icon-copy me-1"></i> Copy
+          </button>
+          <button class="btn btn-outline-dark btn-sm" (click)="toggleAllSections()" title="Toggle All Sections">
+            <i class="icon-{{ allSectionsExpanded ? 'collapse' : 'expand' }} me-1"></i> 
+            {{ allSectionsExpanded ? 'Collapse All' : 'Expand All' }}
+          </button>
+          <div class="form-check ms-auto d-flex align-items-center gap-2">
+            <input 
+              class="form-check-input" 
+              type="checkbox" 
+              id="preserveLogs" 
+              [(ngModel)]="preserveLogs"
+              title="Preserve logs between executions"
+            >
+            <label class="form-check-label small text-light mb-0" for="preserveLogs">
+              Preserve Logs
+            </label>
+          </div>
+        </div>
+        <div class="flex-fill overflow-auto" [class.executing]="isEvaluating || isExecuting">
+          <div class="p-2">
+            <div *ngFor="let section of outputSections; let i = index" class="border rounded mb-2 bg-secondary" [class.expanded]="section.expanded">
+              <div class="d-flex align-items-center gap-2 p-2 border-bottom" (click)="toggleSection(i)">
+                <i class="icon-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
+                <span class="fw-medium flex-fill text-white">{{ section.title }}</span>
+                <span class="badge" [class.bg-success]="section.status === 'success'" [class.bg-danger]="section.status === 'error'" [class.bg-warning]="section.status !== 'success' && section.status !== 'error'">
+                  {{ section.status === 'success' ? 'SUCCESS' : section.status === 'error' ? 'ERROR' : 'PENDING' }}
+                </span>
+                <span class="small text-muted" *ngIf="section.executionTime">{{ section.executionTime }}ms</span>
+              </div>
+              <div class="p-3 bg-dark" *ngIf="section.expanded">
+                <pre class="mb-0 small text-light">{{ section.content }}</pre>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="outputSections.length === 0 && !isEvaluating" class="no-output d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+            <span>No output yet. Click "Execute All" to run libraries.</span>
+          </div>
+          <div *ngIf="isEvaluating" class="p-3 border-top bg-secondary">
+            <div class="progress mb-2">
+              <div class="progress-bar" [style.width.%]="executionProgress"></div>
+            </div>
+            <span class="small text-light">{{ executionStatus }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Resize Handle -->
+    <div class="resize-handle" (mousedown)="startResize('bottom', $event)"></div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="bg-primary d-flex justify-content-between align-items-center px-3 py-1 text-white">
+    <div class="d-flex align-items-center gap-3">
+      <span *ngIf="cursorPosition" class="d-flex align-items-center gap-1 small">
+        <i class="icon-cursor"></i>
+        Ln {{ cursorPosition.line }}, Col {{ cursorPosition.column }}
+      </span>
+      <span *ngIf="wordCount" class="d-flex align-items-center gap-1 small">
+        <i class="icon-words"></i>
+        {{ wordCount }} words
+      </span>
+      <span class="d-flex align-items-center gap-1 small">
+        <i class="icon-language"></i>
+        CQL {{ cqlVersion }}
+      </span>
+      <span class="d-flex align-items-center gap-1 small" [class.text-success]="isValidSyntax" [class.text-danger]="!isValidSyntax">
+        <i class="icon-{{ isValidSyntax ? 'check' : 'error' }}"></i>
+        {{ isValidSyntax ? 'Valid' : 'Invalid' }}
+      </span>
+      <span *ngIf="hasSelectedPatients" class="d-flex align-items-center gap-1 small text-info">
+        <i class="icon-patient"></i>
+        {{ patientService.selectedPatients.length }} patient{{ patientService.selectedPatients.length === 1 ? '' : 's' }}
+      </span>
+    </div>
+    <div class="d-flex align-items-center gap-3">
+      <!-- CQL Execution Status -->
+      <span *ngIf="isExecuting" class="d-flex align-items-center gap-1 small text-warning">
+        <i class="icon-loading spinning"></i>
+        Executing CQL...
+      </span>
+      
+      <!-- ELM Translation Status -->
+      <span *ngIf="isTranslating" class="d-flex align-items-center gap-1 small text-info">
+        <i class="icon-loading spinning"></i>
+        Translating to ELM...
+      </span>
+      
+      <!-- Library Evaluation Status -->
+      <span *ngIf="isEvaluating" class="d-flex align-items-center gap-1 small text-success">
+        <i class="icon-loading spinning"></i>
+        Evaluating Libraries...
+      </span>
+      
+      <!-- Library Loading Status -->
+      <span *ngIf="isLoadingLibraries" class="d-flex align-items-center gap-1 small text-primary">
+        <i class="icon-loading spinning"></i>
+        Loading Libraries...
+      </span>
+      
+      <!-- Ready Status (when no operations are running) -->
+      <span *ngIf="!isExecuting && !isTranslating && !isEvaluating && !isLoadingLibraries" class="d-flex align-items-center gap-1 small text-light">
+        <i class="icon-check"></i>
+        Ready
+      </span>
+    </div>
+  </div>
+</div>

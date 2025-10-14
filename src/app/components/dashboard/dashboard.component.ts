@@ -3,11 +3,11 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
-import { CqlTestResults, TestResult, TestResultsSummary } from '../../models/cql-test-results.model';
+import { CqlTestResults, TestResult, TestResultsSummary, TestError } from '../../models/cql-test-results.model';
 
 interface DashboardData {
   filename: string;
@@ -21,6 +21,19 @@ interface ChartDataPoint {
   label: string;
   value: number;
   color: string;
+}
+
+interface ComparisonTest {
+  testName: string;
+  groupName: string;
+  results: {
+    filename: string;
+    engine: string;
+    testStatus: 'pass' | 'fail' | 'skip' | 'error';
+    actual?: string;
+    expected?: string;
+    error?: TestError;
+  }[];
 }
 
 @Component({
@@ -41,6 +54,14 @@ export class DashboardComponent implements OnInit {
   statusFilter = signal<string>('all');
   sortBy = signal<string>('filename');
   sortOrder = signal<'asc' | 'desc'>('asc');
+  
+  // Comparison Matrix filter and sort signals
+  matrixStatusFilter = signal<string>('all');
+  matrixGroupFilter = signal<string>('all');
+  matrixConsistencyFilter = signal<string>('all');
+  matrixSearchTerm = signal<string>('');
+  matrixSortBy = signal<string>('groupName');
+  matrixSortOrder = signal<'asc' | 'desc'>('asc');
   
   // Computed values
   filteredData = computed(() => {
@@ -127,6 +148,51 @@ export class DashboardComponent implements OnInit {
   totalFail = computed(() => this.filteredData().reduce((sum, item) => sum + item.summary.failCount, 0));
   totalSkip = computed(() => this.filteredData().reduce((sum, item) => sum + item.summary.skipCount, 0));
   totalError = computed(() => this.filteredData().reduce((sum, item) => sum + item.summary.errorCount, 0));
+  
+  // Comparison matrix data
+  comparisonMatrix = computed((): ComparisonTest[] => {
+    const data = this.filteredData();
+    const selectedFiles = this.selectedFiles();
+    const testMap = new Map<string, ComparisonTest>();
+    
+    // Only include files that are selected for comparison
+    const filesToCompare = data.filter(fileData => selectedFiles.includes(fileData.filename));
+    
+    // Group tests by name and group across selected files
+    filesToCompare.forEach(fileData => {
+      fileData.results.forEach(test => {
+        const key = `${test.groupName}::${test.testName}`;
+        
+        if (!testMap.has(key)) {
+          testMap.set(key, {
+            testName: test.testName,
+            groupName: test.groupName,
+            results: []
+          });
+        }
+        
+        testMap.get(key)!.results.push({
+          filename: fileData.filename,
+          engine: fileData.engine,
+          testStatus: test.testStatus,
+          actual: test.actual,
+          expected: test.expected,
+          error: test.error
+        });
+      });
+    });
+    
+    // Convert to array
+    let result = Array.from(testMap.values());
+    
+    // Apply filters
+    result = this.applyMatrixFilters(result);
+    
+    // Apply sorting
+    result = this.applyMatrixSorting(result);
+    
+    return result;
+  });
   
   // Chart configurations
   summaryChartData = computed((): ChartData<'doughnut'> => {
@@ -271,9 +337,20 @@ export class DashboardComponent implements OnInit {
     }
   };
   
-  constructor(private router: Router) {}
+  constructor(private router: Router, private route: ActivatedRoute) {}
   
   ngOnInit(): void {
+    // Check if there's an index query parameter and no session storage data
+    const indexParam = this.route.snapshot.queryParams['index'];
+    const hasSessionData = sessionStorage.getItem(SessionStorageKeys.INDEX_URL) && 
+                          sessionStorage.getItem(SessionStorageKeys.INDEX_FILES);
+    
+    if (indexParam && !hasSessionData) {
+      // If there's an index parameter but no session data, load the index file directly
+      this.loadIndexFileDirectly(indexParam);
+      return;
+    }
+    
     this.loadDashboardData();
   }
   
@@ -314,6 +391,40 @@ export class DashboardComponent implements OnInit {
       this.selectedFiles.set(indexFiles);
     } catch (error) {
       this.errorMessage.set((error as Error).message);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+  
+  private async loadIndexFileDirectly(indexUrl: string): Promise<void> {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    
+    try {
+      // Decode the URL in case it's URL-encoded
+      const decodedUrl = decodeURIComponent(indexUrl);
+      
+      // Load the index file
+      const response = await fetch(decodedUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to load index file: ${response.statusText}`);
+      }
+      
+      const indexData = await response.json();
+      
+      if (!indexData.files || !Array.isArray(indexData.files)) {
+        throw new Error('Invalid index file format: missing or invalid files array');
+      }
+      
+      // Store the index data in session storage
+      sessionStorage.setItem(SessionStorageKeys.INDEX_URL, decodedUrl);
+      sessionStorage.setItem(SessionStorageKeys.INDEX_FILES, JSON.stringify(indexData.files));
+      
+      // Now load the dashboard data
+      await this.loadDashboardData();
+      
+    } catch (error) {
+      this.errorMessage.set(`Failed to load index file: ${(error as Error).message}`);
     } finally {
       this.isLoading.set(false);
     }
@@ -395,7 +506,14 @@ export class DashboardComponent implements OnInit {
   }
   
   onBackToIndex(): void {
-    this.router.navigate(['/']);
+    // Preserve the index query parameter when navigating back
+    const indexUrl = sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
+    const queryParams: any = {};
+    if (indexUrl) {
+      queryParams['index'] = indexUrl;
+    }
+    
+    this.router.navigate(['/'], { queryParams });
   }
   
   onViewFile(filename: string): void {
@@ -405,5 +523,356 @@ export class DashboardComponent implements OnInit {
       const fileUrl = `${baseUrl}/${filename}`;
       this.router.navigate(['/results'], { queryParams: { url: fileUrl } });
     }
+  }
+  
+  getStatusBadgeClass(status: 'pass' | 'fail' | 'skip' | 'error'): string {
+    switch (status) {
+      case 'pass':
+        return 'bg-success';
+      case 'fail':
+        return 'bg-danger';
+      case 'skip':
+        return 'bg-warning';
+      case 'error':
+        return 'bg-secondary';
+      default:
+        return 'bg-secondary';
+    }
+  }
+  
+  getStatusIcon(status: 'pass' | 'fail' | 'skip' | 'error'): string {
+    switch (status) {
+      case 'pass':
+        return 'bi-check-circle-fill';
+      case 'fail':
+        return 'bi-x-circle-fill';
+      case 'skip':
+        return 'bi-skip-forward-circle-fill';
+      case 'error':
+        return 'bi-exclamation-triangle-fill';
+      default:
+        return 'bi-question-circle-fill';
+    }
+  }
+  
+  getConsistencyStatus(test: ComparisonTest): { status: string; badgeClass: string; icon: string; text: string } {
+    // Only consider results from files that are selected for comparison
+    const selectedFiles = this.selectedFiles();
+    const statuses: string[] = [];
+    
+    // For each file selected for comparison, determine its status
+    selectedFiles.forEach(filename => {
+      const result = this.getTestResultForFile(test, filename);
+      if (result) {
+        statuses.push(result.testStatus);
+      } else {
+        statuses.push('not-found');
+      }
+    });
+    
+    const uniqueStatuses = [...new Set(statuses)];
+    
+    if (uniqueStatuses.length === 0) {
+      return {
+        status: 'no-data',
+        badgeClass: 'bg-secondary',
+        icon: 'bi-question-circle',
+        text: 'No Data'
+      };
+    } else if (uniqueStatuses.length === 1) {
+      return {
+        status: 'consistent',
+        badgeClass: 'bg-success',
+        icon: 'bi-check-circle',
+        text: 'Consistent'
+      };
+    } else {
+      return {
+        status: 'inconsistent',
+        badgeClass: 'bg-warning',
+        icon: 'bi-exclamation-triangle',
+        text: 'Inconsistent'
+      };
+    }
+  }
+  
+  getTestResultForFile(test: ComparisonTest, filename: string): { filename: string; engine: string; testStatus: 'pass' | 'fail' | 'skip' | 'error'; actual?: string; expected?: string; error?: TestError; } | undefined {
+    return test.results.find(r => r.filename === filename);
+  }
+  
+  getResultTooltip(result: { filename: string; engine: string; testStatus: 'pass' | 'fail' | 'skip' | 'error'; actual?: string; expected?: string; error?: TestError; }): string {
+    let tooltip = `${result.testStatus.toUpperCase()} - ${result.engine}`;
+    
+    if (result.testStatus === 'fail' && result.actual && result.expected) {
+      tooltip += `\nExpected: ${result.expected}\nActual: ${result.actual}`;
+    }
+    
+    if (result.testStatus === 'error' && result.error) {
+      tooltip += `\nError: ${result.error.message}`;
+    }
+    
+    return tooltip;
+  }
+  
+  // Files selected for comparison
+  filesForComparison = computed(() => {
+    const data = this.filteredData();
+    const selectedFiles = this.selectedFiles();
+    return data.filter(fileData => selectedFiles.includes(fileData.filename));
+  });
+
+  // Available groups for matrix filtering
+  availableGroups = computed((): string[] => {
+    const data = this.filteredData();
+    const groups = new Set<string>();
+    
+    data.forEach(fileData => {
+      fileData.results.forEach(test => {
+        groups.add(test.groupName);
+      });
+    });
+    
+    return Array.from(groups).sort();
+  });
+  
+  // Apply filters to comparison matrix
+  private applyMatrixFilters(tests: ComparisonTest[]): ComparisonTest[] {
+    let filtered = tests;
+    
+    // Search filter
+    const searchTerm = this.matrixSearchTerm().toLowerCase();
+    if (searchTerm) {
+      filtered = filtered.filter(test => 
+        test.testName.toLowerCase().includes(searchTerm) ||
+        test.groupName.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Group filter
+    const groupFilter = this.matrixGroupFilter();
+    if (groupFilter !== 'all') {
+      filtered = filtered.filter(test => test.groupName === groupFilter);
+    }
+    
+    // Status filter
+    const statusFilter = this.matrixStatusFilter();
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(test => {
+        const statuses = test.results.map(r => r.testStatus);
+        return statuses.includes(statusFilter as 'pass' | 'fail' | 'skip' | 'error');
+      });
+    }
+    
+    // Consistency filter
+    const consistencyFilter = this.matrixConsistencyFilter();
+    if (consistencyFilter !== 'all') {
+      filtered = filtered.filter(test => {
+        const consistency = this.getConsistencyStatus(test);
+        return consistency.status === consistencyFilter;
+      });
+    }
+    
+    return filtered;
+  }
+  
+  // Apply sorting to comparison matrix
+  private applyMatrixSorting(tests: ComparisonTest[]): ComparisonTest[] {
+    const sortBy = this.matrixSortBy();
+    const sortOrder = this.matrixSortOrder();
+    
+    return tests.sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'groupName':
+          aValue = a.groupName;
+          bValue = b.groupName;
+          break;
+        case 'testName':
+          aValue = a.testName;
+          bValue = b.testName;
+          break;
+        case 'consistency':
+          const aConsistency = this.getConsistencyStatus(a);
+          const bConsistency = this.getConsistencyStatus(b);
+          aValue = aConsistency.status;
+          bValue = bConsistency.status;
+          break;
+        case 'resultCount':
+          aValue = a.results.length;
+          bValue = b.results.length;
+          break;
+        default:
+          aValue = a.groupName;
+          bValue = b.groupName;
+      }
+      
+      if (sortOrder === 'desc') {
+        return bValue > aValue ? 1 : -1;
+      } else {
+        return aValue > bValue ? 1 : -1;
+      }
+    });
+  }
+  
+  // Matrix filter and sort event handlers
+  onMatrixStatusFilterChange(status: string): void {
+    this.matrixStatusFilter.set(status);
+  }
+  
+  onMatrixGroupFilterChange(group: string): void {
+    this.matrixGroupFilter.set(group);
+  }
+  
+  onMatrixConsistencyFilterChange(consistency: string): void {
+    this.matrixConsistencyFilter.set(consistency);
+  }
+  
+  onMatrixSearchChange(searchTerm: string): void {
+    this.matrixSearchTerm.set(searchTerm);
+  }
+  
+  onMatrixSortChange(sortBy: string): void {
+    this.matrixSortBy.set(sortBy);
+  }
+  
+  onMatrixSortOrderChange(): void {
+    this.matrixSortOrder.set(this.matrixSortOrder() === 'asc' ? 'desc' : 'asc');
+  }
+  
+  onMatrixSortBy(sortBy: string): void {
+    if (this.matrixSortBy() === sortBy) {
+      this.matrixSortOrder.set(this.matrixSortOrder() === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.matrixSortBy.set(sortBy);
+      this.matrixSortOrder.set('asc');
+    }
+  }
+  
+  clearMatrixFilters(): void {
+    this.matrixStatusFilter.set('all');
+    this.matrixGroupFilter.set('all');
+    this.matrixConsistencyFilter.set('all');
+    this.matrixSearchTerm.set('');
+  }
+  
+  // Download functionality
+  downloadMatrixAsCsv(): void {
+    const data = this.comparisonMatrix();
+    const filesForComparison = this.filesForComparison();
+    
+    if (data.length === 0) {
+      alert('No data to download');
+      return;
+    }
+    
+    // Create CSV headers
+    const headers = ['Group', 'Test Name', 'Consistency'];
+    filesForComparison.forEach(fileData => {
+      headers.push(`${fileData.engine} (${fileData.filename})`);
+    });
+    
+    // Create CSV rows
+    const rows = data.map(test => {
+      const consistency = this.getConsistencyStatus(test);
+      const row = [test.groupName, test.testName, consistency.text];
+      
+      // Add results for each file
+      filesForComparison.forEach(fileData => {
+        const result = this.getTestResultForFile(test, fileData.filename);
+        if (result) {
+          row.push(result.testStatus.toUpperCase());
+        } else {
+          row.push('NOT FOUND');
+        }
+      });
+      
+      return row;
+    });
+    
+    // Convert to CSV
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+    
+    // Download file
+    this.downloadFile(csvContent, 'comparison-matrix.csv', 'text/csv');
+  }
+  
+  downloadMatrixAsJson(): void {
+    const data = this.comparisonMatrix();
+    const filesForComparison = this.filesForComparison();
+    
+    if (data.length === 0) {
+      alert('No data to download');
+      return;
+    }
+    
+    // Create JSON structure
+    const exportData = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        totalTests: data.length,
+        totalFiles: filesForComparison.length,
+        filters: {
+          status: this.matrixStatusFilter(),
+          group: this.matrixGroupFilter(),
+          consistency: this.matrixConsistencyFilter(),
+          search: this.matrixSearchTerm()
+        },
+        sortBy: this.matrixSortBy(),
+        sortOrder: this.matrixSortOrder()
+      },
+      files: filesForComparison.map(fileData => ({
+        filename: fileData.filename,
+        engine: fileData.engine,
+        timestamp: fileData.timestamp
+      })),
+      tests: data.map(test => {
+        const consistency = this.getConsistencyStatus(test);
+        const results: { [key: string]: any } = {};
+        
+        filesForComparison.forEach(fileData => {
+          const result = this.getTestResultForFile(test, fileData.filename);
+          if (result) {
+            results[fileData.filename] = {
+              engine: result.engine,
+              status: result.testStatus,
+              actual: result.actual,
+              expected: result.expected,
+              error: result.error
+            };
+          } else {
+            results[fileData.filename] = null;
+          }
+        });
+        
+        return {
+          groupName: test.groupName,
+          testName: test.testName,
+          consistency: {
+            status: consistency.status,
+            text: consistency.text
+          },
+          results: results
+        };
+      })
+    };
+    
+    // Download file
+    const jsonContent = JSON.stringify(exportData, null, 2);
+    this.downloadFile(jsonContent, 'comparison-matrix.json', 'application/json');
+  }
+  
+  private downloadFile(content: string, filename: string, mimeType: string): void {
+    const blob = new Blob([content], { type: mimeType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   }
 }

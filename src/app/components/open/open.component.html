@@ -42,24 +42,12 @@
 								[disabled]="isLoading() || !urlInput().trim()">
 								Load
 							</button>
-						</div>
-						<div class="form-text">Enter a URL to a JSON file containing CQL test results.</div>
-					</div>
-
-					<div class="text-center mb-4">
-						<span class="text-muted">OR</span>
-					</div>
-
-					<!-- Example File Section -->
-					<div class="mb-4">
-						<h5>Load Example</h5>
-						<div class="d-grid">
-							<button id="example-load-button" class="btn btn-outline-secondary" type="button" (click)="onLoadExample()"
+							<button id="url-example-button" class="btn btn-outline-secondary" type="button" (click)="onLoadUrlExample()"
 								[disabled]="isLoading()">
-								<i class="bi bi-file-earmark-code me-2"></i>Load Example Results File
+								Example
 							</button>
 						</div>
-						<div class="form-text">Load the bundled example CQL test results file.</div>
+						<div class="form-text">Enter a URL to a JSON file containing CQL test results.</div>
 					</div>
 
 					<div class="text-center mb-4">
@@ -75,6 +63,10 @@
 							<button id="index-load-button" class="btn btn-primary" type="button" (click)="onLoadIndexFile()"
 								[disabled]="isLoading() || indexLoading() || !indexUrl().trim()">
 								Load Index
+							</button>
+							<button id="example-index-button" class="btn btn-outline-secondary" type="button" (click)="onLoadExampleIndex()"
+								[disabled]="isLoading() || indexLoading()">
+								Example
 							</button>
 						</div>
 						<div class="form-text">Enter a URL to an index file in JSON format. It must contain an object with a "files" array of URLs to individual result files. For example, {{'{"files": ["...","..."]}'}}</div>
@@ -104,7 +96,7 @@
 										<h6 class="mb-0">Available Files:</h6>
 										<button id="open-dashboard-btn" class="btn btn-primary" type="button" 
 											(click)="onOpenDashboard()" [disabled]="isLoading()">
-											<i class="bi bi-graph-up me-2"></i>Summary Dashboard
+											<i class="bi bi-graph-up me-2"></i>Summary Dashboard & Comparison Matrix
 										</button>
 									</div>
 									<div class="list-group">

@@ -5,6 +5,7 @@ import { Component, signal } from '@angular/core';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
+import { SettingsService } from '../../services/settings.service';
 
 @Component({
   selector: 'app-navigation',
@@ -14,12 +15,10 @@ import { SessionStorageKeys } from '../../constants/session-storage.constants';
   styleUrl: './navigation.component.scss'
 })
 export class NavigationComponent {
-  protected readonly title = signal(
-    (window as any)['CQL_TESTS_UI_NAME'] || 'CQL Tests'
-  );
+  protected readonly title = signal('CQL Studio');
   protected readonly showFileMenu = signal(false);
 
-  constructor(private router: Router) {
+  constructor(private router: Router, protected settingsService: SettingsService) {
     // Listen to route changes to update the signal
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))

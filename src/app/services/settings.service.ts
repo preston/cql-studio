@@ -73,8 +73,24 @@ export class SettingsService {
           parsedSettings.validateSchema = false;
           shouldSave = true;
         }
+        if (parsedSettings.enableElmTranslation == null) {
+          parsedSettings.enableElmTranslation = true;
+          shouldSave = true;
+        }
         if (parsedSettings.runnerApiBaseUrl == null) {
-          parsedSettings.runnerApiBaseUrl = this.getDefaultRunnerApiBaseUrl();
+          parsedSettings.runnerApiBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.fhirBaseUrl == null) {
+          parsedSettings.fhirBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.translationBaseUrl == null) {
+          parsedSettings.translationBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.defaultTestResultsIndexUrl == null) {
+          parsedSettings.defaultTestResultsIndexUrl = '';
           shouldSave = true;
         }
         if (shouldSave) {
@@ -113,6 +129,42 @@ export class SettingsService {
   }
 
   getDefaultRunnerApiBaseUrl(): string {
-    return (window as any)['CQL_TESTS_UI_RUNNER_BASE_URL'] || 'http://localhost:3000';
+    const envValue = (window as any)['CQL_STUDIO_RUNNER_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3000';
+  }
+
+  getDefaultFhirBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_FHIR_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:8080/fhir';
+  }
+
+  getDefaultTranslationBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_TRANSLATION_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3001';
+  }
+
+  getDefaultTestResultsIndexUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_DEFAULT_TEST_RESULTS_INDEX_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : '/examples/index.json';
+  }
+
+  getEffectiveRunnerApiBaseUrl(): string {
+    const settingValue = this.settings().runnerApiBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultRunnerApiBaseUrl();
+  }
+
+  getEffectiveFhirBaseUrl(): string {
+    const settingValue = this.settings().fhirBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultFhirBaseUrl();
+  }
+
+  getEffectiveTranslationBaseUrl(): string {
+    const settingValue = this.settings().translationBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTranslationBaseUrl();
+  }
+
+  getEffectiveTestResultsIndexUrl(): string {
+    const settingValue = this.settings().defaultTestResultsIndexUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTestResultsIndexUrl();
   }
 }

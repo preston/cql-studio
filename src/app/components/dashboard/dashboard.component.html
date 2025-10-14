@@ -4,9 +4,9 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 id="dashboard-title" class="mb-1">
+                    <h4 id="dashboard-title" class="mb-1">
                         <i class="bi bi-graph-up me-2"></i>All Results Summary Dashboard
-                    </h1>
+                    </h4>
                     <p class="text-muted mb-0">Compare and analyze CQL test results across multiple files</p>
                 </div>
                 <button id="back-to-home-btn" class="btn btn-outline-secondary" (click)="onBackToIndex()">
@@ -273,6 +273,241 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Matrix Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div id="comparison-matrix-card" class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-table me-2"></i>Comparison Matrix
+                        </h5>
+                        <small class="text-muted">Compare test results with the same name and group across different files</small>
+                    </div>
+                    
+                    <!-- Matrix Controls -->
+                    <div class="card-body border-bottom">
+                        <div class="row g-3">
+                            <!-- Search -->
+                            <div class="col-md-3">
+                                <div class="form-floating">
+                                    <input id="matrix-search" type="text" class="form-control" 
+                                           placeholder="Search tests..." 
+                                           [ngModel]="matrixSearchTerm()"
+                                           (ngModelChange)="onMatrixSearchChange($event)">
+                                    <label for="matrix-search">
+                                        <i class="bi bi-search me-1"></i>Search Tests
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- Group Filter -->
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <select id="matrix-group-filter" class="form-select" 
+                                            [ngModel]="matrixGroupFilter()"
+                                            (ngModelChange)="onMatrixGroupFilterChange($event)">
+                                        <option value="all">All Groups</option>
+                                        @for (group of availableGroups(); track group) {
+                                            <option [value]="group">{{ group }}</option>
+                                        }
+                                    </select>
+                                    <label for="matrix-group-filter">Group</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Status Filter -->
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <select id="matrix-status-filter" class="form-select" 
+                                            [ngModel]="matrixStatusFilter()"
+                                            (ngModelChange)="onMatrixStatusFilterChange($event)">
+                                        <option value="all">All Statuses</option>
+                                        <option value="pass">Has Passes</option>
+                                        <option value="fail">Has Failures</option>
+                                        <option value="skip">Has Skips</option>
+                                        <option value="error">Has Errors</option>
+                                    </select>
+                                    <label for="matrix-status-filter">Status</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Consistency Filter -->
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <select id="matrix-consistency-filter" class="form-select" 
+                                            [ngModel]="matrixConsistencyFilter()"
+                                            (ngModelChange)="onMatrixConsistencyFilterChange($event)">
+                                        <option value="all">All Results</option>
+                                        <option value="consistent">Consistent</option>
+                                        <option value="inconsistent">Inconsistent</option>
+                                        <option value="no-data">No Data</option>
+                                    </select>
+                                    <label for="matrix-consistency-filter">Consistency</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Sort Options -->
+                            <div class="col-md-2">
+                                <div class="form-floating">
+                                    <select id="matrix-sort-by" class="form-select" 
+                                            [ngModel]="matrixSortBy()"
+                                            (ngModelChange)="onMatrixSortChange($event)">
+                                        <option value="groupName">Group Name</option>
+                                        <option value="testName">Test Name</option>
+                                        <option value="consistency">Consistency</option>
+                                        <option value="resultCount">Result Count</option>
+                                    </select>
+                                    <label for="matrix-sort-by">Sort By</label>
+                                </div>
+                            </div>
+                            
+                            <!-- Sort Order, Clear & Download -->
+                            <div class="col-md-1">
+                                <div class="d-flex flex-column gap-2">
+                                    <button id="matrix-sort-order-btn" class="btn btn-outline-secondary" 
+                                            (click)="onMatrixSortOrderChange()" 
+                                            title="Toggle sort order">
+                                        <i class="bi" [class.bi-sort-alpha-down]="matrixSortOrder() === 'asc'"
+                                           [class.bi-sort-alpha-up]="matrixSortOrder() === 'desc'"></i>
+                                    </button>
+                                    <button id="clear-matrix-filters-btn" class="btn btn-outline-danger btn-sm" 
+                                            (click)="clearMatrixFilters()" 
+                                            title="Clear all filters">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Download Dropdown -->
+                            <div class="col-md-1">
+                                <div class="dropdown">
+                                    <button id="matrix-download-btn" class="btn btn-outline-success dropdown-toggle" 
+                                            type="button" data-bs-toggle="dropdown" 
+                                            aria-expanded="false" title="Download data">
+                                        <i class="bi bi-download me-1"></i>
+                                        Download
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li>
+                                            <button class="dropdown-item" (click)="downloadMatrixAsCsv()">
+                                                <i class="bi bi-file-earmark-spreadsheet me-2"></i>
+                                                Download as CSV
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button class="dropdown-item" (click)="downloadMatrixAsJson()">
+                                                <i class="bi bi-file-earmark-code me-2"></i>
+                                                Download as JSON
+                                            </button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Results Count -->
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    Showing {{ comparisonMatrix().length }} test(s)
+                                    @if (matrixSearchTerm() || matrixGroupFilter() !== 'all' || matrixStatusFilter() !== 'all' || matrixConsistencyFilter() !== 'all') {
+                                        <span class="text-warning">(filtered)</span>
+                                    }
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        @if (comparisonMatrix().length === 0) {
+                            <div class="text-center py-4">
+                                <i class="bi bi-info-circle text-muted" style="font-size: 2rem;"></i>
+                                <p class="text-muted mt-2">No tests found for comparison</p>
+                                <p class="text-muted">Load test result files to see comparison matrix</p>
+                            </div>
+                        } @else {
+                            <table id="comparison-matrix-table" class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th id="group-header" class="fw-bold" style="cursor: pointer;" 
+                                                (click)="onMatrixSortBy('groupName')" 
+                                                title="Click to sort by Group">
+                                                Group
+                                                <i class="bi ms-1" 
+                                                   [class.bi-sort-alpha-down]="matrixSortBy() === 'groupName' && matrixSortOrder() === 'asc'" 
+                                                   [class.bi-sort-alpha-up]="matrixSortBy() === 'groupName' && matrixSortOrder() === 'desc'"></i>
+                                            </th>
+                                            <th id="test-name-header" class="fw-bold" style="cursor: pointer;" 
+                                                (click)="onMatrixSortBy('testName')" 
+                                                title="Click to sort by Test Name">
+                                                Test Name
+                                                <i class="bi ms-1" 
+                                                   [class.bi-sort-alpha-down]="matrixSortBy() === 'testName' && matrixSortOrder() === 'asc'" 
+                                                   [class.bi-sort-alpha-up]="matrixSortBy() === 'testName' && matrixSortOrder() === 'desc'"></i>
+                                            </th>
+                                            @for (fileData of filesForComparison(); track fileData.filename) {
+                                                <th id="engine-{{ fileData.filename }}-header" class="text-center">
+                                                    <div class="d-flex flex-column align-items-center">
+                                                        <span class="fw-bold text-primary">{{ fileData.engine }}</span>
+                                                        <small class="text-muted">{{ fileData.filename }}</small>
+                                                    </div>
+                                                </th>
+                                            }
+                                            <th id="consistency-header" class="text-center" style="cursor: pointer;" 
+                                                (click)="onMatrixSortBy('consistency')" 
+                                                title="Click to sort by Consistency">
+                                                Consistency
+                                                <i class="bi ms-1" 
+                                                   [class.bi-sort-alpha-down]="matrixSortBy() === 'consistency' && matrixSortOrder() === 'asc'" 
+                                                   [class.bi-sort-alpha-up]="matrixSortBy() === 'consistency' && matrixSortOrder() === 'desc'"></i>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (test of comparisonMatrix(); track test.groupName + '::' + test.testName) {
+                                            <tr>
+                                                <td class="fw-bold text-primary">
+                                                    <i class="bi bi-folder me-2"></i>{{ test.groupName }}
+                                                </td>
+                                                <td class="fw-bold">
+                                                    <i class="bi bi-play-circle me-2"></i>{{ test.testName }}
+                                                </td>
+                                                @for (fileData of filesForComparison(); track fileData.filename) {
+                                                    <td class="text-center">
+                                                        @let result = getTestResultForFile(test, fileData.filename);
+                                                        @if (result) {
+                                                            <div class="d-flex flex-column align-items-center">
+                                                                <span class="badge {{ getStatusBadgeClass(result.testStatus) }} mb-1" 
+                                                                      [title]="getResultTooltip(result)">
+                                                                    <i class="bi {{ getStatusIcon(result.testStatus) }} me-1"></i>
+                                                                    {{ result.testStatus.toUpperCase() }}
+                                                                </span>
+                                                            </div>
+                                                        } @else {
+                                                            <span class="text-muted">
+                                                                <i class="bi bi-dash-circle me-1"></i>
+                                                                <small>Not Found</small>
+                                                            </span>
+                                                        }
+                                                    </td>
+                                                }
+                                                <td class="text-center">
+                                                    @let consistency = getConsistencyStatus(test);
+                                                    <span class="badge {{ consistency.badgeClass }}">
+                                                        <i class="bi {{ consistency.icon }} me-1"></i>
+                                                        {{ consistency.text }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                        }
                     </div>
                 </div>
             </div>

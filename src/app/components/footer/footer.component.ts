@@ -15,12 +15,5 @@ import { SettingsService } from '../../services/settings.service';
 export class FooterComponent {
   constructor(public settingsService: SettingsService) {}
 
-  onValidateSchemaChange(): void {
-    this.settingsService.saveSettings();
-  }
 
-  onThemeChange(): void {
-    this.settingsService.setEffectiveTheme();
-    this.settingsService.saveSettings();
-  }
 }

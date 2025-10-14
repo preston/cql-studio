@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { RunnerService, CQLTestConfiguration, JobResponse, JobStatus } from '../../services/runner.service';
 import { FileLoaderService } from '../../services/file-loader.service';
+import { SettingsService } from '../../services/settings.service';
 import { interval, Subscription } from 'rxjs';
 import { switchMap, takeWhile } from 'rxjs/operators';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
@@ -26,12 +27,13 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   // Configuration form data
   protected readonly config = signal<CQLTestConfiguration>({
     FhirServer: {
-      BaseUrl: 'http://localhost:8080/fhir',
+      BaseUrl: '', // Will be set from settings in ngOnInit
       CqlOperation: '$cql'
     },
     Build: {
       CqlFileVersion: '1.0.000',
-      CqlOutputPath: './cql'
+      CqlOutputPath: './cql',
+      CqlVersion: '1.5.3'
     },
     Debug: {
       QuickTest: true
@@ -69,10 +71,21 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     private runnerService: RunnerService,
     private router: Router,
     private route: ActivatedRoute,
-    private fileLoader: FileLoaderService
+    private fileLoader: FileLoaderService,
+    private settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
+    // Initialize FHIR URL from settings
+    const currentConfig = this.config();
+    this.config.set({
+      ...currentConfig,
+      FhirServer: {
+        ...currentConfig.FhirServer,
+        BaseUrl: this.settingsService.getEffectiveFhirBaseUrl()
+      }
+    });
+    
     // Check if there's a URL parameter to load configuration from
     const params = this.route.snapshot.queryParams;
     if (params['url']) {
@@ -242,12 +255,13 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   protected reset(): void {
     this.config.set({
       FhirServer: {
-        BaseUrl: 'http://localhost:8080/fhir',
+        BaseUrl: this.settingsService.getEffectiveFhirBaseUrl(),
         CqlOperation: '$cql'
       },
       Build: {
         CqlFileVersion: '1.0.000',
-        CqlOutputPath: './cql'
+        CqlOutputPath: './cql',
+        CqlVersion: '1.5.3'
       },
       Debug: {
         QuickTest: true
@@ -683,9 +697,6 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.runnerService['baseUrl'] || 'Not configured';
   }
 
-  protected shouldShowApiWarning(): boolean {
-    return this.apiUnavailable() && !this.isCheckingHealth();
-  }
 
   protected getTimeSinceLastCheck(): string {
     const lastCheck = this.lastApiCheck();

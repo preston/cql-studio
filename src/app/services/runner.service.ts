@@ -15,6 +15,7 @@ export interface CQLTestConfiguration {
   Build: {
     CqlFileVersion: string;
     CqlOutputPath: string;
+    CqlVersion?: string;
   };
   Debug: {
     QuickTest: boolean;
@@ -53,7 +54,7 @@ export class RunnerService {
   constructor(private http: HttpClient) {}
 
   private get baseUrl(): string {
-    return this.settingsService.settings().runnerApiBaseUrl || this.settingsService.getDefaultRunnerApiBaseUrl();
+    return this.settingsService.getEffectiveRunnerApiBaseUrl();
   }
 
   /**
@@ -102,12 +103,13 @@ export class RunnerService {
   getDefaultConfiguration(): CQLTestConfiguration {
     return {
       FhirServer: {
-        BaseUrl: 'http://localhost:8080/fhir',
+        BaseUrl: this.settingsService.getEffectiveFhirBaseUrl(),
         CqlOperation: '$cql'
       },
       Build: {
         CqlFileVersion: '1.0.000',
-        CqlOutputPath: './cql'
+        CqlOutputPath: './cql',
+        CqlVersion: '1.5.3'
       },
       Debug: {
         QuickTest: true
@@ -127,17 +129,32 @@ export class RunnerService {
       errorMessage = `Client Error: ${error.error.message}`;
     } else {
       // Server-side error
-      if (error.error && error.error.message) {
-        errorMessage = error.error.message;
-      } else if (error.error && error.error.error) {
-        errorMessage = error.error.error;
-      } else {
-        // Handle specific status codes with better messages
-        if (error.status === 0) {
-          errorMessage = 'Network Error: Unable to connect to the server';
-        } else {
-          errorMessage = `Server Error: ${error.status} - ${error.statusText}`;
+      if (error.error && typeof error.error === 'object') {
+        // Handle structured error responses from the CQL Tests Runner service
+        if (error.error.message) {
+          errorMessage = error.error.message;
+        } else if (error.error.error) {
+          errorMessage = error.error.error;
         }
+      }
+      
+      // Handle specific status codes with better messages
+      if (error.status === 0) {
+        errorMessage = 'Network Error: Unable to connect to the server';
+      } else if (error.status === 400) {
+        errorMessage = errorMessage || 'Bad Request: Invalid request data';
+      } else if (error.status === 404) {
+        errorMessage = errorMessage || 'Not Found: The requested resource was not found';
+      } else if (error.status === 422) {
+        errorMessage = errorMessage || 'Validation Error: Configuration validation failed';
+      } else if (error.status === 503) {
+        errorMessage = errorMessage || 'Service Unavailable: Cannot connect to the specified FHIR server';
+      } else if (error.status >= 400 && error.status < 500) {
+        errorMessage = errorMessage || `Client Error: ${error.status} - ${error.statusText}`;
+      } else if (error.status >= 500) {
+        errorMessage = errorMessage || `Server Error: ${error.status} - ${error.statusText}`;
+      } else {
+        errorMessage = `HTTP Error: ${error.status} - ${error.statusText}`;
       }
     }
     
