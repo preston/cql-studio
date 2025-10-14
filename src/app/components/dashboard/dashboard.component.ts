@@ -51,7 +51,6 @@ export class DashboardComponent implements OnInit {
   
   // Filter and sort signals
   selectedFiles = signal<string[]>([]);
-  compareFiles = signal<string[]>([]);
   statusFilter = signal<string>('all');
   sortBy = signal<string>('filename');
   sortOrder = signal<'asc' | 'desc'>('asc');
@@ -97,11 +96,6 @@ export class DashboardComponent implements OnInit {
       let aValue: any, bValue: any;
       
       switch (this.sortBy()) {
-        case 'compare':
-          const compareFiles = this.compareFiles();
-          aValue = compareFiles.includes(a.filename) ? 1 : 0;
-          bValue = compareFiles.includes(b.filename) ? 1 : 0;
-          break;
         case 'engine':
           aValue = a.engine;
           bValue = b.engine;
@@ -158,11 +152,11 @@ export class DashboardComponent implements OnInit {
   // Comparison matrix data
   comparisonMatrix = computed((): ComparisonTest[] => {
     const data = this.filteredData();
-    const compareFiles = this.compareFiles();
+    const selectedFiles = this.selectedFiles();
     const testMap = new Map<string, ComparisonTest>();
     
     // Only include files that are selected for comparison
-    const filesToCompare = data.filter(fileData => compareFiles.includes(fileData.filename));
+    const filesToCompare = data.filter(fileData => selectedFiles.includes(fileData.filename));
     
     // Group tests by name and group across selected files
     filesToCompare.forEach(fileData => {
@@ -395,7 +389,6 @@ export class DashboardComponent implements OnInit {
       
       this.dashboardData.set(dashboardData);
       this.selectedFiles.set(indexFiles);
-      this.compareFiles.set(indexFiles); // Default all files to be included in comparison
     } catch (error) {
       this.errorMessage.set((error as Error).message);
     } finally {
@@ -488,24 +481,6 @@ export class DashboardComponent implements OnInit {
   onDeselectAllFiles(): void {
     this.selectedFiles.set([]);
   }
-
-  onCompareFileChange(filename: string, checked: boolean): void {
-    const compareFiles = this.compareFiles();
-    if (checked) {
-      this.compareFiles.set([...compareFiles, filename]);
-    } else {
-      this.compareFiles.set(compareFiles.filter(f => f !== filename));
-    }
-  }
-
-  onSelectAllCompare(): void {
-    const allFiles = this.dashboardData().map(item => item.filename);
-    this.compareFiles.set(allFiles);
-  }
-
-  onDeselectAllCompare(): void {
-    this.compareFiles.set([]);
-  }
   
   onStatusFilterChange(status: string): void {
     this.statusFilter.set(status);
@@ -582,11 +557,11 @@ export class DashboardComponent implements OnInit {
   
   getConsistencyStatus(test: ComparisonTest): { status: string; badgeClass: string; icon: string; text: string } {
     // Only consider results from files that are selected for comparison
-    const compareFiles = this.compareFiles();
+    const selectedFiles = this.selectedFiles();
     const statuses: string[] = [];
     
     // For each file selected for comparison, determine its status
-    compareFiles.forEach(filename => {
+    selectedFiles.forEach(filename => {
       const result = this.getTestResultForFile(test, filename);
       if (result) {
         statuses.push(result.testStatus);
@@ -642,8 +617,8 @@ export class DashboardComponent implements OnInit {
   // Files selected for comparison
   filesForComparison = computed(() => {
     const data = this.filteredData();
-    const compareFiles = this.compareFiles();
-    return data.filter(fileData => compareFiles.includes(fileData.filename));
+    const selectedFiles = this.selectedFiles();
+    return data.filter(fileData => selectedFiles.includes(fileData.filename));
   });
 
   // Available groups for matrix filtering
