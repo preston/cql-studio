@@ -179,32 +179,32 @@
                 </h5>
               </div>
               <div class="card-body">
-                <div class="mb-3">
-                  <label for="baseUrl" class="form-label">Base URL</label>
+                <div class="form-floating mb-3">
                   <input 
                     type="url" 
                     class="form-control" 
                     id="baseUrl"
                     [(ngModel)]="config().FhirServer.BaseUrl"
                     placeholder="http://localhost:8080/fhir">
+                  <label for="baseUrl">Base URL</label>
                 </div>
-                <div class="mb-3">
-                  <label for="cqlOperation" class="form-label">CQL Operation</label>
+                <div class="form-floating mb-3">
                   <input 
                     type="text" 
                     class="form-control" 
                     id="cqlOperation"
                     [(ngModel)]="config().FhirServer.CqlOperation"
                     placeholder="$cql">
+                  <label for="cqlOperation">CQL Operation</label>
                 </div>
-                <div class="mb-3">
-                  <label for="ogBaseUrl" class="form-label">Original Base URL (Optional)</label>
+                <div class="form-floating mb-3">
                   <input 
                     type="url" 
                     class="form-control" 
                     id="ogBaseUrl"
                     [(ngModel)]="config().FhirServer.ogBaseUrl"
                     placeholder="https://example.com/fhir">
+                  <label for="ogBaseUrl">Original Base URL (Optional)</label>
                 </div>
               </div>
             </div>
@@ -215,12 +215,11 @@
             <div class="card">
               <div class="card-header">
                 <h5 class="card-title mb-0">
-                  <i class="bi bi-gear me-2"></i>Build Configuration
+                  <i class="bi bi-gear me-2"></i>CQL Configuration
                 </h5>
               </div>
               <div class="card-body">
-                <div class="mb-3">
-                  <label for="cqlFileVersion" class="form-label">CQL File Version</label>
+                <div class="form-floating mb-3">
                   <input 
                     type="text" 
                     class="form-control" 
@@ -228,18 +227,18 @@
                     [(ngModel)]="config().Build.CqlFileVersion"
                     placeholder="1.0.000"
                     pattern="^\d+\.\d+\.\d+$">
+                  <label for="cqlFileVersion">CQL File Version</label>
                 </div>
-                <div class="mb-3">
-                  <label for="cqlOutputPath" class="form-label">CQL Output Path</label>
+                <!-- <div class="form-floating mb-3">
                   <input 
                     type="text" 
                     class="form-control" 
                     id="cqlOutputPath"
                     [(ngModel)]="config().Build.CqlOutputPath"
                     placeholder="./cql">
-                </div>
-                <div class="mb-3">
-                  <label for="cqlVersion" class="form-label">CQL Version (Optional)</label>
+                  <label for="cqlOutputPath">CQL Output Path</label>
+                </div> -->
+                <div class="form-floating mb-3">
                   <input 
                     type="text" 
                     class="form-control" 
@@ -247,21 +246,10 @@
                     [(ngModel)]="config().Build.CqlVersion"
                     placeholder="1.5.3"
                     pattern="^\d+\.\d+(\.\d+)?$">
-                  <div class="form-text">CQL engine version for version-based test filtering</div>
+                  <label for="cqlVersion">CQL Version (Optional)</label>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Debug Configuration -->
-          <div class="col-md-6 mb-4">
-            <div class="card">
-              <div class="card-header">
-                <h5 class="card-title mb-0">
-                  <i class="bi bi-bug me-2"></i>Debug Configuration
-                </h5>
-              </div>
-              <div class="card-body">
+                <div class="form-text">CQL engine version for version-based test filtering</div>
+<hr>
                 <div class="form-check">
                   <input 
                     class="form-check-input" 
@@ -269,15 +257,16 @@
                     id="quickTest"
                     [(ngModel)]="config().Debug.QuickTest">
                   <label class="form-check-label" for="quickTest">
-                    Quick Test (Run only quick tests)
+                    Quick Test (smoke tests only)
                   </label>
                 </div>
               </div>
             </div>
           </div>
 
+
           <!-- Tests Configuration -->
-          <div class="col-md-6 mb-4">
+          <!-- <div class="col-md-6 mb-4">
             <div class="card">
               <div class="card-header">
                 <h5 class="card-title mb-0">
@@ -285,18 +274,18 @@
                 </h5>
               </div>
               <div class="card-body">
-                <div class="mb-3">
-                  <label for="resultsPath" class="form-label">Results Path</label>
+                <div class="form-floating mb-3">
                   <input 
                     type="text" 
                     class="form-control" 
                     id="resultsPath"
                     [(ngModel)]="config().Tests.ResultsPath"
                     placeholder="./results">
+                  <label for="resultsPath">Results Path</label>
                 </div>
               </div>
             </div>
-          </div>
+          </div> -->
 
           <!-- Skip List -->
           <div class="col-12 mb-4">
@@ -328,32 +317,48 @@
                         @for (item of config().Tests.SkipList; track $index) {
                           <tr>
                             <td>
-                              <input 
-                                type="text" 
-                                class="form-control form-control-sm"
-                                [(ngModel)]="item.testsName"
-                                placeholder="Test suite name">
+                              <div class="form-floating">
+                                <input 
+                                  type="text" 
+                                  class="form-control form-control-sm"
+                                  id="testsName-{{ $index }}"
+                                  [(ngModel)]="item.testsName"
+                                  placeholder="Test suite name">
+                                <label for="testsName-{{ $index }}">Test Suite</label>
+                              </div>
                             </td>
                             <td>
-                              <input 
-                                type="text" 
-                                class="form-control form-control-sm"
-                                [(ngModel)]="item.groupName"
-                                placeholder="Group name">
+                              <div class="form-floating">
+                                <input 
+                                  type="text" 
+                                  class="form-control form-control-sm"
+                                  id="groupName-{{ $index }}"
+                                  [(ngModel)]="item.groupName"
+                                  placeholder="Group name">
+                                <label for="groupName-{{ $index }}">Group</label>
+                              </div>
                             </td>
                             <td>
-                              <input 
-                                type="text" 
-                                class="form-control form-control-sm"
-                                [(ngModel)]="item.testName"
-                                placeholder="Test name">
+                              <div class="form-floating">
+                                <input 
+                                  type="text" 
+                                  class="form-control form-control-sm"
+                                  id="testName-{{ $index }}"
+                                  [(ngModel)]="item.testName"
+                                  placeholder="Test name">
+                                <label for="testName-{{ $index }}">Test</label>
+                              </div>
                             </td>
                             <td>
-                              <input 
-                                type="text" 
-                                class="form-control form-control-sm"
-                                [(ngModel)]="item.reason"
-                                placeholder="Skip reason">
+                              <div class="form-floating">
+                                <input 
+                                  type="text" 
+                                  class="form-control form-control-sm"
+                                  id="reason-{{ $index }}"
+                                  [(ngModel)]="item.reason"
+                                  placeholder="Skip reason">
+                                <label for="reason-{{ $index }}">Reason</label>
+                              </div>
                             </td>
                             <td>
                               <button 

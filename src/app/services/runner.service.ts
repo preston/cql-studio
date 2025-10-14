@@ -129,17 +129,32 @@ export class RunnerService {
       errorMessage = `Client Error: ${error.error.message}`;
     } else {
       // Server-side error
-      if (error.error && error.error.message) {
-        errorMessage = error.error.message;
-      } else if (error.error && error.error.error) {
-        errorMessage = error.error.error;
-      } else {
-        // Handle specific status codes with better messages
-        if (error.status === 0) {
-          errorMessage = 'Network Error: Unable to connect to the server';
-        } else {
-          errorMessage = `Server Error: ${error.status} - ${error.statusText}`;
+      if (error.error && typeof error.error === 'object') {
+        // Handle structured error responses from the CQL Tests Runner service
+        if (error.error.message) {
+          errorMessage = error.error.message;
+        } else if (error.error.error) {
+          errorMessage = error.error.error;
         }
+      }
+      
+      // Handle specific status codes with better messages
+      if (error.status === 0) {
+        errorMessage = 'Network Error: Unable to connect to the server';
+      } else if (error.status === 400) {
+        errorMessage = errorMessage || 'Bad Request: Invalid request data';
+      } else if (error.status === 404) {
+        errorMessage = errorMessage || 'Not Found: The requested resource was not found';
+      } else if (error.status === 422) {
+        errorMessage = errorMessage || 'Validation Error: Configuration validation failed';
+      } else if (error.status === 503) {
+        errorMessage = errorMessage || 'Service Unavailable: Cannot connect to the specified FHIR server';
+      } else if (error.status >= 400 && error.status < 500) {
+        errorMessage = errorMessage || `Client Error: ${error.status} - ${error.statusText}`;
+      } else if (error.status >= 500) {
+        errorMessage = errorMessage || `Server Error: ${error.status} - ${error.statusText}`;
+      } else {
+        errorMessage = `HTTP Error: ${error.status} - ${error.statusText}`;
       }
     }
     
