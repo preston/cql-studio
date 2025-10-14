@@ -25,7 +25,7 @@ export class LibraryService extends BaseService {
 	public offset = 0;
 
 	url(): string {
-		const baseUrl = this.settingsService.settings().fhirBaseUrl || this.settingsService.getDefaultFhirBaseUrl();
+		const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
 		return baseUrl + LibraryService.LIBRARY_PATH;
 	}
 
@@ -51,7 +51,7 @@ export class LibraryService extends BaseService {
 	}
 
 	urlFor(id: string) {
-		const baseUrl = this.settingsService.settings().fhirBaseUrl || this.settingsService.getDefaultFhirBaseUrl();
+		const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
 		return baseUrl + '/Library/' + id;
 	}
 

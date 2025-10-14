@@ -70,7 +70,7 @@ export class OpenComponent implements OnInit {
   }
 
   onLoadUrlExample(): void {
-    this.loadFromUrl('/examples/results.json');
+    this.loadFromUrl(this.settingsService.getEffectiveTestResultsIndexUrl());
   }
 
 
@@ -82,7 +82,7 @@ export class OpenComponent implements OnInit {
   }
 
   onLoadExampleIndex(): void {
-    this.loadIndexFile('/examples/index.json');
+    this.loadIndexFile(this.settingsService.getEffectiveTestResultsIndexUrl());
   }
 
   onLoadFileFromIndex(filename: string): void {

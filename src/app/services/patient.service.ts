@@ -21,12 +21,12 @@ export class PatientService extends BaseService {
 	}
 
 	url(): string {
-		const baseUrl = this.settingsService.settings().fhirBaseUrl || this.settingsService.getDefaultFhirBaseUrl();
+		const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
 		return baseUrl + PatientService.PATIENT_PATH;
 	}
 
 	urlFor(id: string) {
-		const baseUrl = this.settingsService.settings().fhirBaseUrl || this.settingsService.getDefaultFhirBaseUrl();
+		const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
 		return baseUrl + '/Patient/' + id;
 	}
 

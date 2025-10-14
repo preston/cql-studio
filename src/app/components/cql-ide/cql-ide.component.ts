@@ -1516,7 +1516,7 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   }
 
   getCurrentFhirUrl(): string {
-    return this.settingsService.settings().fhirBaseUrl || this.settingsService.getDefaultFhirBaseUrl();
+    return this.settingsService.getEffectiveFhirBaseUrl();
   }
 
   get enableElmTranslation(): boolean {
@@ -2029,7 +2029,7 @@ ${JSON.stringify(result.result, null, 2)}`;
       return;
     }
 
-    const translationBaseUrl = this.settingsService.settings().translationBaseUrl || this.settingsService.getDefaultTranslationBaseUrl();
+    const translationBaseUrl = this.settingsService.getEffectiveTranslationBaseUrl();
     
     this.isTranslating = true;
     this.elmTranslationResults = null;

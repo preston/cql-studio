@@ -54,7 +54,7 @@ export class RunnerService {
   constructor(private http: HttpClient) {}
 
   private get baseUrl(): string {
-    return this.settingsService.settings().runnerApiBaseUrl || this.settingsService.getDefaultRunnerApiBaseUrl();
+    return this.settingsService.getEffectiveRunnerApiBaseUrl();
   }
 
   /**
@@ -103,7 +103,7 @@ export class RunnerService {
   getDefaultConfiguration(): CQLTestConfiguration {
     return {
       FhirServer: {
-        BaseUrl: this.settingsService.settings().fhirBaseUrl || this.settingsService.getDefaultFhirBaseUrl(),
+        BaseUrl: this.settingsService.getEffectiveFhirBaseUrl(),
         CqlOperation: '$cql'
       },
       Build: {

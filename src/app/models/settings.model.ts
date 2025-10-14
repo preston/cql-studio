@@ -15,6 +15,7 @@ export class Settings {
     public runnerApiBaseUrl: string = '';
     public fhirBaseUrl: string = '';
     public translationBaseUrl: string = '';
+    public defaultTestResultsIndexUrl: string = '';
 
     public static DEFAULT_THEME = ThemeType.AUTOMATIC;
 }
