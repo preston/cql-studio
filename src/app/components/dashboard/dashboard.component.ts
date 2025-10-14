@@ -51,6 +51,7 @@ export class DashboardComponent implements OnInit {
   
   // Filter and sort signals
   selectedFiles = signal<string[]>([]);
+  compareFiles = signal<string[]>([]);
   statusFilter = signal<string>('all');
   sortBy = signal<string>('filename');
   sortOrder = signal<'asc' | 'desc'>('asc');
@@ -152,10 +153,14 @@ export class DashboardComponent implements OnInit {
   // Comparison matrix data
   comparisonMatrix = computed((): ComparisonTest[] => {
     const data = this.filteredData();
+    const compareFiles = this.compareFiles();
     const testMap = new Map<string, ComparisonTest>();
     
-    // Group tests by name and group across all files
-    data.forEach(fileData => {
+    // Only include files that are selected for comparison
+    const filesToCompare = data.filter(fileData => compareFiles.includes(fileData.filename));
+    
+    // Group tests by name and group across selected files
+    filesToCompare.forEach(fileData => {
       fileData.results.forEach(test => {
         const key = `${test.groupName}::${test.testName}`;
         
@@ -385,6 +390,7 @@ export class DashboardComponent implements OnInit {
       
       this.dashboardData.set(dashboardData);
       this.selectedFiles.set(indexFiles);
+      this.compareFiles.set(indexFiles); // Default all files to be included in comparison
     } catch (error) {
       this.errorMessage.set((error as Error).message);
     } finally {
@@ -476,6 +482,24 @@ export class DashboardComponent implements OnInit {
   
   onDeselectAllFiles(): void {
     this.selectedFiles.set([]);
+  }
+
+  onCompareFileChange(filename: string, checked: boolean): void {
+    const compareFiles = this.compareFiles();
+    if (checked) {
+      this.compareFiles.set([...compareFiles, filename]);
+    } else {
+      this.compareFiles.set(compareFiles.filter(f => f !== filename));
+    }
+  }
+
+  onSelectAllCompare(): void {
+    const allFiles = this.dashboardData().map(item => item.filename);
+    this.compareFiles.set(allFiles);
+  }
+
+  onDeselectAllCompare(): void {
+    this.compareFiles.set([]);
   }
   
   onStatusFilterChange(status: string): void {
@@ -597,6 +621,13 @@ export class DashboardComponent implements OnInit {
     return tooltip;
   }
   
+  // Files selected for comparison
+  filesForComparison = computed(() => {
+    const data = this.filteredData();
+    const compareFiles = this.compareFiles();
+    return data.filter(fileData => compareFiles.includes(fileData.filename));
+  });
+
   // Available groups for matrix filtering
   availableGroups = computed((): string[] => {
     const data = this.filteredData();
@@ -735,7 +766,7 @@ export class DashboardComponent implements OnInit {
   // Download functionality
   downloadMatrixAsCsv(): void {
     const data = this.comparisonMatrix();
-    const filteredData = this.filteredData();
+    const filesForComparison = this.filesForComparison();
     
     if (data.length === 0) {
       alert('No data to download');
@@ -744,7 +775,7 @@ export class DashboardComponent implements OnInit {
     
     // Create CSV headers
     const headers = ['Group', 'Test Name', 'Consistency'];
-    filteredData.forEach(fileData => {
+    filesForComparison.forEach(fileData => {
       headers.push(`${fileData.engine} (${fileData.filename})`);
     });
     
@@ -754,7 +785,7 @@ export class DashboardComponent implements OnInit {
       const row = [test.groupName, test.testName, consistency.text];
       
       // Add results for each file
-      filteredData.forEach(fileData => {
+      filesForComparison.forEach(fileData => {
         const result = this.getTestResultForFile(test, fileData.filename);
         if (result) {
           row.push(result.testStatus.toUpperCase());
@@ -777,7 +808,7 @@ export class DashboardComponent implements OnInit {
   
   downloadMatrixAsJson(): void {
     const data = this.comparisonMatrix();
-    const filteredData = this.filteredData();
+    const filesForComparison = this.filesForComparison();
     
     if (data.length === 0) {
       alert('No data to download');
@@ -789,7 +820,7 @@ export class DashboardComponent implements OnInit {
       metadata: {
         exportDate: new Date().toISOString(),
         totalTests: data.length,
-        totalFiles: filteredData.length,
+        totalFiles: filesForComparison.length,
         filters: {
           status: this.matrixStatusFilter(),
           group: this.matrixGroupFilter(),
@@ -799,7 +830,7 @@ export class DashboardComponent implements OnInit {
         sortBy: this.matrixSortBy(),
         sortOrder: this.matrixSortOrder()
       },
-      files: filteredData.map(fileData => ({
+      files: filesForComparison.map(fileData => ({
         filename: fileData.filename,
         engine: fileData.engine,
         timestamp: fileData.timestamp
@@ -808,7 +839,7 @@ export class DashboardComponent implements OnInit {
         const consistency = this.getConsistencyStatus(test);
         const results: { [key: string]: any } = {};
         
-        filteredData.forEach(fileData => {
+        filesForComparison.forEach(fileData => {
           const result = this.getTestResultForFile(test, fileData.filename);
           if (result) {
             results[fileData.filename] = {
