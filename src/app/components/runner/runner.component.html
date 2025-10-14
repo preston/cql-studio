@@ -115,25 +115,16 @@
           </div>
         </div>
       } @else if (healthStatus()) {
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="card-title mb-0">
-              <i class="bi bi-heart-pulse me-2"></i>API Health Status
-            </h5>
-          </div>
-          <div class="card-body">
-            <div class="alert alert-success">
-              <div class="d-flex align-items-center">
-                <i class="bi bi-check-circle-fill me-2"></i>
-                <div>
-                  <strong>API is healthy!</strong>
-                  <br>
-                  <small class="text-muted">
-                    Status: {{ healthStatus()!.status }} | 
-                    Checked at: {{ healthStatus()!.timestamp | date:'medium' }}
-                  </small>
-                </div>
-              </div>
+        <div class="alert alert-success mb-4">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <div>
+              <strong>API is healthy!</strong>
+              <br>
+              <small class="text-muted">
+                Status: {{ healthStatus()!.status }} | 
+                Checked at: {{ healthStatus()!.timestamp | date:'medium' }}
+              </small>
             </div>
           </div>
         </div>
