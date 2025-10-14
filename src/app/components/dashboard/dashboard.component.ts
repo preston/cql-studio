@@ -97,6 +97,11 @@ export class DashboardComponent implements OnInit {
       let aValue: any, bValue: any;
       
       switch (this.sortBy()) {
+        case 'compare':
+          const compareFiles = this.compareFiles();
+          aValue = compareFiles.includes(a.filename) ? 1 : 0;
+          bValue = compareFiles.includes(b.filename) ? 1 : 0;
+          break;
         case 'engine':
           aValue = a.engine;
           bValue = b.engine;
@@ -576,7 +581,20 @@ export class DashboardComponent implements OnInit {
   }
   
   getConsistencyStatus(test: ComparisonTest): { status: string; badgeClass: string; icon: string; text: string } {
-    const statuses = test.results.map(r => r.testStatus);
+    // Only consider results from files that are selected for comparison
+    const compareFiles = this.compareFiles();
+    const statuses: string[] = [];
+    
+    // For each file selected for comparison, determine its status
+    compareFiles.forEach(filename => {
+      const result = this.getTestResultForFile(test, filename);
+      if (result) {
+        statuses.push(result.testStatus);
+      } else {
+        statuses.push('not-found');
+      }
+    });
+    
     const uniqueStatuses = [...new Set(statuses)];
     
     if (uniqueStatuses.length === 0) {

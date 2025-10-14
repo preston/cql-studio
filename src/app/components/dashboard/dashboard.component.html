@@ -196,7 +196,10 @@
                             <table id="results-table" class="table table-striped table-hover">
                                 <thead>
                                     <tr>
-                                        <th id="compare-header" class="text-center">Compare</th>
+                                        <th id="compare-header" class="text-center" style="cursor: pointer;" (click)="onSortBy('compare')" title="Click to sort by Compare status">
+                                            Compare
+                                            <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'compare' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'compare' && sortOrder() === 'desc'"></i>
+                                        </th>
                                         <th id="engine-header" class="fw-bold text-primary" style="cursor: pointer;" (click)="onSortBy('engine')" title="Click to sort by Engine">
                                             Engine
                                             <i class="bi ms-1" [class.bi-sort-alpha-down]="sortBy() === 'engine' && sortOrder() === 'asc'" [class.bi-sort-alpha-up]="sortBy() === 'engine' && sortOrder() === 'desc'"></i>
