@@ -45,3 +45,5 @@ Thumbs.db
 
 # Container files
 docker-compose.yml
+
+public/configuration.js
