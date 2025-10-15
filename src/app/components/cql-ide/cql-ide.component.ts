@@ -211,6 +211,7 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   private startY: number = 0;
   private startWidth: number = 0;
   private startHeight: number = 0;
+  private resizeAnimationFrame: number | null = null;
   
   constructor(
     public router: Router,
@@ -251,12 +252,27 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   ngOnDestroy(): void {
     this.editor?.destroy();
     this.removeEventListeners();
+    
+    // Cancel any pending animation frame
+    if (this.resizeAnimationFrame !== null) {
+      cancelAnimationFrame(this.resizeAnimationFrame);
+      this.resizeAnimationFrame = null;
+    }
   }
 
   @HostListener('window:mousemove', ['$event'])
   onMouseMove(event: MouseEvent): void {
     if (this.isResizing) {
-      this.handleResize(event);
+      // Cancel any pending animation frame
+      if (this.resizeAnimationFrame !== null) {
+        cancelAnimationFrame(this.resizeAnimationFrame);
+      }
+      
+      // Schedule resize update for next frame
+      this.resizeAnimationFrame = requestAnimationFrame(() => {
+        this.handleResize(event);
+        this.resizeAnimationFrame = null;
+      });
     }
   }
 
@@ -780,7 +796,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
 
   // Resize Handling
   startResize(type: 'sidebar' | 'bottom' | 'right', event: MouseEvent): void {
-    console.log('startResize called:', type, event);
     event.preventDefault();
     event.stopPropagation();
     this.isResizing = true;
@@ -802,15 +817,16 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
 
     if (this.resizeType === 'sidebar') {
       const deltaX = event.clientX - this.startX;
-      const newWidth = Math.max(350, Math.min(500, this.startWidth + deltaX));
+      const newWidth = Math.max(200, Math.min(800, this.startWidth + deltaX));
       this.panelState.sidebar.width = newWidth;
     } else if (this.resizeType === 'right') {
       const deltaX = this.startX - event.clientX; // Inverted for right panel
-      const newWidth = Math.max(350, Math.min(600, this.startWidth + deltaX));
+      const newWidth = Math.max(200, Math.min(800, this.startWidth + deltaX));
       this.panelState.right.width = newWidth;
     } else if (this.resizeType === 'bottom') {
       const deltaY = this.startY - event.clientY; // Inverted for bottom panel
-      const newHeight = Math.max(100, this.startHeight + deltaY);
+      const maxHeight = Math.min(window.innerHeight * 0.8, window.innerHeight - 200); // Leave space for header and other UI
+      const newHeight = Math.max(100, Math.min(maxHeight, this.startHeight + deltaY));
       this.panelState.bottom.height = newHeight;
     }
   }
@@ -818,6 +834,12 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   private stopResize(): void {
     this.isResizing = false;
     this.resizeType = null;
+    
+    // Cancel any pending animation frame
+    if (this.resizeAnimationFrame !== null) {
+      cancelAnimationFrame(this.resizeAnimationFrame);
+      this.resizeAnimationFrame = null;
+    }
   }
 
 

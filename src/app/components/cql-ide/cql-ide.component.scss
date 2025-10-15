@@ -431,7 +431,7 @@
   position: relative;
   /* Ensure stable height that doesn't change with content */
   min-height: 100px;
-  max-height: 80vh;
+  /* Remove max-height constraint to allow JavaScript to control sizing */
   /* Prevent content from affecting panel height */
   contain: layout;
 }
