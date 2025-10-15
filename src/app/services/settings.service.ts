@@ -167,4 +167,9 @@ export class SettingsService {
     const settingValue = this.settings().defaultTestResultsIndexUrl;
     return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTestResultsIndexUrl();
   }
+
+  updateSettings(updates: Partial<Settings>): void {
+    this.settings.update(current => ({ ...current, ...updates }));
+    this.saveSettings();
+  }
 }

@@ -1,0 +1,191 @@
+// Author: Preston Lee
+
+/* CodeMirror Overrides */
+:host ::ng-deep .cm-editor {
+  height: 100%;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  border: none;
+  background-color: #222222 !important;
+}
+
+:host ::ng-deep .cm-editor.cm-focused {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+:host ::ng-deep .cm-content {
+  padding: 16px;
+  min-height: 100%;
+}
+
+:host ::ng-deep .cm-placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Override the global color for CodeMirror content to allow syntax highlighting */
+.ide-container .cm-editor,
+.ide-container .cm-editor *,
+.ide-container .cm-editor span,
+.ide-container .cm-editor .cm-content,
+.ide-container .cm-editor .cm-content *,
+.ide-container .cm-editor .cm-content span {
+  color: inherit !important;
+}
+
+/* CodeMirror base styling */
+:host ::ng-deep .cm-editor {
+  color: #e0e0e0;
+}
+
+:host ::ng-deep .cm-editor .cm-content {
+  color: #e0e0e0;
+}
+
+:host ::ng-deep .cm-editor .cm-line {
+  color: #e0e0e0;
+}
+
+/* Selection and cursor styling */
+:host ::ng-deep .cm-editor .cm-selectionBackground {
+  background-color: #264f78;
+}
+
+:host ::ng-deep .cm-editor .cm-focused .cm-selectionBackground {
+  background-color: #264f78;
+}
+
+:host ::ng-deep .cm-editor .cm-cursor {
+  border-left-color: #ffffff;
+}
+
+:host ::ng-deep .cm-editor .cm-focused .cm-cursor {
+  border-left-color: #ffffff;
+}
+
+/* Line numbers */
+:host ::ng-deep .cm-editor .cm-lineNumbers {
+  color: #858585;
+  background-color: var(--ide-bg-secondary) !important;
+}
+
+:host ::ng-deep .cm-editor .cm-lineNumbers .cm-gutterElement {
+  color: #858585;
+  background-color: var(--ide-bg-secondary) !important;
+}
+
+:host ::ng-deep .cm-editor .cm-gutter {
+  background-color: var(--ide-bg-secondary) !important;
+}
+
+:host ::ng-deep .cm-editor .cm-gutterElement {
+  background-color: var(--ide-bg-secondary) !important;
+}
+
+/* Active line highlighting */
+:host ::ng-deep .cm-editor .cm-activeLine {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+:host ::ng-deep .cm-editor .cm-activeLineGutter {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Syntax highlighting overrides */
+:host ::ng-deep .cm-editor .cm-property {
+  color: #9cdcfe !important;
+}
+
+:host ::ng-deep .cm-editor .cm-attribute {
+  color: #92c5f8 !important;
+}
+
+:host ::ng-deep .cm-editor .cm-tag {
+  color: #569cd6 !important;
+}
+
+:host ::ng-deep .cm-editor .cm-builtin {
+  color: #dcdcaa !important;
+}
+
+:host ::ng-deep .cm-editor .cm-constant {
+  color: #4fc1ff !important;
+}
+
+:host ::ng-deep .cm-editor .cm-meta {
+  color: #569cd6 !important;
+}
+
+:host ::ng-deep .cm-editor .cm-def {
+  color: #dcdcaa !important;
+}
+
+:host ::ng-deep .cm-editor .cm-variable-2 {
+  color: #9cdcfe !important;
+}
+
+:host ::ng-deep .cm-editor .cm-variable-3 {
+  color: #4ec9b0 !important;
+}
+
+:host ::ng-deep .cm-editor .cm-qualifier {
+  color: #dcdcaa !important;
+}
+
+:host ::ng-deep .cm-editor .cm-header {
+  color: #569cd6 !important;
+}
+
+:host ::ng-deep .cm-editor .cm-quote {
+  color: #6a9955 !important;
+}
+
+:host ::ng-deep .cm-editor .cm-hr {
+  color: #ffffff !important;
+}
+
+:host ::ng-deep .cm-editor .cm-link {
+  color: #569cd6 !important;
+}
+
+:host ::ng-deep .cm-editor .cm-url {
+  color: #ce9178 !important;
+}
+
+:host ::ng-deep .cm-editor .cm-strong {
+  color: #ffffff !important;
+  font-weight: bold;
+}
+
+:host ::ng-deep .cm-editor .cm-em {
+  color: #ffffff !important;
+  font-style: italic;
+}
+
+:host ::ng-deep .cm-editor .cm-strikethrough {
+  color: #ffffff !important;
+  text-decoration: line-through;
+}
+
+:host ::ng-deep .cm-editor .cm-error {
+  color: #f44747 !important;
+  background-color: rgba(244, 71, 71, 0.1);
+}
+
+:host ::ng-deep .cm-editor .cm-warning {
+  color: #ffcc02 !important;
+  background-color: rgba(255, 204, 2, 0.1);
+}
+
+:host ::ng-deep .cm-editor .cm-info {
+  color: #75beff !important;
+  background-color: rgba(117, 190, 255, 0.1);
+}
+
+:host ::ng-deep .cm-editor .cm-hint {
+  color: #6a9955 !important;
+  background-color: rgba(106, 153, 85, 0.1);
+}

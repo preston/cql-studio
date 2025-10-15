@@ -1,0 +1,55 @@
+<div class="elm-panel">
+  <div class="p-3 text-light">
+    <!-- ELM Translation Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-semibold small text-white">ELM Translation</span>
+      </div>
+      <div class="d-flex gap-2">
+        <button 
+          class="btn btn-primary btn-sm" 
+          (click)="onTranslateCqlToElm()" 
+          [disabled]="!cqlContent || isTranslating"
+          title="Translate CQL to ELM"
+        >
+          {{ isTranslating ? 'Translating...' : 'Translate' }}
+        </button>
+        <button 
+          class="btn btn-outline-light btn-sm" 
+          (click)="onClearElmTranslation()" 
+          [disabled]="!elmTranslationResults"
+          title="Clear Translation"
+        >
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Auto-translate checkbox -->
+    <div class="form-check mb-3">
+      <input 
+        class="form-check-input" 
+        type="checkbox" 
+        id="enableElmTranslation" 
+        [(ngModel)]="settingsService.settings().enableElmTranslation"
+      >
+      <label class="form-check-label small text-light" for="enableElmTranslation">
+        Auto-translate
+      </label>
+    </div>
+    
+    <!-- ELM Translation Results -->
+    <div *ngIf="isTranslating || elmTranslationResults">
+      <div class="border rounded p-2 bg-secondary" style="max-height: 300px; overflow-y: auto;">
+        <div *ngIf="isTranslating" class="d-flex align-items-center justify-content-center py-4 text-muted">
+          <i class="icon-loading me-2"></i>
+          <span>Translating CQL to ELM...</span>
+        </div>
+        
+        <div *ngIf="!isTranslating && elmTranslationResults">
+          <pre class="mb-0 small text-light">{{ elmTranslationResultsAsString() }}</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

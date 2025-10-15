@@ -1,0 +1,27 @@
+// Author: Preston Lee
+
+@import '../../styles/ide-variables.scss';
+
+.outline-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ide-bg-primary) !important;
+}
+
+.outline-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(2px);
+  }
+  
+  &:active {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(1px);
+  }
+}

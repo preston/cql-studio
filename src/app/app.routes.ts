@@ -2,6 +2,7 @@
 
 import { Routes } from '@angular/router';
 import { CqlIdeComponent } from './components/cql-ide/cql-ide.component';
+import { IdeLayoutComponent } from './components/ide-layout/ide-layout.component';
 import { OpenComponent } from './components/open/open.component';
 import { ResultsViewerComponent } from './components/results-viewer/results-viewer.component';
 import { ResultsDocumentationComponent } from './components/results-documentation/results-documentation.component';
@@ -21,15 +22,21 @@ export const routes: Routes = [
   { path: 'dashboard', component: DashboardComponent },
   { path: 'runner', component: RunnerComponent },
   
-  // IDE routes
-  { path: 'ide', component: CqlIdeComponent },
-  { path: 'ide/results', component: CqlIdeComponent },
-  { path: 'ide/documentation', component: CqlIdeComponent },
-  { path: 'ide/documentation/results', component: CqlIdeComponent },
-  { path: 'ide/documentation/runner', component: CqlIdeComponent },
-  { path: 'ide/settings', component: CqlIdeComponent },
-  { path: 'ide/dashboard', component: CqlIdeComponent },
-  { path: 'ide/runner', component: CqlIdeComponent },
+  // IDE routes with separate layout
+  { 
+    path: 'ide', 
+    component: IdeLayoutComponent,
+    children: [
+      { path: '', component: CqlIdeComponent },
+      { path: 'results', component: CqlIdeComponent },
+      { path: 'documentation', component: CqlIdeComponent },
+      { path: 'documentation/results', component: CqlIdeComponent },
+      { path: 'documentation/runner', component: CqlIdeComponent },
+      { path: 'settings', component: CqlIdeComponent },
+      { path: 'dashboard', component: CqlIdeComponent },
+      { path: 'runner', component: CqlIdeComponent }
+    ]
+  },
   
   { path: '**', redirectTo: '' }
 ];

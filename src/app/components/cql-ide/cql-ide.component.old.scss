@@ -1,0 +1,1362 @@
+/* IDE Color Variables */
+:root {
+  --ide-bg-primary: #1e1e1e;    /* Main background */
+  --ide-bg-secondary: #2d2d30;  /* Panel/header background */
+  --ide-bg-hover: #3e3e42;      /* Hover states */
+  --ide-bg-active: #4a4a4a;     /* Active states */
+  --ide-text-primary: #e6e6e6;  /* Primary text */
+  --ide-text-white: #ffffff;    /* White text */
+  --ide-border: #3e3e42;        /* Border color */
+}
+
+.ide-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 56px); /* Subtract navbar height */
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow: hidden;
+  background-color: #1e1e1e !important;
+  background-image: none !important;
+  color: #e6e6e6 !important;
+}
+
+/* Override the global color for CodeMirror content to allow syntax highlighting */
+.ide-container .cm-editor,
+.ide-container .cm-editor *,
+.ide-container .cm-editor span,
+.ide-container .cm-editor .cm-content,
+.ide-container .cm-editor .cm-content *,
+.ide-container .cm-editor .cm-content span {
+  color: inherit !important;
+}
+
+.ide-header {
+  background-color: var(--ide-bg-secondary);
+  color: var(--ide-text-primary);
+}
+
+/* Override Bootstrap colors with higher specificity */
+/* .ide-container .bg-dark,
+.ide-container .bg-dark * {
+  background-color: #1e1e1e !important;
+} */
+
+// .ide-container .bg-secondary,
+// .ide-container .bg-secondary * {
+//   background-color: #2d2d30 !important;
+// }
+
+
+
+/* Active library card styling */
+.ide-container .bg-secondary .library-card-active {
+  background-color: #007acc !important;
+  border-color: #007acc !important;
+}
+
+.ide-container .bg-secondary .library-card-active * {
+  background-color: #007acc !important;
+}
+
+/* Force dark backgrounds on all panels */
+.ide-container .sidebar,
+.ide-container .right-panel,
+.ide-container .bottom-panel,
+.ide-container .main-content,
+.ide-container .tab-bar,
+.ide-container .editor-toolbar {
+  background-color: #1e1e1e !important;
+}
+
+/* Editor area with lighter background */
+.ide-container .editor-area {
+  background-color: #222222 !important;
+}
+
+.ide-container .ide-header {
+  background-color: #2d2d30 !important;
+}
+
+/* Override Bootstrap border colors with higher specificity */
+.ide-container .border {
+  border-color: #3e3e42 !important;
+}
+
+.ide-container .border-bottom {
+  border-bottom-color: #3e3e42 !important;
+}
+
+.ide-container .border-top {
+  border-top-color: #3e3e42 !important;
+}
+
+.ide-container .bottom-panel.border-top {
+  border-top: 4px solid #3e3e42 !important;
+}
+
+.ide-container .border-start {
+  border-left-color: #3e3e42 !important;
+}
+
+.ide-container .border-end {
+  border-right-color: #3e3e42 !important;
+}
+
+.ide-container .rounded {
+  border-color: #3e3e42 !important;
+}
+
+/* Tab-specific border overrides */
+.ide-container .tab-bar .btn,
+.ide-container .tab-bar .btn-group .btn,
+.ide-container .nav-tabs .nav-link,
+.ide-container .nav-tabs .nav-item .nav-link {
+  border-color: #3e3e42 !important;
+}
+
+.ide-container .tab-bar .btn.active,
+.ide-container .tab-bar .btn-group .btn.active,
+.ide-container .nav-tabs .nav-link.active {
+  border-color: #3e3e42 !important;
+  border-bottom-color: #1e1e1e !important;
+}
+
+/* Active tab styling - distinct color for active editor tabs */
+.ide-container div.bg-dark.text-white.d-flex.align-items-center {
+  background-color: #007acc !important; /* Blue color for active tab */
+  color: #ffffff !important;
+  border-color: #007acc !important;
+}
+
+.ide-container div.bg-dark.text-white.d-flex.align-items-center:hover {
+  background-color: #007acc !important;
+  color: #ffffff !important;
+}
+
+/* Tab styling - make tabs slightly taller and add drag functionality */
+.ide-container .tab-bar {
+  min-height: 36px; /* Slightly increased height for better usability */
+}
+
+.ide-container .tab-bar .d-flex.align-items-center {
+  min-height: 36px; /* Match the tab bar height */
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.ide-container .tab-bar .d-flex.align-items-center:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.ide-container .tab-bar .d-flex.align-items-center.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  transform: rotate(2deg);
+}
+
+.ide-container .tab-bar .d-flex.align-items-center.drag-over {
+  border-left: 3px solid #007acc;
+  background-color: rgba(0, 122, 204, 0.1);
+}
+
+/* Tab close button styling */
+.tab-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.tab-close-btn:hover {
+  background-color: #4a4a4a;
+  color: #ffffff !important;
+}
+
+.tab-close-btn:active {
+  background-color: #6a6a6a;
+}
+
+/* Button styling with higher specificity - removed to allow Bootstrap defaults */
+
+/* Panel borders with higher specificity */
+.ide-container .sidebar, 
+.ide-container .right-panel, 
+.ide-container .bottom-panel {
+  border-color: #3e3e42 !important;
+}
+
+/* Fix the actual problem - ensure Bootstrap border classes work properly */
+.ide-container .sidebar.border-end {
+  border-right: 4px solid #3e3e42 !important;
+}
+
+.ide-container .right-panel.border-start {
+  border-left: 4px solid #3e3e42 !important;
+}
+
+/* Additional overrides to ensure dark theme */
+.ide-container * {
+  color: #e6e6e6 !important;
+}
+
+/* Override the global color rule for CodeMirror syntax highlighting */
+.ide-container .cm-editor .cm-content .cm-line * {
+  color: inherit !important;
+}
+
+.ide-container .text-white {
+  color: #ffffff !important;
+}
+
+.ide-container .text-light {
+  color: #e6e6e6 !important;
+}
+
+.ide-container .text-info {
+  color: #4ec9b0 !important;
+}
+
+/* Form control styling for dark theme */
+.ide-container .form-control,
+.ide-container .form-select,
+.ide-container input[type="text"],
+.ide-container input[type="email"],
+.ide-container input[type="password"],
+.ide-container input[type="search"],
+.ide-container input[type="url"],
+.ide-container textarea,
+.ide-container select {
+  background-color: #2d2d30 !important;
+  border-color: #3e3e42 !important;
+  color: #e6e6e6 !important;
+}
+
+/* Exclude checkboxes from form control styling */
+.ide-container .form-check input[type="checkbox"] {
+  background-color: #fff !important;
+  border: 1px solid #ced4da !important;
+  color: #212529 !important;
+  appearance: auto !important;
+  -webkit-appearance: checkbox !important;
+  -moz-appearance: checkbox !important;
+}
+
+.ide-container .form-control:focus,
+.ide-container .form-select:focus,
+.ide-container input:focus,
+.ide-container textarea:focus,
+.ide-container select:focus {
+  background-color: #2d2d30 !important;
+  border-color: #4a4a4a !important;
+  color: #e6e6e6 !important;
+  box-shadow: 0 0 0 0.2rem rgba(78, 201, 176, 0.25) !important;
+}
+
+.ide-container .form-control::placeholder,
+.ide-container .form-select::placeholder,
+.ide-container input::placeholder,
+.ide-container textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* Search input specific styling */
+.ide-container .search-input {
+  background-color: #2d2d30 !important;
+  border-color: #3e3e42 !important;
+  color: #e6e6e6 !important;
+}
+
+.ide-container .search-input:focus {
+  background-color: #2d2d30 !important;
+  border-color: #4a4a4a !important;
+  color: #e6e6e6 !important;
+  box-shadow: 0 0 0 0.2rem rgba(78, 201, 176, 0.25) !important;
+}
+
+/* Dropdown and select styling */
+.ide-container .dropdown-menu {
+  background-color: #2d2d30 !important;
+  border-color: #3e3e42 !important;
+  color: #e6e6e6 !important;
+}
+
+.ide-container .dropdown-item {
+  color: #e6e6e6 !important;
+  background-color: transparent !important;
+}
+
+.ide-container .dropdown-item:hover,
+.ide-container .dropdown-item:focus {
+  background-color: #3e3e42 !important;
+  color: #ffffff !important;
+}
+
+.ide-container .dropdown-item.active {
+  background-color: #4a4a4a !important;
+  color: #ffffff !important;
+}
+
+/* List group styling */
+.ide-container .list-group-item {
+  background-color: #2d2d30 !important;
+  border-color: #3e3e42 !important;
+  color: #e6e6e6 !important;
+}
+
+.ide-container .list-group-item:hover {
+  background-color: #3e3e42 !important;
+  color: #ffffff !important;
+}
+
+.ide-container .list-group-item.active {
+  background-color: #4a4a4a !important;
+  border-color: #3e3e42 !important;
+  color: #ffffff !important;
+}
+
+/* Force dark backgrounds on all elements */
+.ide-container div,
+.ide-container section,
+.ide-container article,
+.ide-container aside,
+.ide-container nav,
+.ide-container header,
+.ide-container footer,
+.ide-container main {
+  background-color: #1e1e1e !important;
+}
+
+/* Override any transparent backgrounds and background images */
+// .ide-container [style*="background"] {
+//   background-color: #1e1e1e !important;
+//   background-image: none !important;
+// }
+
+/* Override global background images */
+.ide-container,
+.ide-container * {
+  background-image: none !important;
+}
+
+/* Ensure all child elements have solid backgrounds */
+.ide-container .sidebar,
+.ide-container .right-panel,
+.ide-container .bottom-panel,
+.ide-container .main-content,
+.ide-container .tab-bar,
+.ide-container .editor-toolbar,
+.ide-container .ide-header {
+  background-image: none !important;
+  background-color: #1e1e1e !important;
+}
+
+
+.fhir-url {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 11px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* IDE Layout */
+.ide-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Editor Area */
+.editor-area {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+
+
+.search-container {
+  padding: 0 16px 8px 16px;
+}
+
+
+
+/* Editor Area */
+.editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.editor-wrapper.hidden {
+  display: none;
+}
+
+.welcome-message {
+  background-color: var(--bs-dark);
+  border-radius: 0.375rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Outline Panel Styles */
+.outline-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(2px);
+  }
+  
+  &:active {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(1px);
+  }
+}
+
+/* Resize Handles - Essential positioning only */
+.resize-handle {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.1);
+  cursor: col-resize;
+  z-index: 10;
+  transition: background-color 0.2s ease;
+}
+
+.resize-handle:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar {
+  position: relative;
+}
+
+.sidebar .resize-handle {
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+
+.right-panel {
+  position: relative;
+}
+
+.right-panel .resize-handle {
+  left: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+
+.bottom-panel {
+  position: relative;
+  /* Ensure stable height that doesn't change with content */
+  min-height: 100px;
+  /* Remove max-height constraint to allow JavaScript to control sizing */
+  /* Prevent content from affecting panel height */
+  contain: layout;
+  /* Force fixed height to prevent content from changing panel size */
+  flex-shrink: 0;
+}
+
+.bottom-panel .resize-handle {
+  top: -2px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: row-resize;
+}
+
+/* Icons */
+.icon-app::before { content: '⚡'; }
+.icon-dashboard::before { content: '📊'; }
+.icon-results::before { content: '📈'; }
+.icon-runner::before { content: '🏃'; }
+.icon-settings::before { content: '⚙️'; }
+.icon-navigation::before { content: '🧭'; }
+.icon-documentation::before { content: '📚'; }
+.icon-fhir::before { content: '🏥'; }
+.icon-sidebar::before { content: '☰'; }
+.icon-panel::before { content: '⊞'; }
+.icon-theme::before { content: '🌙'; }
+.icon-files::before { content: '📁'; }
+.icon-outline::before { content: '📋'; }
+.icon-search::before { content: '🔍'; }
+.icon-plus::before { content: '+'; }
+.icon-file::before { content: '📄'; }
+.icon-library::before { content: '📚'; }
+.icon-function::before { content: '⚙️'; }
+.icon-define::before { content: '📝'; }
+.icon-problems::before { content: '⚠️'; }
+.icon-output::before { content: '📤'; }
+.icon-terminal::before { content: '💻'; }
+.icon-error::before { content: '❌'; }
+.icon-check::before { content: '✅'; }
+.icon-cursor::before { content: '📍'; }
+.icon-words::before { content: '📝'; }
+.icon-language::before { content: '🌐'; }
+.icon-encoding::before { content: '🔤'; }
+.icon-line-endings::before { content: '↵'; }
+.icon-close::before { content: '✕'; }
+.icon-server::before { content: '🖥️'; }
+.icon-library::before { content: '📚'; }
+.icon-patient::before { content: '👤'; }
+.icon-play::before { content: '▶️'; }
+.icon-loading::before { content: '⏳'; }
+.icon-arrow-right::before { content: '→'; }
+.icon-arrow-up::before { content: '↑'; }
+.icon-arrow-down::before { content: '↓'; }
+.icon-info::before { content: 'ℹ️'; }
+.icon-cpu::before { content: '💻'; }
+.icon-fire::before { content: '🔥'; }
+.icon-code::before { content: '📝'; }
+.icon-eraser::before { content: '🧹'; }
+.icon-trash::before { content: '🗑️'; }
+.icon-reload::before { content: '🔄'; }
+.icon-upload::before { content: '📤'; }
+
+/* CodeMirror Overrides - More aggressive specificity */
+:host ::ng-deep .cm-editor {
+  height: 100%;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  border: none;
+  background-color: #222222 !important;
+}
+
+:host ::ng-deep .cm-editor.cm-focused {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+:host ::ng-deep .cm-content {
+  padding: 16px;
+  min-height: 100%;
+  /* color removed to allow syntax highlighting to work */
+}
+
+:host ::ng-deep .cm-placeholder {
+  color: #9ca3af; /* Lighter placeholder text */
+  font-style: italic;
+}
+
+/* CodeMirror base text color - removed to allow syntax highlighting */
+
+/* Override any CodeMirror theme colors */
+/* Removed conflicting CSS rules - syntax highlighting now handled by HighlightStyle */
+
+/* CodeMirror base styling - set lighter base text color */
+:host ::ng-deep .cm-editor {
+  color: #e0e0e0; /* Light gray base text color for better readability */
+}
+
+/* CodeMirror content styling - set lighter base text color */
+:host ::ng-deep .cm-editor .cm-content {
+  color: #e0e0e0; /* Light gray base text color for better readability */
+}
+
+/* CodeMirror line styling - set lighter base text color */
+:host ::ng-deep .cm-editor .cm-line {
+  color: #e0e0e0; /* Light gray base text color for better readability */
+}
+
+
+/* Selection and cursor styling */
+:host ::ng-deep .cm-editor .cm-selectionBackground {
+  background-color: #264f78; /* Blue selection background */
+}
+
+:host ::ng-deep .cm-editor .cm-focused .cm-selectionBackground {
+  background-color: #264f78; /* Blue selection background when focused */
+}
+
+:host ::ng-deep .cm-editor .cm-cursor {
+  border-left-color: #ffffff; /* White cursor */
+}
+
+:host ::ng-deep .cm-editor .cm-focused .cm-cursor {
+  border-left-color: #ffffff; /* White cursor when focused */
+}
+
+/* Line numbers */
+:host ::ng-deep .cm-editor .cm-lineNumbers {
+  color: #858585; /* Gray for line numbers */
+  background-color: #2d2d30 !important; /* Dark background for line number column */
+}
+
+:host ::ng-deep .cm-editor .cm-lineNumbers .cm-gutterElement {
+  color: #858585; /* Gray for gutter elements */
+  background-color: #2d2d30 !important; /* Dark background for gutter elements */
+}
+
+:host ::ng-deep .cm-editor .cm-gutter {
+  background-color: #2d2d30 !important; /* Dark background for entire gutter */
+}
+
+:host ::ng-deep .cm-editor .cm-gutterElement {
+  background-color: #2d2d30 !important; /* Dark background for gutter elements */
+}
+
+/* Active line highlighting */
+:host ::ng-deep .cm-editor .cm-activeLine {
+  background-color: rgba(255, 255, 255, 0.05); /* Subtle active line background */
+}
+
+:host ::ng-deep .cm-editor .cm-activeLineGutter {
+  background-color: rgba(255, 255, 255, 0.1); /* Subtle active line gutter background */
+}
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ide-container {
+    height: 100vh;
+  }
+  
+  .tab-bar {
+    height: 40px;
+  }
+  
+  .sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  .bottom-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Output Panel Styles */
+.output-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+}
+
+.output-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  flex-shrink: 0;
+}
+
+.output-toolbar button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: #3c3c3c;
+  border: 1px solid #5a5a5a;
+  color: #d4d4d4;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.output-toolbar button:hover {
+  background-color: #4a4a4a;
+  border-color: #6a6a6a;
+}
+
+.output-toolbar button:active {
+  background-color: #2a2a2a;
+}
+
+.output-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.output-content.executing {
+  background: linear-gradient(90deg, #1e1e1e 0%, #2a2a2a 50%, #1e1e1e 100%);
+  background-size: 200% 100%;
+  animation: executing-pulse 2s ease-in-out infinite;
+  /* Prevent animation from affecting layout */
+  will-change: background-position;
+  transform: translateZ(0);
+}
+
+@keyframes executing-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.output-sections {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  /* Prevent layout shifts */
+  contain: layout;
+  min-height: 0;
+}
+
+.output-section {
+  margin-bottom: 8px;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  background-color: #252526;
+  overflow: hidden;
+  /* Prevent layout shifts */
+  contain: layout;
+  flex-shrink: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: #2d2d30;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.section-header:hover {
+  background-color: #3c3c3c;
+}
+
+.section-title {
+  flex: 1;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.section-status {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.section-status.success {
+  background-color: #0d5016;
+  color: #4ec9b0;
+}
+
+.section-status.error {
+  background-color: #5a1a1a;
+  color: #f44747;
+}
+
+.section-time {
+  font-size: 11px;
+  color: #858585;
+  font-family: 'Courier New', monospace;
+}
+
+.section-content {
+  padding: 12px;
+  background-color: #1e1e1e;
+  border-top: 1px solid #3e3e42;
+}
+
+.syntax-highlighted {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+.no-output {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #858585;
+  font-size: 14px;
+  gap: 12px;
+}
+
+.no-output i {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.execution-progress {
+  padding: 12px;
+  background-color: #2d2d30;
+  border-top: 1px solid #3e3e42;
+  flex-shrink: 0;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: #3e3e42;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007acc, #4ec9b0);
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #d4d4d4;
+  font-family: 'Courier New', monospace;
+}
+
+
+/* Resource Section Styles */
+.resource-section {
+  margin-top: 20px;
+}
+
+.resource-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 15px;
+  color: #d4d4d4;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #3e3e42;
+}
+
+.resource-content {
+  padding: 0;
+}
+
+.resource-item {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.resource-item:last-child {
+  margin-bottom: 0;
+}
+
+.resource-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #e0e0e0;
+  padding: 8px 0;
+  border-bottom: 1px solid #3e3e42;
+  position: relative;
+}
+
+.resource-title i {
+  color: #4ec9b0;
+  font-size: 16px;
+}
+
+.resource-item pre {
+  max-height: 350px;
+  overflow-y: auto;
+  margin: 0;
+  border-radius: 6px;
+  border: 1px solid #3e3e42;
+  background: #1a1a1a;
+  position: relative;
+}
+
+.resource-item pre::-webkit-scrollbar {
+  width: 6px;
+}
+
+.resource-item pre::-webkit-scrollbar-track {
+  background: #2a2a2a;
+  border-radius: 3px;
+}
+
+.resource-item pre::-webkit-scrollbar-thumb {
+  background: #4ec9b0;
+  border-radius: 3px;
+}
+
+.resource-item pre::-webkit-scrollbar-thumb:hover {
+  background: #5dd5c0;
+}
+
+.json-display {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  background: #1a1a1a;
+  border: none;
+  padding: 16px;
+  position: relative;
+}
+
+.resource-section .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #858585;
+  font-size: 15px;
+  gap: 16px;
+  text-align: center;
+}
+
+.resource-section .empty-state i {
+  font-size: 48px;
+  opacity: 0.6;
+  color: #4ec9b0;
+}
+
+
+/* Paginated Library List Styles */
+.paginated-library-section {
+  margin-top: 16px;
+  border-top: 1px solid #3e3e42;
+  padding-top: 12px;
+}
+
+.paginated-library-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.paginated-library-section .section-header h6 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #cccccc;
+}
+
+.library-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sort-controls select {
+  font-size: 12px;
+  padding: 4px 6px;
+  height: 28px;
+  border: 1px solid #3e3e42;
+  background-color: #2d2d30;
+  color: #cccccc;
+  border-radius: 3px;
+  min-width: 80px;
+}
+
+.btn-sort {
+  background: none;
+  border: 1px solid #3e3e42;
+  color: #cccccc;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  font-size: 12px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-sort:hover {
+  background-color: #37373d;
+  border-color: #4ec9b0;
+  color: #ffffff;
+}
+
+.library-controls select {
+  font-size: 12px;
+  padding: 4px 6px;
+  height: 28px;
+  border: 1px solid #3e3e42;
+  background-color: #2d2d30;
+  color: #cccccc;
+  border-radius: 3px;
+  min-width: 60px;
+}
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: #888888;
+  font-size: 12px;
+}
+
+.loading-state .icon-loading {
+  animation: spin 1s linear infinite;
+}
+
+.paginated-library-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  background-color: #252526;
+}
+
+.paginated-library-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #3e3e42;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.paginated-library-item:last-child {
+  border-bottom: none;
+}
+
+.paginated-library-item:hover {
+  background-color: #37373d;
+}
+
+.paginated-library-item .library-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.paginated-library-item .library-name {
+  font-weight: 500;
+  font-size: 12px;
+  color: #ffffff;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.paginated-library-item .library-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: #888888;
+}
+
+.paginated-library-item .version {
+  font-weight: 500;
+  color: #4ec9b0;
+}
+
+.paginated-library-item .description {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.btn-add {
+  background: none;
+  border: none;
+  color: #4ec9b0;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.btn-add:hover {
+  background-color: #4ec9b0;
+  color: #ffffff;
+  opacity: 1;
+}
+
+.pagination-controls {
+  margin-top: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #3e3e42;
+}
+
+.pagination-info {
+  font-size: 10px;
+  color: #888888;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.btn-pagination {
+  background: none;
+  border: 1px solid #3e3e42;
+  color: #cccccc;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  font-size: 11px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  background-color: #37373d;
+  border-color: #4ec9b0;
+  color: #ffffff;
+}
+
+.btn-pagination:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0 8px;
+}
+
+.btn-page {
+  background: none;
+  border: 1px solid #3e3e42;
+  color: #cccccc;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  font-size: 11px;
+  height: 28px;
+  min-width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-page:hover:not(:disabled) {
+  background-color: #37373d;
+  border-color: #4ec9b0;
+  color: #ffffff;
+}
+
+.btn-page.active {
+  background-color: #007acc;
+  border-color: #007acc;
+  color: #ffffff;
+}
+
+.btn-page.ellipsis {
+  cursor: default;
+  border: none;
+  background: none;
+}
+
+.btn-page.ellipsis:hover {
+  background: none;
+  border: none;
+  color: #cccccc;
+}
+
+/* Keyboard Shortcuts Styling */
+.keyboard-shortcuts-section {
+  .card {
+    border: 1px solid #3e3e42;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    height: 100%;
+    
+    .card-header {
+      background-color: #2d2d30 !important;
+      border-bottom: 1px solid #3e3e42;
+    }
+    
+    .card-body {
+      background-color: #1e1e1e !important;
+    }
+  }
+  
+  kbd {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    white-space: nowrap;
+    min-width: 60px;
+    text-align: center;
+    font-size: 0.7rem;
+    
+    @media (max-width: 768px) {
+      min-width: 50px;
+      font-size: 0.65rem;
+    }
+  }
+  
+  .d-flex.justify-content-between {
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      padding: 2px 4px;
+      margin: 0 -4px;
+    }
+  }
+  
+  // Responsive adjustments
+  @media (max-width: 768px) {
+    .row {
+      margin: 0 -5px;
+    }
+    
+    .col-lg-3, .col-md-6 {
+      padding: 0 5px;
+      margin-bottom: 10px;
+    }
+  }
+}
+
+// Status bar animations
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Panel Scrollbar Styling */
+.ide-container .sidebar .overflow-auto,
+.ide-container .right-panel .overflow-auto,
+.ide-container .bottom-panel .overflow-auto {
+  /* Ensure scrollbars are visible */
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar styling for panels */
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar-track,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar-track,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-track {
+  background: #2d2d30;
+  border-radius: 4px;
+}
+
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar-thumb,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar-thumb,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-thumb {
+  background: #4ec9b0;
+  border-radius: 4px;
+}
+
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar-thumb:hover,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar-thumb:hover,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: #5dd5c0;
+}
+
+/* Force panel content to be scrollable */
+.ide-container .sidebar-content,
+.ide-container .right-panel .flex-fill,
+.ide-container .bottom-panel .flex-fill {
+  overflow: hidden;
+}
+
+/* Ensure bottom panel maintains fixed height */
+.ide-container .bottom-panel.visible {
+  flex-shrink: 0;
+}
+
+/* Override any dynamic height changes for bottom panel */
+.ide-container .bottom-panel[style*="height"] {
+  flex-shrink: 0 !important;
+}
+
+/* Force bottom panel to use JavaScript-controlled height */
+.ide-container .bottom-panel {
+  height: var(--bottom-panel-height, 300px) !important;
+  flex-shrink: 0 !important;
+}
+

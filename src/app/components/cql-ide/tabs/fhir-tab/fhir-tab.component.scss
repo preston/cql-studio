@@ -1,0 +1,117 @@
+// Author: Preston Lee
+
+@import '../../styles/ide-variables.scss';
+
+.fhir-panel {
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--ide-bg-primary) !important;
+}
+
+/* Resource Section Styles */
+.resource-section {
+  margin-top: 20px;
+}
+
+.resource-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 15px;
+  color: #d4d4d4;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ide-border);
+}
+
+.resource-content {
+  padding: 0;
+}
+
+.resource-item {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.resource-item:last-child {
+  margin-bottom: 0;
+}
+
+.resource-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #e0e0e0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ide-border);
+  position: relative;
+}
+
+.resource-title i {
+  color: var(--ide-accent);
+  font-size: 16px;
+}
+
+.resource-item pre {
+  max-height: 350px;
+  overflow-y: auto;
+  margin: 0;
+  border-radius: 6px;
+  border: 1px solid var(--ide-border);
+  background: #1a1a1a;
+  position: relative;
+}
+
+.resource-item pre::-webkit-scrollbar {
+  width: 6px;
+}
+
+.resource-item pre::-webkit-scrollbar-track {
+  background: #2a2a2a;
+  border-radius: 3px;
+}
+
+.resource-item pre::-webkit-scrollbar-thumb {
+  background: var(--ide-accent);
+  border-radius: 3px;
+}
+
+.resource-item pre::-webkit-scrollbar-thumb:hover {
+  background: var(--ide-accent-hover);
+}
+
+.json-display {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  background: #1a1a1a;
+  border: none;
+  padding: 16px;
+  position: relative;
+}
+
+.resource-section .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #858585;
+  font-size: 15px;
+  gap: 16px;
+  text-align: center;
+}
+
+.resource-section .empty-state i {
+  font-size: 48px;
+  opacity: 0.6;
+  color: var(--ide-accent);
+}

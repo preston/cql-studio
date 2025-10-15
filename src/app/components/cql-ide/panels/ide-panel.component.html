@@ -1,0 +1,62 @@
+<div 
+  #panelElement
+  [class]="panelClasses"
+  [style]="panelStyles"
+  (dragover)="onTabDragOver($event)"
+  (drop)="onTabDrop($event)"
+>
+  <!-- Panel Header with Tabs -->
+  <div class="bg-dark border-dark border-bottom d-flex">
+    <button 
+      *ngFor="let tab of panel.tabs" 
+      class="btn btn-dark rounded-0 flex-fill" 
+      [class.active]="tab.isActive"
+      (click)="onTabClick(tab)"
+      draggable="true"
+      (dragstart)="onTabDragStart($event, tab)"
+    >
+      {{ tab.title }}
+    </button>
+  </div>
+  
+  <!-- Panel Content -->
+  <div class="panel-content h-100 d-flex flex-column">
+    <!-- Navigation Tab -->
+    <app-navigation-tab 
+      *ngIf="getActiveTab()?.type === 'navigation'"
+      (executeAllEvent)="onExecuteAll()">
+    </app-navigation-tab>
+    
+    <!-- Outline Tab -->
+    <app-outline-tab *ngIf="getActiveTab()?.type === 'outline'"></app-outline-tab>
+    
+    <!-- FHIR Tab -->
+    <app-fhir-tab *ngIf="getActiveTab()?.type === 'fhir'"></app-fhir-tab>
+    
+    <!-- ELM Tab -->
+    <app-elm-tab *ngIf="getActiveTab()?.type === 'elm'"></app-elm-tab>
+    
+    <!-- Problems Tab -->
+    <app-problems-tab *ngIf="getActiveTab()?.type === 'problems'"></app-problems-tab>
+    
+    <!-- Output Tab -->
+    <app-output-tab 
+      *ngIf="getActiveTab()?.type === 'output'"
+      [preserveLogs]="ideStateService.preserveLogs()"
+      [isEvaluating]="ideStateService.isExecuting()"
+      [executionProgress]="ideStateService.executionProgress()"
+      [executionStatus]="ideStateService.executionStatus()"
+      (clearOutput)="onClearOutput()"
+      (copyOutput)="onCopyOutput()"
+      (toggleAllSections)="onToggleAllSections()"
+      (preserveLogsChange)="onPreserveLogsChange($event)">
+    </app-output-tab>
+  </div>
+  
+  <!-- Resize Handle -->
+  <div 
+    class="resize-handle"
+    [class]="position + '-resize-handle'"
+    (mousedown)="onStartResize($event)"
+  ></div>
+</div>

@@ -1,0 +1,105 @@
+<div class="fhir-panel">
+  <div class="p-3 text-light">
+    <!-- FHIR Server Connection -->
+    <div class="mb-4 pb-3 border-bottom">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <i class="icon-server text-info"></i>
+          <span class="fw-semibold small text-white">Server</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-info text-truncate fhir-url ms-2">{{ fhirServerUrl() || 'Not connected' }}</span>
+          <button class="btn btn-outline-dark btn-sm" (click)="onNavigateToSettings()" title="Change FHIR Server">
+            <i class="icon-settings"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Library Management -->
+    <div *ngIf="hasSelectedLibrary()" class="mb-3">
+      <!-- Library Form -->
+      <div class="mb-3">
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-uppercase text-white">Library ID</label>
+          <input 
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="libraryId"
+            (ngModelChange)="onLibraryIdChange($event)"
+            placeholder="Enter library ID"
+          >
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-uppercase text-white">Version</label>
+          <input 
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="libraryVersion"
+            (ngModelChange)="onLibraryVersionChange($event)"
+            placeholder="0.0.0"
+          >
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label fw-semibold small text-uppercase text-white">Description</label>
+          <input 
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="libraryDescription"
+            (ngModelChange)="onLibraryDescriptionChange($event)"
+            placeholder="Library description"
+          >
+        </div>
+      </div>
+
+      <!-- Library Actions -->
+      <div class="d-flex justify-content-end">
+        <button 
+          class="btn btn-danger btn-sm" 
+          (click)="onDeleteLibrary()" 
+          *ngIf="!isNewLibrary"
+          title="Delete Library"
+        >
+          <i class="icon-trash me-1"></i> Delete from Server
+        </button>
+      </div>
+    </div>
+
+    <!-- Resource Section -->
+    <div class="mt-4">
+      <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+        <i class="icon-document"></i>
+        <span class="fw-semibold small text-white">Resource</span>
+      </div>
+      <div>
+        <div *ngIf="!hasSelectedLibrary() && !hasSelectedPatients()" class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+          <i class="icon-document fs-1 mb-2"></i>
+          <span>Select a library and patient(s) to view FHIR resources</span>
+        </div>
+        
+        <!-- Library Resource -->
+        <div *ngIf="hasSelectedLibrary()" class="mb-3">
+          <pre class="border rounded p-3 bg-dark text-light" style="max-height: 350px; overflow-y: auto;">{{ libraryAsString() || 'No library resource available' }}</pre>
+        </div>
+        
+        <!-- Patient Resources -->
+        <div *ngIf="hasSelectedPatients()" class="mb-3">
+          <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
+            <i class="icon-patient text-info"></i>
+            <span class="fw-semibold small text-white">Patient Resources ({{ selectedPatients().length }})</span>
+          </div>
+          <div *ngFor="let patient of selectedPatients(); trackBy: trackByPatientId" class="mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
+              <i class="icon-patient text-info"></i>
+              <span class="fw-medium text-white">{{ getPatientDisplayName(patient) }}</span>
+              <span class="small text-muted">({{ patient.id }})</span>
+            </div>
+            <pre class="border rounded p-3 bg-dark text-light" style="max-height: 200px; overflow-y: auto;">{{ patientAsString(patient) || 'No patient resource available' }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,55 @@
+<div class="bg-primary d-flex justify-content-between align-items-center px-3 py-1 text-white">
+  <div class="d-flex align-items-center gap-3">
+    <span *ngIf="cursorPosition" class="d-flex align-items-center gap-1 small">
+      <i class="icon-cursor"></i>
+      Ln {{ cursorPosition.line }}, Col {{ cursorPosition.column }}
+    </span>
+    <span *ngIf="wordCount" class="d-flex align-items-center gap-1 small">
+      <i class="icon-words"></i>
+      {{ wordCount }} words
+    </span>
+    <span class="d-flex align-items-center gap-1 small">
+      <i class="icon-language"></i>
+      CQL {{ cqlVersion }}
+    </span>
+    <span class="d-flex align-items-center gap-1 small" [class.text-success]="isValidSyntax" [class.text-danger]="!isValidSyntax">
+      <i class="icon-{{ isValidSyntax ? 'check' : 'error' }}"></i>
+      {{ isValidSyntax ? 'Valid' : 'Invalid' }}
+    </span>
+    <span *ngIf="selectedPatientsCount > 0" class="d-flex align-items-center gap-1 small text-info">
+      <i class="icon-patient"></i>
+      {{ selectedPatientsCount }} patient{{ selectedPatientsCount === 1 ? '' : 's' }}
+    </span>
+  </div>
+  <div class="d-flex align-items-center gap-3">
+    <!-- CQL Execution Status -->
+    <span *ngIf="isExecuting" class="d-flex align-items-center gap-1 small text-warning">
+      <i class="icon-loading spinning"></i>
+      Executing CQL...
+    </span>
+    
+    <!-- ELM Translation Status -->
+    <span *ngIf="isTranslating" class="d-flex align-items-center gap-1 small text-info">
+      <i class="icon-loading spinning"></i>
+      Translating to ELM...
+    </span>
+    
+    <!-- Library Evaluation Status -->
+    <span *ngIf="isEvaluating" class="d-flex align-items-center gap-1 small text-success">
+      <i class="icon-loading spinning"></i>
+      Evaluating Libraries...
+    </span>
+    
+    <!-- Library Loading Status -->
+    <span *ngIf="isLoadingLibraries" class="d-flex align-items-center gap-1 small text-primary">
+      <i class="icon-loading spinning"></i>
+      Loading Libraries...
+    </span>
+    
+    <!-- Ready Status (when no operations are running) -->
+    <span *ngIf="!isExecuting && !isTranslating && !isEvaluating && !isLoadingLibraries" class="d-flex align-items-center gap-1 small text-light">
+      <i class="icon-check"></i>
+      Ready
+    </span>
+  </div>
+</div>

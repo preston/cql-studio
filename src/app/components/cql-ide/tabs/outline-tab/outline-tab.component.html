@@ -1,0 +1,56 @@
+<div class="outline-panel">
+  <!-- Outline Search and Sort Controls -->
+  <div class="p-2 border-bottom flex-shrink-0">
+    <div class="d-flex align-items-center gap-2">
+      <input 
+        type="text" 
+        class="form-control form-control-sm flex-fill" 
+        placeholder="Search outline items..." 
+        [(ngModel)]="outlineSearchTerm"
+        (input)="onOutlineSearchInput($event)"
+      >
+      <div class="d-flex align-items-center gap-1">
+        <label class="form-label mb-0 small text-light">Sort:</label>
+        <select 
+          class="form-select form-select-sm" 
+          [(ngModel)]="outlineSortBy" 
+          (change)="changeOutlineSorting(outlineSortBy)"
+          title="Sort by"
+          style="min-width: 80px;"
+        >
+          <option value="name">Name</option>
+          <option value="type">Type</option>
+          <option value="line">Line</option>
+        </select>
+        <button 
+          class="btn btn-outline-dark btn-sm" 
+          (click)="changeOutlineSorting(outlineSortBy)"
+          [title]="'Sort ' + (outlineSortOrder === 'asc' ? 'Descending' : 'Ascending')"
+        >
+          <i class="icon-{{ outlineSortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="p-2 flex-fill overflow-auto">
+    <div 
+      class="outline-item d-flex align-items-center p-2 rounded cursor-pointer" 
+      *ngFor="let item of filteredOutlineItems(); trackBy: trackByOutlineItem"
+      (click)="onOutlineItemClick(item)"
+      title="Click to go to line {{ item.line }}"
+    >
+      <i class="icon-{{ item.type }} me-2 text-info"></i>
+      <div class="flex-fill">
+        <div class="text-light fw-medium">{{ item.name }}</div>
+        <div class="small text-muted">Line {{ item.line }}</div>
+      </div>
+    </div>
+    <div *ngIf="filteredOutlineItems().length === 0 && outlineItems().length > 0" class="text-center text-muted py-4">
+      <span>No matches</span>
+    </div>
+    <div *ngIf="outlineItems().length === 0" class="text-center text-muted py-4">
+      <span>Edit a library to see its outline</span>
+    </div>
+  </div>
+</div>

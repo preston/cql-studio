@@ -1,0 +1,147 @@
+// Author: Preston Lee
+
+@import '../../styles/ide-variables.scss';
+
+.output-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--ide-bg-primary) !important;
+  color: #d4d4d4;
+}
+
+.output-content.executing {
+  background: linear-gradient(90deg, var(--ide-bg-primary) 0%, #2a2a2a 50%, var(--ide-bg-primary) 100%);
+  background-size: 200% 100%;
+  animation: executing-pulse 2s ease-in-out infinite;
+  will-change: background-position;
+  transform: translateZ(0);
+}
+
+@keyframes executing-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.output-sections {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  contain: layout;
+  min-height: 0;
+}
+
+.output-section {
+  margin-bottom: 8px;
+  border: 1px solid var(--ide-border);
+  border-radius: 4px;
+  background-color: #252526;
+  overflow: hidden;
+  contain: layout;
+  flex-shrink: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--ide-bg-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.section-header:hover {
+  background-color: #3c3c3c;
+}
+
+.section-title {
+  flex: 1;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.section-status {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.section-status.success {
+  background-color: #0d5016;
+  color: var(--ide-accent);
+}
+
+.section-status.error {
+  background-color: #5a1a1a;
+  color: var(--ide-error);
+}
+
+.section-time {
+  font-size: 11px;
+  color: #858585;
+  font-family: 'Courier New', monospace;
+}
+
+.section-content {
+  padding: 12px;
+  background-color: var(--ide-bg-primary);
+  border-top: 1px solid var(--ide-border);
+}
+
+.syntax-highlighted {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+.no-output {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #858585;
+  font-size: 14px;
+  gap: 12px;
+}
+
+.no-output i {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.execution-progress {
+  padding: 12px;
+  background-color: var(--ide-bg-secondary);
+  border-top: 1px solid var(--ide-border);
+  flex-shrink: 0;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: var(--ide-border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ide-blue), var(--ide-accent));
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #d4d4d4;
+  font-family: 'Courier New', monospace;
+}

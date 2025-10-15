@@ -1,0 +1,92 @@
+// Author: Preston Lee
+
+.ide-panel {
+  position: relative;
+  background-color: var(--ide-bg-primary);
+  border-color: var(--ide-border);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar {
+  border-right: 4px solid var(--ide-border);
+}
+
+.right-panel {
+  border-left: 4px solid var(--ide-border);
+}
+
+.bottom-panel {
+  border-top: 4px solid var(--ide-border);
+  min-height: 100px;
+  contain: layout;
+  flex-shrink: 0;
+}
+
+/* Panel Visibility */
+.sidebar:not(.visible),
+.right-panel:not(.visible),
+.bottom-panel:not(.visible) {
+  display: none;
+}
+
+.panel-content {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+/* Resize Handles */
+.resize-handle {
+  position: absolute;
+  background-color: #007acc;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background-color 0.2s ease;
+  opacity: 0.8;
+  border: 1px solid #ffffff;
+}
+
+.resize-handle:hover {
+  background-color: #005a9e;
+  opacity: 1;
+}
+
+.sidebar .resize-handle {
+  right: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+}
+
+.right-panel .resize-handle {
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+}
+
+.bottom-panel .resize-handle {
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+}
+
+/* Tab styling */
+.panel-content .btn {
+  border-color: var(--ide-border) !important;
+}
+
+.panel-content .btn.active {
+  background-color: var(--ide-blue) !important;
+  color: var(--ide-text-white) !important;
+  border-color: var(--ide-blue) !important;
+}
+
+.panel-content .btn:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}

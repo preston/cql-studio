@@ -1,0 +1,379 @@
+// Author: Preston Lee
+
+import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Library, Patient, Bundle } from 'fhir/r4';
+import { LibraryService } from '../../../../services/library.service';
+import { PatientService } from '../../../../services/patient.service';
+import { IdeStateService } from '../../../../services/ide-state.service';
+
+@Component({
+  selector: 'app-navigation-tab',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './navigation-tab.component.html',
+  styleUrls: ['./navigation-tab.component.scss']
+})
+export class NavigationTabComponent implements OnInit {
+  @Output() executeAllEvent = new EventEmitter<void>();
+  
+  // Library search
+  public librarySearchTerm: string = '';
+  public librarySearchResults: Library[] = [];
+  public isSearchingLibraries: boolean = false;
+  public showLibrarySearchResults: boolean = false;
+
+  // Paginated Library List
+  public paginatedLibraries: Library[] = [];
+  public currentPage: number = 1;
+  public totalPages: number = 0;
+  public totalLibraries: number = 0;
+  public pageSize: number = 10;
+  public librarySortBy: 'name' | 'version' | 'date' = 'name';
+  public librarySortOrder: 'asc' | 'desc' = 'asc';
+  public isLoadingLibraries: boolean = false;
+
+  // Patient search
+  public patientSearchTerm: string = '';
+  public patientSearchResults: Patient[] = [];
+  public isSearchingPatients: boolean = false;
+  public showPatientSearchResults: boolean = false;
+
+  // Expose Math for template use
+  public Math = Math;
+
+  constructor(
+    public libraryService: LibraryService,
+    public patientService: PatientService,
+    public ideStateService: IdeStateService
+  ) {}
+
+  ngOnInit(): void {
+    this.loadPaginatedLibraries();
+  }
+
+  // Library search methods
+  onLibrarySearchInput(event: any): void {
+    const searchTerm = event.target.value;
+    this.librarySearchTerm = searchTerm;
+    
+    if (searchTerm.trim()) {
+      this.isSearchingLibraries = true;
+      this.libraryService.search(searchTerm).subscribe({
+        next: (bundle: Bundle<Library>) => {
+          this.isSearchingLibraries = false;
+          if (bundle.entry && bundle.entry.length > 0) {
+            this.librarySearchResults = bundle.entry.map(entry => entry.resource!);
+            this.showLibrarySearchResults = true;
+          } else {
+            this.librarySearchResults = [];
+            this.showLibrarySearchResults = true;
+          }
+        },
+        error: (error: any) => {
+          this.isSearchingLibraries = false;
+          console.error('Error searching libraries:', error);
+        }
+      });
+    } else {
+      this.isSearchingLibraries = false;
+      this.showLibrarySearchResults = false;
+      this.librarySearchResults = [];
+    }
+  }
+
+  addLibraryFromSearch(library: Library): void {
+    if (library.id && !this.ideStateService.libraryResources().find(lib => lib.id === library.id)) {
+      // Extract CQL content from the FHIR library
+      let cqlContent = '';
+      if (library.content) {
+        for (const content of library.content) {
+          if (content.contentType === 'text/cql' && content.data) {
+            try {
+              cqlContent = atob(content.data);
+              break;
+            } catch (e) {
+              console.error('Error decoding CQL content:', e);
+            }
+          }
+        }
+      }
+      
+      const libraryResource = {
+        id: library.id,
+        name: library.name || library.id,
+        version: library.version || '1.0.0',
+        description: library.description || `Library ${library.name || library.id}`,
+        cqlContent: cqlContent,
+        originalContent: cqlContent,
+        isActive: false,
+        isDirty: false,
+        library: library
+      };
+      
+      this.ideStateService.addLibraryResource(libraryResource);
+      this.ideStateService.selectLibraryResource(library.id);
+      this.clearLibrarySearch();
+    }
+  }
+
+  createNewLibraryResource(): void {
+    const newId = `new-library-${Date.now()}`;
+    const libraryResource = {
+      id: newId,
+      name: 'New Library',
+      version: '1.0.0',
+      description: 'New library',
+      cqlContent: '',
+      originalContent: '',
+      isActive: false,
+      isDirty: false,
+      library: null
+    };
+    
+    this.ideStateService.addLibraryResource(libraryResource);
+    this.ideStateService.selectLibraryResource(newId);
+  }
+
+  clearLibrarySearch(): void {
+    this.librarySearchTerm = '';
+    this.librarySearchResults = [];
+    this.showLibrarySearchResults = false;
+    this.isSearchingLibraries = false;
+  }
+
+  // Paginated library methods
+  loadPaginatedLibraries(): void {
+    this.isLoadingLibraries = true;
+    this.libraryService.getAll(this.currentPage, this.pageSize, this.librarySortBy, this.librarySortOrder).subscribe({
+      next: (bundle: Bundle<Library>) => {
+        this.isLoadingLibraries = false;
+        this.paginatedLibraries = bundle.entry ? bundle.entry.map(entry => entry.resource!) : [];
+        
+        if (bundle.total) {
+          this.totalLibraries = bundle.total;
+          this.totalPages = Math.ceil(bundle.total / this.pageSize);
+        } else {
+          this.totalLibraries = this.paginatedLibraries.length;
+          this.totalPages = 1;
+        }
+      },
+      error: (error: any) => {
+        this.isLoadingLibraries = false;
+        console.error('Error loading paginated libraries:', error);
+        this.paginatedLibraries = [];
+        this.totalPages = 0;
+        this.totalLibraries = 0;
+      }
+    });
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+      this.currentPage = page;
+      this.loadPaginatedLibraries();
+    }
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages) {
+      this.goToPage(this.currentPage + 1);
+    }
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 1) {
+      this.goToPage(this.currentPage - 1);
+    }
+  }
+
+  changePageSize(newPageSize: number): void {
+    this.pageSize = newPageSize;
+    this.currentPage = 1;
+    this.loadPaginatedLibraries();
+  }
+
+  changeSorting(sortBy: 'name' | 'version' | 'date'): void {
+    if (this.librarySortBy === sortBy) {
+      this.librarySortOrder = this.librarySortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.librarySortBy = sortBy;
+      this.librarySortOrder = 'asc';
+    }
+    this.currentPage = 1;
+    this.loadPaginatedLibraries();
+  }
+
+  addLibraryFromPaginatedList(library: Library): void {
+    if (library.id && !this.ideStateService.libraryResources().find(lib => lib.id === library.id)) {
+      // Extract CQL content from the FHIR library
+      let cqlContent = '';
+      if (library.content) {
+        for (const content of library.content) {
+          if (content.contentType === 'text/cql' && content.data) {
+            try {
+              cqlContent = atob(content.data);
+              break;
+            } catch (e) {
+              console.error('Error decoding CQL content:', e);
+            }
+          }
+        }
+      }
+      
+      const libraryResource = {
+        id: library.id,
+        name: library.name || library.id,
+        version: library.version || '1.0.0',
+        description: library.description || `Library ${library.name || library.id}`,
+        cqlContent: cqlContent,
+        originalContent: cqlContent,
+        isActive: false,
+        isDirty: false,
+        library: library
+      };
+      
+      this.ideStateService.addLibraryResource(libraryResource);
+      this.ideStateService.selectLibraryResource(library.id);
+    }
+  }
+
+  getLibraryDisplayName(library: Library): string {
+    return library.name || library.id || 'Unknown';
+  }
+
+  getLibraryVersion(library: Library): string {
+    return library.version || 'N/A';
+  }
+
+  getLibraryDescription(library: Library): string {
+    return library.description || 'No description available';
+  }
+
+  getPageNumbers(): (number | string)[] {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 5;
+    
+    if (this.totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= this.totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+      
+      if (this.currentPage > 3) {
+        pages.push('...');
+      }
+      
+      const start = Math.max(2, this.currentPage - 1);
+      const end = Math.min(this.totalPages - 1, this.currentPage + 1);
+      
+      for (let i = start; i <= end; i++) {
+        if (i !== 1 && i !== this.totalPages) {
+          pages.push(i);
+        }
+      }
+      
+      if (this.currentPage < this.totalPages - 2) {
+        pages.push('...');
+      }
+      
+      if (this.totalPages > 1) {
+        pages.push(this.totalPages);
+      }
+    }
+    
+    return pages;
+  }
+
+  onPageClick(page: number | string): void {
+    if (typeof page === 'number') {
+      this.goToPage(page);
+    }
+  }
+
+  // Patient search methods
+  onPatientSearchInput(event: any): void {
+    const searchTerm = event.target.value;
+    this.patientSearchTerm = searchTerm;
+    
+    if (searchTerm.trim()) {
+      this.isSearchingPatients = true;
+      this.patientService.search(searchTerm).subscribe({
+        next: (bundle: Bundle<Patient>) => {
+          this.isSearchingPatients = false;
+          if (bundle.entry && bundle.entry.length > 0) {
+            this.patientSearchResults = bundle.entry.map(entry => entry.resource!);
+            this.showPatientSearchResults = true;
+          } else {
+            this.patientSearchResults = [];
+            this.showPatientSearchResults = true;
+          }
+        },
+        error: (error: any) => {
+          this.isSearchingPatients = false;
+          console.error('Error searching patients:', error);
+        }
+      });
+    } else {
+      this.isSearchingPatients = false;
+      this.showPatientSearchResults = false;
+      this.patientSearchResults = [];
+    }
+  }
+
+  selectPatient(patient: Patient): void {
+    if (patient.id) {
+      this.patientService.addPatient(patient);
+      this.showPatientSearchResults = false;
+      this.patientSearchTerm = '';
+      this.patientSearchResults = [];
+    }
+  }
+
+  clearPatientSearch(): void {
+    this.patientSearchTerm = '';
+    this.patientSearchResults = [];
+    this.showPatientSearchResults = false;
+    this.isSearchingPatients = false;
+  }
+
+  clearPatientSelection(): void {
+    this.patientService.clearSelection();
+    this.clearPatientSearch();
+  }
+
+  removePatient(patientId: string): void {
+    this.patientService.removePatient(patientId);
+  }
+
+  getPatientDisplayName(patient: Patient): string {
+    if (patient.name && patient.name.length > 0) {
+      const name = patient.name[0];
+      const given = name.given ? name.given.join(' ') : '';
+      const family = name.family || '';
+      return `${given} ${family}`.trim() || patient.id || 'Unknown';
+    }
+    return patient.id || 'Unknown';
+  }
+
+  trackByLibraryId(index: number, library: Library): string {
+    return library.id || index.toString();
+  }
+
+  trackByPatientId(index: number, patient: Patient): string {
+    return patient.id || index.toString();
+  }
+
+  // Missing methods referenced in template
+  executeAll(): void {
+    // Emit event to parent component to handle execution
+    this.executeAllEvent.emit();
+  }
+
+  canExecuteAll(): boolean {
+    // Check if all libraries can be executed
+    return this.ideStateService.libraryResources().length > 0;
+  }
+}
