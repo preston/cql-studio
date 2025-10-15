@@ -11,7 +11,7 @@ export class Settings {
     public developer: boolean = false;
     public theme_preferred: ThemeType = ThemeType.AUTOMATIC;
     public validateSchema: boolean = false;
-    public enableElmTranslation: boolean = true;
+    public enableElmTranslation: boolean = false;
     public runnerApiBaseUrl: string = '';
     public fhirBaseUrl: string = '';
     public translationBaseUrl: string = '';

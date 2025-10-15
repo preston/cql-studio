@@ -39,10 +39,10 @@
 }
 
 /* Override Bootstrap colors with higher specificity */
-.ide-container .bg-dark,
+/* .ide-container .bg-dark,
 .ide-container .bg-dark * {
   background-color: #1e1e1e !important;
-}
+} */
 
 // .ide-container .bg-secondary,
 // .ide-container .bg-secondary * {
@@ -66,10 +66,14 @@
 .ide-container .right-panel,
 .ide-container .bottom-panel,
 .ide-container .main-content,
-.ide-container .editor-area,
 .ide-container .tab-bar,
 .ide-container .editor-toolbar {
   background-color: #1e1e1e !important;
+}
+
+/* Editor area with lighter background */
+.ide-container .editor-area {
+  background-color: #222222 !important;
 }
 
 .ide-container .ide-header {
@@ -87,6 +91,10 @@
 
 .ide-container .border-top {
   border-top-color: #3e3e42 !important;
+}
+
+.ide-container .bottom-panel.border-top {
+  border-top: 4px solid #3e3e42 !important;
 }
 
 .ide-container .border-start {
@@ -114,6 +122,45 @@
 .ide-container .nav-tabs .nav-link.active {
   border-color: #3e3e42 !important;
   border-bottom-color: #1e1e1e !important;
+}
+
+/* Active tab styling - distinct color for active editor tabs */
+.ide-container div.bg-dark.text-white.d-flex.align-items-center {
+  background-color: #007acc !important; /* Blue color for active tab */
+  color: #ffffff !important;
+  border-color: #007acc !important;
+}
+
+.ide-container div.bg-dark.text-white.d-flex.align-items-center:hover {
+  background-color: #007acc !important;
+  color: #ffffff !important;
+}
+
+/* Tab styling - make tabs slightly taller and add drag functionality */
+.ide-container .tab-bar {
+  min-height: 36px; /* Slightly increased height for better usability */
+}
+
+.ide-container .tab-bar .d-flex.align-items-center {
+  min-height: 36px; /* Match the tab bar height */
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.ide-container .tab-bar .d-flex.align-items-center:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.ide-container .tab-bar .d-flex.align-items-center.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  transform: rotate(2deg);
+}
+
+.ide-container .tab-bar .d-flex.align-items-center.drag-over {
+  border-left: 3px solid #007acc;
+  background-color: rgba(0, 122, 204, 0.1);
 }
 
 /* Tab close button styling */
@@ -148,6 +195,15 @@
 .ide-container .right-panel, 
 .ide-container .bottom-panel {
   border-color: #3e3e42 !important;
+}
+
+/* Fix the actual problem - ensure Bootstrap border classes work properly */
+.ide-container .sidebar.border-end {
+  border-right: 4px solid #3e3e42 !important;
+}
+
+.ide-container .right-panel.border-start {
+  border-left: 4px solid #3e3e42 !important;
 }
 
 /* Additional overrides to ensure dark theme */
@@ -283,10 +339,10 @@
 }
 
 /* Override any transparent backgrounds and background images */
-.ide-container [style*="background"] {
-  background-color: #1e1e1e !important;
-  background-image: none !important;
-}
+// .ide-container [style*="background"] {
+//   background-color: #1e1e1e !important;
+//   background-image: none !important;
+// }
 
 /* Override global background images */
 .ide-container,
@@ -299,7 +355,6 @@
 .ide-container .right-panel,
 .ide-container .bottom-panel,
 .ide-container .main-content,
-.ide-container .editor-area,
 .ide-container .tab-bar,
 .ide-container .editor-toolbar,
 .ide-container .ide-header {
@@ -434,6 +489,8 @@
   /* Remove max-height constraint to allow JavaScript to control sizing */
   /* Prevent content from affecting panel height */
   contain: layout;
+  /* Force fixed height to prevent content from changing panel size */
+  flex-shrink: 0;
 }
 
 .bottom-panel .resize-handle {
@@ -499,7 +556,7 @@
   font-size: 13px;
   line-height: 1.4;
   border: none;
-  background-color: #1e1e1e !important;
+  background-color: #222222 !important;
 }
 
 :host ::ng-deep .cm-editor.cm-focused {
@@ -1242,5 +1299,64 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Panel Scrollbar Styling */
+.ide-container .sidebar .overflow-auto,
+.ide-container .right-panel .overflow-auto,
+.ide-container .bottom-panel .overflow-auto {
+  /* Ensure scrollbars are visible */
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar styling for panels */
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar-track,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar-track,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-track {
+  background: #2d2d30;
+  border-radius: 4px;
+}
+
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar-thumb,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar-thumb,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-thumb {
+  background: #4ec9b0;
+  border-radius: 4px;
+}
+
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar-thumb:hover,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar-thumb:hover,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: #5dd5c0;
+}
+
+/* Force panel content to be scrollable */
+.ide-container .sidebar-content,
+.ide-container .right-panel .flex-fill,
+.ide-container .bottom-panel .flex-fill {
+  overflow: hidden;
+}
+
+/* Ensure bottom panel maintains fixed height */
+.ide-container .bottom-panel.visible {
+  flex-shrink: 0;
+}
+
+/* Override any dynamic height changes for bottom panel */
+.ide-container .bottom-panel[style*="height"] {
+  flex-shrink: 0 !important;
+}
+
+/* Force bottom panel to use JavaScript-controlled height */
+.ide-container .bottom-panel {
+  height: var(--bottom-panel-height, 300px) !important;
+  flex-shrink: 0 !important;
 }
 

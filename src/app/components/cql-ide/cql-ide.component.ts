@@ -107,6 +107,11 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   public files: EditorFile[] = [];
   public libraryResources: LibraryResource[] = [];
   public activeLibraryId: string = '';
+  private isInitializingContent: boolean = false;
+  
+  // Drag and drop properties
+  public draggedTabIndex: number = -1;
+  public dragOverIndex: number = -1;
   public panelState: PanelState = {
     sidebar: { visible: true, width: 350, activeTab: 'navigation' },
     bottom: { visible: true, height: 300, activeTab: 'output' },
@@ -229,13 +234,10 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   ngAfterViewInit(): void {
     // Use setTimeout to ensure the view is fully rendered
     setTimeout(() => {
-      console.log('ngAfterViewInit: libraryResources.length =', this.libraryResources.length);
-      console.log('ngAfterViewInit: activeLibraryId =', this.activeLibraryId);
-      // Only initialize editor if there are library resources
-      if (this.libraryResources.length > 0) {
-        console.log('ngAfterViewInit: Initializing editor...');
-        this.initializeEditor();
-      }
+      // Always initialize editor container, even if no libraries yet
+      // The editor will be populated when a library is selected
+      this.initializeEditor();
+      this.updateBottomPanelHeight();
     }, 0);
     this.setupEventListeners();
     this.loadPaginatedLibraries();
@@ -313,28 +315,57 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
     }
   }
   
-  private initializeEditor(): void {
-    console.log('initializeEditor called', {
-      hasContainer: !!this.editorContainer?.nativeElement,
-      hasEditor: !!this.editor,
-      containerDimensions: this.editorContainer?.nativeElement ? {
-        width: this.editorContainer.nativeElement.offsetWidth,
-        height: this.editorContainer.nativeElement.offsetHeight
-      } : null,
-      libraryResources: this.libraryResources.length,
-      activeLibraryId: this.activeLibraryId,
-      value: this._value
-    });
+  private async ensureEditorInitialized(): Promise<void> {
+    // If editor already exists and is functional, update content and return
+    if (this.editor && this.editorContainer?.nativeElement) {
+      this.forceContentUpdate(this._value);
+      return Promise.resolve();
+    }
     
-    if (!this.editorContainer?.nativeElement || this.editor) {
-      console.log('initializeEditor: early return', { hasContainer: !!this.editorContainer?.nativeElement, hasEditor: !!this.editor });
+    // If editor doesn't exist, initialize it
+    if (!this.editor) {
+      return new Promise<void>((resolve) => {
+        const attemptInitialization = () => {
+          if (this.editorContainer?.nativeElement) {
+            const container = this.editorContainer.nativeElement;
+            // Check if container is visible and has dimensions
+            const isVisible = container.offsetWidth > 0 && container.offsetHeight > 0;
+            const isInDOM = container.parentNode !== null;
+            
+            if (isInDOM && (isVisible || this.libraryResources.length > 0)) {
+              // Container is ready or we have libraries to show
+              this.initializeEditor();
+              resolve();
+            } else {
+              // Container not ready, retry
+              setTimeout(attemptInitialization, 50);
+            }
+          } else {
+            // Container not available, retry
+            setTimeout(attemptInitialization, 50);
+          }
+        };
+        attemptInitialization();
+      });
+    }
+    
+    return Promise.resolve();
+  }
+
+  private initializeEditor(): void {
+    if (!this.editorContainer?.nativeElement) {
+      return;
+    }
+    
+    // If editor already exists, just update its content instead of recreating
+    if (this.editor) {
+      this.forceContentUpdate(this._value);
       return;
     }
     
     // Ensure the container is visible and has dimensions
     const container = this.editorContainer.nativeElement;
     if (container.offsetWidth === 0 || container.offsetHeight === 0) {
-      console.log('initializeEditor: container not ready, retrying...');
       // Retry after a short delay if container is not ready
       setTimeout(() => {
         this.initializeEditor();
@@ -343,7 +374,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
     }
     
     try {
-      console.log('Creating editor with value:', this._value);
       const startState = EditorState.create({
         doc: this._value,
         extensions: [
@@ -504,7 +534,20 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
             const activeLibrary = this.libraryResources.find(lib => lib.id === this.activeLibraryId);
             if (activeLibrary) {
               activeLibrary.cqlContent = text;
-              activeLibrary.isDirty = text !== activeLibrary.originalContent;
+              
+              // Skip dirty state checking during content initialization
+              if (this.isInitializingContent) {
+                activeLibrary.isDirty = false;
+              } else {
+                // Only set dirty if we have a valid originalContent to compare against
+                // and the content is actually different from the original
+                if (activeLibrary.originalContent !== undefined && activeLibrary.originalContent !== null) {
+                  activeLibrary.isDirty = text !== activeLibrary.originalContent;
+                } else {
+                  // If no original content is set, assume it's not dirty yet
+                  activeLibrary.isDirty = false;
+                }
+              }
             }
             
             // Update outline
@@ -524,8 +567,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
         parent: this.editorContainer.nativeElement
       });
       
-      console.log('Editor created successfully:', this.editor);
-      
       // Placeholder is set in the editor configuration
       
     } catch (error) {
@@ -537,6 +578,9 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   writeValue(value: string): void {
     this._value = value || '';
     if (this.editor) {
+      // Set flag to prevent dirty state checking during content initialization
+      this.isInitializingContent = true;
+      
       this.editor.dispatch({
         changes: {
           from: 0,
@@ -544,6 +588,11 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
           insert: this._value
         }
       });
+      
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        this.isInitializingContent = false;
+      }, 100);
     }
   }
   
@@ -638,7 +687,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
 
   private reinitializeEditor(): void {
     if (this.editor) {
-      console.log('Reinitializing editor...');
       const currentValue = this.getValue();
       this.editor.destroy();
       this.editor = undefined; // Clear the reference
@@ -828,6 +876,7 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
       const maxHeight = Math.min(window.innerHeight * 0.8, window.innerHeight - 200); // Leave space for header and other UI
       const newHeight = Math.max(100, Math.min(maxHeight, this.startHeight + deltaY));
       this.panelState.bottom.height = newHeight;
+      this.updateBottomPanelHeight();
     }
   }
 
@@ -840,6 +889,11 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
       cancelAnimationFrame(this.resizeAnimationFrame);
       this.resizeAnimationFrame = null;
     }
+  }
+
+  private updateBottomPanelHeight(): void {
+    // Update CSS custom property for bottom panel height
+    document.documentElement.style.setProperty('--bottom-panel-height', `${this.panelState.bottom.height}px`);
   }
 
 
@@ -1058,8 +1112,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   }
 
   selectLibraryResource(libraryId: string): void {
-    console.log('selectLibraryResource called with:', libraryId);
-    
     // Update active library
     this.libraryResources.forEach(lib => lib.isActive = lib.id === libraryId);
     this.activeLibraryId = libraryId;
@@ -1067,7 +1119,14 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
     // Update editor content
     const library = this.libraryResources.find(lib => lib.id === libraryId);
     if (library) {
-      console.log('Library found:', library);
+      // Ensure originalContent is set before updating editor content
+      if (library.originalContent === undefined || library.originalContent === null) {
+        library.originalContent = library.cqlContent || '';
+      }
+      
+      // Reset dirty state when selecting a library
+      library.isDirty = false;
+      
       this._value = library.cqlContent;
       this.libraryService.libraryId = library.name;
       this.libraryVersion = library.version;
@@ -1076,22 +1135,18 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
       this.hasSelectedLibrary = true;
       this.isNewLibrary = !library.library;
       
-      // Update editor if it exists, or initialize if it doesn't
-      if (this.editor) {
-        console.log('Editor exists, setting value');
-        this.setValue(library.cqlContent);
-      } else {
-        console.log('Editor does not exist, initializing...');
-        // Ensure editor initializes if it hasn't yet
-        setTimeout(() => {
-          this.initializeEditor();
-        }, 100);
-      }
+      // Ensure editor is visible and initialized
+      this.ensureEditorVisibility();
       
-      // Update outline for the new library
-      this.updateOutline();
-    } else {
-      console.log('Library not found for ID:', libraryId);
+      // Wait for the DOM to update (editor container to become visible)
+      setTimeout(() => {
+        this.ensureEditorInitialized().then(() => {
+          // Force content update to ensure it's set
+          this.forceContentUpdate(library.cqlContent);
+          // Update outline for the new library
+          this.updateOutline();
+        });
+      }, 100);
     }
   }
 
@@ -1131,7 +1186,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
   }
 
   createNewLibraryResource(): void {
-    console.log('createNewLibraryResource called');
     const newId = `new-library-${Date.now()}`;
     const libraryResource: LibraryResource = {
       id: newId,
@@ -1139,23 +1193,18 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
       version: '1.0.0',
       description: 'New library',
       cqlContent: '',
-      originalContent: '',
+      originalContent: '', // Set to empty string for new libraries
       isActive: false,
       isDirty: false,
       library: null
     };
     
     this.libraryResources.push(libraryResource);
-    console.log('Library resource added, selecting...');
-    this.selectLibraryResource(newId);
     
-    // Ensure editor initializes after library is created
-    setTimeout(() => {
-      if (!this.editor) {
-        console.log('Editor still not initialized, forcing initialization...');
-        this.initializeEditor();
-      }
-    }, 100);
+    // Ensure editor becomes visible
+    this.ensureEditorVisibility();
+    
+    this.selectLibraryResource(newId);
   }
 
   removeLibraryResource(libraryId: string, event?: Event): void {
@@ -1173,12 +1222,58 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
           this.selectLibraryResource(this.libraryResources[0].id);
         } else {
           this.clearActiveLibrary();
+          // Ensure editor is still available for when new libraries are added
+          this.ensureEditorInitialized();
         }
       } else {
         // If we removed a different library, update outline for current active library
         this.updateOutline();
       }
     }
+  }
+
+  // Drag and drop methods for tab reordering
+  onTabDragStart(event: DragEvent, index: number): void {
+    this.draggedTabIndex = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', index.toString());
+    }
+  }
+
+  onTabDragEnd(event: DragEvent): void {
+    this.draggedTabIndex = -1;
+    this.dragOverIndex = -1;
+  }
+
+  onTabDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    this.dragOverIndex = index;
+  }
+
+  onTabDragLeave(event: DragEvent): void {
+    this.dragOverIndex = -1;
+  }
+
+  onTabDrop(event: DragEvent, dropIndex: number): void {
+    event.preventDefault();
+    
+    if (this.draggedTabIndex === -1 || this.draggedTabIndex === dropIndex) {
+      this.dragOverIndex = -1;
+      return;
+    }
+
+    // Reorder the library resources array
+    const draggedLibrary = this.libraryResources[this.draggedTabIndex];
+    this.libraryResources.splice(this.draggedTabIndex, 1);
+    this.libraryResources.splice(dropIndex, 0, draggedLibrary);
+
+    // Reset drag state
+    this.draggedTabIndex = -1;
+    this.dragOverIndex = -1;
   }
 
   private clearActiveLibrary(): void {
@@ -1191,6 +1286,7 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
     this.hasSelectedLibrary = false;
     this.isNewLibrary = false;
     
+    // Clear editor content but keep the editor instance
     if (this.editor) {
       this.editor.dispatch({
         changes: {
@@ -1203,6 +1299,43 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
     
     // Clear outline when no library is active
     this.updateOutline();
+  }
+
+  // Method to ensure editor is visible when libraries are present
+  private ensureEditorVisibility(): void {
+    if (this.libraryResources.length > 0 && this.editorContainer?.nativeElement) {
+      // Remove the d-none class to make editor visible
+      this.editorContainer.nativeElement.classList.remove('d-none');
+    }
+  }
+
+  // Method to force content update in the editor
+  private forceContentUpdate(content: string): void {
+    if (this.editor) {
+      // Set flag to prevent dirty state checking during content initialization
+      this.isInitializingContent = true;
+      
+      // Update the active library's originalContent to match what we're setting
+      const activeLibrary = this.libraryResources.find(lib => lib.id === this.activeLibraryId);
+      if (activeLibrary) {
+        activeLibrary.originalContent = content;
+        activeLibrary.isDirty = false; // Reset dirty state since we're setting the baseline
+      }
+      
+      this.editor.dispatch({
+        changes: {
+          from: 0,
+          to: this.editor.state.doc.length,
+          insert: content
+        }
+      });
+      this._value = content;
+      
+      // Reset the flag after a short delay to allow the update listener to process
+      setTimeout(() => {
+        this.isInitializingContent = false;
+      }, 100);
+    }
   }
 
   // FHIR Library Methods
@@ -1432,7 +1565,6 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
       next: (library: Library) => {
         this.library = library;
         this.decodeLibraryData();
-        console.log('Library loaded:', library);
         
         // Update the active library resource to reflect reloaded state
         const activeLibrary = this.libraryResources.find(lib => lib.id === this.activeLibraryId);
@@ -1747,6 +1879,11 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
     
     // Create final output sections
     this.createOutputSections(results);
+    
+    // Auto-translate to ELM if enabled
+    if (this.settingsService.settings().enableElmTranslation) {
+      this.translateCqlToElm();
+    }
   }
 
   private formatAllExecutionResults(results: any[], totalTime: number): string {
@@ -1810,9 +1947,7 @@ export class CqlIdeComponent implements AfterViewInit, OnDestroy, OnChanges, Con
       `${section.title}\n${section.content}\n`
     ).join('\n---\n\n');
     
-    navigator.clipboard.writeText(outputText).then(() => {
-      console.log('Output copied to clipboard');
-    }).catch(err => {
+    navigator.clipboard.writeText(outputText).catch(err => {
       console.error('Failed to copy output:', err);
     });
   }
@@ -1977,7 +2112,6 @@ ${JSON.stringify(result.result, null, 2)}`;
         this._value);
       this.libraryService.put(bundle).subscribe({
         next: (response: any) => {
-          console.log('Library saved successfully:', response);
           this.library = response; // Update the local library reference
           this.isNewLibrary = false; // After saving, it's no longer a new library
           
@@ -1999,7 +2133,6 @@ ${JSON.stringify(result.result, null, 2)}`;
     if (this.library) {
       this.libraryService.delete(this.library).subscribe({
         next: (response: any) => {
-          console.log('Library deleted successfully:', response);
           this.library = null; // Clear the local library reference
           this.hasSelectedLibrary = false; // Reset selection state
           this.isNewLibrary = false; // Reset new library state
@@ -2060,7 +2193,6 @@ ${JSON.stringify(result.result, null, 2)}`;
       next: (elmXml: string) => {
         this.isTranslating = false;
         this.elmTranslationResults = elmXml;
-        console.log('CQL translated to ELM successfully');
       },
       error: (error: any) => {
         this.isTranslating = false;
@@ -2103,7 +2235,6 @@ ${JSON.stringify(result.result, null, 2)}`;
 
   // Public method to force editor initialization (for debugging)
   forceInitializeEditor(): void {
-    console.log('Force initializing editor...');
     if (this.editor) {
       this.editor.destroy();
       this.editor = undefined;
@@ -2131,8 +2262,6 @@ ${JSON.stringify(result.result, null, 2)}`;
       
       // Focus the editor
       this.editor.focus();
-      
-      console.log(`Navigated to line ${lineNumber}`);
     } catch (error) {
       console.error(`Failed to navigate to line ${lineNumber}:`, error);
     }
@@ -2140,7 +2269,6 @@ ${JSON.stringify(result.result, null, 2)}`;
 
   // Handle outline item click
   onOutlineItemClick(item: { name: string; type: string; line: number }): void {
-    console.log('Outline item clicked:', item);
     this.navigateToLine(item.line);
   }
 
@@ -2213,6 +2341,11 @@ ${JSON.stringify(result.result, null, 2)}`;
             executionTime: executionTime,
             expanded: true
           };
+        }
+        
+        // Auto-translate to ELM if enabled
+        if (this.settingsService.settings().enableElmTranslation) {
+          this.translateCqlToElm();
         }
       },
       error: (error: any) => {
@@ -2288,6 +2421,11 @@ ${JSON.stringify(result.result, null, 2)}`;
                 executionTime: executionTime,
                 expanded: true
               };
+            }
+            
+            // Auto-translate to ELM if enabled
+            if (this.settingsService.settings().enableElmTranslation) {
+              this.translateCqlToElm();
             }
           }
         },
@@ -2376,12 +2514,6 @@ ${JSON.stringify(result.result, null, 2)}`;
                  // Check for modern Mac detection
                  navigator.maxTouchPoints > 1 && /Mac/.test(platform);
     
-    console.log('Platform detection:', {
-      platform: platform,
-      userAgent: userAgent,
-      isMac: this.isMac,
-      maxTouchPoints: navigator.maxTouchPoints
-    });
   }
 
   private getKeyCombo(key: string): string {

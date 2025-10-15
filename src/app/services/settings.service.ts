@@ -74,7 +74,7 @@ export class SettingsService {
           shouldSave = true;
         }
         if (parsedSettings.enableElmTranslation == null) {
-          parsedSettings.enableElmTranslation = true;
+          parsedSettings.enableElmTranslation = false;
           shouldSave = true;
         }
         if (parsedSettings.runnerApiBaseUrl == null) {
