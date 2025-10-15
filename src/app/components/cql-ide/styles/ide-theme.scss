@@ -1,22 +1,39 @@
 // Author: Preston Lee
 
 /* IDE Color Variables */
+$ide-bg-primary: #1e1e1e;    /* Main background */
+$ide-bg-secondary: #2d2d30;  /* Panel/header background */
+$ide-bg-hover: #3e3e42;      /* Hover states */
+$ide-bg-active: #4a4a4a;     /* Active states */
+$ide-text-primary: #e6e6e6;  /* Primary text */
+$ide-text-white: #ffffff;    /* White text */
+$ide-border: #3e3e42;        /* Border color */
+$ide-accent: #4ec9b0;        /* Accent color */
+$ide-accent-hover: #5dd5c0;  /* Accent hover */
+$ide-blue: #007acc;          /* Blue accent */
+$ide-blue-hover: #0088d4;    /* Blue hover */
+$ide-error: #f44747;         /* Error color */
+$ide-warning: #ffcc02;       /* Warning color */
+$ide-success: #4ec9b0;       /* Success color */
+$ide-info: #75beff;          /* Info color */
+
+/* IDE Color Variables - CSS Custom Properties for global access */
 :root {
-  --ide-bg-primary: #1e1e1e;    /* Main background */
-  --ide-bg-secondary: #2d2d30;  /* Panel/header background */
-  --ide-bg-hover: #3e3e42;      /* Hover states */
-  --ide-bg-active: #4a4a4a;     /* Active states */
-  --ide-text-primary: #e6e6e6;  /* Primary text */
-  --ide-text-white: #ffffff;    /* White text */
-  --ide-border: #3e3e42;        /* Border color */
-  --ide-accent: #4ec9b0;        /* Accent color */
-  --ide-accent-hover: #5dd5c0;  /* Accent hover */
-  --ide-blue: #007acc;          /* Blue accent */
-  --ide-blue-hover: #0088d4;    /* Blue hover */
-  --ide-error: #f44747;         /* Error color */
-  --ide-warning: #ffcc02;       /* Warning color */
-  --ide-success: #4ec9b0;       /* Success color */
-  --ide-info: #75beff;          /* Info color */
+  --ide-bg-primary: #{$ide-bg-primary};
+  --ide-bg-secondary: #{$ide-bg-secondary};
+  --ide-bg-hover: #{$ide-bg-hover};
+  --ide-bg-active: #{$ide-bg-active};
+  --ide-text-primary: #{$ide-text-primary};
+  --ide-text-white: #{$ide-text-white};
+  --ide-border: #{$ide-border};
+  --ide-accent: #{$ide-accent};
+  --ide-accent-hover: #{$ide-accent-hover};
+  --ide-blue: #{$ide-blue};
+  --ide-blue-hover: #{$ide-blue-hover};
+  --ide-error: #{$ide-error};
+  --ide-warning: #{$ide-warning};
+  --ide-success: #{$ide-success};
+  --ide-info: #{$ide-info};
 }
 
 /* IDE Container Theme */

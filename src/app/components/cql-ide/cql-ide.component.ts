@@ -84,7 +84,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const navigationTab = {
       id: 'navigation-tab',
       title: 'Navigation',
-      icon: 'icon-navigation',
+      icon: 'bi-list',
       type: 'navigation',
       isActive: true,
       isClosable: false,
@@ -94,9 +94,9 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const outlineTab = {
       id: 'outline-tab',
       title: 'Outline',
-      icon: 'icon-outline',
+      icon: 'bi-diagram-3',
       type: 'outline',
-      isActive: true,
+      isActive: false,
       isClosable: true,
       component: null
     };
@@ -104,7 +104,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const fhirTab = {
       id: 'fhir-tab',
       title: 'FHIR',
-      icon: 'icon-fhir',
+      icon: 'bi-heart-pulse',
       type: 'fhir',
       isActive: true,
       isClosable: false,
@@ -114,7 +114,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const elmTab = {
       id: 'elm-tab',
       title: 'ELM',
-      icon: 'icon-code',
+      icon: 'bi-code-slash',
       type: 'elm',
       isActive: false,
       isClosable: true,
@@ -124,7 +124,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const outputTab = {
       id: 'output-tab',
       title: 'Output',
-      icon: 'icon-output',
+      icon: 'bi-terminal',
       type: 'output',
       isActive: true,
       isClosable: true,
@@ -134,7 +134,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const problemsTab = {
       id: 'problems-tab',
       title: 'Problems',
-      icon: 'icon-problems',
+      icon: 'bi-exclamation-triangle',
       type: 'problems',
       isActive: false,
       isClosable: false,

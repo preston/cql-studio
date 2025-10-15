@@ -1,9 +1,11 @@
 // Author: Preston Lee
 
+@use '../styles/ide-theme' as theme;
+
 .ide-panel {
   position: relative;
-  background-color: var(--ide-bg-primary);
-  border-color: var(--ide-border);
+  background-color: theme.$ide-bg-primary;
+  border-color: theme.$ide-border;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -11,15 +13,15 @@
 }
 
 .sidebar {
-  border-right: 4px solid var(--ide-border);
+  border-right: 4px solid theme.$ide-border;
 }
 
 .right-panel {
-  border-left: 4px solid var(--ide-border);
+  border-left: 4px solid theme.$ide-border;
 }
 
 .bottom-panel {
-  border-top: 4px solid var(--ide-border);
+  border-top: 4px solid theme.$ide-border;
   min-height: 100px;
   contain: layout;
   flex-shrink: 0;
@@ -36,21 +38,22 @@
   flex: 1;
   overflow: auto;
   min-height: 0;
+  background-color: theme.$ide-bg-primary;
 }
 
 /* Resize Handles */
 .resize-handle {
   position: absolute;
-  background-color: #007acc;
+  // background-color: theme.$ide-blue;
   cursor: col-resize;
   z-index: 10;
   transition: background-color 0.2s ease;
   opacity: 0.8;
-  border: 1px solid #ffffff;
+  // border: 1px solid theme.$ide-text-white;
 }
 
 .resize-handle:hover {
-  background-color: #005a9e;
+  background-color: theme.$ide-blue-hover;
   opacity: 1;
 }
 
@@ -77,16 +80,16 @@
 }
 
 /* Tab styling */
-.panel-content .btn {
-  border-color: var(--ide-border) !important;
+.btn {
+  border-color: theme.$ide-border !important;
 }
 
-.panel-content .btn.active {
-  background-color: var(--ide-blue) !important;
-  color: var(--ide-text-white) !important;
-  border-color: var(--ide-blue) !important;
+.btn.active {
+  background-color: theme.$ide-bg-primary !important;
+  color: theme.$ide-text-white !important;
+  border-color: theme.$ide-border !important;
 }
 
-.panel-content .btn:hover {
+.btn:hover {
   background-color: rgba(255, 255, 255, 0.1) !important;
 }

@@ -29,7 +29,7 @@ export class NavigationTabComponent implements OnInit {
   public currentPage: number = 1;
   public totalPages: number = 0;
   public totalLibraries: number = 0;
-  public pageSize: number = 10;
+  public pageSize: number = 5;
   public librarySortBy: 'name' | 'version' | 'date' = 'name';
   public librarySortOrder: 'asc' | 'desc' = 'asc';
   public isLoadingLibraries: boolean = false;

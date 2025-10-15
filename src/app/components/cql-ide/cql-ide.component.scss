@@ -1,5 +1,7 @@
 // Author: Preston Lee
 
+@use './styles/ide-theme' as theme;
+
 /* Import shared IDE styles */
 @import './styles/ide-shared.scss';
 
@@ -12,10 +14,10 @@
 }
 
 .ide-header {
-  background-color: var(--ide-bg-secondary);
-  color: var(--ide-text-primary);
+  background-color: theme.$ide-bg-secondary;
+  color: theme.$ide-text-primary;
   padding: 1rem;
-  border-bottom: 1px solid var(--ide-border);
+  border-bottom: 1px solid theme.$ide-border;
 }
 
 .ide-content {
@@ -25,18 +27,18 @@
 }
 
 .panel {
-  background-color: var(--ide-bg-primary);
-  border: 1px solid var(--ide-border);
+  background-color: theme.$ide-bg-primary;
+  border: 1px solid theme.$ide-border;
   padding: 1rem;
   min-width: 200px;
 }
 
 .left-panel {
-  border-right: 4px solid var(--ide-border);
+  border-right: 4px solid theme.$ide-border;
 }
 
 .right-panel {
-  border-left: 4px solid var(--ide-border);
+  border-left: 4px solid theme.$ide-border;
 }
 
 .main-content {
@@ -56,15 +58,15 @@
 }
 
 .bottom-panel {
-  background-color: var(--ide-bg-primary);
-  border-top: 4px solid var(--ide-border);
+  background-color: theme.$ide-bg-primary;
+  border-top: 4px solid theme.$ide-border;
   padding: 1rem;
   min-height: 100px;
 }
 
 .status-bar {
-  background-color: var(--ide-bg-secondary);
-  color: var(--ide-text-primary);
+  background-color: theme.$ide-bg-secondary;
+  color: theme.$ide-text-primary;
   padding: 0.5rem 1rem;
-  border-top: 1px solid var(--ide-border);
+  border-top: 1px solid theme.$ide-border;
 }

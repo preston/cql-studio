@@ -9,7 +9,7 @@
   <div class="bg-dark border-dark border-bottom d-flex">
     <button 
       *ngFor="let tab of panel.tabs" 
-      class="btn btn-dark rounded-0 flex-fill" 
+      class="btn rounded-0 flex-fill" 
       [class.active]="tab.isActive"
       (click)="onTabClick(tab)"
       draggable="true"
