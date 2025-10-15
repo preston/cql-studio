@@ -10,6 +10,7 @@ import { RunnerDocumentationComponent } from './components/runner-documentation/
 import { SettingsComponent } from './components/settings/settings.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { RunnerComponent } from './components/runner/runner.component';
+import { FhirUploaderComponent } from './components/fhir-uploader/fhir-uploader.component';
 
 export const routes: Routes = [
   // Normal app routes
@@ -21,6 +22,7 @@ export const routes: Routes = [
   { path: 'settings', component: SettingsComponent },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'runner', component: RunnerComponent },
+  { path: 'uploader', component: FhirUploaderComponent },
   
   // IDE routes with separate layout
   { 
