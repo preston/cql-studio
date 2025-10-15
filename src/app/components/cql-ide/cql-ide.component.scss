@@ -3,7 +3,7 @@
 @use './styles/ide-theme' as theme;
 
 /* Import shared IDE styles */
-@import './styles/ide-shared.scss';
+@use './styles/ide-shared' as shared;
 
 .ide-container {
   display: flex;

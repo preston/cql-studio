@@ -1,9 +1,9 @@
 // Author: Preston Lee
 
 /* Import shared IDE styles */
-@import './ide-theme.scss';
-@import './ide-layout.scss';
-@import './ide-editor.scss';
+@use './ide-theme' as theme;
+@use './ide-layout' as layout;
+@use './ide-editor' as editor;
 
 /* Additional shared styles */
 .ide-container {
