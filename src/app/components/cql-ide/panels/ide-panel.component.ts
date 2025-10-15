@@ -4,6 +4,7 @@ import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, HostList
 import { CommonModule } from '@angular/common';
 import { IdePanel, IdePanelTab } from './ide-panel-tab.interface';
 import { IdeStateService } from '../../../services/ide-state.service';
+import { LibraryService } from '../../../services/library.service';
 
 // Import all tab components
 import { NavigationTabComponent } from '../tabs/navigation-tab/navigation-tab.component';
@@ -43,7 +44,10 @@ export class IdePanelComponent {
 
   @ViewChild('panelElement', { static: false }) panelElement?: ElementRef<HTMLDivElement>;
 
-  constructor(public ideStateService: IdeStateService) {}
+  constructor(
+    public ideStateService: IdeStateService,
+    private libraryService: LibraryService
+  ) {}
 
   private isResizing: boolean = false;
   private resizeType: string = '';
@@ -112,6 +116,30 @@ export class IdePanelComponent {
 
   onPreserveLogsChange(value: boolean): void {
     this.ideStateService.setPreserveLogs(value);
+  }
+
+  onDeleteLibraryFromServer(): void {
+    const activeLibraryId = this.ideStateService.activeLibraryId();
+    if (activeLibraryId) {
+      // Get the active library resource
+      const activeLibrary = this.ideStateService.getActiveLibraryResource();
+      if (activeLibrary && activeLibrary.library) {
+        // Delete the library from the server
+        this.libraryService.delete(activeLibrary.library).subscribe({
+          next: () => {
+            console.log('Library deleted from server successfully');
+            // Remove it from the local state
+            this.ideStateService.removeLibraryResource(activeLibraryId);
+            // Clear the active library
+            this.ideStateService.selectLibraryResource('');
+          },
+          error: (error) => {
+            console.error('Error deleting library from server:', error);
+            // You might want to show an error message to the user here
+          }
+        });
+      }
+    }
   }
 
   onStartResize(event: MouseEvent): void {

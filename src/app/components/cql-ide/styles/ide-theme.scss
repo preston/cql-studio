@@ -97,7 +97,11 @@
 
 /* Override Bootstrap colors with higher specificity */
 .ide-container .bg-dark,
-.ide-container .bg-dark * {
+.ide-container .bg-dark *,
+.ide-container .editor-toolbar,
+.ide-container .editor-tabs,
+.ide-container .ide-panel .bg-dark,
+.ide-container .ide-panel .btn-dark {
   background-color: var(--ide-bg-primary) !important;
 }
 
@@ -325,7 +329,11 @@
 .ide-container .main-content,
 .ide-container .tab-bar,
 .ide-container .editor-toolbar,
-.ide-container .ide-header {
+.ide-container .ide-header,
+.ide-container .output-panel,
+.ide-container .output-panel .bg-dark,
+.ide-container .fhir-tab .bg-dark,
+.ide-container .navigation-tab .bg-dark {
   background-image: none !important;
   background-color: var(--ide-bg-primary) !important;
 }

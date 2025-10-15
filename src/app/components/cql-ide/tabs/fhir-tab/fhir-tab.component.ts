@@ -102,12 +102,35 @@ export class FhirTabComponent {
   }
 
   getPatientDisplayName(patient: Patient): string {
+    // Try multiple approaches to get patient name
     if (patient.name && patient.name.length > 0) {
       const name = patient.name[0];
       const given = name.given ? name.given.join(' ') : '';
       const family = name.family || '';
-      return `${given} ${family}`.trim() || patient.id || 'Unknown';
+      const result = `${given} ${family}`.trim();
+      if (result) {
+        return result;
+      }
     }
+    
+    // Try alternative name fields
+    if (patient.text && patient.text.div) {
+      // Extract name from text field if available
+      const textMatch = patient.text.div.match(/<div[^>]*>([^<]+)<\/div>/);
+      if (textMatch && textMatch[1]) {
+        return textMatch[1].trim();
+      }
+    }
+    
+    // Try identifier fields
+    if (patient.identifier && patient.identifier.length > 0) {
+      const identifier = patient.identifier[0];
+      if (identifier.value) {
+        return identifier.value;
+      }
+    }
+    
+    // Fall back to ID
     return patient.id || 'Unknown';
   }
 

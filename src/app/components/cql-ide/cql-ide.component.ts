@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { IdeStateService } from '../../services/ide-state.service';
@@ -10,6 +10,7 @@ import { PatientService } from '../../services/patient.service';
 import { TranslationService } from '../../services/translation.service';
 import { CqlExecutionService } from '../../services/cql-execution.service';
 import { SettingsService } from '../../services/settings.service';
+import { KeyboardShortcut } from './shared/ide-types';
 
 // Import all the new components
 import { IdeStatusBarComponent } from './ide-status-bar/ide-status-bar.component';
@@ -120,6 +121,16 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       component: null
     };
 
+    const outputTab = {
+      id: 'output-tab',
+      title: 'Output',
+      icon: 'icon-output',
+      type: 'output',
+      isActive: true,
+      isClosable: true,
+      component: null
+    };
+
     const problemsTab = {
       id: 'problems-tab',
       title: 'Problems',
@@ -130,23 +141,14 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       component: null
     };
 
-    const outputTab = {
-      id: 'output-tab',
-      title: 'Output',
-      icon: 'icon-output',
-      type: 'output',
-      isActive: false,
-      isClosable: true,
-      component: null
-    };
 
     // Add tabs to panels
     this.ideStateService.addTabToPanel('left', navigationTab);
     this.ideStateService.addTabToPanel('left', outlineTab);
     this.ideStateService.addTabToPanel('right', fhirTab);
     this.ideStateService.addTabToPanel('right', elmTab);
-    this.ideStateService.addTabToPanel('bottom', problemsTab);
     this.ideStateService.addTabToPanel('bottom', outputTab);
+    this.ideStateService.addTabToPanel('bottom', problemsTab);
   }
 
   private cleanupTabs(): void {
@@ -249,8 +251,13 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   onDeleteLibrary(libraryId: string): void {
-    // Handle delete library
-    console.log('Deleting library:', libraryId);
+    // If this was the active library, clear the active library first
+    if (this.ideStateService.activeLibraryId() === libraryId) {
+      this.ideStateService.selectLibraryResource('');
+    }
+    
+    // Remove library from the state service
+    this.ideStateService.removeLibraryResource(libraryId);
   }
 
   // Translation
@@ -459,6 +466,53 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     output += `Execution completed at: ${new Date().toLocaleString()}\n`;
     
     return output;
+  }
+
+  // Keyboard shortcuts for the welcome message
+  getAllShortcuts(): KeyboardShortcut[] {
+    return [
+      // Core CQL IDE shortcuts - Apple-friendly
+      { key: 'F5', description: 'Execute Active Library' },
+      { key: '⌘+F5', description: 'Execute All Libraries' },
+      { key: '⌘+W', description: 'Close Active Editor' }
+    ];
+  }
+
+  // Keyboard shortcut handler
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardShortcuts(event: KeyboardEvent): void {
+    // Prevent default behavior for our shortcuts
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isCmdKey = isMac ? event.metaKey : event.ctrlKey;
+    
+    // F5 - Execute Active Library
+    if (event.key === 'F5' && !isCmdKey) {
+      event.preventDefault();
+      this.onExecuteLibrary();
+      return;
+    }
+    
+    // Cmd+F5 (Mac) or Ctrl+F5 (PC) - Execute All Libraries
+    if (event.key === 'F5' && isCmdKey) {
+      event.preventDefault();
+      this.onExecuteAll();
+      return;
+    }
+    
+    // Cmd+W (Mac) or Ctrl+W (PC) - Close Active Editor
+    if (event.key === 'w' && isCmdKey) {
+      event.preventDefault();
+      this.onCloseActiveEditor();
+      return;
+    }
+  }
+
+  // Close active editor method
+  private onCloseActiveEditor(): void {
+    const activeLibraryId = this.ideStateService.activeLibraryId();
+    if (activeLibraryId) {
+      this.onDeleteLibrary(activeLibraryId);
+    }
   }
 
 }

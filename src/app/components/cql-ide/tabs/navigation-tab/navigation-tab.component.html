@@ -21,11 +21,11 @@
             <strong class="d-block text-white">{{ library.name || library.id }}</strong>
             <small class="text-muted">v{{ library.version || 'N/A' }}</small>
           </div>
-          <i class="icon-plus"></i>
+          <i class="bi bi-folder-open"></i>
         </button>
       </div>
       <button class="btn btn-primary btn-sm w-100" (click)="createNewLibraryResource()" title="Create New Library">
-        <i class="icon-plus me-1"></i>
+        <i class="bi bi-plus me-1"></i>
         Create New Library
       </button>
     </div>
@@ -49,12 +49,12 @@
               <option value="date">Date</option>
             </select>
             <button 
-              class="btn btn-outline-dark btn-sm" 
+              class="btn btn-outline-secondary btn-sm" 
               (click)="changeSorting(librarySortBy)"
               [title]="'Sort ' + (librarySortOrder === 'asc' ? 'Descending' : 'Ascending')"
             >
-              <i class="icon-{{ librarySortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }} me-1"></i>
-              {{ librarySortOrder === 'asc' ? 'Asc' : 'Desc' }}
+              <i class="bi bi-{{ librarySortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }} me-1"></i>
+              <!-- {{ librarySortOrder === 'asc' ? 'Asc' : 'Desc' }} -->
             </button>
           </div>
           
@@ -66,6 +66,7 @@
             title="Items per page"
             style="min-width: 60px;"
           >
+            <option value="1">1</option>
             <option value="5">5</option>
             <option value="10">10</option>
             <option value="20">20</option>
@@ -76,7 +77,7 @@
 
       <!-- Loading State -->
       <div *ngIf="isLoadingLibraries" class="loading-state d-flex align-items-center justify-content-center py-4 text-muted">
-        <i class="icon-loading me-2"></i>
+        <i class="bi bi-arrow-clockwise me-2"></i>
         <span>Loading libraries...</span>
       </div>
 
@@ -91,42 +92,39 @@
             <div class="fw-medium text-truncate text-white">{{ getLibraryDisplayName(library) }}</div>
             <div class="d-flex flex-column gap-1 small text-muted">
               <span class="fw-medium text-info">v{{ getLibraryVersion(library) }}</span>
-              <span class="text-truncate" style="max-width: 150px;">{{ getLibraryDescription(library) }}</span>
             </div>
           </div>
-          <button class="btn btn-outline-info btn-sm" title="Add to Editor">
-            <i class="icon-plus"></i>
+          <button class="btn btn-outline-secondary btn-sm" title="Edit CQL">
+            <i class="bi bi-pencil"></i>
           </button>
         </div>
         
         <!-- Empty State -->
         <div *ngIf="paginatedLibraries.length === 0" class="empty-state d-flex flex-column align-items-center justify-content-center py-4 text-muted">
-          <i class="icon-library fs-1 mb-2"></i>
+          <i class="bi bi-collection fs-1 mb-2"></i>
           <span>No libraries found on server</span>
         </div>
       </div>
 
       <!-- Pagination Controls -->
-      <div *ngIf="!isLoadingLibraries && totalPages > 1" class="pagination-controls border-top pt-3 mt-3 mx-3">
-        <div class="pagination-info text-center small text-muted mb-2">
-          Showing {{ (currentPage - 1) * pageSize + 1 }} to {{ Math.min(currentPage * pageSize, totalLibraries) }} of {{ totalLibraries }} libraries
-        </div>
+      <div *ngIf="!isLoadingLibraries && totalPages > 1" class="pagination-controls pt-3 mt-1 mx-3">
+ 
         
         <div class="pagination-buttons d-flex align-items-center justify-content-center gap-1">
           <button 
-            class="btn btn-outline-secondary btn-sm" 
+            class="btn-pagination" 
             (click)="previousPage()" 
             [disabled]="currentPage === 1"
             title="Previous Page"
           >
-            <i class="icon-chevron-left"></i>
+            <i class="bi bi-chevron-left"></i>
           </button>
           
           <!-- Page Numbers -->
           <div class="page-numbers d-flex align-items-center gap-1">
             <button 
               *ngFor="let page of getPageNumbers()" 
-              class="btn btn-outline-secondary btn-sm" 
+              class="btn-page" 
               [class.active]="page === currentPage"
               [class.ellipsis]="page === '...'"
               (click)="onPageClick(page)"
@@ -138,12 +136,12 @@
           </div>
           
           <button 
-            class="btn btn-outline-secondary btn-sm" 
+            class="btn-pagination" 
             (click)="nextPage()" 
             [disabled]="currentPage === totalPages"
             title="Next Page"
           >
-            <i class="icon-chevron-right"></i>
+            <i class="bi bi-chevron-right"></i>
           </button>
         </div>
       </div>
@@ -152,7 +150,7 @@
 
   <!-- Patient Search and Selection -->
   <div class="mb-3">
-    <div class="px-3 py-2 fw-semibold text-uppercase small text-muted">Patient Focus</div>
+    <div class="px-3 py-2 fw-semibold text-uppercase small text-muted">Patient Context</div>
     
     <!-- Patient Search -->
     <div class="px-3">
@@ -163,7 +161,7 @@
         [(ngModel)]="patientSearchTerm"
         (input)="onPatientSearchInput($event)"
       >
-      <div *ngIf="showPatientSearchResults" class="border rounded bg-secondary">
+      <div *ngIf="showPatientSearchResults" class="border rounded bg-dark">
         <button 
           *ngFor="let patient of patientSearchResults"
           class="btn btn-outline-light rounded-0 w-100 text-start d-flex justify-content-between align-items-center"
@@ -172,20 +170,20 @@
         >
           <div class="flex-fill">
             <strong class="d-block text-white">{{ getPatientDisplayName(patient) }}</strong>
-            <small class="text-muted">{{ patient.id }}</small>
+            <small class="text-muted">ID: {{ patient.id }}</small>
           </div>
-          <i class="icon-{{ patientService.hasPatient(patient.id!) ? 'check' : 'arrow-right' }}"></i>
+          <i class="bi bi-{{ patientService.hasPatient(patient.id!) ? 'check' : 'person' }}" title="Edit CQL"></i>
         </button>
       </div>
     </div>
     
     <!-- Selected Patients Display -->
-    <div *ngIf="patientService.selectedPatients.length > 0" class="border rounded mx-3 bg-secondary">
+    <div *ngIf="patientService.selectedPatients.length > 0" class="border rounded mx-3 bg-dark">
       <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
         <div class="fw-semibold text-info">Selected Patients ({{ patientService.selectedPatients.length }})</div>
-        <button class="btn btn-outline-danger btn-sm" (click)="clearPatientSelection()" title="Clear All Patients">
-          <i class="icon-close me-1"></i>
-          Clear All
+        <button class="btn btn-outline-secondary btn-sm" (click)="clearPatientSelection()" title="Clear All Patients">
+          <i class="bi bi-x me-1"></i>
+          Clear
         </button>
       </div>
       <div *ngFor="let patient of patientService.selectedPatients; trackBy: trackByPatientId" class="d-flex justify-content-between align-items-center p-2 border-bottom">
@@ -193,8 +191,8 @@
           <div class="fw-semibold text-white text-truncate">{{ getPatientDisplayName(patient) }}</div>
           <div class="small text-muted">{{ patient.id }}</div>
         </div>
-        <button class="btn btn-outline-danger btn-sm" (click)="removePatient(patient.id!)" title="Remove Patient">
-          <i class="icon-close"></i>
+        <button class="btn btn-outline-secondary btn-sm" (click)="removePatient(patient.id!)" title="Remove Patient">
+          <i class="bi bi-x"></i>
         </button>
       </div>
     </div>
@@ -210,8 +208,8 @@
         [disabled]="!canExecuteAll() || ideStateService.isEvaluating()"
         title="Execute All"
       >
-        <i class="icon-play me-1" *ngIf="!ideStateService.isEvaluating()"></i>
-        <i class="icon-loading me-1" *ngIf="ideStateService.isEvaluating()"></i>
+        <i class="bi bi-play me-1" *ngIf="!ideStateService.isEvaluating()"></i>
+        <i class="bi bi-arrow-clockwise me-1" *ngIf="ideStateService.isEvaluating()"></i>
         {{ ideStateService.isEvaluating() ? 'Executing...' : 'Execute All' }}
       </button>
     </div>

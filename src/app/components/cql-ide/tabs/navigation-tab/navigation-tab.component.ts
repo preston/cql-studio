@@ -151,12 +151,24 @@ export class NavigationTabComponent implements OnInit {
         this.isLoadingLibraries = false;
         this.paginatedLibraries = bundle.entry ? bundle.entry.map(entry => entry.resource!) : [];
         
-        if (bundle.total) {
+        // Check for next page using FHIR bundle links
+        const hasNextPage = bundle.link?.some(link => link.relation === 'next');
+        const hasPreviousPage = bundle.link?.some(link => link.relation === 'previous');
+        
+        if (bundle.total && bundle.total > 0) {
           this.totalLibraries = bundle.total;
           this.totalPages = Math.ceil(bundle.total / this.pageSize);
         } else {
-          this.totalLibraries = this.paginatedLibraries.length;
-          this.totalPages = 1;
+          // Use FHIR links to determine pagination
+          if (hasNextPage) {
+            // There are more pages, estimate total
+            this.totalLibraries = (this.currentPage * this.pageSize) + 1;
+            this.totalPages = this.currentPage + 1;
+          } else {
+            // No next page, this is the last page
+            this.totalLibraries = (this.currentPage - 1) * this.pageSize + this.paginatedLibraries.length;
+            this.totalPages = this.currentPage;
+          }
         }
       },
       error: (error: any) => {
@@ -349,12 +361,35 @@ export class NavigationTabComponent implements OnInit {
   }
 
   getPatientDisplayName(patient: Patient): string {
+    // Try multiple approaches to get patient name
     if (patient.name && patient.name.length > 0) {
       const name = patient.name[0];
       const given = name.given ? name.given.join(' ') : '';
       const family = name.family || '';
-      return `${given} ${family}`.trim() || patient.id || 'Unknown';
+      const result = `${given} ${family}`.trim();
+      if (result) {
+        return result;
+      }
     }
+    
+    // Try alternative name fields
+    if (patient.text && patient.text.div) {
+      // Extract name from text field if available
+      const textMatch = patient.text.div.match(/<div[^>]*>([^<]+)<\/div>/);
+      if (textMatch && textMatch[1]) {
+        return textMatch[1].trim();
+      }
+    }
+    
+    // Try identifier fields
+    if (patient.identifier && patient.identifier.length > 0) {
+      const identifier = patient.identifier[0];
+      if (identifier.value) {
+        return identifier.value;
+      }
+    }
+    
+    // Fall back to ID
     return patient.id || 'Unknown';
   }
 

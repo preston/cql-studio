@@ -31,7 +31,10 @@
     <app-outline-tab *ngIf="getActiveTab()?.type === 'outline'"></app-outline-tab>
     
     <!-- FHIR Tab -->
-    <app-fhir-tab *ngIf="getActiveTab()?.type === 'fhir'"></app-fhir-tab>
+    <app-fhir-tab 
+      *ngIf="getActiveTab()?.type === 'fhir'"
+      (deleteLibrary)="onDeleteLibraryFromServer()">
+    </app-fhir-tab>
     
     <!-- ELM Tab -->
     <app-elm-tab *ngIf="getActiveTab()?.type === 'elm'"></app-elm-tab>
