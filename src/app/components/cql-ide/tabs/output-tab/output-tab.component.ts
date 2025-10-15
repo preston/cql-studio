@@ -5,11 +5,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { OutputSection } from '../../shared/ide-types';
+import { SyntaxHighlighterComponent } from '../../../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-output-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SyntaxHighlighterComponent],
   templateUrl: './output-tab.component.html',
   styleUrls: ['./output-tab.component.scss']
 })
@@ -33,6 +34,7 @@ export class OutputTabComponent implements OnInit {
 
   ngOnInit(): void {
     // Component initialization
+    this.updateAllSectionsExpandedState();
   }
 
   onClearOutput(): void {
@@ -45,6 +47,14 @@ export class OutputTabComponent implements OnInit {
 
   onToggleAllSections(): void {
     this.allSectionsExpanded = !this.allSectionsExpanded;
+    
+    // Update all sections with the new expanded state
+    const sections = this.outputSections().map(section => ({
+      ...section,
+      expanded: this.allSectionsExpanded
+    }));
+    
+    this.ideStateService.setOutputSections(sections);
     this.toggleAllSections.emit();
   }
 
@@ -53,6 +63,18 @@ export class OutputTabComponent implements OnInit {
       const sections = [...this.outputSections()];
       sections[index] = { ...sections[index], expanded: !sections[index].expanded };
       this.ideStateService.setOutputSections(sections);
+      
+      // Update allSectionsExpanded state based on current sections
+      this.updateAllSectionsExpandedState();
+    }
+  }
+
+  private updateAllSectionsExpandedState(): void {
+    const sections = this.outputSections();
+    if (sections.length === 0) {
+      this.allSectionsExpanded = false;
+    } else {
+      this.allSectionsExpanded = sections.every(section => section.expanded);
     }
   }
 

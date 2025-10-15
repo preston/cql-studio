@@ -28,6 +28,7 @@
       <!-- CQL Editor -->
       <div class="editor-area">
         <app-cql-editor
+          #cqlEditor
           *ngIf="ideStateService.activeLibraryId()"
           [editorState]="ideStateService.editorState()"
           [content]="getActiveLibraryContent()"
@@ -35,6 +36,7 @@
           [height]="'100%'"
           [readonly]="false"
           [cqlVersion]="'1.5.3'"
+          [isNewLibrary]="isActiveLibraryNew()"
           (contentChange)="onEditorContentChange($event)"
           (syntaxErrors)="onEditorSyntaxErrors($event)"
           (executeLibrary)="onExecuteLibrary()"

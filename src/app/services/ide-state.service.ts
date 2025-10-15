@@ -213,11 +213,18 @@ export class IdeStateService {
   }
 
   setOutputSections(sections: OutputSection[]): void {
+    // setOutputSections should always replace the sections (used for state updates like expand/collapse)
     this._outputSections.set(sections);
   }
 
   addOutputSection(section: OutputSection): void {
-    this._outputSections.update(sections => [...sections, section]);
+    // If preserveLogs is false, clear existing content before adding new section
+    if (!this._preserveLogs()) {
+      this._outputSections.set([section]);
+    } else {
+      // If preserveLogs is true, append to existing sections
+      this._outputSections.update(sections => [...sections, section]);
+    }
   }
 
   clearOutputSections(): void {
@@ -324,6 +331,25 @@ export class IdeStateService {
   updateLibraryResource(libraryId: string, updates: Partial<LibraryResource>): void {
     this._libraryResources.update(resources => 
       resources.map(r => r.id === libraryId ? { ...r, ...updates } : r)
+    );
+  }
+
+  reorderLibraryResources(fromIndex: number, toIndex: number): void {
+    this._libraryResources.update(resources => {
+      const newResources = [...resources];
+      const [movedResource] = newResources.splice(fromIndex, 1);
+      newResources.splice(toIndex, 0, movedResource);
+      return newResources;
+    });
+  }
+
+  revertLibraryContentToOriginal(libraryId: string): void {
+    this._libraryResources.update(resources => 
+      resources.map(r => r.id === libraryId ? { 
+        ...r, 
+        cqlContent: r.originalContent,
+        isDirty: false 
+      } : r)
     );
   }
 

@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
@@ -12,6 +12,7 @@ import { bracketMatching } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { CqlGrammarManager, CqlVersion } from '../../../../services/cql-grammar-manager.service';
 import { IdeEditor, EditorState as IdeEditorState } from '../base-editor.interface';
+import { IdeStateService } from '../../../../services/ide-state.service';
 
 // Custom highlight style for dark theme
 const darkHighlightStyle = {
@@ -56,6 +57,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
   @Input() height: string = '500px';
   @Input() readonly: boolean = false;
   @Input() cqlVersion: CqlVersion = '1.5.3';
+  @Input() isNewLibrary: boolean = false;
   
   @Output() contentChange = new EventEmitter<{ cursorPosition: { line: number; column: number }, wordCount: number }>();
   @Output() cursorChange = new EventEmitter<{ line: number; column: number }>();
@@ -80,9 +82,8 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
 
   // Toolbar properties
   isExecuting: boolean = false;
-  isNewLibrary: boolean = false;
 
-  constructor() {
+  constructor(private cdr: ChangeDetectorRef, private ideStateService: IdeStateService) {
     this.grammarManager = new CqlGrammarManager(this.cqlVersion);
   }
 
@@ -106,6 +107,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
       this.grammarManager.setVersion(this.cqlVersion);
       this.reinitializeEditor();
     }
+    
     
     if (changes['content']) {
       // Only process if content actually changed
@@ -494,8 +496,17 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
 
   // Toolbar methods
   canExecute(): boolean {
-    return this._value.trim().length > 0;
+    const hasContent = this._value.trim().length > 0;
+    if (!hasContent) return false;
+    
+    // Calculate dirty state directly
+    const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    if (!activeLibrary) return false;
+    
+    const isDirty = this._value !== activeLibrary.originalContent;
+    return !isDirty;
   }
+
 
   isFormValid(): boolean {
     return this._value.trim().length > 0;

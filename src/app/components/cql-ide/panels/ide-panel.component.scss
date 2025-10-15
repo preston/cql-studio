@@ -61,21 +61,21 @@
   right: -3px;
   top: 0;
   bottom: 0;
-  width: 6px;
+  width: 8px;
 }
 
 .right-panel .resize-handle {
   left: -3px;
   top: 0;
   bottom: 0;
-  width: 6px;
+  width: 8px;
 }
 
 .bottom-panel .resize-handle {
   top: -3px;
   left: 0;
   right: 0;
-  height: 6px;
+  height: 8px;
   cursor: row-resize;
 }
 
@@ -86,8 +86,11 @@
 
 .btn:not(.active) {
   background-color: theme.$ide-bg-primary !important;
-  color: theme.$ide-text-white !important;
   border-color: theme.$ide-border !important;
+}
+
+.btn.active {
+  color: theme.$ide-text-white !important;
 }
 
 .btn:hover {

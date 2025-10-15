@@ -10,6 +10,7 @@ import { SettingsService } from '../../services/settings.service';
 import { interval, Subscription } from 'rxjs';
 import { switchMap, takeWhile } from 'rxjs/operators';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
+import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
 
 // Import CodeMirror
 import { EditorView, basicSetup } from 'codemirror';
@@ -19,7 +20,7 @@ import { json } from '@codemirror/lang-json';
 @Component({
   selector: 'app-runner',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SyntaxHighlighterComponent],
   templateUrl: './runner.component.html',
   styleUrl: './runner.component.scss'
 })

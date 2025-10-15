@@ -45,6 +45,7 @@ export class IdePanelComponent {
   @Output() executeAll = new EventEmitter<void>();
 
   @ViewChild('panelElement', { static: false }) panelElement?: ElementRef<HTMLDivElement>;
+  @ViewChild(NavigationTabComponent, { static: false }) navigationTab?: NavigationTabComponent;
 
   constructor(
     public ideStateService: IdeStateService,
@@ -136,6 +137,11 @@ export class IdePanelComponent {
             this.ideStateService.removeLibraryResource(activeLibraryId);
             // Clear the active library
             this.ideStateService.selectLibraryResource('');
+            
+            // Refresh the navigation-tab's library list to reflect the deletion
+            if (this.navigationTab) {
+              this.navigationTab.loadPaginatedLibraries();
+            }
           },
           error: (error) => {
             console.error('Error deleting library from server:', error);

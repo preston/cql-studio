@@ -70,7 +70,7 @@ export class OpenComponent implements OnInit {
   }
 
   onLoadUrlExample(): void {
-    this.loadFromUrl(this.settingsService.getEffectiveTestResultsIndexUrl());
+    this.loadFromUrl('/examples/results.json');
   }
 
 

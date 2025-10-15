@@ -13,8 +13,10 @@ export interface EditorFile {
 export interface LibraryResource {
   id: string;
   name: string;
+  title?: string;
   version: string;
   description: string;
+  url?: string;
   cqlContent: string;
   originalContent: string;
   isActive: boolean;

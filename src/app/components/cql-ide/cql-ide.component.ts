@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { IdeStateService } from '../../services/ide-state.service';
@@ -10,6 +10,7 @@ import { PatientService } from '../../services/patient.service';
 import { TranslationService } from '../../services/translation.service';
 import { CqlExecutionService } from '../../services/cql-execution.service';
 import { SettingsService } from '../../services/settings.service';
+import { Library } from 'fhir/r4';
 import { KeyboardShortcut } from './shared/ide-types';
 
 // Import all the new components
@@ -32,6 +33,8 @@ import { EditorTabsComponent } from './editors/editor-tabs/editor-tabs.component
   styleUrls: ['./cql-ide.component.scss']
 })
 export class CqlIdeComponent implements OnInit, OnDestroy {
+  @ViewChild('cqlEditor') cqlEditor?: CqlEditorComponent;
+  
   // Simple state properties
   leftPanelVisible = true;
   rightPanelVisible = true;
@@ -43,6 +46,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   // Cached content to prevent loops
   private _cachedContent: string = '';
   private _lastActiveLibraryId: string | null = null;
+  private _contentRefreshTrigger = 0;
 
   constructor(
     private router: Router,
@@ -219,20 +223,50 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
 
   getActiveLibraryContent(): string {
     const currentActiveLibraryId = this.ideStateService.activeLibraryId();
+    const activeLibrary = this.ideStateService.getActiveLibraryResource();
     
-    // Only update cache if the active library has changed
-    if (currentActiveLibraryId !== this._lastActiveLibraryId) {
-      const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    // Update cache if the active library has changed OR if we're forcing a refresh
+    if (currentActiveLibraryId !== this._lastActiveLibraryId || this._lastActiveLibraryId === null || this._contentRefreshTrigger > 0) {
       this._cachedContent = activeLibrary?.cqlContent || '';
       this._lastActiveLibraryId = currentActiveLibraryId;
-      console.log('getActiveLibraryContent updated cache:', { 
-        activeLibraryId: currentActiveLibraryId,
-        content: this._cachedContent.substring(0, 100) + '...',
-        contentLength: this._cachedContent.length 
-      });
+      
+      // Reset the refresh trigger after using it
+      if (this._contentRefreshTrigger > 0) {
+        this._contentRefreshTrigger = 0;
+      }
     }
     
     return this._cachedContent;
+  }
+
+  isActiveLibraryNew(): boolean {
+    const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    // A library is considered "new" if it doesn't have a corresponding FHIR library object
+    // or if it's marked as dirty (has unsaved changes)
+    return !activeLibrary?.library || activeLibrary.isDirty;
+  }
+
+
+  private forceContentRefresh(): void {
+    console.log('forceContentRefresh called - before:', {
+      lastActiveLibraryId: this._lastActiveLibraryId,
+      cachedContent: this._cachedContent.substring(0, 100) + '...',
+      refreshTrigger: this._contentRefreshTrigger
+    });
+    
+    // Force cache refresh by incrementing trigger and clearing cached content
+    this._contentRefreshTrigger++;
+    this._lastActiveLibraryId = null;
+    // Force content refresh by clearing cached content
+    this._cachedContent = '';
+    
+    console.log('forceContentRefresh called - after:', {
+      lastActiveLibraryId: this._lastActiveLibraryId,
+      cachedContent: this._cachedContent.substring(0, 100) + '...',
+      contentLength: this._cachedContent.length,
+      activeLibraryId: this.ideStateService.activeLibraryId(),
+      refreshTrigger: this._contentRefreshTrigger
+    });
   }
 
   onLibraryVersionChange(version: string): void {
@@ -246,17 +280,88 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   onSaveLibrary(): void {
-    // Handle save library
-    console.log('Saving library');
+    const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    if (!activeLibrary) {
+      console.warn('No active library to save');
+      return;
+    }
+
+    // Get the current content from the editor
+    const currentContent = this.cqlEditor?.getValue() || '';
+    if (!currentContent.trim()) {
+      console.warn('No content to save');
+      return;
+    }
+
+    console.log('Saving library:', activeLibrary.id);
+    this.ideStateService.setExecutionStatus('Translating CQL to ELM...');
+    this.ideStateService.setTranslating(true);
+
+    // Get the translation service base URL from settings
+    const baseUrl = this.settingsService.getEffectiveTranslationBaseUrl();
+    if (!baseUrl) {
+      console.error('Translation service base URL not configured');
+      this.ideStateService.setExecutionStatus('Translation service not configured');
+      this.ideStateService.setTranslating(false);
+      return;
+    }
+
+    // Translate CQL to ELM using the translation service
+    this.translationService.translateCqlToElm(currentContent, baseUrl).subscribe({
+      next: (elmXml) => {
+        console.log('Translation successful');
+        this.ideStateService.setTranslating(false);
+        this.ideStateService.setExecutionStatus('Saving library...');
+
+    // Update the library resource with current content
+    this.ideStateService.updateLibraryResource(activeLibrary.id, {
+      cqlContent: currentContent,
+      isDirty: false
+    });
+
+        // Check if this is a new library (no FHIR library object) or existing library
+        // Also check if the ID has changed (which requires creating a new library)
+        const hasExistingLibrary = activeLibrary.library && activeLibrary.library.id;
+        const idHasChanged = hasExistingLibrary && activeLibrary.library && activeLibrary.library.id !== activeLibrary.id;
+        
+        if (hasExistingLibrary && !idHasChanged) {
+          // Update existing library (ID hasn't changed)
+          this.updateExistingLibrary(activeLibrary.library, currentContent, elmXml);
+        } else {
+          // Create new library (either no existing library or ID has changed)
+          this.createNewLibrary(activeLibrary, currentContent, elmXml);
+        }
+      },
+      error: (error) => {
+        console.error('Translation failed:', error);
+        this.ideStateService.setTranslating(false);
+        this.ideStateService.setExecutionStatus('Translation failed');
+        
+        // Mark as dirty again since save failed
+        this.ideStateService.updateLibraryResource(activeLibrary.id, {
+          isDirty: true
+        });
+        
+        // Clear error status after a short delay
+        setTimeout(() => {
+          this.ideStateService.setExecutionStatus('');
+        }, 3000);
+      }
+    });
   }
 
   onDeleteLibrary(libraryId: string): void {
     // If this was the active library, clear the active library first
+    // This will destroy the editor component and discard any unsaved changes
     if (this.ideStateService.activeLibraryId() === libraryId) {
       this.ideStateService.selectLibraryResource('');
+      // Clear the content cache to ensure dirty content is not retained
+      this._cachedContent = '';
+      this._lastActiveLibraryId = null;
     }
     
     // Remove library from the state service
+    // This discards any dirty content and removes the library from memory
     this.ideStateService.removeLibraryResource(libraryId);
   }
 
@@ -333,6 +438,26 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       cursorPosition: event.cursorPosition,
       wordCount: event.wordCount
     });
+    
+    // Only mark as dirty if content actually differs from original
+    const activeLibraryId = this.ideStateService.activeLibraryId();
+    if (activeLibraryId) {
+      const activeLibrary = this.ideStateService.getActiveLibraryResource();
+      if (activeLibrary) {
+        // Get current content from editor
+        const currentContent = this.cqlEditor?.getValue() || '';
+        const isDirty = currentContent !== activeLibrary.originalContent;
+        
+        // Only update if dirty state has changed
+        if (activeLibrary.isDirty !== isDirty) {
+          this.ideStateService.updateLibraryResource(activeLibraryId, {
+            cqlContent: currentContent,
+            isDirty: isDirty
+          });
+        }
+      }
+    }
+    
     // Invalidate cache when content changes
     this._lastActiveLibraryId = null;
   }
@@ -380,8 +505,88 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   onReloadLibrary(): void {
-    console.log('Reload library');
-    // TODO: Implement library reload
+    const activeLibraryId = this.ideStateService.activeLibraryId();
+    if (!activeLibraryId) {
+      console.warn('No active library to reload');
+      return;
+    }
+
+    console.log('Reloading library:', activeLibraryId);
+    
+    // Show loading state
+    this.ideStateService.setExecutionStatus('Reloading library...');
+    
+    // Fetch the library from the server
+    this.libraryService.get(activeLibraryId).subscribe({
+      next: (library: any) => {
+        console.log('Library reloaded from server:', library);
+        
+        // Extract CQL content from the FHIR library
+        let cqlContent = '';
+        if (library.content) {
+          for (const content of library.content) {
+            if (content.contentType === 'text/cql' && content.data) {
+              try {
+                cqlContent = atob(content.data);
+                break;
+              } catch (e) {
+                console.error('Error decoding CQL content:', e);
+              }
+            }
+          }
+        }
+        
+        // Update the library resource with fresh content
+        const libraryResource = this.ideStateService.getActiveLibraryResource();
+        if (libraryResource) {
+          console.log('Before update - library resource:', {
+            id: libraryResource.id,
+            currentContent: libraryResource.cqlContent.substring(0, 100) + '...',
+            newContent: cqlContent.substring(0, 100) + '...'
+          });
+          
+          this.ideStateService.updateLibraryResource(activeLibraryId, {
+            cqlContent: cqlContent,
+            originalContent: cqlContent,
+            isDirty: false,
+            library: library
+          });
+          
+          // Force content refresh to update the editor
+          this.forceContentRefresh();
+          
+          // Directly update the editor content if available
+          if (this.cqlEditor) {
+            console.log('Directly updating CQL editor content');
+            this.cqlEditor.setValue(cqlContent);
+          }
+          
+          console.log('After update - library content updated:', {
+            contentLength: cqlContent.length,
+            content: cqlContent.substring(0, 100) + '...',
+            cachedContent: this._cachedContent.substring(0, 100) + '...'
+          });
+        } else {
+          console.error('No active library resource found for reload');
+        }
+        
+        this.ideStateService.setExecutionStatus('Library reloaded successfully');
+        
+        // Clear status after a short delay
+        setTimeout(() => {
+          this.ideStateService.setExecutionStatus('');
+        }, 2000);
+      },
+      error: (error) => {
+        console.error('Failed to reload library:', error);
+        this.ideStateService.setExecutionStatus('Failed to reload library');
+        
+        // Clear error status after a short delay
+        setTimeout(() => {
+          this.ideStateService.setExecutionStatus('');
+        }, 3000);
+      }
+    });
   }
 
   onCqlVersionChange(version: string): void {
@@ -397,6 +602,203 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   onValidateCql(): void {
     console.log('Validate CQL');
     // TODO: Implement CQL validation
+  }
+
+  // Library save helper methods
+  private updateExistingLibrary(library: any, cqlContent: string, elmXml: string): void {
+    // Get the current library resource to get the latest metadata
+    const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    
+    // Update the library's CQL content and metadata
+    const updatedLibrary = {
+      ...library,
+      id: activeLibrary?.id || library.id, // Use the current ID (which might have changed)
+      name: activeLibrary?.name || library.name,
+      title: activeLibrary?.title || library.title,
+      version: activeLibrary?.version || library.version || '1.0.0',
+      description: activeLibrary?.description || library.description,
+      url: activeLibrary?.url || library.url || this.libraryService.urlFor(activeLibrary?.id || library.id),
+      content: [
+        {
+          contentType: 'text/cql',
+          data: btoa(cqlContent)
+        },
+        {
+          contentType: 'application/elm+xml',
+          data: btoa(elmXml)
+        }
+      ]
+    };
+
+    this.libraryService.put(updatedLibrary).subscribe({
+      next: (savedLibrary) => {
+        console.log('Library updated successfully:', savedLibrary);
+        this.ideStateService.setExecutionStatus('Library saved successfully');
+        
+        // Update the library resource with the saved library
+        // Also update originalContent to reflect the saved content
+        // Refresh URL to ensure it's up to date
+        const currentId = this.ideStateService.activeLibraryId()!;
+        const refreshedUrl = this.libraryService.urlFor(currentId);
+        
+        this.ideStateService.updateLibraryResource(currentId, {
+          url: refreshedUrl,
+          library: savedLibrary,
+          originalContent: cqlContent,
+          isDirty: false
+        });
+        
+        // Force content refresh to update the cache
+        this.forceContentRefresh();
+        
+        // Clear status after a short delay
+        setTimeout(() => {
+          this.ideStateService.setExecutionStatus('');
+        }, 2000);
+      },
+      error: (error) => {
+        console.error('Failed to update library:', error);
+        this.ideStateService.setExecutionStatus('Failed to save library');
+        
+        // Mark as dirty again since save failed
+        this.ideStateService.updateLibraryResource(this.ideStateService.activeLibraryId()!, {
+          isDirty: true
+        });
+        
+        // Clear error status after a short delay
+        setTimeout(() => {
+          this.ideStateService.setExecutionStatus('');
+        }, 3000);
+      }
+    });
+  }
+
+  private createNewLibrary(libraryResource: any, cqlContent: string, elmXml: string): void {
+    // Create a new FHIR Library resource
+    const newLibrary: Library = {
+      resourceType: 'Library' as const,
+      name: libraryResource.name || libraryResource.id,
+      title: libraryResource.title || libraryResource.name || libraryResource.id,
+      version: libraryResource.version || '1.0.0',
+      status: 'active' as const,
+      url: libraryResource.url || this.libraryService.urlFor(libraryResource.id),
+      type: {
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/library-type',
+            code: 'logic-library',
+            display: 'Logic Library'
+          }
+        ]
+      },
+      content: [
+        {
+          contentType: 'text/cql',
+          data: btoa(cqlContent)
+        },
+        {
+          contentType: 'application/elm+xml',
+          data: btoa(elmXml)
+        }
+      ],
+      description: libraryResource.description || `Library ${libraryResource.name || libraryResource.id}`
+    };
+
+    this.libraryService.post(newLibrary).subscribe({
+      next: (savedLibrary) => {
+        console.log('Library created successfully:', savedLibrary);
+        this.ideStateService.setExecutionStatus('Updating library with server-assigned ID...');
+        
+        // Get the server-assigned ID
+        const serverAssignedId = savedLibrary.id;
+        if (serverAssignedId && serverAssignedId !== libraryResource.id) {
+          // Update the library with the server-assigned ID and correct URL
+          const updatedLibrary = {
+            ...savedLibrary,
+            url: this.libraryService.urlFor(serverAssignedId)
+          };
+          
+          // Save again with the corrected URL
+          this.libraryService.put(updatedLibrary).subscribe({
+            next: (finalLibrary) => {
+              console.log('Library updated with correct URL:', finalLibrary);
+              this.ideStateService.setExecutionStatus('Library saved successfully');
+              
+              // Update the library resource with the final library data
+              this.ideStateService.updateLibraryResource(libraryResource.id, {
+                id: serverAssignedId,
+                url: this.libraryService.urlFor(serverAssignedId),
+                library: finalLibrary,
+                originalContent: cqlContent,
+                isDirty: false
+              });
+              
+              // Update the active library ID to point to the server-assigned ID
+              this.ideStateService.selectLibraryResource(serverAssignedId);
+              
+              // Force content refresh to update the cache
+              this.forceContentRefresh();
+              
+              // Clear status after a short delay
+              setTimeout(() => {
+                this.ideStateService.setExecutionStatus('');
+              }, 2000);
+            },
+            error: (error) => {
+              console.error('Failed to update library with correct URL:', error);
+              this.ideStateService.setExecutionStatus('Failed to update library URL');
+              
+              // Still update with the server-assigned ID even if URL update failed
+              this.ideStateService.updateLibraryResource(libraryResource.id, {
+                id: serverAssignedId,
+                url: this.libraryService.urlFor(serverAssignedId),
+                library: savedLibrary,
+                originalContent: cqlContent,
+                isDirty: false
+              });
+              
+              this.ideStateService.selectLibraryResource(serverAssignedId);
+              
+              setTimeout(() => {
+                this.ideStateService.setExecutionStatus('');
+              }, 3000);
+            }
+          });
+        } else {
+          // No server-assigned ID change, just update normally
+          this.ideStateService.setExecutionStatus('Library saved successfully');
+          
+          this.ideStateService.updateLibraryResource(libraryResource.id, {
+            url: this.libraryService.urlFor(libraryResource.id),
+            library: savedLibrary,
+            originalContent: cqlContent,
+            isDirty: false
+          });
+          
+          // Force content refresh to update the cache
+          this.forceContentRefresh();
+          
+          // Clear status after a short delay
+          setTimeout(() => {
+            this.ideStateService.setExecutionStatus('');
+          }, 2000);
+        }
+      },
+      error: (error) => {
+        console.error('Failed to create library:', error);
+        this.ideStateService.setExecutionStatus('Failed to save library');
+        
+        // Mark as dirty again since save failed
+        this.ideStateService.updateLibraryResource(libraryResource.id, {
+          isDirty: true
+        });
+        
+        // Clear error status after a short delay
+        setTimeout(() => {
+          this.ideStateService.setExecutionStatus('');
+        }, 3000);
+      }
+    });
   }
 
   // Helper methods for output formatting
@@ -439,31 +841,25 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     
     if (hasPatientResults) {
       // Multiple patients
-      output += `=== Library Execution Results for ${results.length} Patient(s) ===\n\n`;
-      
       results.forEach((result, index) => {
         output += `--- Patient ${index + 1}: ${result.patientName || result.patientId} (${result.patientId}) ---\n`;
         
         if (result.error) {
-          output += `ERROR: ${JSON.stringify(result.error, null, 2)}\n\n`;
+          output += `${JSON.stringify(result.error, null, 2)}\n\n`;
         } else {
-          output += `RESULT: ${JSON.stringify(result.result, null, 2)}\n\n`;
+          output += `${JSON.stringify(result.result, null, 2)}\n\n`;
         }
       });
     } else {
       // Single execution without patient
-      output += `=== Library Execution Results ===\n\n`;
-      
       results.forEach((result, index) => {
         if (result.error) {
-          output += `ERROR: ${JSON.stringify(result.error, null, 2)}\n\n`;
+          output += `${JSON.stringify(result.error, null, 2)}\n\n`;
         } else {
-          output += `RESULT: ${JSON.stringify(result.result, null, 2)}\n\n`;
+          output += `${JSON.stringify(result.result, null, 2)}\n\n`;
         }
       });
     }
-    
-    output += `Execution completed at: ${new Date().toLocaleString()}\n`;
     
     return output;
   }
@@ -482,7 +878,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       { key: 'F5', description: 'Execute Active Library' },
       { 
         key: 'F6', 
-        description: 'Execute All Libraries' 
+        description: 'Execute All Open Libraries' 
       },
       { 
         key: isMac ? '⌘+⌥+W' : 'Ctrl+W', 

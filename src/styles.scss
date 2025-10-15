@@ -4,6 +4,9 @@
 // Import Bootstrap
 @use 'bootstrap/scss/bootstrap';
 
+// Import PrismJS theme overrides
+@use 'app/styles/prism-theme';
+
 body:has([data-bs-theme=light]) {
   background: url("/images/textures/crossword.png") repeat;
 

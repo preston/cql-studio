@@ -11,6 +11,7 @@ import { FileLoaderService } from '../../services/file-loader.service';
 import { SchemaValidationService } from '../../services/schema-validation.service';
 import { SettingsService } from '../../services/settings.service';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
+import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
 import { 
   StatusFilter, 
   GroupByOption, 
@@ -41,7 +42,7 @@ Chart.register(...registerables);
 @Component({
   selector: 'app-results-viewer',
   standalone: true,
-  imports: [CommonModule, FormsModule, BaseChartDirective],
+  imports: [CommonModule, FormsModule, BaseChartDirective, SyntaxHighlighterComponent],
   templateUrl: './results-viewer.component.html',
   styleUrl: './results-viewer.component.scss'
 })

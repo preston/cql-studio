@@ -9,23 +9,16 @@ import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
+import { SyntaxHighlighterComponent } from '../../../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-fhir-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SyntaxHighlighterComponent],
   templateUrl: './fhir-tab.component.html',
   styleUrls: ['./fhir-tab.component.scss']
 })
 export class FhirTabComponent {
-  @Input() libraryId: string = '';
-  @Input() libraryVersion: string = '0.0.0';
-  @Input() libraryDescription: string = '';
-  @Input() isNewLibrary: boolean = false;
-  
-  @Output() libraryIdChange = new EventEmitter<string>();
-  @Output() libraryVersionChange = new EventEmitter<string>();
-  @Output() libraryDescriptionChange = new EventEmitter<string>();
   @Output() saveLibrary = new EventEmitter<void>();
   @Output() deleteLibrary = new EventEmitter<void>();
 
@@ -37,21 +30,107 @@ export class FhirTabComponent {
     public router: Router
   ) {}
 
-  public hasSelectedLibrary = computed(() => this.libraryId && this.libraryId.trim() !== '');
+  public activeLibrary = computed(() => this.ideStateService.getActiveLibraryResource());
+  public hasSelectedLibrary = computed(() => !!this.activeLibrary());
   public hasSelectedPatients = computed(() => this.patientService.selectedPatients.length > 0);
   public selectedPatients = computed(() => this.patientService.selectedPatients);
   public fhirServerUrl = computed(() => this.settingsService.getEffectiveFhirBaseUrl());
 
   onLibraryIdChange(value: string): void {
-    this.libraryIdChange.emit(value);
+    const activeLibrary = this.activeLibrary();
+    if (activeLibrary) {
+      const trimmedValue = value.trim();
+      
+      // Don't update if the value is empty or the same as current ID
+      if (!trimmedValue || trimmedValue === activeLibrary.id) {
+        return;
+      }
+      
+      const oldId = activeLibrary.id;
+      const newId = trimmedValue;
+      
+      // Generate new URL for the new ID
+      const newUrl = this.libraryService.urlFor(newId);
+      
+      // Update the library resource with new ID and URL
+      this.ideStateService.updateLibraryResource(oldId, { 
+        id: newId,
+        url: newUrl
+      });
+      
+      // Update the active library ID to point to the new ID
+      this.ideStateService.selectLibraryResource(newId);
+      
+      // Trigger a save operation to persist the changes to the server
+      this.saveLibrary.emit();
+    }
   }
 
   onLibraryVersionChange(value: string): void {
-    this.libraryVersionChange.emit(value);
+    const activeLibrary = this.activeLibrary();
+    if (activeLibrary) {
+      this.ideStateService.updateLibraryResource(activeLibrary.id, { version: value });
+      // Trigger a save operation to persist the changes to the server
+      this.saveLibrary.emit();
+    }
   }
 
   onLibraryDescriptionChange(value: string): void {
-    this.libraryDescriptionChange.emit(value);
+    const activeLibrary = this.activeLibrary();
+    if (activeLibrary) {
+      this.ideStateService.updateLibraryResource(activeLibrary.id, { description: value });
+      // Trigger a save operation to persist the changes to the server
+      this.saveLibrary.emit();
+    }
+  }
+
+  onLibraryNameInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+    
+    // Remove invalid characters (only allow letters, numbers, hyphens, and underscores)
+    const validValue = value.replace(/[^-a-zA-Z0-9_]/g, '');
+    
+    // Update the input value if it was changed
+    if (validValue !== value) {
+      input.value = validValue;
+      // Trigger the ngModelChange to update the component state
+      this.onLibraryNameChange(validValue);
+    }
+    
+    // Add visual feedback
+    this.updateInputValidation(input, validValue);
+  }
+
+  private updateInputValidation(input: HTMLInputElement, value: string): void {
+    // Remove existing validation classes
+    input.classList.remove('is-valid', 'is-invalid');
+    
+    // Add validation class based on value
+    if (value.length > 0) {
+      // Check if the value matches the valid pattern
+      const isValid = /^[-a-zA-Z0-9_]+$/.test(value);
+      input.classList.add(isValid ? 'is-valid' : 'is-invalid');
+    }
+  }
+
+  onLibraryNameChange(value: string): void {
+    const activeLibrary = this.activeLibrary();
+    if (activeLibrary) {
+      // Update only the name, not the ID
+      this.ideStateService.updateLibraryResource(activeLibrary.id, { name: value });
+      // Trigger a save operation to persist the changes to the server
+      this.saveLibrary.emit();
+    }
+  }
+
+  onLibraryTitleChange(value: string): void {
+    const activeLibrary = this.activeLibrary();
+    if (activeLibrary) {
+      this.ideStateService.updateLibraryResource(activeLibrary.id, { title: value });
+      // Trigger a save operation to persist the changes to the server
+      this.saveLibrary.emit();
+    }
   }
 
   onSaveLibrary(): void {
@@ -67,17 +146,17 @@ export class FhirTabComponent {
   }
 
   libraryAsString(): string {
-    const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    const activeLibrary = this.activeLibrary();
     if (!activeLibrary) return '';
 
     const libraryCopy = { ...activeLibrary.library };
     if (libraryCopy) {
-      libraryCopy.id = this.libraryId || '';
-      libraryCopy.name = this.libraryId || '';
-      libraryCopy.title = this.libraryId || '';
-      libraryCopy.version = this.libraryVersion || '';
-      libraryCopy.description = this.libraryDescription || '';
-      libraryCopy.url = this.libraryService.urlFor(this.libraryId || '');
+      libraryCopy.id = activeLibrary.id || '';
+      libraryCopy.name = activeLibrary.name || '';
+      libraryCopy.title = activeLibrary.title || activeLibrary.name || '';
+      libraryCopy.version = activeLibrary.version || '';
+      libraryCopy.description = activeLibrary.description || '';
+      libraryCopy.url = activeLibrary.url || this.libraryService.urlFor(activeLibrary.id || '');
       
       if (activeLibrary.cqlContent && activeLibrary.cqlContent.trim()) {
         libraryCopy.content = [{

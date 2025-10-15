@@ -47,7 +47,7 @@
         </div>
         
         <div *ngIf="!isTranslating && elmTranslationResults">
-          <pre class="mb-0 small text-light">{{ elmTranslationResultsAsString() }}</pre>
+          <app-syntax-highlighter [code]="elmTranslationResultsAsString()" [language]="'xml'"></app-syntax-highlighter>
         </div>
       </div>
     </div>

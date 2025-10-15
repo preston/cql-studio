@@ -33,13 +33,13 @@
           <span class="small text-muted" *ngIf="section.executionTime">{{ section.executionTime }}ms</span>
         </div>
         <div class="p-3 bg-dark" *ngIf="section.expanded">
-          <pre class="mb-0 small text-light">{{ section.content }}</pre>
+          <app-syntax-highlighter [code]="section.content" [language]="'json'"></app-syntax-highlighter>
         </div>
       </div>
     </div>
     <div *ngIf="outputSections().length === 0 && !isEvaluating"
       class="no-output d-flex flex-column align-items-center justify-content-center py-4 text-muted">
-      <span>No output yet. Click "Execute All" to run libraries.</span>
+      <span>No output yet. Click "Execute All" to run open libraries.</span>
     </div>
     <div *ngIf="isEvaluating" class="p-3 border-top bg-secondary">
       <div class="progress mb-2">

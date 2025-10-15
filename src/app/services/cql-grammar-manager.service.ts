@@ -229,7 +229,6 @@ export class CqlGrammarManager {
         // Comments
         if (stream.match('//')) {
           stream.skipToEnd();
-          console.log('CQL Grammar: Matched single-line comment');
           return 'comment';
         }
         
@@ -250,7 +249,6 @@ export class CqlGrammarManager {
             }
             stream.next();
           }
-          console.log('CQL Grammar: Matched string');
           return 'string';
         }
         
@@ -268,7 +266,6 @@ export class CqlGrammarManager {
         const keywordPattern = new RegExp(`\\b(${grammar.keywords.join('|')})\\b`);
         if (stream.match(keywordPattern)) {
           const keyword = stream.current();
-          console.log('CQL Grammar: Matched keyword:', keyword);
           return 'keyword';
         }
         
@@ -311,8 +308,6 @@ export class CqlGrammarManager {
     });
 
 
-    console.log('CQL Grammar: Creating language support for version', grammar.version);
-    console.log('CQL Grammar: Token table:', tokenTable);
     
     // Create custom highlighting style for CQL with lighter, more readable colors
     const cqlHighlightStyle = HighlightStyle.define([

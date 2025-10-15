@@ -511,7 +511,7 @@
               @if (jobStatus()!.results) {
                 <div class="mt-3">
                   <h6>Results Preview</h6>
-                  <pre class="bg-light p-3 rounded"><code>{{ jobStatus()!.results | json }}</code></pre>
+                  <app-syntax-highlighter [code]="jobStatus()!.results | json" [language]="'json'"></app-syntax-highlighter>
                 </div>
               }
             }

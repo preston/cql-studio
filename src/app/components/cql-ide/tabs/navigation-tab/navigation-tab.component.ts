@@ -7,6 +7,7 @@ import { Library, Patient, Bundle } from 'fhir/r4';
 import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
 import { IdeStateService } from '../../../../services/ide-state.service';
+import { SettingsService } from '../../../../services/settings.service';
 
 @Component({
   selector: 'app-navigation-tab',
@@ -46,7 +47,8 @@ export class NavigationTabComponent implements OnInit {
   constructor(
     public libraryService: LibraryService,
     public patientService: PatientService,
-    public ideStateService: IdeStateService
+    public ideStateService: IdeStateService,
+    public settingsService: SettingsService
   ) {}
 
   ngOnInit(): void {
@@ -84,47 +86,77 @@ export class NavigationTabComponent implements OnInit {
   }
 
   addLibraryFromSearch(library: Library): void {
-    if (library.id && !this.ideStateService.libraryResources().find(lib => lib.id === library.id)) {
-      // Extract CQL content from the FHIR library
-      let cqlContent = '';
-      if (library.content) {
-        for (const content of library.content) {
-          if (content.contentType === 'text/cql' && content.data) {
-            try {
-              cqlContent = atob(content.data);
-              break;
-            } catch (e) {
-              console.error('Error decoding CQL content:', e);
-            }
-          }
-        }
+    if (library.id) {
+      const existingLibrary = this.ideStateService.libraryResources().find(lib => lib.id === library.id);
+      
+      if (existingLibrary) {
+        // Library is already open, set it as active
+        this.ideStateService.selectLibraryResource(library.id);
+        this.clearLibrarySearch();
+        return;
       }
       
-      const libraryResource = {
-        id: library.id,
-        name: library.name || library.id,
-        version: library.version || '1.0.0',
-        description: library.description || `Library ${library.name || library.id}`,
-        cqlContent: cqlContent,
-        originalContent: cqlContent,
-        isActive: false,
-        isDirty: false,
-        library: library
-      };
-      
-      this.ideStateService.addLibraryResource(libraryResource);
-      this.ideStateService.selectLibraryResource(library.id);
-      this.clearLibrarySearch();
+      // Fetch the library directly from the server to get the latest content
+      // This ensures we get any saved changes instead of using cached data
+      this.libraryService.get(library.id).subscribe({
+        next: (freshLibrary) => {
+          // Extract CQL content from the fresh FHIR library
+          let cqlContent = '';
+          if (freshLibrary.content) {
+            for (const content of freshLibrary.content) {
+              if (content.contentType === 'text/cql' && content.data) {
+                try {
+                  cqlContent = atob(content.data);
+                  break;
+                } catch (e) {
+                  console.error('Error decoding CQL content:', e);
+                }
+              }
+            }
+          }
+          
+          if (freshLibrary.id) {
+            const libraryResource = {
+              id: freshLibrary.id,
+              name: freshLibrary.name || freshLibrary.id,
+              title: freshLibrary.title || freshLibrary.name || freshLibrary.id,
+              version: freshLibrary.version || '1.0.0',
+              description: freshLibrary.description || `Library ${freshLibrary.name || freshLibrary.id}`,
+              url: freshLibrary.url || this.libraryService.urlFor(freshLibrary.id),
+              cqlContent: cqlContent,
+              originalContent: cqlContent,
+              isActive: false,
+              isDirty: false,
+              library: freshLibrary
+            };
+            
+            this.ideStateService.addLibraryResource(libraryResource);
+            this.ideStateService.selectLibraryResource(freshLibrary.id);
+          }
+          this.clearLibrarySearch();
+        },
+        error: (error) => {
+          console.error('Error fetching library from server:', error);
+          // Fallback to using the cached library data if server fetch fails
+          this.addLibraryFromCachedData(library);
+          this.clearLibrarySearch();
+        }
+      });
     }
   }
 
   createNewLibraryResource(): void {
     const newId = `new-library-${Date.now()}`;
+    const effectiveFhirBaseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const canonicalUrl = `${effectiveFhirBaseUrl}/Library/${newId}`;
+    
     const libraryResource = {
       id: newId,
-      name: 'New Library',
+      name: 'NewLibrary',
+      title: 'New Library',
       version: '1.0.0',
       description: 'New library',
+      url: canonicalUrl,
       cqlContent: '',
       originalContent: '',
       isActive: false,
@@ -144,7 +176,7 @@ export class NavigationTabComponent implements OnInit {
   }
 
   // Paginated library methods
-  loadPaginatedLibraries(): void {
+  public loadPaginatedLibraries(): void {
     this.isLoadingLibraries = true;
     this.libraryService.getAll(this.currentPage, this.pageSize, this.librarySortBy, this.librarySortOrder).subscribe({
       next: (bundle: Bundle<Library>) => {
@@ -218,27 +250,86 @@ export class NavigationTabComponent implements OnInit {
   }
 
   addLibraryFromPaginatedList(library: Library): void {
-    if (library.id && !this.ideStateService.libraryResources().find(lib => lib.id === library.id)) {
-      // Extract CQL content from the FHIR library
-      let cqlContent = '';
-      if (library.content) {
-        for (const content of library.content) {
-          if (content.contentType === 'text/cql' && content.data) {
-            try {
-              cqlContent = atob(content.data);
-              break;
-            } catch (e) {
-              console.error('Error decoding CQL content:', e);
+    if (library.id) {
+      const existingLibrary = this.ideStateService.libraryResources().find(lib => lib.id === library.id);
+      
+      if (existingLibrary) {
+        // Library is already open, set it as active
+        this.ideStateService.selectLibraryResource(library.id);
+        return;
+      }
+      
+      // Fetch the library directly from the server to get the latest content
+      // This ensures we get any saved changes instead of using cached data
+      this.libraryService.get(library.id).subscribe({
+        next: (freshLibrary) => {
+          // Extract CQL content from the fresh FHIR library
+          let cqlContent = '';
+          if (freshLibrary.content) {
+            for (const content of freshLibrary.content) {
+              if (content.contentType === 'text/cql' && content.data) {
+                try {
+                  cqlContent = atob(content.data);
+                  break;
+                } catch (e) {
+                  console.error('Error decoding CQL content:', e);
+                }
+              }
             }
+          }
+          
+          if (freshLibrary.id) {
+            const libraryResource = {
+              id: freshLibrary.id,
+              name: freshLibrary.name || freshLibrary.id,
+              title: freshLibrary.title || freshLibrary.name || freshLibrary.id,
+              version: freshLibrary.version || '1.0.0',
+              description: freshLibrary.description || `Library ${freshLibrary.name || freshLibrary.id}`,
+              url: freshLibrary.url || this.libraryService.urlFor(freshLibrary.id),
+              cqlContent: cqlContent,
+              originalContent: cqlContent,
+              isActive: false,
+              isDirty: false,
+              library: freshLibrary
+            };
+            
+            this.ideStateService.addLibraryResource(libraryResource);
+            this.ideStateService.selectLibraryResource(freshLibrary.id);
+          }
+        },
+        error: (error) => {
+          console.error('Error fetching library from server:', error);
+          // Fallback to using the cached library data if server fetch fails
+          this.addLibraryFromCachedData(library);
+        }
+      });
+    }
+  }
+  
+  private addLibraryFromCachedData(library: Library): void {
+    // Extract CQL content from the cached FHIR library
+    let cqlContent = '';
+    if (library.content) {
+      for (const content of library.content) {
+        if (content.contentType === 'text/cql' && content.data) {
+          try {
+            cqlContent = atob(content.data);
+            break;
+          } catch (e) {
+            console.error('Error decoding CQL content:', e);
           }
         }
       }
-      
+    }
+    
+    if (library.id) {
       const libraryResource = {
         id: library.id,
         name: library.name || library.id,
+        title: library.title || library.name || library.id,
         version: library.version || '1.0.0',
         description: library.description || `Library ${library.name || library.id}`,
+        url: library.url || this.libraryService.urlFor(library.id),
         cqlContent: cqlContent,
         originalContent: cqlContent,
         isActive: false,

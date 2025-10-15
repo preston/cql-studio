@@ -313,7 +313,7 @@
                                     @if (result.error.stack) {
                                       <div class="mt-2">
                                         <small>
-                                          <pre class="mb-0">{{ result.error.stack }}</pre>
+                                          <app-syntax-highlighter [code]="result.error.stack" [language]="'auto'"></app-syntax-highlighter>
                                         </small>
                                       </div>
                                     }
@@ -326,13 +326,13 @@
                                   @if (result.expected) {
                                     <div class="col-md-6">
                                       <strong>Expected:</strong>
-                                      <pre class="p-2 rounded bg-white border mt-1">{{ result.expected }}</pre>
+                                      <app-syntax-highlighter [code]="result.expected" [language]="'auto'"></app-syntax-highlighter>
                                     </div>
                                   }
                                   @if (result.actual) {
                                     <div class="col-md-6">
                                       <strong>Actual:</strong>
-                                      <pre class="p-2 rounded bg-white border mt-1">{{ result.actual }}</pre>
+                                      <app-syntax-highlighter [code]="result.actual" [language]="'auto'"></app-syntax-highlighter>
                                     </div>
                                   }
                                 </div>

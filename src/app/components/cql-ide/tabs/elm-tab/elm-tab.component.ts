@@ -6,11 +6,12 @@ import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../../services/settings.service';
 import { TranslationService } from '../../../../services/translation.service';
 import { IdeStateService } from '../../../../services/ide-state.service';
+import { SyntaxHighlighterComponent } from '../../../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-elm-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SyntaxHighlighterComponent],
   templateUrl: './elm-tab.component.html',
   styleUrls: ['./elm-tab.component.scss']
 })

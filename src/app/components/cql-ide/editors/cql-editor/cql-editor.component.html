@@ -3,7 +3,7 @@
   <div class="editor-toolbar border-bottom d-flex align-items-center justify-content-between px-3 py-2">
     <div class="d-flex align-items-center gap-2">
       <button 
-        class="btn btn-primary btn-sm" 
+        class="btn btn-success btn-sm" 
         (click)="onExecuteLibrary()" 
         [disabled]="!canExecute() || isExecuting" 
         title="Execute Library"
@@ -15,7 +15,6 @@
       <button 
         class="btn btn-secondary btn-sm" 
         (click)="onReloadLibrary()" 
-        [disabled]="isNewLibrary" 
         title="Reload from Server"
       >
         <i class="bi bi-arrow-clockwise me-1"></i>

@@ -1,29 +1,38 @@
 // Author: Preston Lee
 
+@use '../../styles/ide-theme' as theme;
+
 .editor-tabs {
   min-height: 36px;
-  background-color: var(--ide-bg-secondary);
-  border-bottom: 1px solid var(--ide-border);
+  background-color: theme.$ide-bg-secondary;
+  border-bottom: 1px solid theme.$ide-border;
 }
 
 .editor-tab {
   cursor: pointer;
   user-select: none;
   transition: all 0.2s ease;
-  border-right: 1px solid var(--ide-border);
+  border-right: 1px solid theme.$ide-border;
   
   &:hover {
     background-color: rgba(255, 255, 255, 0.1);
   }
   
   &.active {
-    background-color: var(--ide-blue);
-    color: var(--ide-text-white);
-    border-color: var(--ide-blue);
+    background-color: theme.$ide-blue;
+    color: theme.$ide-text-white;
+    border-color: theme.$ide-blue;
   }
   
   &.dirty {
     font-style: italic;
+    
+    .tab-name::after {
+      content: ' ●';
+      color: theme.$ide-blue;
+      font-size: 12px;
+      margin-left: 4px;
+    }
   }
   
   &.dragging {
@@ -33,8 +42,43 @@
   }
   
   &.drag-over {
-    border-left: 3px solid var(--ide-blue);
+    border-left: 3px solid theme.$ide-blue;
     background-color: rgba(0, 122, 204, 0.1);
+  }
+}
+
+.drop-zone {
+  min-width: 20px;
+  min-height: 36px;
+  transition: all 0.2s ease;
+  border: 2px dashed transparent;
+  background-color: transparent;
+  position: relative;
+  
+  // Make it more visible during drag operations
+  &:hover,
+  &.drag-over {
+    border-color: theme.$ide-blue;
+    background-color: rgba(0, 122, 204, 0.1);
+  }
+  
+  // Add a subtle indicator when not in use
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px;
+    height: 20px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 1px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  &:hover::after {
+    opacity: 1;
   }
 }
 
@@ -50,8 +94,8 @@
   user-select: none;
   
   &:hover {
-    background-color: var(--ide-bg-active);
-    color: var(--ide-text-white) !important;
+    background-color: theme.$ide-bg-active;
+    color: theme.$ide-text-white !important;
   }
   
   &:active {
