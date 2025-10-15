@@ -98,7 +98,7 @@ export class IdeTabRegistryService {
       id: id || `${type}-${Date.now()}`,
       type,
       title: tabTypeDef.title,
-      icon: `icon-${type}`,
+      icon: `bi-${type}`,
       component: tabTypeDef.component,
       isActive: false,
       isClosable: true,

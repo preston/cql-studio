@@ -20,9 +20,9 @@
   </div>
   <div class="flex-fill overflow-auto" [class.executing]="isEvaluating">
     <div class="p-2">
-      <div *ngFor="let section of outputSections(); let i = index" class="border rounded mb-2 bg-secondary"
+      <div *ngFor="let section of outputSections(); let i = index" class="border rounded mb-2 "
         [class.expanded]="section.expanded">
-        <div class="d-flex align-items-center gap-2 p-2 border-bottom" (click)="onToggleSection(i)">
+        <div class="d-flex align-items-center gap-2 p-2 border-bottom " (click)="onToggleSection(i)">
           <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
           <span class="fw-medium flex-fill text-white">{{ section.title }}</span>
           <span class="badge" [class.bg-success]="section.status === 'success'"

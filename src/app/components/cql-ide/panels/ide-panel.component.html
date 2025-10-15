@@ -37,7 +37,14 @@
     </app-fhir-tab>
     
     <!-- ELM Tab -->
-    <app-elm-tab *ngIf="getActiveTab()?.type === 'elm'"></app-elm-tab>
+    <app-elm-tab 
+      *ngIf="getActiveTab()?.type === 'elm'"
+      [cqlContent]="getActiveLibraryCqlContent()"
+      [isTranslating]="ideStateService.isTranslating()"
+      [elmTranslationResults]="ideStateService.elmTranslationResults()"
+      (translateCqlToElm)="onTranslateCqlToElm()"
+      (clearElmTranslation)="onClearElmTranslation()">
+    </app-elm-tab>
     
     <!-- Problems Tab -->
     <app-problems-tab *ngIf="getActiveTab()?.type === 'problems'"></app-problems-tab>

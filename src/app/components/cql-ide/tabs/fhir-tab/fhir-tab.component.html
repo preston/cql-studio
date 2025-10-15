@@ -8,10 +8,13 @@
           <span class="fw-semibold small text-white">Server</span>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <span class="text-info text-truncate fhir-url ms-2">{{ fhirServerUrl() || 'Not connected' }}</span>
-          <button class="btn btn-outline-secondary btn-sm" (click)="onNavigateToSettings()" title="Change FHIR Server">
-            <i class="bi-gear"></i>
-          </button>
+          <span class="text-info text-truncate fhir-url ms-2" 
+                [class.cursor-pointer]="fhirServerUrl()" 
+                [class.text-decoration-underline]="fhirServerUrl()"
+                (click)="onNavigateToSettings()" 
+                [title]="fhirServerUrl() ? 'Click to change FHIR Server' : 'No server connected'">
+            {{ fhirServerUrl() || 'Not connected' }}
+          </span>
         </div>
       </div>
     </div>

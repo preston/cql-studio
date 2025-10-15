@@ -46,138 +46,9 @@ $ide-info: #75beff;          /* Info color */
   line-height: 1.5;
 }
 
-/* Force dark backgrounds on all panels */
-.ide-container .sidebar,
-.ide-container .right-panel,
-.ide-container .bottom-panel,
-.ide-container .main-content,
-.ide-container .tab-bar,
-.ide-container .editor-toolbar {
-  background-color: var(--ide-bg-primary) !important;
-}
-
-/* Make tab content backgrounds darker */
-.ide-container .fhir-panel,
-.ide-container .fhir-panel > div,
-.ide-container .nav-menu,
-.ide-container .nav-menu > div,
-.ide-container .outline-panel,
-.ide-container .outline-panel > div,
-.ide-container .problems-panel,
-.ide-container .problems-panel > div,
-.ide-container .output-panel,
-.ide-container .elm-panel,
-.ide-container .elm-panel > div {
-  background-color: var(--ide-bg-primary) !important;
-}
-
-/* Tab styling - light text on dark backgrounds */
-.ide-container .editor-tab {
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .editor-tab:hover {
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .editor-tab.active {
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .editor-tab.dirty {
-  color: var(--ide-warning) !important;
-}
-
-/* Panel tab styling - use Bootstrap btn-dark with minimal overrides */
-.ide-container .btn-dark {
-  border-color: var(--ide-border) !important;
-}
-
-.ide-container .btn-dark:hover {
-  background-color: var(--ide-bg-hover) !important;
-  border-color: var(--ide-border) !important;
-}
-
-.ide-container .btn-dark.active {
-  background-color: var(--ide-bg-primary) !important;
-  border-color: var(--ide-border) !important;
-}
-
 /* Editor area with lighter background */
 .ide-container .editor-area {
   background-color: #222222 !important;
-}
-
-.ide-container .ide-header {
-  background-color: var(--ide-bg-secondary) !important;
-}
-
-/* Override Bootstrap colors with higher specificity */
-.ide-container .bg-dark,
-.ide-container .bg-dark *,
-.ide-container .editor-toolbar,
-.ide-container .editor-tabs,
-.ide-container .ide-panel .bg-dark,
-.ide-container .ide-panel .btn-dark {
-  background-color: var(--ide-bg-primary) !important;
-}
-
-.ide-container .bg-secondary,
-.ide-container .bg-secondary * {
-  background-color: var(--ide-bg-secondary) !important;
-}
-
-/* Border overrides */
-.ide-container .border {
-  border-color: var(--ide-border) !important;
-}
-
-.ide-container .border-bottom {
-  border-bottom-color: var(--ide-border) !important;
-}
-
-.ide-container .border-top {
-  border-top-color: var(--ide-border) !important;
-}
-
-.ide-container .border-start {
-  border-left-color: var(--ide-border) !important;
-}
-
-.ide-container .border-end {
-  border-right-color: var(--ide-border) !important;
-}
-
-.ide-container .rounded {
-  border-color: var(--ide-border) !important;
-}
-
-/* Text color overrides */
-.ide-container .text-white {
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .text-light {
-  color: var(--ide-text-primary) !important;
-}
-
-.ide-container .text-info {
-  color: var(--ide-accent) !important;
-}
-
-/* Form control styling for dark theme */
-.ide-container .form-control,
-.ide-container .form-select,
-.ide-container input[type="text"],
-.ide-container input[type="email"],
-.ide-container input[type="password"],
-.ide-container input[type="search"],
-.ide-container input[type="url"],
-.ide-container textarea,
-.ide-container select {
-  background-color: var(--ide-bg-secondary) !important;
-  border-color: var(--ide-border) !important;
-  color: var(--ide-text-primary) !important;
 }
 
 .ide-container .form-control:focus,
@@ -185,9 +56,6 @@ $ide-info: #75beff;          /* Info color */
 .ide-container input:focus,
 .ide-container textarea:focus,
 .ide-container select:focus {
-  background-color: var(--ide-bg-secondary) !important;
-  border-color: var(--ide-bg-hover) !important;
-  color: var(--ide-text-primary) !important;
   box-shadow: 0 0 0 0.2rem rgba(78, 201, 176, 0.25) !important;
 }
 
@@ -198,159 +66,17 @@ $ide-info: #75beff;          /* Info color */
   color: #9ca3af !important;
 }
 
-/* Dropdown styling */
-.ide-container .dropdown-menu {
-  background-color: var(--ide-bg-secondary) !important;
-  border-color: var(--ide-border) !important;
-  color: var(--ide-text-primary) !important;
-}
-
 .ide-container .dropdown-item {
   color: var(--ide-text-primary) !important;
   background-color: transparent !important;
-}
-
-.ide-container .dropdown-item:hover,
-.ide-container .dropdown-item:focus {
-  background-color: var(--ide-bg-hover) !important;
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .dropdown-item.active {
-  background-color: var(--ide-bg-active) !important;
-  color: var(--ide-text-white) !important;
-}
-
-/* List group styling */
-.ide-container .list-group-item {
-  background-color: var(--ide-bg-secondary) !important;
-  border-color: var(--ide-border) !important;
-  color: var(--ide-text-primary) !important;
-}
-
-.ide-container .list-group-item:hover {
-  background-color: var(--ide-bg-hover) !important;
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .list-group-item.active {
-  background-color: var(--ide-bg-active) !important;
-  border-color: var(--ide-border) !important;
-  color: var(--ide-text-white) !important;
-}
-
-/* Button styling */
-.ide-container .btn-primary {
-  background-color: var(--ide-blue) !important;
-  border-color: var(--ide-blue) !important;
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .btn-primary:hover {
-  background-color: var(--ide-blue-hover) !important;
-  border-color: var(--ide-blue-hover) !important;
-}
-
-.ide-container .btn-outline-primary {
-  color: var(--ide-blue) !important;
-  border-color: var(--ide-blue) !important;
-}
-
-.ide-container .btn-outline-primary:hover {
-  background-color: var(--ide-blue) !important;
-  border-color: var(--ide-blue) !important;
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .btn-success {
-  background-color: var(--ide-success) !important;
-  border-color: var(--ide-success) !important;
-  color: var(--ide-text-white) !important;
-}
-
-.ide-container .btn-danger {
-  background-color: var(--ide-error) !important;
-  border-color: var(--ide-error) !important;
-  color: var(--ide-text-white) !important;
-}
-
-/* Badge styling */
-.ide-container .badge.bg-success {
-  background-color: var(--ide-success) !important;
-}
-
-.ide-container .badge.bg-danger {
-  background-color: var(--ide-error) !important;
-}
-
-.ide-container .badge.bg-warning {
-  background-color: var(--ide-warning) !important;
-}
-
-.ide-container .badge.bg-info {
-  background-color: var(--ide-info) !important;
-}
-
-/* Progress bar styling */
-.ide-container .progress {
-  background-color: var(--ide-border) !important;
-}
-
-.ide-container .progress-bar {
-  background-color: var(--ide-blue) !important;
-}
-
-/* Tab styling */
-.ide-container .tab-bar .btn.active {
-  background-color: var(--ide-blue) !important;
-  color: var(--ide-text-white) !important;
-  border-color: var(--ide-blue) !important;
 }
 
 .ide-container .tab-bar .btn:hover {
   background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Active library card styling */
-.ide-container .bg-secondary .library-card-active {
-  background-color: var(--ide-blue) !important;
-  border-color: var(--ide-blue) !important;
-}
-
-.ide-container .bg-secondary .library-card-active * {
-  background-color: var(--ide-blue) !important;
-}
-
-/* Force dark backgrounds on all elements */
-.ide-container div,
-.ide-container section,
-.ide-container article,
-.ide-container aside,
-.ide-container nav,
-.ide-container header,
-.ide-container footer,
-.ide-container main {
-  background-color: var(--ide-bg-primary) !important;
-}
-
 /* Override any transparent backgrounds and background images */
 .ide-container,
 .ide-container * {
   background-image: none !important;
-}
-
-/* Ensure all child elements have solid backgrounds */
-.ide-container .sidebar,
-.ide-container .right-panel,
-.ide-container .bottom-panel,
-.ide-container .main-content,
-.ide-container .tab-bar,
-.ide-container .editor-toolbar,
-.ide-container .ide-header,
-.ide-container .output-panel,
-.ide-container .output-panel .bg-dark,
-.ide-container .fhir-tab .bg-dark,
-.ide-container .navigation-tab .bg-dark {
-  background-image: none !important;
-  background-color: var(--ide-bg-primary) !important;
 }

@@ -8,8 +8,8 @@
         [disabled]="!canExecute() || isExecuting" 
         title="Execute Library"
       >
-        <i class="icon-play me-1" *ngIf="!isExecuting"></i>
-        <i class="icon-loading me-1" *ngIf="isExecuting"></i>
+        <i class="bi bi-play me-1" *ngIf="!isExecuting"></i>
+        <i class="bi bi-arrow-clockwise me-1" *ngIf="isExecuting"></i>
         Execute
       </button>
       <button 
@@ -18,7 +18,7 @@
         [disabled]="isNewLibrary" 
         title="Reload from Server"
       >
-        <i class="icon-reload me-1"></i>
+        <i class="bi bi-arrow-clockwise me-1"></i>
         Reload
       </button>
       <div class="d-flex align-items-center gap-1">
@@ -41,14 +41,14 @@
         (click)="onFormatCql()" 
         title="Format CQL"
       >
-        <i class="icon-code"></i>
+        <i class="bi bi-code-slash"></i>
       </button>
       <button 
         class="btn btn-link btn-sm" 
         (click)="onValidateCql()" 
         title="Validate CQL"
       >
-        <i class="icon-check"></i>
+        <i class="bi bi-check"></i>
       </button>
       <button 
         class="btn btn-primary btn-sm" 
@@ -56,7 +56,7 @@
         [disabled]="!isFormValid()" 
         title="Save Library"
       >
-        <i class="icon-upload me-1"></i>
+        <i class="bi bi-upload me-1"></i>
         Save
       </button>
     </div>

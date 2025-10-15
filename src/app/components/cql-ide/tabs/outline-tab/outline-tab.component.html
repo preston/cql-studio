@@ -27,7 +27,7 @@
           (click)="changeOutlineSorting(outlineSortBy)"
           [title]="'Sort ' + (outlineSortOrder === 'asc' ? 'Descending' : 'Ascending')"
         >
-          <i class="icon-{{ outlineSortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
+          <i class="bi bi-{{ outlineSortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
         </button>
       </div>
     </div>
@@ -40,7 +40,7 @@
       (click)="onOutlineItemClick(item)"
       title="Click to go to line {{ item.line }}"
     >
-      <i class="icon-{{ item.type }} me-2 text-info"></i>
+      <i class="bi bi-{{ item.type }} me-2 text-info"></i>
       <div class="flex-fill">
         <div class="text-light fw-medium">{{ item.name }}</div>
         <div class="small text-muted">Line {{ item.line }}</div>

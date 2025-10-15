@@ -468,22 +468,52 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     return output;
   }
 
+  // Platform detection utility
+  private isMacPlatform(): boolean {
+    return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  }
+
   // Keyboard shortcuts for the welcome message
   getAllShortcuts(): KeyboardShortcut[] {
+    const isMac = this.isMacPlatform();
+    
     return [
-      // Core CQL IDE shortcuts - Apple-friendly
+      // Core CQL IDE shortcuts - Platform-specific
       { key: 'F5', description: 'Execute Active Library' },
-      { key: '⌘+F5', description: 'Execute All Libraries' },
-      { key: '⌘+W', description: 'Close Active Editor' }
+      { 
+        key: 'F6', 
+        description: 'Execute All Libraries' 
+      },
+      { 
+        key: isMac ? '⌘+⌥+W' : 'Ctrl+W', 
+        description: 'Close Active Editor' 
+      },
+      {
+        key: 'Ctrl+Space',
+        description: 'Autocomplete'
+      }
     ];
   }
 
   // Keyboard shortcut handler
   @HostListener('document:keydown', ['$event'])
   handleKeyboardShortcuts(event: KeyboardEvent): void {
+
     // Prevent default behavior for our shortcuts
-    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const isMac = this.isMacPlatform();
     const isCmdKey = isMac ? event.metaKey : event.ctrlKey;
+    
+    // Debug logging for troubleshooting
+    if (event.key === 'w' || event.key === 'W') {
+      console.log('W key detected:', {
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        isMac: isMac,
+        isCmdKey: isCmdKey
+      });
+    }
     
     // F5 - Execute Active Library
     if (event.key === 'F5' && !isCmdKey) {
@@ -492,18 +522,30 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Cmd+F5 (Mac) or Ctrl+F5 (PC) - Execute All Libraries
-    if (event.key === 'F5' && isCmdKey) {
+    // F6 - Execute All Libraries
+    if (event.key === 'F6') {
       event.preventDefault();
       this.onExecuteAll();
       return;
     }
     
-    // Cmd+W (Mac) or Ctrl+W (PC) - Close Active Editor
-    if (event.key === 'w' && isCmdKey) {
-      event.preventDefault();
-      this.onCloseActiveEditor();
-      return;
+    // Cmd+Option+W (Mac) or Ctrl+W (PC) - Close Active Editor
+    if (isMac) {
+      // Mac: Cmd+Option+W - check for the key that produces ∑ in Dvorak (Comma key)
+      if (event.metaKey && event.altKey && event.code === 'Comma') {
+        event.preventDefault();
+        console.log('Mac: Cmd+Option+W detected - closing active editor');
+        this.onCloseActiveEditor();
+        return;
+      }
+    } else {
+      // PC: Ctrl+W - use physical key position (KeyW) regardless of layout
+      if (event.code === 'KeyW' && event.ctrlKey) {
+        event.preventDefault();
+        console.log('PC: Ctrl+W detected - closing active editor');
+        this.onCloseActiveEditor();
+        return;
+      }
     }
   }
 

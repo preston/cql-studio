@@ -84,7 +84,7 @@
   border-color: theme.$ide-border !important;
 }
 
-.btn.active {
+.btn:not(.active) {
   background-color: theme.$ide-bg-primary !important;
   color: theme.$ide-text-white !important;
   border-color: theme.$ide-border !important;

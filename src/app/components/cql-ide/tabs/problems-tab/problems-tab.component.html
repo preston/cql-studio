@@ -1,14 +1,14 @@
 <div class="problems-panel">
   <div class="p-2">
     <div *ngFor="let error of syntaxErrors; let i = index" class="d-flex align-items-start p-2 border-bottom">
-      <i class="icon-error text-danger me-2 mt-1"></i>
+      <i class="bi bi-exclamation-triangle text-danger me-2 mt-1"></i>
       <div class="flex-fill">
         <div class="fw-medium text-light">{{ error }}</div>
         <div class="small text-muted">Line {{ i + 1 }}</div>
       </div>
     </div>
     <div *ngIf="syntaxErrors.length === 0" class="d-flex align-items-center justify-content-center py-4 text-muted">
-      <i class="icon-check me-2"></i>
+      <i class="bi bi-check me-2"></i>
       <span>No problems found</span>
     </div>
   </div>

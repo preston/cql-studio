@@ -1,6 +1,5 @@
 // Author: Preston Lee
 
-/* IDE Layout Styles */
 
 /* IDE Layout */
 .ide-container {
@@ -9,7 +8,6 @@
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background-color: var(--bs-body-bg);
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -65,7 +63,6 @@ app-cql-ide .ide-container {
 }
 
 .welcome-message {
-  background-color: var(--bs-dark);
   border-radius: 0.375rem;
   flex: 1;
   display: flex;
@@ -79,8 +76,6 @@ app-cql-ide .ide-container {
 .right-panel,
 .bottom-panel {
   position: relative;
-  background-color: var(--ide-bg-primary);
-  border-color: var(--ide-border);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -88,16 +83,8 @@ app-cql-ide .ide-container {
   flex-shrink: 0;
 }
 
-.sidebar {
-  border-right: 4px solid var(--ide-border);
-}
-
-.right-panel {
-  border-left: 4px solid var(--ide-border);
-}
 
 .bottom-panel {
-  border-top: 4px solid var(--ide-border);
   min-height: 100px;
   contain: layout;
   flex-shrink: 0;
@@ -121,8 +108,6 @@ app-cql-ide .ide-container {
 /* Tab Bar Layout */
 .tab-bar {
   min-height: 36px;
-  background-color: var(--ide-bg-secondary);
-  border-bottom: 1px solid var(--ide-border);
 }
 
 .tab-bar .d-flex.align-items-center {
@@ -143,7 +128,6 @@ app-cql-ide .ide-container {
 }
 
 .tab-bar .d-flex.align-items-center.drag-over {
-  border-left: 3px solid var(--ide-blue);
   background-color: rgba(0, 122, 204, 0.1);
 }
 
@@ -163,10 +147,6 @@ app-cql-ide .ide-container {
   user-select: none;
 }
 
-.tab-close-btn:hover {
-  background-color: var(--ide-bg-active);
-  color: var(--ide-text-white) !important;
-}
 
 .tab-close-btn:active {
   background-color: #6a6a6a;
@@ -237,24 +217,4 @@ app-cql-ide .ide-container {
 .ide-container .right-panel .overflow-auto::-webkit-scrollbar,
 .ide-container .bottom-panel .overflow-auto::-webkit-scrollbar {
   width: 8px;
-}
-
-.ide-container .sidebar .overflow-auto::-webkit-scrollbar-track,
-.ide-container .right-panel .overflow-auto::-webkit-scrollbar-track,
-.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-track {
-  background: var(--ide-bg-secondary);
-  border-radius: 4px;
-}
-
-.ide-container .sidebar .overflow-auto::-webkit-scrollbar-thumb,
-.ide-container .right-panel .overflow-auto::-webkit-scrollbar-thumb,
-.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-thumb {
-  background: var(--ide-accent);
-  border-radius: 4px;
-}
-
-.ide-container .sidebar .overflow-auto::-webkit-scrollbar-thumb:hover,
-.ide-container .right-panel .overflow-auto::-webkit-scrollbar-thumb:hover,
-.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar-thumb:hover {
-  background: var(--ide-accent-hover);
 }

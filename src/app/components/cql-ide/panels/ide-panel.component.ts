@@ -5,6 +5,8 @@ import { CommonModule } from '@angular/common';
 import { IdePanel, IdePanelTab } from './ide-panel-tab.interface';
 import { IdeStateService } from '../../../services/ide-state.service';
 import { LibraryService } from '../../../services/library.service';
+import { TranslationService } from '../../../services/translation.service';
+import { SettingsService } from '../../../services/settings.service';
 
 // Import all tab components
 import { NavigationTabComponent } from '../tabs/navigation-tab/navigation-tab.component';
@@ -46,7 +48,9 @@ export class IdePanelComponent {
 
   constructor(
     public ideStateService: IdeStateService,
-    private libraryService: LibraryService
+    private libraryService: LibraryService,
+    private translationService: TranslationService,
+    private settingsService: SettingsService
   ) {}
 
   private isResizing: boolean = false;
@@ -260,5 +264,62 @@ export class IdePanelComponent {
 
   getActiveTab(): IdePanelTab | undefined {
     return this.panel.tabs.find(tab => tab.isActive);
+  }
+
+  getActiveLibraryCqlContent(): string {
+    const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    return activeLibrary?.cqlContent || '';
+  }
+
+  onTranslateCqlToElm(): void {
+    const cqlContent = this.getActiveLibraryCqlContent();
+    if (cqlContent) {
+      this.ideStateService.setTranslating(true);
+      
+      // Get the translation service base URL from settings
+      const baseUrl = this.settingsService.getEffectiveTranslationBaseUrl();
+      
+      if (!baseUrl) {
+        console.error('Translation service base URL not configured');
+        this.ideStateService.setTranslating(false);
+        return;
+      }
+      
+      // Call the translation service
+      this.translationService.translateCqlToElm(cqlContent, baseUrl).subscribe({
+        next: (elmXml: string) => {
+          console.log('Translation successful');
+          this.ideStateService.setElmTranslationResults(elmXml);
+          this.ideStateService.setTranslating(false);
+          
+          // Add success message to output section
+          this.ideStateService.addOutputSection({
+            title: 'ELM Translation Success',
+            content: 'CQL successfully translated to ELM',
+            status: 'success',
+            executionTime: 0,
+            expanded: false
+          });
+        },
+        error: (error) => {
+          console.error('Translation failed:', error);
+          this.ideStateService.setElmTranslationResults(null);
+          this.ideStateService.setTranslating(false);
+          
+          // Add error to output section for user feedback
+          this.ideStateService.addOutputSection({
+            title: 'ELM Translation Error',
+            content: `Translation failed: ${error.message || error}`,
+            status: 'error',
+            executionTime: 0,
+            expanded: true
+          });
+        }
+      });
+    }
+  }
+
+  onClearElmTranslation(): void {
+    this.ideStateService.setElmTranslationResults(null);
   }
 }

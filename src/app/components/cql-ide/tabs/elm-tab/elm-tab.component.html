@@ -40,9 +40,9 @@
     
     <!-- ELM Translation Results -->
     <div *ngIf="isTranslating || elmTranslationResults">
-      <div class="border rounded p-2 bg-secondary" style="max-height: 300px; overflow-y: auto;">
+      <div class="border rounded p-2" style="overflow-y: auto;">
         <div *ngIf="isTranslating" class="d-flex align-items-center justify-content-center py-4 text-muted">
-          <i class="icon-loading me-2"></i>
+          <i class="bi bi-arrow-clockwise me-2"></i>
           <span>Translating CQL to ELM...</span>
         </div>
         

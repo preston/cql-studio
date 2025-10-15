@@ -264,6 +264,10 @@ export class IdeStateService {
     this._elmTranslationResults.set(results);
   }
 
+  clearElmTranslationResults(): void {
+    this._elmTranslationResults.set(null);
+  }
+
   // Drag and drop management
   setDraggedTab(tab: IdePanelTab | null): void {
     this._draggedTab.set(tab);
