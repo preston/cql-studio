@@ -93,6 +93,26 @@ export class SettingsService {
           parsedSettings.defaultTestResultsIndexUrl = '';
           shouldSave = true;
         }
+        if (parsedSettings.ollamaBaseUrl == null) {
+          parsedSettings.ollamaBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.ollamaModel == null) {
+          parsedSettings.ollamaModel = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.mcpBaseUrl == null) {
+          parsedSettings.mcpBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.enableAiAssistant == null) {
+          parsedSettings.enableAiAssistant = false;
+          shouldSave = true;
+        }
+        if (parsedSettings.useMCPTools == null) {
+          parsedSettings.useMCPTools = false;
+          shouldSave = true;
+        }
         if (shouldSave) {
           this.saveSettings();
           console.log("Settings have been updated to include default field values.");
@@ -148,6 +168,21 @@ export class SettingsService {
     return envValue && envValue.trim() !== '' ? envValue : '/examples/index.json';
   }
 
+  getDefaultOllamaBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_OLLAMA_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:11434';
+  }
+
+  getDefaultOllamaModel(): string {
+    const envValue = (window as any)['CQL_STUDIO_OLLAMA_MODEL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'llama3.2:latest';
+  }
+
+  getDefaultMCPBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_MCP_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3002';
+  }
+
   getEffectiveRunnerApiBaseUrl(): string {
     const settingValue = this.settings().runnerApiBaseUrl;
     return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultRunnerApiBaseUrl();
@@ -166,6 +201,21 @@ export class SettingsService {
   getEffectiveTestResultsIndexUrl(): string {
     const settingValue = this.settings().defaultTestResultsIndexUrl;
     return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTestResultsIndexUrl();
+  }
+
+  getEffectiveOllamaBaseUrl(): string {
+    const settingValue = this.settings().ollamaBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultOllamaBaseUrl();
+  }
+
+  getEffectiveOllamaModel(): string {
+    const settingValue = this.settings().ollamaModel;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultOllamaModel();
+  }
+
+  getEffectiveMCPBaseUrl(): string {
+    const settingValue = this.settings().mcpBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultMCPBaseUrl();
   }
 
   updateSettings(updates: Partial<Settings>): void {

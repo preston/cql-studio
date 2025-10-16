@@ -15,6 +15,7 @@ import { FhirTabComponent } from '../tabs/fhir-tab/fhir-tab.component';
 import { ElmTabComponent } from '../tabs/elm-tab/elm-tab.component';
 import { ProblemsTabComponent } from '../tabs/problems-tab/problems-tab.component';
 import { OutputTabComponent } from '../tabs/output-tab/output-tab.component';
+import { AiTabComponent } from '../tabs/ai-tab/ai-tab.component';
 
 @Component({
   selector: 'app-ide-panel',
@@ -26,7 +27,8 @@ import { OutputTabComponent } from '../tabs/output-tab/output-tab.component';
     FhirTabComponent,
     ElmTabComponent,
     ProblemsTabComponent,
-    OutputTabComponent
+    OutputTabComponent,
+    AiTabComponent
   ],
   templateUrl: './ide-panel.component.html',
   styleUrls: ['./ide-panel.component.scss']
@@ -327,5 +329,20 @@ export class IdePanelComponent {
 
   onClearElmTranslation(): void {
     this.ideStateService.setElmTranslationResults(null);
+  }
+
+  // AI Tab event handlers
+  onInsertCqlCode(code: string): void {
+    // Emit event to parent component to handle CQL code insertion
+    console.log('Insert CQL code:', code);
+    // This would need to be implemented in the parent component
+    // to actually insert the code into the editor
+  }
+
+  onReplaceCqlCode(code: string): void {
+    // Emit event to parent component to handle CQL code replacement
+    console.log('Replace CQL code:', code);
+    // This would need to be implemented in the parent component
+    // to actually replace the code in the editor
   }
 }

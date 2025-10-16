@@ -61,6 +61,14 @@
       (toggleAllSections)="onToggleAllSections()"
       (preserveLogsChange)="onPreserveLogsChange($event)">
     </app-output-tab>
+    
+    <!-- AI Tab -->
+    <app-ai-tab 
+      *ngIf="getActiveTab()?.type === 'ai'"
+      [cqlContent]="getActiveLibraryCqlContent()"
+      (insertCqlCode)="onInsertCqlCode($event)"
+      (replaceCqlCode)="onReplaceCqlCode($event)">
+    </app-ai-tab>
   </div>
   
   <!-- Resize Handle -->

@@ -66,6 +66,14 @@ export class IdeTabRegistryService {
       allowedPanels: ['bottom'],
       defaultPanel: 'bottom'
     });
+
+    this.registerTabType({
+      type: 'ai',
+      title: 'AI',
+      component: null as any,
+      allowedPanels: ['right'],
+      defaultPanel: 'right'
+    });
   }
 
   registerTabType(definition: TabTypeDefinition): void {

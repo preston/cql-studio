@@ -16,6 +16,13 @@ export class Settings {
     public fhirBaseUrl: string = '';
     public translationBaseUrl: string = '';
     public defaultTestResultsIndexUrl: string = '';
+    
+    // AI Settings
+    public ollamaBaseUrl: string = '';
+    public ollamaModel: string = '';
+    public mcpBaseUrl: string = '';
+    public enableAiAssistant: boolean = false;
+    public useMCPTools: boolean = false;
 
     public static DEFAULT_THEME = ThemeType.AUTOMATIC;
 }

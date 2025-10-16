@@ -1,0 +1,249 @@
+<div class="ai-tab-container d-flex flex-column h-100">
+  @if (!isAiAvailable()) {
+  <!-- AI Not Available Message -->
+  <div class="ai-not-available d-flex align-items-center justify-content-center h-100">
+    <div class="text-center">
+      <i class="bi bi-robot mb-3" style="font-size: 3rem; color: #6c757d;"></i>
+      <h5 class="text-muted">AI Assistant Not Available</h5>
+      <p class="text-muted">Configure Ollama server and enable AI Assistant in Settings to use this feature.</p>
+      <div class="mt-3">
+        <button class="btn btn-primary" (click)="onNavigateToSettings()">
+          <i class="bi bi-gear me-2"></i>Open Settings
+        </button>
+      </div>
+
+      <!-- Connection Test Section -->
+      <div class="mt-4 p-3 rounded">
+        <h6 class="mb-3">Connection Test</h6>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <button class="btn btn-sm btn-outline-primary" (click)="testConnection()"
+            [disabled]="connectionStatus() === 'testing'">
+            @if (connectionStatus() === 'testing') {
+            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+            } @else {
+            <i class="bi bi-wifi me-2"></i>
+            }
+            Test Connection
+          </button>
+          @if (connectionStatus() === 'connected') {
+          <span class="badge bg-success">
+            <i class="bi bi-check-circle me-1"></i>Connected
+          </span>
+          } @else if (connectionStatus() === 'error') {
+          <span class="badge bg-danger">
+            <i class="bi bi-x-circle me-1"></i>Error
+          </span>
+          }
+        </div>
+
+        @if (connectionError()) {
+        <div class="alert alert-danger alert-sm mb-2">
+          <small>{{ connectionError() }}</small>
+        </div>
+        }
+
+        @if (availableModels().length > 0) {
+        <div class="mt-2">
+          <small class="text-muted">Available models:</small>
+          <div class="mt-1">
+            @for (model of availableModels(); track model) {
+            <span class="badge bg-secondary me-1 mb-1">{{ model }}</span>
+            }
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+  } @else {
+  <!-- Main Chat Interface -->
+  <div class="chat-container flex-fill d-flex flex-column">
+    <!-- Toolbar -->
+    <div class="ai-toolbar border-bottom p-2 sticky-top">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex gap-2 align-items-center">
+          <!-- Conversations Dropdown -->
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-chat-dots me-1"></i>Conversations
+              @if (conversations().length > 0) {
+              <span class="badge bg-primary ms-1">{{ conversations().length }}</span>
+              }
+            </button>
+            <ul class="dropdown-menu">
+              <li>
+                <button class="dropdown-item" (click)="onNewConversation()">
+                  <i class="bi bi-plus-circle me-2"></i>New Conversation
+                </button>
+              </li>
+              @if (conversations().length > 0) {
+              <li><hr class="dropdown-divider"></li>
+              @for (conversation of conversations(); track conversation.id) {
+              <li>
+                <button class="dropdown-item d-flex justify-content-between align-items-center"
+                        [class.active]="conversation.id === activeConversationId()"
+                        (click)="onSelectConversation(conversation.id)">
+                  <div class="flex-fill">
+                    <div class="fw-bold">{{ conversation.title }}</div>
+                    <small class="text-muted">{{ conversation.updatedAt | date:'short' }}</small>
+                  </div>
+                  <button class="btn btn-sm btn-outline-danger ms-2" 
+                          (click)="onDeleteConversation(conversation.id)"
+                          title="Delete conversation">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </button>
+              </li>
+              }
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <button class="dropdown-item text-danger" (click)="onClearAllConversations()">
+                  <i class="bi bi-trash me-2"></i>Clear All Conversations
+                </button>
+              </li>
+              }
+            </ul>
+          </div>
+          
+          <!-- Action Buttons -->
+          <button class="btn btn-sm btn-outline-secondary" (click)="onGetFhirData('Patient')" title="Get FHIR Patient Data">
+            <i class="bi bi-person me-1"></i>Patient
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" (click)="onGetMCPTools()" title="Get MCP Tools">
+            <i class="bi bi-tools me-1"></i>Tools
+          </button>
+        </div>
+        
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" (click)="onNavigateToSettings()" title="Settings">
+            <i class="bi bi-gear"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages Area -->
+    <div class="messages-area flex-fill overflow-auto p-3">
+
+      <!-- Messages -->
+      @if (activeConversationId()) {
+      <div class="messages">
+        @for (message of activeConversation()?.messages || []; track $index) {
+        <div class="message mb-4" [class.user-message]="message.role === 'user'" [class.assistant-message]="message.role === 'assistant'">
+          <div class="d-flex align-items-start">
+            <div class="message-content flex-fill">
+              <div class="message-body">
+                <div [innerHTML]="formatMessageContent(message.content)"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        }
+      </div>
+      }
+
+      <!-- Streaming Response -->
+      @if (isStreaming() && streamingResponse()) {
+      <div class="message mb-4 assistant-message">
+        <div class="d-flex align-items-start">
+          <div class="message-content flex-fill">
+            <div class="message-body">
+              <div [innerHTML]="formatMessageContent(streamingResponse())"></div>
+              <div class="streaming-cursor mt-1">
+                <span class="text-primary">▋</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      } @else {
+      <!-- Welcome Message -->
+      <div class="welcome-message d-flex align-items-center justify-content-center h-100">
+        <div class="text-center">
+          <i class="bi bi-robot mb-3" style="font-size: 3rem; color: #6c757d;"></i>
+          <h5 class="text-muted">AI Assistant</h5>
+          <p class="text-muted">Start a conversation to get help with your CQL development</p>
+
+          <!-- No CQL Content Message -->
+          @if (!cqlContent.trim()) {
+          <div class="no-cql-content mt-4">
+            <div class="alert alert-info">
+              <p class="mb-0 mt-2">To get AI suggestions, load or create a CQL library.</p>
+            </div>
+          </div>
+          }
+
+          <!-- Suggested Commands -->
+          @if (cqlContent.trim()) {
+          <div class="suggested-commands mt-4">
+            @if (isLoadingSuggestions()) {
+            <div class="d-flex align-items-center justify-content-center">
+              <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+              <span class="text-muted">Generating suggestions...</span>
+            </div>
+            } @else if (suggestedCommands().length > 0) {
+            <div class="mt-3">
+              <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                <h6 class="text-muted mb-0">Try asking:</h6>
+                <button class="btn btn-outline-secondary btn-sm" 
+                        (click)="onRefreshSuggestions()"
+                        [disabled]="isLoadingSuggestions()"
+                        title="Generate new suggestions">
+                  @if (isLoadingSuggestions()) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                  } @else {
+                  <i class="bi bi-arrow-clockwise"></i>
+                  }
+                </button>
+              </div>
+              <div class="d-flex flex-wrap gap-2 justify-content-center">
+                @for (command of suggestedCommands(); track command) {
+                <button class="btn btn-outline-secondary btn-sm suggested-command-btn" 
+                        (click)="onSuggestedCommandClick(command)"
+                        [title]="command">
+                  {{ command }}
+                </button>
+                }
+              </div>
+            </div>
+            }
+          </div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- Input Area -->
+    <div class="ai-input-area border-top sticky-bottom">
+      @if (error()) {
+      <div class="alert alert-danger alert-sm m-2" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>{{ error() }}
+      </div>
+      }
+      
+      <div class="input-group rounded-0">
+        <textarea 
+          class="form-control rounded-0" 
+          rows="3" 
+          placeholder="Ask me anything about CQL..."
+          [value]="currentMessage()"
+          (input)="onMessageChange($event)"
+          (keydown)="onKeyPress($event)"
+          [disabled]="isLoading()">
+        </textarea>
+        <button 
+          class="btn btn-primary rounded-0" 
+          (click)="onSendMessage()"
+          [disabled]="!canSendMessage()">
+          @if (isLoading()) {
+          <span class="spinner-border spinner-border-sm"></span>
+          } @else {
+          <i class="bi bi-send"></i>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+</div>

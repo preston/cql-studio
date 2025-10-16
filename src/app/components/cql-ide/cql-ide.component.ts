@@ -63,6 +63,10 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     console.log('CQL IDE Component initialized');
     this.initializeDefaultTabs();
+    
+    // Update AI tab availability when settings change
+    // Note: We'll call updateAiTabAvailability() when settings are updated
+    // This could be improved with a proper signal-based approach in the future
   }
 
   ngOnDestroy(): void {
@@ -125,6 +129,16 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       component: null
     };
 
+    const aiTab = {
+      id: 'ai-tab',
+      title: 'AI',
+      icon: 'bi-robot',
+      type: 'ai',
+      isActive: false,
+      isClosable: true,
+      component: null
+    };
+
     const outputTab = {
       id: 'output-tab',
       title: 'Output',
@@ -151,6 +165,12 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.addTabToPanel('left', outlineTab);
     this.ideStateService.addTabToPanel('right', fhirTab);
     this.ideStateService.addTabToPanel('right', elmTab);
+    
+    // Only add AI tab if Ollama is configured
+    if (this.settingsService.getEffectiveOllamaBaseUrl() && this.settingsService.settings().enableAiAssistant) {
+      this.ideStateService.addTabToPanel('right', aiTab);
+    }
+    
     this.ideStateService.addTabToPanel('bottom', outputTab);
     this.ideStateService.addTabToPanel('bottom', problemsTab);
   }
@@ -168,6 +188,35 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.setExecuting(false);
     this.ideStateService.setExecutionProgress(0);
     this.ideStateService.setExecutionStatus('');
+  }
+
+  /**
+   * Update AI tab availability based on settings
+   */
+  updateAiTabAvailability(): void {
+    const rightPanel = this.ideStateService.getPanel('right');
+    if (!rightPanel) return;
+
+    const hasAiTab = rightPanel.tabs.some(tab => tab.type === 'ai');
+    const shouldHaveAiTab = this.settingsService.getEffectiveOllamaBaseUrl() && 
+                           this.settingsService.settings().enableAiAssistant;
+
+    if (shouldHaveAiTab && !hasAiTab) {
+      // Add AI tab
+      const aiTab = {
+        id: 'ai-tab',
+        title: 'AI',
+        icon: 'bi-robot',
+        type: 'ai',
+        isActive: false,
+        isClosable: true,
+        component: null
+      };
+      this.ideStateService.addTabToPanel('right', aiTab);
+    } else if (!shouldHaveAiTab && hasAiTab) {
+      // Remove AI tab
+      this.ideStateService.removeTabFromPanel('right', 'ai-tab');
+    }
   }
 
   // Panel management
