@@ -1,9 +1,9 @@
-<div class="output-panel d-flex flex-column bg-dark text-light">
+<div class="console-panel d-flex flex-column bg-dark text-light">
   <div class="d-flex align-items-center gap-2 px-2 border-bottom ">
-    <button class="btn  btn-sm" (click)="onClearOutput()" title="Clear Output">
+    <button class="btn  btn-sm" (click)="onClearOutput()" title="Clear Console">
       <i class="bi-trash me-1"></i> Clear
     </button>
-    <button class="btn  btn-sm" (click)="onCopyOutput()" title="Copy Output">
+    <button class="btn  btn-sm" (click)="onCopyOutput()" title="Copy Console">
       <i class="bi-copy me-1"></i> Copy
     </button>
     <button class="btn btn-sm" (click)="onToggleAllSections()" title="Toggle All Sections">
@@ -38,8 +38,8 @@
       </div>
     </div>
     <div *ngIf="outputSections().length === 0 && !isEvaluating"
-      class="no-output d-flex flex-column align-items-center justify-content-center py-4 text-muted">
-      <span>No output yet. Click "Execute All" to run open libraries.</span>
+      class="no-console d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+      <span>No console output yet. Click "Execute All" to run open libraries.</span>
     </div>
     <div *ngIf="isEvaluating" class="p-3 border-top bg-secondary">
       <div class="progress mb-2">

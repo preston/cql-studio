@@ -14,7 +14,7 @@ import { OutlineTabComponent } from '../tabs/outline-tab/outline-tab.component';
 import { FhirTabComponent } from '../tabs/fhir-tab/fhir-tab.component';
 import { ElmTabComponent } from '../tabs/elm-tab/elm-tab.component';
 import { ProblemsTabComponent } from '../tabs/problems-tab/problems-tab.component';
-import { OutputTabComponent } from '../tabs/output-tab/output-tab.component';
+import { ConsoleTabComponent } from '../tabs/console-tab/console-tab.component';
 import { AiTabComponent } from '../tabs/ai-tab/ai-tab.component';
 
 @Component({
@@ -27,7 +27,7 @@ import { AiTabComponent } from '../tabs/ai-tab/ai-tab.component';
     FhirTabComponent,
     ElmTabComponent,
     ProblemsTabComponent,
-    OutputTabComponent,
+    ConsoleTabComponent,
     AiTabComponent
   ],
   templateUrl: './ide-panel.component.html',

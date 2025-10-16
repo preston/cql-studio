@@ -136,7 +136,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
 
     const outputTab = {
       id: 'output-tab',
-      title: 'Output',
+      title: 'Console',
       icon: 'bi-terminal',
       type: 'output',
       isActive: true,

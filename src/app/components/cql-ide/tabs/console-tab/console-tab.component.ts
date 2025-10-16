@@ -8,13 +8,13 @@ import { OutputSection } from '../../shared/ide-types';
 import { SyntaxHighlighterComponent } from '../../../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
-  selector: 'app-output-tab',
+  selector: 'app-console-tab',
   standalone: true,
   imports: [CommonModule, FormsModule, SyntaxHighlighterComponent],
-  templateUrl: './output-tab.component.html',
-  styleUrls: ['./output-tab.component.scss']
+  templateUrl: './console-tab.component.html',
+  styleUrls: ['./console-tab.component.scss']
 })
-export class OutputTabComponent implements OnInit {
+export class ConsoleTabComponent implements OnInit {
   @Input() preserveLogs: boolean = false;
   @Input() isEvaluating: boolean = false;
   @Input() executionProgress: number = 0;

@@ -61,7 +61,7 @@ export class IdeTabRegistryService {
 
     this.registerTabType({
       type: 'output',
-      title: 'Output',
+      title: 'Console',
       component: null as any,
       allowedPanels: ['bottom'],
       defaultPanel: 'bottom'

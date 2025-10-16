@@ -49,8 +49,8 @@
     <!-- Problems Tab -->
     <app-problems-tab *ngIf="getActiveTab()?.type === 'problems'"></app-problems-tab>
     
-    <!-- Output Tab -->
-    <app-output-tab 
+    <!-- Console Tab -->
+    <app-console-tab 
       *ngIf="getActiveTab()?.type === 'output'"
       [preserveLogs]="ideStateService.preserveLogs()"
       [isEvaluating]="ideStateService.isExecuting()"
@@ -60,7 +60,7 @@
       (copyOutput)="onCopyOutput()"
       (toggleAllSections)="onToggleAllSections()"
       (preserveLogsChange)="onPreserveLogsChange($event)">
-    </app-output-tab>
+    </app-console-tab>
     
     <!-- AI Tab -->
     <app-ai-tab 
