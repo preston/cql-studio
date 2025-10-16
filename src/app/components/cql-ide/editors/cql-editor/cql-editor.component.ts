@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectorRef, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
@@ -51,15 +51,15 @@ const darkHighlightStyle = {
 export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, IdeEditor {
   @ViewChild('editorContainer', { static: false }) editorContainer?: ElementRef<HTMLDivElement>;
   
+  @Input() libraryId: string = '';
   @Input() editorState: any;
-  @Input() content: string = '';
   @Input() placeholder: string = 'Enter CQL code here...';
   @Input() height: string = '500px';
   @Input() readonly: boolean = false;
   @Input() cqlVersion: CqlVersion = '1.5.3';
   @Input() isNewLibrary: boolean = false;
   
-  @Output() contentChange = new EventEmitter<{ cursorPosition: { line: number; column: number }, wordCount: number }>();
+  @Output() contentChange = new EventEmitter<{ cursorPosition: { line: number; column: number }, wordCount: number, content: string }>();
   @Output() cursorChange = new EventEmitter<{ line: number; column: number }>();
   @Output() editorStateChange = new EventEmitter<IdeEditorState>();
   @Output() syntaxErrors = new EventEmitter<string[]>();
@@ -73,27 +73,36 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
   private editor?: EditorView;
   private grammarManager: CqlGrammarManager;
   private _value: string = '';
-  private isInitializingContent: boolean = false;
   private isInitializing: boolean = false;
-  private isUpdatingContent: boolean = false;
   private initializationRetries: number = 0;
   private maxRetries: number = 10;
   private resizeObserver?: ResizeObserver;
 
   // Toolbar properties
   isExecuting: boolean = false;
+  
+  // Signal for canExecute state
+  private _canExecuteSignal = signal(false);
+  
+  // Computed signal for canExecute
+  canExecute = computed(() => this._canExecuteSignal());
 
   constructor(private cdr: ChangeDetectorRef, private ideStateService: IdeStateService) {
     this.grammarManager = new CqlGrammarManager(this.cqlVersion);
+  }
+
+  // Get content for this specific library
+  private getLibraryContent(): string {
+    if (!this.libraryId) return '';
+    const library = this.ideStateService.libraryResources().find(lib => lib.id === this.libraryId);
+    return library?.cqlContent || '';
   }
 
   ngAfterViewInit(): void {
     console.log('Editor ngAfterViewInit called');
     if (!this.isInitializing && !this.editor) {
       // Try immediate initialization first
-      setTimeout(() => {
-        this.initializeEditor();
-      }, 0);
+      this.initializeEditor();
       
       // Also set up ResizeObserver as a fallback
       this.setupResizeObserver();
@@ -108,28 +117,14 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
       this.reinitializeEditor();
     }
     
-    
-    if (changes['content']) {
-      // Only process if content actually changed
-      if (this.content !== this._value) {
-        console.log('Editor content changed:', {
-          content: this.content.substring(0, 100) + '...',
-          contentLength: this.content.length,
-          editorExists: !!this.editor,
-          isUpdatingContent: this.isUpdatingContent,
-          currentValue: this._value.substring(0, 100) + '...'
-        });
-        
-        if (this.editor && !this.isInitializing) {
-          // Force content update even if isUpdatingContent is true
-          this.forceContentUpdate(this.content);
-        } else {
-          // Store the content for when the editor is initialized
-          this._value = this.content;
-        }
-      } else {
-        console.log('Content unchanged, skipping update');
+    if (changes['libraryId'] && !changes['libraryId'].firstChange) {
+      console.log('Library ID changed, reinitializing editor for:', this.libraryId);
+      // When library ID changes, reinitialize the editor with the new library's content
+      if (this.editor) {
+        this.reinitializeEditor();
       }
+      // Update canExecute state for new library
+      this.updateCanExecute();
     }
   }
   
@@ -158,7 +153,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
     
     if (this.editor) {
       console.log('Editor already exists, updating content');
-      this.forceContentUpdate(this._value);
       return;
     }
     
@@ -177,16 +171,18 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
         // Continue with initialization
       } else {
         this.isInitializing = false;
-        setTimeout(() => {
-          this.initializeEditor();
-        }, 100);
+        // Use ResizeObserver to detect when container becomes available
+        this.setupResizeObserver();
         return;
       }
     }
     
     try {
+      // Get content for this specific library
+      const initialContent = this.getLibraryContent();
+      this._value = initialContent; // Sync _value with the actual content
       const startState = EditorState.create({
-        doc: this._value,
+        doc: initialContent,
         extensions: [
           basicSetup,
           ...this.grammarManager.createExtensions(),
@@ -243,12 +239,20 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
             if (update.docChanged) {
               const newValue = update.state.doc.toString();
               this._value = newValue;
+              
               const cursor = this.getCursorPosition();
               const wordCount = this.getWordCount();
               this.contentChange.emit({ 
                 cursorPosition: cursor || { line: 1, column: 1 }, 
-                wordCount: wordCount || 0 
+                wordCount: wordCount || 0,
+                content: newValue
               });
+              
+              // Update canExecute state after content change
+              this.updateCanExecute();
+              
+              // Library resource update will be handled by parent component
+              // to avoid change detection issues
             }
             
             if (update.selectionSet) {
@@ -286,6 +290,9 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
       this.initializationRetries = 0; // Reset retry counter on success
       console.log('Editor initialization completed');
       
+      // Update canExecute state after initialization
+      this.updateCanExecute();
+      
     } catch (error) {
       console.error('Failed to initialize CQL editor:', error);
       this.isInitializing = false;
@@ -298,15 +305,20 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
   }
   
   setValue(value: string): void {
-    if (this.isUpdatingContent || this.isInitializing) {
-      console.log('Skipping setValue - already updating or initializing');
+    console.log('setValue called:', {
+      value: value.substring(0, 50) + '...',
+      isInitializing: this.isInitializing,
+      editorExists: !!this.editor,
+      currentValue: this._value.substring(0, 50) + '...'
+    });
+    
+    if (this.isInitializing) {
+      console.log('Skipping setValue - already initializing');
       return;
     }
     
     this._value = value;
     if (this.editor) {
-      this.isInitializingContent = true;
-      
       this.editor.dispatch({
         changes: {
           from: 0,
@@ -314,10 +326,9 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
           insert: this._value
         }
       });
-      
-      setTimeout(() => {
-        this.isInitializingContent = false;
-      }, 100);
+      console.log('setValue completed, _value updated to:', this._value.substring(0, 50) + '...');
+    } else {
+      console.log('Editor not available for setValue');
     }
   }
   
@@ -408,24 +419,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
   }
 
   // Private helper methods
-  private forceContentUpdate(content: string): void {
-    if (this.editor) {
-      this.isInitializingContent = true;
-      
-      this.editor.dispatch({
-        changes: {
-          from: 0,
-          to: this.editor.state.doc.length,
-          insert: content
-        }
-      });
-      this._value = content;
-      
-      setTimeout(() => {
-        this.isInitializingContent = false;
-      }, 100);
-    }
-  }
 
   private reinitializeEditor(): void {
     if (this.editor && !this.isInitializing) {
@@ -435,12 +428,10 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
       this.editor = undefined;
       this.isInitializing = false; // Reset flag
       this.initializeEditor();
-      // Use setTimeout to prevent immediate content update during reinitialization
-      setTimeout(() => {
-        if (this.editor) {
-          this.setValue(currentValue);
-        }
-      }, 100);
+      // Set value immediately after initialization
+      if (this.editor) {
+        this.setValue(currentValue);
+      }
     }
   }
 
@@ -495,16 +486,42 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
   }
 
   // Toolbar methods
-  canExecute(): boolean {
-    const hasContent = this._value.trim().length > 0;
-    if (!hasContent) return false;
+  
+  // Update the canExecute signal
+  private updateCanExecute(): void {
+    // Get content for this specific library
+    const currentContent = this.getLibraryContent();
+    const hasContent = currentContent.trim().length > 0;
+    if (!hasContent) {
+      this._canExecuteSignal.set(false);
+      return;
+    }
     
-    // Calculate dirty state directly
-    const activeLibrary = this.ideStateService.getActiveLibraryResource();
-    if (!activeLibrary) return false;
+    // Get the library resource for this editor
+    const library = this.ideStateService.libraryResources().find(lib => lib.id === this.libraryId);
+    if (!library) {
+      this._canExecuteSignal.set(false);
+      return;
+    }
     
-    const isDirty = this._value !== activeLibrary.originalContent;
-    return !isDirty;
+    // More robust dirty check - normalize whitespace and line endings
+    const normalizedCurrent = this.normalizeContent(currentContent);
+    const normalizedOriginal = this.normalizeContent(library.originalContent);
+    const isDirty = normalizedCurrent !== normalizedOriginal;
+    const canExecute = !isDirty;
+    
+    this._canExecuteSignal.set(canExecute);
+    
+    // Debug logging
+    console.log('canExecute updated:', {
+      hasContent,
+      libraryId: library.id,
+      hasLibrary: !!library.library,
+      currentContent: currentContent.substring(0, 50) + '...',
+      originalContent: library.originalContent.substring(0, 50) + '...',
+      isDirty,
+      canExecute
+    });
   }
 
 
@@ -537,5 +554,22 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, OnChanges, 
 
   onSaveLibrary(): void {
     this.saveLibrary.emit();
+  }
+
+
+  // Method to manually update the canExecute signal
+  invalidateCanExecuteCache(): void {
+    this.updateCanExecute();
+  }
+
+  // Method to normalize content for comparison (handles whitespace, line endings, etc.)
+  private normalizeContent(content: string): string {
+    if (!content) return '';
+    
+    return content
+      .replace(/\r\n/g, '\n')  // Normalize line endings to LF
+      .replace(/\r/g, '\n')    // Handle old Mac line endings
+      .replace(/\n\s*\n/g, '\n') // Remove empty lines
+      .trim(); // Remove leading/trailing whitespace
   }
 }

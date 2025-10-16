@@ -123,52 +123,7 @@
         
         <!-- Library Resource Inputs -->
         <div *ngIf="hasSelectedLibrary()" class="mb-3">
-          <div class="row g-3 mb-3">
-            <div class="col-md-3">
-              <label class="form-label fw-semibold small text-uppercase text-white">Name</label>
-              <input 
-                id="library-name-resource-input"
-                type="text" 
-                class="form-control form-control-sm" 
-                [ngModel]="activeLibrary()?.name || ''"
-                (ngModelChange)="onLibraryNameChange($event)"
-                (input)="onLibraryNameInput($event)"
-                pattern="[-a-zA-Z0-9_]+"
-                title="Library name can only contain letters, numbers, hyphens, and underscores"
-                placeholder="Library name"
-              >
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold small text-uppercase text-white">Title</label>
-              <input 
-                type="text" 
-                class="form-control form-control-sm" 
-                [ngModel]="activeLibrary()?.title || ''"
-                (ngModelChange)="onLibraryTitleChange($event)"
-                placeholder="Library title"
-              >
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold small text-uppercase text-white">Version</label>
-              <input 
-                type="text" 
-                class="form-control form-control-sm" 
-                [ngModel]="activeLibrary()?.version || ''"
-                (ngModelChange)="onLibraryVersionChange($event)"
-                placeholder="0.0.0"
-              >
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-semibold small text-uppercase text-white">Description</label>
-              <input 
-                type="text" 
-                class="form-control form-control-sm" 
-                [ngModel]="activeLibrary()?.description || ''"
-                (ngModelChange)="onLibraryDescriptionChange($event)"
-                placeholder="Library description"
-              >
-            </div>
-          </div>
+          
           
           <!-- Library Resource Display -->
           <div class="border rounded p-3 bg-dark" style="max-height: 350px; overflow-y: auto;">
@@ -194,7 +149,7 @@
             <div class="border rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
               <app-syntax-highlighter 
                 [code]="patientAsString(patient) || 'No patient resource available'"
-                language="json">
+                language="autodetect">
               </app-syntax-highlighter>
             </div>
           </div>

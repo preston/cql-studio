@@ -373,7 +373,7 @@ export class AiService extends BaseService {
     
     const systemMessage: OllamaMessage = {
       role: 'system',
-      content: `You are an AI assistant that generates helpful command suggestions for CQL developers. Based on the provided CQL content, generate 3-5 specific, actionable commands that a developer might want to ask an AI assistant about their CQL code.
+      content: `You are an AI assistant that generates helpful suggestions and code for CQL developers. Based on the provided CQL content, generate 3-5 specific, actionable commands that a developer might want to ask an AI assistant about their CQL code.
 
 IMPORTANT: Return ONLY a valid JSON array of strings. Do not include any markdown formatting, code blocks, or explanations. Just return the raw JSON array.
 
@@ -517,11 +517,12 @@ ${cqlContent}
 3. Explaining CQL syntax and best practices
 4. Reviewing and improving existing CQL code
 5. Helping with CQL library structure and organization
+6. CQL formatting. Always format the CQL code using the CQL formatting and indentation rules
 
 Current context:
 - You're working in a CQL IDE environment
 - The user may have CQL libraries open
-- Assuming there are no PHI and you can safely access any data you are permitted to access without security concerns
+- Assume there is no PHI and you can safely access any data you are permitted to access without security concerns
 - FHIR data may be available through MCP tools`;
 
     // Add active CQL content if available

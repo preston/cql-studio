@@ -33,7 +33,6 @@ import { EditorTabsComponent } from './editors/editor-tabs/editor-tabs.component
   styleUrls: ['./cql-ide.component.scss']
 })
 export class CqlIdeComponent implements OnInit, OnDestroy {
-  @ViewChild('cqlEditor') cqlEditor?: CqlEditorComponent;
   
   // Simple state properties
   leftPanelVisible = true;
@@ -43,10 +42,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   libraryResources: any[] = [];
   selectedPatients: any[] = [];
   
-  // Cached content to prevent loops
-  private _cachedContent: string = '';
-  private _lastActiveLibraryId: string | null = null;
-  private _contentRefreshTrigger = 0;
 
   constructor(
     private router: Router,
@@ -264,29 +259,8 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   onLibraryIdChange(libraryId: string): void {
     this.activeLibraryId = libraryId;
     this.ideStateService.selectLibraryResource(libraryId);
-    // Invalidate cache when library changes
-    this._lastActiveLibraryId = null;
-    // Force content refresh by clearing cached content
-    this._cachedContent = '';
   }
 
-  getActiveLibraryContent(): string {
-    const currentActiveLibraryId = this.ideStateService.activeLibraryId();
-    const activeLibrary = this.ideStateService.getActiveLibraryResource();
-    
-    // Update cache if the active library has changed OR if we're forcing a refresh
-    if (currentActiveLibraryId !== this._lastActiveLibraryId || this._lastActiveLibraryId === null || this._contentRefreshTrigger > 0) {
-      this._cachedContent = activeLibrary?.cqlContent || '';
-      this._lastActiveLibraryId = currentActiveLibraryId;
-      
-      // Reset the refresh trigger after using it
-      if (this._contentRefreshTrigger > 0) {
-        this._contentRefreshTrigger = 0;
-      }
-    }
-    
-    return this._cachedContent;
-  }
 
   isActiveLibraryNew(): boolean {
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
@@ -296,27 +270,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
 
-  private forceContentRefresh(): void {
-    console.log('forceContentRefresh called - before:', {
-      lastActiveLibraryId: this._lastActiveLibraryId,
-      cachedContent: this._cachedContent.substring(0, 100) + '...',
-      refreshTrigger: this._contentRefreshTrigger
-    });
-    
-    // Force cache refresh by incrementing trigger and clearing cached content
-    this._contentRefreshTrigger++;
-    this._lastActiveLibraryId = null;
-    // Force content refresh by clearing cached content
-    this._cachedContent = '';
-    
-    console.log('forceContentRefresh called - after:', {
-      lastActiveLibraryId: this._lastActiveLibraryId,
-      cachedContent: this._cachedContent.substring(0, 100) + '...',
-      contentLength: this._cachedContent.length,
-      activeLibraryId: this.ideStateService.activeLibraryId(),
-      refreshTrigger: this._contentRefreshTrigger
-    });
-  }
 
   onLibraryVersionChange(version: string): void {
     // Handle library version change
@@ -335,8 +288,8 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Get the current content from the editor
-    const currentContent = this.cqlEditor?.getValue() || '';
+    // Get the current content from the library resource
+    const currentContent = activeLibrary.cqlContent || '';
     if (!currentContent.trim()) {
       console.warn('No content to save');
       return;
@@ -404,9 +357,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     // This will destroy the editor component and discard any unsaved changes
     if (this.ideStateService.activeLibraryId() === libraryId) {
       this.ideStateService.selectLibraryResource('');
-      // Clear the content cache to ensure dirty content is not retained
-      this._cachedContent = '';
-      this._lastActiveLibraryId = null;
     }
     
     // Remove library from the state service
@@ -482,33 +432,24 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     console.log('Reorder editor tabs:', event);
   }
 
-  onEditorContentChange(event: { cursorPosition: { line: number; column: number }, wordCount: number }): void {
+  onEditorContentChange(event: { cursorPosition: { line: number; column: number }, wordCount: number, content: string }, libraryId: string): void {
     this.ideStateService.updateEditorState({
       cursorPosition: event.cursorPosition,
       wordCount: event.wordCount
     });
     
-    // Only mark as dirty if content actually differs from original
-    const activeLibraryId = this.ideStateService.activeLibraryId();
-    if (activeLibraryId) {
-      const activeLibrary = this.ideStateService.getActiveLibraryResource();
-      if (activeLibrary) {
-        // Get current content from editor
-        const currentContent = this.cqlEditor?.getValue() || '';
-        const isDirty = currentContent !== activeLibrary.originalContent;
-        
-        // Only update if dirty state has changed
-        if (activeLibrary.isDirty !== isDirty) {
-          this.ideStateService.updateLibraryResource(activeLibraryId, {
-            cqlContent: currentContent,
-            isDirty: isDirty
-          });
-        }
-      }
+    // Update the specific library's content and dirty state
+    const library = this.ideStateService.libraryResources().find(lib => lib.id === libraryId);
+    if (library) {
+      const currentContent = event.content;
+      const isDirty = currentContent !== library.originalContent;
+      
+      // Update the library resource with the new content
+      this.ideStateService.updateLibraryResource(libraryId, {
+        cqlContent: currentContent,
+        isDirty: isDirty
+      });
     }
-    
-    // Invalidate cache when content changes
-    this._lastActiveLibraryId = null;
   }
 
   onEditorSyntaxErrors(errors: string[]): void {
@@ -601,19 +542,10 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
             library: library
           });
           
-          // Force content refresh to update the editor
-          this.forceContentRefresh();
-          
-          // Directly update the editor content if available
-          if (this.cqlEditor) {
-            console.log('Directly updating CQL editor content');
-            this.cqlEditor.setValue(cqlContent);
-          }
           
           console.log('After update - library content updated:', {
             contentLength: cqlContent.length,
-            content: cqlContent.substring(0, 100) + '...',
-            cachedContent: this._cachedContent.substring(0, 100) + '...'
+            content: cqlContent.substring(0, 100) + '...'
           });
         } else {
           console.error('No active library resource found for reload');
@@ -698,7 +630,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         });
         
         // Force content refresh to update the cache
-        this.forceContentRefresh();
         
         // Clear status after a short delay
         setTimeout(() => {
@@ -786,7 +717,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
               this.ideStateService.selectLibraryResource(serverAssignedId);
               
               // Force content refresh to update the cache
-              this.forceContentRefresh();
               
               // Clear status after a short delay
               setTimeout(() => {
@@ -825,7 +755,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
           });
           
           // Force content refresh to update the cache
-          this.forceContentRefresh();
           
           // Clear status after a short delay
           setTimeout(() => {
