@@ -64,15 +64,15 @@
         <div class="d-flex gap-2 align-items-center">
           <!-- Conversations Dropdown -->
           <div class="dropdown">
-            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <button class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-chat-dots me-1"></i>Conversations
               @if (conversations().length > 0) {
-              <span class="badge bg-primary ms-1">{{ conversations().length }}</span>
+              <span class="badge ms-1">{{ conversations().length }}</span>
               }
             </button>
             <ul class="dropdown-menu">
               <li>
-                <button class="dropdown-item" (click)="onNewConversation()">
+                <button class="dropdown-item " (click)="onNewConversation()">
                   <i class="bi bi-plus-circle me-2"></i>New Conversation
                 </button>
               </li>
@@ -85,7 +85,7 @@
                         (click)="onSelectConversation(conversation.id)">
                   <div class="flex-fill">
                     <div class="fw-bold">{{ conversation.title }}</div>
-                    <small class="text-muted">{{ conversation.updatedAt | date:'short' }}</small>
+                    <small class="text-white">{{ conversation.updatedAt | date:'short' }}</small>
                   </div>
                   <button class="btn btn-sm btn-outline-danger ms-2" 
                           (click)="onDeleteConversation(conversation.id)"
@@ -95,27 +95,20 @@
                 </button>
               </li>
               }
+              }
               <li><hr class="dropdown-divider"></li>
               <li>
-                <button class="dropdown-item text-danger" (click)="onClearAllConversations()">
+                <button class="dropdown-item text-white" (click)="onClearAllConversations()">
                   <i class="bi bi-trash me-2"></i>Clear All Conversations
                 </button>
               </li>
-              }
             </ul>
           </div>
           
-          <!-- Action Buttons -->
-          <button class="btn btn-sm btn-outline-secondary" (click)="onGetFhirData('Patient')" title="Get FHIR Patient Data">
-            <i class="bi bi-person me-1"></i>Patient
-          </button>
-          <button class="btn btn-sm btn-outline-secondary" (click)="onGetMCPTools()" title="Get MCP Tools">
-            <i class="bi bi-tools me-1"></i>Tools
-          </button>
         </div>
         
         <div class="d-flex gap-2">
-          <button class="btn btn-sm btn-outline-secondary" (click)="onNavigateToSettings()" title="Settings">
+          <button class="btn btn-sm" (click)="onNavigateToSettings()" title="Settings">
             <i class="bi bi-gear"></i>
           </button>
         </div>
@@ -130,13 +123,19 @@
       <div class="messages">
         @for (message of activeConversation()?.messages || []; track $index) {
         <div class="message mb-4" [class.user-message]="message.role === 'user'" [class.assistant-message]="message.role === 'assistant'">
-          <div class="d-flex align-items-start">
-            <div class="message-content flex-fill">
-              <div class="message-body">
-                <div [innerHTML]="formatMessageContent(message.content)"></div>
-              </div>
+          @if (message.role === 'user') {
+          <div class="d-flex">
+            <div class="message-body">
+              <div [innerHTML]="formatMessageContent(message.content)"></div>
             </div>
           </div>
+          } @else {
+          <div class="message-content">
+            <div class="message-body">
+              <div [innerHTML]="formatMessageContent(message.content)"></div>
+            </div>
+          </div>
+          }
         </div>
         }
       </div>
@@ -145,13 +144,11 @@
       <!-- Streaming Response -->
       @if (isStreaming() && streamingResponse()) {
       <div class="message mb-4 assistant-message">
-        <div class="d-flex align-items-start">
-          <div class="message-content flex-fill">
-            <div class="message-body">
-              <div [innerHTML]="formatMessageContent(streamingResponse())"></div>
-              <div class="streaming-cursor mt-1">
-                <span class="text-primary">▋</span>
-              </div>
+        <div class="message-content">
+          <div class="message-body">
+            <div [innerHTML]="formatMessageContent(streamingResponse())"></div>
+            <div class="streaming-cursor mt-1">
+              <span class="text-primary">▋</span>
             </div>
           </div>
         </div>
@@ -161,8 +158,8 @@
       <div class="welcome-message d-flex align-items-center justify-content-center h-100">
         <div class="text-center">
           <i class="bi bi-robot mb-3" style="font-size: 3rem; color: #6c757d;"></i>
-          <h5 class="text-muted">AI Assistant</h5>
-          <p class="text-muted">Start a conversation to get help with your CQL development</p>
+          <h5 class="text-white">AI Assistant</h5>
+          <p class="">Start a conversation to get help with your CQL development</p>
 
           <!-- No CQL Content Message -->
           @if (!cqlContent.trim()) {
@@ -179,12 +176,12 @@
             @if (isLoadingSuggestions()) {
             <div class="d-flex align-items-center justify-content-center">
               <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-              <span class="text-muted">Generating suggestions...</span>
+              <span class="text-white">Generating suggestions...</span>
             </div>
             } @else if (suggestedCommands().length > 0) {
             <div class="mt-3">
               <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
-                <h6 class="text-muted mb-0">Try asking:</h6>
+                <h6 class="text-white mb-0">Try asking:</h6>
                 <button class="btn btn-outline-secondary btn-sm" 
                         (click)="onRefreshSuggestions()"
                         [disabled]="isLoadingSuggestions()"
