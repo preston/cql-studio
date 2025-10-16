@@ -125,7 +125,7 @@
         <div class="message mb-4" [class.user-message]="message.role === 'user'" [class.assistant-message]="message.role === 'assistant'">
           @if (message.role === 'user') {
           <div class="d-flex">
-            <div class="message-body">
+            <div class="message-body bg-info text-white rounded-1 m-1 p-1">
               <div [innerHTML]="formatMessageContent(message.content)"></div>
             </div>
           </div>
