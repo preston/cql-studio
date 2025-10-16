@@ -28,7 +28,10 @@
     </app-navigation-tab>
     
     <!-- Outline Tab -->
-    <app-outline-tab *ngIf="getActiveTab()?.type === 'outline'"></app-outline-tab>
+    <app-outline-tab 
+      *ngIf="getActiveTab()?.type === 'outline'"
+      (navigateToLine)="onNavigateToLine($event)">
+    </app-outline-tab>
     
     <!-- FHIR Tab -->
     <app-fhir-tab 

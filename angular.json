@@ -38,7 +38,7 @@
             ],
             "scripts": [
               "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js",
-              "node_modules/prismjs/components/prism-core.min.js",
+              "node_modules/prismjs/prism.js",
               "node_modules/prismjs/components/prism-json.min.js",
               "node_modules/prismjs/components/prism-xml-doc.min.js",
               "node_modules/prismjs/components/prism-javascript.min.js",

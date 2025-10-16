@@ -1,20 +1,19 @@
 <div class="outline-panel">
   <!-- Outline Search and Sort Controls -->
-  <div class="p-2 border-bottom flex-shrink-0">
+  <div class="px-2 py-1 border-bottom flex-shrink-0">
     <div class="d-flex align-items-center gap-2">
       <input 
         type="text" 
         class="form-control form-control-sm flex-fill" 
-        placeholder="Search outline items..." 
-        [(ngModel)]="outlineSearchTerm"
-        (input)="onOutlineSearchInput($event)"
+        placeholder="Search..." 
+        [(ngModel)]="searchTerm"
       >
       <div class="d-flex align-items-center gap-1">
         <label class="form-label mb-0 small text-light">Sort:</label>
         <select 
           class="form-select form-select-sm" 
-          [(ngModel)]="outlineSortBy" 
-          (change)="changeOutlineSorting(outlineSortBy)"
+          [(ngModel)]="sortBy" 
+          (change)="onSortByChange($event)"
           title="Sort by"
           style="min-width: 80px;"
         >
@@ -24,33 +23,35 @@
         </select>
         <button 
           class="btn btn-outline-dark btn-sm" 
-          (click)="changeOutlineSorting(outlineSortBy)"
-          [title]="'Sort ' + (outlineSortOrder === 'asc' ? 'Descending' : 'Ascending')"
+          (click)="changeOutlineSorting(sortBy)"
+          [title]="'Sort ' + (sortOrder === 'asc' ? 'Descending' : 'Ascending')"
         >
-          <i class="bi bi-{{ outlineSortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
+          <i class="bi bi-{{ sortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
         </button>
       </div>
     </div>
   </div>
   
-  <div class="p-2 flex-fill overflow-auto">
+  <div class="flex-fill overflow-auto">
     <div 
-      class="outline-item d-flex align-items-center p-2 rounded cursor-pointer" 
+      class="outline-item d-flex align-items-center px-2 py-1 cursor-pointer" 
       *ngFor="let item of filteredOutlineItems(); trackBy: trackByOutlineItem"
       (click)="onOutlineItemClick(item)"
       title="Click to go to line {{ item.line }}"
     >
-      <i class="bi bi-{{ item.type }} me-2 text-info"></i>
-      <div class="flex-fill">
-        <div class="text-light fw-medium">{{ item.name }}</div>
-        <div class="small text-muted">Line {{ item.line }}</div>
+      <i class="bi bi-{{ getIconForType(item.type) }} me-1 text-info" style="font-size: 0.75rem;"></i>
+      <span class="text-light small flex-fill">{{ item.name }}</span>
+      <span class="text-muted small">{{ item.line }}</span>
+    </div>
+    @if (filteredOutlineItems().length === 0 && outlineItems().length > 0) {
+      <div class="text-center text-muted py-4">
+        <span>No matches</span>
       </div>
-    </div>
-    <div *ngIf="filteredOutlineItems().length === 0 && outlineItems().length > 0" class="text-center text-muted py-4">
-      <span>No matches</span>
-    </div>
-    <div *ngIf="outlineItems().length === 0" class="text-center text-muted py-4">
-      <span>Edit a library to see its outline</span>
-    </div>
+    }
+    @if (outlineItems().length === 0) {
+      <div class="text-center text-muted py-4">
+        <span>Edit a library to see its outline</span>
+      </div>
+    }
   </div>
 </div>

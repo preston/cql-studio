@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, Input, Output, EventEmitter, computed } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IdeStateService } from '../../../../services/ide-state.service';
@@ -14,9 +14,9 @@ import { OutlineItem } from '../../shared/ide-types';
   styleUrls: ['./outline-tab.component.scss']
 })
 export class OutlineTabComponent {
-  public outlineSearchTerm: string = '';
-  public outlineSortBy: 'name' | 'type' | 'line' = 'line';
-  public outlineSortOrder: 'asc' | 'desc' = 'asc';
+  public outlineSearchTerm = signal('');
+  public outlineSortBy = signal<'name' | 'type' | 'line'>('name');
+  public outlineSortOrder = signal<'asc' | 'desc'>('asc');
 
   @Output() navigateToLine = new EventEmitter<number>();
 
@@ -61,8 +61,8 @@ export class OutlineTabComponent {
     let filtered = [...this.outlineItems()];
     
     // Apply search filter
-    if (this.outlineSearchTerm.trim()) {
-      const searchTerm = this.outlineSearchTerm.toLowerCase();
+    if (this.outlineSearchTerm().trim()) {
+      const searchTerm = this.outlineSearchTerm().toLowerCase();
       filtered = filtered.filter(item => 
         item.name.toLowerCase().includes(searchTerm) ||
         item.type.toLowerCase().includes(searchTerm)
@@ -73,9 +73,9 @@ export class OutlineTabComponent {
     filtered.sort((a, b) => {
       let comparison = 0;
       
-      switch (this.outlineSortBy) {
+      switch (this.outlineSortBy()) {
         case 'name':
-          comparison = a.name.localeCompare(b.name);
+          comparison = this.normalizeNameForSorting(a.name).localeCompare(this.normalizeNameForSorting(b.name));
           break;
         case 'type':
           comparison = a.type.localeCompare(b.type);
@@ -85,23 +85,25 @@ export class OutlineTabComponent {
           break;
       }
       
-      return this.outlineSortOrder === 'asc' ? comparison : -comparison;
+      return this.outlineSortOrder() === 'asc' ? comparison : -comparison;
     });
     
     return filtered;
   });
 
-  onOutlineSearchInput(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.outlineSearchTerm = target.value;
+
+  onSortByChange(event: Event): void {
+    const target = event.target as HTMLSelectElement;
+    const newSortBy = target.value as 'name' | 'type' | 'line';
+    this.changeOutlineSorting(newSortBy);
   }
 
   changeOutlineSorting(sortBy: 'name' | 'type' | 'line'): void {
-    if (this.outlineSortBy === sortBy) {
-      this.outlineSortOrder = this.outlineSortOrder === 'asc' ? 'desc' : 'asc';
+    if (this.outlineSortBy() === sortBy) {
+      this.outlineSortOrder.set(this.outlineSortOrder() === 'asc' ? 'desc' : 'asc');
     } else {
-      this.outlineSortBy = sortBy;
-      this.outlineSortOrder = 'asc';
+      this.outlineSortBy.set(sortBy);
+      this.outlineSortOrder.set('asc');
     }
   }
 
@@ -111,5 +113,64 @@ export class OutlineTabComponent {
 
   trackByOutlineItem(index: number, item: OutlineItem): string {
     return `${item.type}-${item.line}-${item.name}`;
+  }
+
+  // Getters and setters for template binding
+  get searchTerm(): string {
+    return this.outlineSearchTerm();
+  }
+
+  set searchTerm(value: string) {
+    this.outlineSearchTerm.set(value);
+  }
+
+  get sortBy(): 'name' | 'type' | 'line' {
+    return this.outlineSortBy();
+  }
+
+  set sortBy(value: 'name' | 'type' | 'line') {
+    this.outlineSortBy.set(value);
+  }
+
+  get sortOrder(): 'asc' | 'desc' {
+    return this.outlineSortOrder();
+  }
+
+  getIconForType(type: string): string {
+    switch (type) {
+      case 'library':
+        return 'book';
+      case 'define':
+        return 'code';
+      case 'function':
+        return 'gear';
+      case 'parameter':
+        return 'sliders';
+      case 'valueset':
+        return 'collection';
+      case 'codesystem':
+        return 'database';
+      default:
+        return 'file-text';
+    }
+  }
+
+  private normalizeNameForSorting(name: string): string {
+    let normalized = name.trim();
+    
+    // Remove all double quotes and single quotes
+    normalized = normalized.replace(/["']/g, '');
+    
+    // Remove "function " prefix
+    if (normalized.startsWith('function ')) {
+      normalized = normalized.substring(9); // "function " is 9 characters
+    }
+    
+    // Remove "library " prefix
+    if (normalized.startsWith('library ')) {
+      normalized = normalized.substring(8); // "library " is 8 characters
+    }
+    
+    return normalized;
   }
 }

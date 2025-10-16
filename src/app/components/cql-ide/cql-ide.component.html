@@ -13,7 +13,8 @@
       (tabDrop)="onTabDrop($event)"
       (dragOver)="onDragOver($event)"
       (dragLeave)="onDragLeave($event)"
-      (executeAll)="onExecuteAll()">
+      (executeAll)="onExecuteAll()"
+      (navigateToLine)="onNavigateToLine($event)">
     </app-ide-panel>
 
     <!-- Main Content Area -->
@@ -91,7 +92,8 @@
       (tabDrop)="onTabDrop($event)"
       (dragOver)="onDragOver($event)"
       (dragLeave)="onDragLeave($event)"
-      (executeAll)="onExecuteAll()">
+      (executeAll)="onExecuteAll()"
+      (navigateToLine)="onNavigateToLine($event)">
     </app-ide-panel>
   </div>
 

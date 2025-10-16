@@ -23,8 +23,7 @@
     <div *ngIf="hasSelectedLibrary()" class="mb-3">
       <!-- Library Form -->
       <div class="mb-3">
-        <div class="mb-3">
-          <label class="form-label fw-semibold small text-uppercase text-white">Library ID</label>
+        <div class="form-floating mb-3">
           <input 
             id="library-id-input"
             type="text" 
@@ -33,10 +32,10 @@
             (ngModelChange)="onLibraryIdChange($event)"
             placeholder="Enter library ID"
           >
+          <label for="library-id-input" class="text-white">Library ID</label>
         </div>
         
-        <div class="mb-3">
-          <label class="form-label fw-semibold small text-uppercase text-white">Name</label>
+        <div class="form-floating mb-3">
           <input 
             id="library-name-input"
             type="text" 
@@ -48,10 +47,10 @@
             title="Library name can only contain letters, numbers, hyphens, and underscores"
             placeholder="Enter library name (letters, numbers, hyphens, underscores only)"
           >
+          <label for="library-name-input" class="text-white">Name</label>
         </div>
         
-        <div class="mb-3">
-          <label class="form-label fw-semibold small text-uppercase text-white">Title</label>
+        <div class="form-floating mb-3">
           <input 
             id="library-title-input"
             type="text" 
@@ -60,33 +59,36 @@
             (ngModelChange)="onLibraryTitleChange($event)"
             placeholder="Enter library title"
           >
+          <label for="library-title-input" class="text-white">Title</label>
         </div>
         
-        <div class="mb-3">
-          <label class="form-label fw-semibold small text-uppercase text-white">Version</label>
+        <div class="form-floating mb-3">
           <input 
+            id="library-version-input"
             type="text" 
             class="form-control form-control-sm" 
             [ngModel]="activeLibrary()?.version || ''"
             (ngModelChange)="onLibraryVersionChange($event)"
             placeholder="0.0.0"
           >
+          <label for="library-version-input" class="text-white">Version</label>
         </div>
         
-        <div class="mb-3">
-          <label class="form-label fw-semibold small text-uppercase text-white">Description</label>
+        <div class="form-floating mb-3">
           <input 
+            id="library-description-input"
             type="text" 
             class="form-control form-control-sm" 
             [ngModel]="activeLibrary()?.description || ''"
             (ngModelChange)="onLibraryDescriptionChange($event)"
             placeholder="Library description"
           >
+          <label for="library-description-input" class="text-white">Description</label>
         </div>
         
-        <div class="mb-3">
-          <label class="form-label fw-semibold small text-uppercase text-white">URL</label>
+        <div class="form-floating mb-3">
           <input 
+            id="library-url-input"
             type="text" 
             class="form-control form-control-sm" 
             [ngModel]="activeLibrary()?.url || ''"
@@ -94,6 +96,7 @@
             placeholder="Library URL will be generated automatically"
             title="Library URL is automatically generated based on FHIR server settings"
           >
+          <label for="library-url-input" class="text-white">URL</label>
         </div>
       </div>
 
@@ -111,9 +114,19 @@
 
     <!-- Resource Section -->
     <div class="mt-4">
-      <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
-        <i class="bi-document"></i>
-        <span class="fw-semibold small text-white">Resource</span>
+      <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi-document"></i>
+          <span class="fw-semibold small text-white">Resource</span>
+        </div>
+        <button 
+          class="btn btn-outline-light btn-sm" 
+          (click)="onCopyResourceToClipboard()" 
+          title="Copy FHIR resource JSON to clipboard"
+          [disabled]="!hasSelectedLibrary() && !hasSelectedPatients()"
+        >
+          <i class="bi-files"></i>
+        </button>
       </div>
       <div>
         <div *ngIf="!hasSelectedLibrary() && !hasSelectedPatients()" class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">

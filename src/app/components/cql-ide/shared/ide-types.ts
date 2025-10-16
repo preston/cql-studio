@@ -30,12 +30,18 @@ export interface OutlineItem {
   line: number;
 }
 
+export type OutputType = 'text' | 'json' | 'xml' | 'error' | 'warning' | 'info' | 'custom' | 'cql-execution' | 'cql-translation' | 'cql-validation';
+
 export interface OutputSection {
+  id: string;
   title: string;
   content: string;
+  type: OutputType;
   status: 'success' | 'error' | 'pending';
   executionTime?: number;
   expanded: boolean;
+  timestamp: Date;
+  metadata?: Record<string, any>;
 }
 
 export interface ExecutionResult {

@@ -216,4 +216,52 @@ export class FhirTabComponent {
   trackByPatientId(index: number, patient: Patient): string {
     return patient.id || index.toString();
   }
+
+  onCopyResourceToClipboard(): void {
+    const resources: string[] = [];
+    
+    // Add library resource if available
+    if (this.hasSelectedLibrary()) {
+      const libraryJson = this.libraryAsString();
+      if (libraryJson) {
+        resources.push(`// Library Resource\n${libraryJson}`);
+      }
+    }
+    
+    // Add patient resources if available
+    if (this.hasSelectedPatients()) {
+      this.selectedPatients().forEach(patient => {
+        const patientJson = this.patientAsString(patient);
+        if (patientJson) {
+          resources.push(`// Patient Resource: ${this.getPatientDisplayName(patient)}\n${patientJson}`);
+        }
+      });
+    }
+    
+    if (resources.length === 0) {
+      this.ideStateService.addTextOutput(
+        'Copy Failed', 
+        'No FHIR resources available to copy', 
+        'error'
+      );
+      return;
+    }
+    
+    const combinedJson = resources.join('\n\n');
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(combinedJson).then(() => {
+      this.ideStateService.addTextOutput(
+        'Resource Copied', 
+        `Successfully copied ${resources.length} FHIR resource(s) to clipboard`, 
+        'success'
+      );
+    }).catch((error) => {
+      this.ideStateService.addTextOutput(
+        'Copy Failed', 
+        `Failed to copy to clipboard: ${error.message}`, 
+        'error'
+      );
+    });
+  }
 }

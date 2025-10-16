@@ -1,5 +1,10 @@
 // Author: Preston Lee
 
+:host {
+  display: block;
+}
+
+// Minimal styles - let the global prism-theme.scss handle line numbers
 .syntax-highlighter {
   margin: 0;
   padding: 0;

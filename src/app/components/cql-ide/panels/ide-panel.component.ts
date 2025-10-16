@@ -45,6 +45,7 @@ export class IdePanelComponent {
   @Output() dragOver = new EventEmitter<string>();
   @Output() dragLeave = new EventEmitter<string>();
   @Output() executeAll = new EventEmitter<void>();
+  @Output() navigateToLine = new EventEmitter<number>();
 
   @ViewChild('panelElement', { static: false }) panelElement?: ElementRef<HTMLDivElement>;
   @ViewChild(NavigationTabComponent, { static: false }) navigationTab?: NavigationTabComponent;
@@ -105,6 +106,11 @@ export class IdePanelComponent {
   onExecuteAll(): void {
     // Emit event to parent component to handle execution
     this.executeAll.emit();
+  }
+
+  onNavigateToLine(lineNumber: number): void {
+    // Emit event to parent component to handle navigation
+    this.navigateToLine.emit(lineNumber);
   }
 
   onClearOutput(): void {
@@ -302,11 +308,14 @@ export class IdePanelComponent {
           
           // Add success message to output section
           this.ideStateService.addOutputSection({
+            id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             title: 'ELM Translation Success',
             content: 'CQL successfully translated to ELM',
+            type: 'info',
             status: 'success',
             executionTime: 0,
-            expanded: false
+            expanded: false,
+            timestamp: new Date()
           });
         },
         error: (error) => {
@@ -316,11 +325,14 @@ export class IdePanelComponent {
           
           // Add error to output section for user feedback
           this.ideStateService.addOutputSection({
+            id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             title: 'ELM Translation Error',
             content: `Translation failed: ${error.message || error}`,
+            type: 'error',
             status: 'error',
             executionTime: 0,
-            expanded: true
+            expanded: true,
+            timestamp: new Date()
           });
         }
       });

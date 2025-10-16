@@ -33,6 +33,7 @@ import { EditorTabsComponent } from './editors/editor-tabs/editor-tabs.component
   styleUrls: ['./cql-ide.component.scss']
 })
 export class CqlIdeComponent implements OnInit, OnDestroy {
+  @ViewChild(CqlEditorComponent, { static: false }) cqlEditor?: CqlEditorComponent;
   
   // Simple state properties
   leftPanelVisible = true;
@@ -415,6 +416,15 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     });
   }
 
+  onNavigateToLine(lineNumber: number): void {
+    // Navigate to the specified line in the active CQL editor
+    if (this.cqlEditor) {
+      this.cqlEditor.navigateToLine(lineNumber);
+    } else {
+      console.warn('CQL editor not available for navigation');
+    }
+  }
+
   // Settings
   onPreserveLogsChange(preserveLogs: boolean): void {
     // Handle preserve logs setting change
@@ -786,11 +796,14 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const executionTime = results.reduce((total, r) => total + (r.executionTime || 0), 0);
     
     this.ideStateService.addOutputSection({
+      id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       title: title,
       content: content,
+      type: 'json',
       status: status,
       executionTime: executionTime,
-      expanded: true
+      expanded: true,
+      timestamp: new Date()
     });
   }
 
@@ -798,11 +811,14 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const content = `Execution failed:\n${JSON.stringify(error, null, 2)}`;
     
     this.ideStateService.addOutputSection({
+      id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       title: title,
       content: content,
+      type: 'error',
       status: 'error',
       executionTime: 0,
-      expanded: true
+      expanded: true,
+      timestamp: new Date()
     });
   }
 

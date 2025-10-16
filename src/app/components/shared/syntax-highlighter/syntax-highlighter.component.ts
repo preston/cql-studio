@@ -17,6 +17,7 @@ export class SyntaxHighlighterComponent implements AfterViewInit, OnChanges {
   @Input() code: string = '';
   @Input() language: string = 'json';
   @ViewChild('codeElement') codeElement!: ElementRef;
+  @ViewChild('preElement') preElement!: ElementRef;
 
   ngAfterViewInit(): void {
     this.highlightCode();
@@ -24,25 +25,24 @@ export class SyntaxHighlighterComponent implements AfterViewInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['code'] || changes['language']) {
-      // Use setTimeout to ensure DOM is updated
-      setTimeout(() => {
-        this.highlightCode();
-      }, 0);
+      this.highlightCode();
     }
   }
 
   private highlightCode(): void {
-    if (this.codeElement && this.code) {
+    if (this.preElement && this.code) {
       if (typeof Prism !== 'undefined') {
         // Auto-detect language if not specified
         const detectedLanguage = this.detectLanguage();
         const languageClass = `language-${detectedLanguage}`;
         
-        // Set the language class
-        this.codeElement.nativeElement.className = languageClass;
+        // Set the language class on the code element
+        if (this.codeElement) {
+          this.codeElement.nativeElement.className = languageClass;
+        }
         
-        // Highlight the code
-        Prism.highlightElement(this.codeElement.nativeElement);
+        // Use PrismJS to highlight and apply line numbers
+        Prism.highlightAllUnder(this.preElement.nativeElement);
       } else {
         // PrismJS not loaded yet, retry after a short delay
         setTimeout(() => {

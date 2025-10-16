@@ -2,7 +2,7 @@
 
 import { Injectable, signal, computed } from '@angular/core';
 import { IdePanel, IdePanelTab, IdePanelState } from '../components/cql-ide/panels/ide-panel-tab.interface';
-import { LibraryResource, EditorFile, ExecutionResult, OutputSection } from '../components/cql-ide/shared/ide-types';
+import { LibraryResource, EditorFile, ExecutionResult, OutputSection, OutputType } from '../components/cql-ide/shared/ide-types';
 import { Library, Patient, Parameters } from 'fhir/r4';
 
 export interface EditorState {
@@ -77,7 +77,7 @@ export class IdeStateService {
   private _outputSections = signal<OutputSection[]>([]);
   private _executionProgress = signal<number>(0);
   private _executionStatus = signal<string>('');
-  private _preserveLogs = signal<boolean>(false);
+  private _preserveLogs = signal<boolean>(true);
 
   // FHIR data
   private _selectedPatients = signal<Patient[]>([]);
@@ -225,6 +225,146 @@ export class IdeStateService {
       // If preserveLogs is true, append to existing sections
       this._outputSections.update(sections => [...sections, section]);
     }
+  }
+
+  // Convenience methods for different output types
+  addTextOutput(title: string, content: string, status: 'success' | 'error' | 'pending' = 'success'): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title,
+      content,
+      type: 'text',
+      status,
+      expanded: true,
+      timestamp: new Date()
+    };
+    this.addOutputSection(section);
+  }
+
+  addJsonOutput(title: string, content: string, status: 'success' | 'error' | 'pending' = 'success'): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title,
+      content,
+      type: 'json',
+      status,
+      expanded: true,
+      timestamp: new Date()
+    };
+    this.addOutputSection(section);
+  }
+
+  addErrorOutput(title: string, content: string): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title,
+      content,
+      type: 'error',
+      status: 'error',
+      expanded: true,
+      timestamp: new Date()
+    };
+    this.addOutputSection(section);
+  }
+
+  addWarningOutput(title: string, content: string): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title,
+      content,
+      type: 'warning',
+      status: 'success',
+      expanded: true,
+      timestamp: new Date()
+    };
+    this.addOutputSection(section);
+  }
+
+  addInfoOutput(title: string, content: string): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title,
+      content,
+      type: 'info',
+      status: 'success',
+      expanded: true,
+      timestamp: new Date()
+    };
+    this.addOutputSection(section);
+  }
+
+  addCustomOutput(title: string, content: string, type: OutputType, metadata?: Record<string, any>): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title,
+      content,
+      type,
+      status: 'success',
+      expanded: true,
+      timestamp: new Date(),
+      metadata
+    };
+    this.addOutputSection(section);
+  }
+
+  private generateOutputId(): string {
+    return `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  // CQL-specific output methods
+  addCqlExecutionOutput(libraryName: string, patientName: string, result: any, executionTime: number): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title: `CQL Execution: ${libraryName}`,
+      content: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+      type: 'custom',
+      status: 'success',
+      expanded: true,
+      timestamp: new Date(),
+      executionTime,
+      metadata: {
+        libraryName,
+        patientName,
+        resultType: typeof result
+      }
+    };
+    this.addOutputSection(section);
+  }
+
+  addCqlTranslationOutput(libraryName: string, cqlVersion: string, elmContent: string): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title: `CQL Translation: ${libraryName}`,
+      content: elmContent,
+      type: 'custom',
+      status: 'success',
+      expanded: true,
+      timestamp: new Date(),
+      metadata: {
+        libraryName,
+        cqlVersion,
+        contentType: 'elm'
+      }
+    };
+    this.addOutputSection(section);
+  }
+
+  addCqlValidationOutput(libraryName: string, validationResults: any, errorCount: number): void {
+    const section: OutputSection = {
+      id: this.generateOutputId(),
+      title: `CQL Validation: ${libraryName}`,
+      content: typeof validationResults === 'string' ? validationResults : JSON.stringify(validationResults, null, 2),
+      type: 'custom',
+      status: errorCount > 0 ? 'error' : 'success',
+      expanded: true,
+      timestamp: new Date(),
+      metadata: {
+        libraryName,
+        errorCount,
+        validationType: 'cql'
+      }
+    };
+    this.addOutputSection(section);
   }
 
   clearOutputSections(): void {

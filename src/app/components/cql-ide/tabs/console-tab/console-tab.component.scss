@@ -8,6 +8,14 @@
   color: #d4d4d4;
 }
 
+.console-panel .flex-fill.overflow-auto {
+  scroll-behavior: smooth;
+  height: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* Override Bootstrap bg-dark classes in console panel */
 .console-panel .bg-dark {
   background-color: var(--ide-bg-primary) !important;
@@ -32,6 +40,7 @@
   padding: 8px;
   contain: layout;
   min-height: 0;
+  scroll-behavior: smooth;
 }
 
 .console-section {
@@ -42,9 +51,40 @@
   overflow: hidden;
   contain: layout;
   flex-shrink: 0;
+  transition: border-color 0.2s ease;
+
+  // Type-specific styling
+  &.console-section-error {
+    border-left: 4px solid var(--ide-error);
+    background-color: rgba(255, 0, 0, 0.05);
+  }
+
+  &.console-section-warning {
+    border-left: 4px solid #ffa500;
+    background-color: rgba(255, 165, 0, 0.05);
+  }
+
+  &.console-section-info {
+    border-left: 4px solid var(--ide-blue);
+    background-color: rgba(0, 123, 255, 0.05);
+  }
+
+  &.console-section-json {
+    border-left: 4px solid #28a745;
+    background-color: rgba(40, 167, 69, 0.05);
+  }
+
+  &.console-section-text {
+    border-left: 4px solid #6c757d;
+  }
+
+  &.console-section-custom {
+    border-left: 4px solid #6f42c1;
+    background-color: rgba(111, 66, 193, 0.05);
+  }
 }
 
-.section-header {
+.console-section-header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -53,10 +93,21 @@
   cursor: pointer;
   user-select: none;
   transition: background-color 0.2s ease;
+  border-bottom: 1px solid var(--ide-border);
+
+  &:hover {
+    background-color: #3c3c3c;
+  }
+
+  .bi {
+    font-size: 14px;
+  }
 }
 
-.section-header:hover {
-  background-color: #3c3c3c;
+.console-section-content {
+  padding: 12px;
+  background-color: var(--ide-bg-primary);
+  border-top: 1px solid var(--ide-border);
 }
 
 .section-title {
