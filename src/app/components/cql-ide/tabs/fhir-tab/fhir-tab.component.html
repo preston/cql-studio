@@ -20,7 +20,8 @@
     </div>
 
     <!-- Library Management -->
-    <div *ngIf="hasSelectedLibrary()" class="mb-3">
+    @if (hasSelectedLibrary()) {
+      <div class="mb-3">
       <!-- Library Form -->
       <div class="mb-3">
         <div class="form-floating mb-3">
@@ -110,7 +111,8 @@
           <i class="bi-trash me-1"></i> Delete from Server
         </button>
       </div>
-    </div>
+      </div>
+    }
 
     <!-- Resource Section -->
     <div class="mt-4">
@@ -129,44 +131,52 @@
         </button>
       </div>
       <div>
-        <div *ngIf="!hasSelectedLibrary() && !hasSelectedPatients()" class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
-          <i class="bi-document fs-1 mb-2"></i>
-          <span>Select a library and patient(s) to view FHIR resources</span>
-        </div>
+        @if (!hasSelectedLibrary() && !hasSelectedPatients()) {
+          <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+            <i class="bi-document fs-1 mb-2"></i>
+            <span>Select a library and patient(s) to view FHIR resources</span>
+          </div>
+        }
         
         <!-- Library Resource Inputs -->
-        <div *ngIf="hasSelectedLibrary()" class="mb-3">
-          
-          
-          <!-- Library Resource Display -->
-          <div class="border rounded p-3 bg-dark" style="max-height: 350px; overflow-y: auto;">
-            <app-syntax-highlighter 
-              [code]="libraryAsString() || 'No library resource available'"
-              language="json">
-            </app-syntax-highlighter>
-          </div>
-        </div>
-        
-        <!-- Patient Resources -->
-        <div *ngIf="hasSelectedPatients()" class="mb-3">
-          <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
-            <i class="bi-patient text-info"></i>
-            <span class="fw-semibold small text-white">Patient Resources ({{ selectedPatients().length }})</span>
-          </div>
-          <div *ngFor="let patient of selectedPatients(); trackBy: trackByPatientId" class="mb-3">
-            <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
-              <i class="bi-patient text-info"></i>
-              <span class="fw-medium text-white">{{ getPatientDisplayName(patient) }}</span>
-              <span class="small text-muted">({{ patient.id }})</span>
-            </div>
-            <div class="border rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
+        @if (hasSelectedLibrary()) {
+          <div class="mb-3">
+            
+            
+            <!-- Library Resource Display -->
+            <div class="border rounded p-3 bg-dark" style="max-height: 350px; overflow-y: auto;">
               <app-syntax-highlighter 
-                [code]="patientAsString(patient) || 'No patient resource available'"
-                language="autodetect">
+                [code]="libraryAsString() || 'No library resource available'"
+                language="json">
               </app-syntax-highlighter>
             </div>
           </div>
-        </div>
+        }
+        
+        <!-- Patient Resources -->
+        @if (hasSelectedPatients()) {
+          <div class="mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
+              <i class="bi-patient text-info"></i>
+              <span class="fw-semibold small text-white">Patient Resources ({{ selectedPatients().length }})</span>
+            </div>
+            @for (patient of selectedPatients(); track trackByPatientId($index, patient)) {
+              <div class="mb-3">
+                <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
+                  <i class="bi-patient text-info"></i>
+                  <span class="fw-medium text-white">{{ getPatientDisplayName(patient) }}</span>
+                  <span class="small text-muted">({{ patient.id }})</span>
+                </div>
+                <div class="border rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
+                  <app-syntax-highlighter 
+                    [code]="patientAsString(patient) || 'No patient resource available'"
+                    language="autodetect">
+                  </app-syntax-highlighter>
+                </div>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
   </div>

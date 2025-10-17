@@ -1,13 +1,12 @@
 // Author: Preston Lee
 
 import { Component, Input, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { IdeStateService } from '../../../../services/ide-state.service';
 
 @Component({
   selector: 'app-problems-tab',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './problems-tab.component.html',
   styleUrls: ['./problems-tab.component.scss']
 })

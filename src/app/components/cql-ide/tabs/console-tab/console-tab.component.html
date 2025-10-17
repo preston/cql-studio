@@ -29,45 +29,61 @@
   </div>
   <div class="flex-fill overflow-auto" [class.executing]="isEvaluating" #consoleContent (scroll)="onConsoleScroll($event)">
     <div class="p-2">
-      <div *ngFor="let section of outputSections(); let i = index" 
-           [ngClass]="getOutputClass(section)"
-           [class.expanded]="section.expanded">
-        <div class="d-flex align-items-center gap-2 p-2 border-bottom console-section-header" (click)="onToggleSection(i)">
-          <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
-          <i class="bi {{ getOutputIcon(section) }} text-muted"></i>
-          <span class="fw-medium flex-fill text-white">{{ section.title }}</span>
-          <span class="badge" [class.bg-success]="section.status === 'success'"
-            [class.bg-danger]="section.status === 'error'"
-            [class.bg-warning]="section.status !== 'success' && section.status !== 'error'">
-            {{ section.status === 'success' ? 'SUCCESS' : section.status === 'error' ? 'ERROR' : 'PENDING' }}
-          </span>
-          <span class="small text-muted" *ngIf="section.executionTime">{{ section.executionTime }}ms</span>
-          <span class="small text-muted" *ngIf="section.timestamp">{{ section.timestamp | date:'HH:mm:ss.SSS' }}</span>
+      @for (section of outputSections(); track section.id; let i = $index) {
+        <div [ngClass]="getOutputClass(section)"
+             [class.expanded]="section.expanded">
+          <div class="d-flex align-items-center gap-2 p-2 border-bottom console-section-header" (click)="onToggleSection(i)">
+            <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
+            <i class="bi {{ getOutputIcon(section) }} text-muted"></i>
+            <span class="fw-medium flex-fill text-white">{{ section.title }}</span>
+            <span class="badge" [class.bg-success]="section.status === 'success'"
+              [class.bg-danger]="section.status === 'error'"
+              [class.bg-warning]="section.status !== 'success' && section.status !== 'error'">
+              {{ section.status === 'success' ? 'SUCCESS' : section.status === 'error' ? 'ERROR' : 'PENDING' }}
+            </span>
+            @if (section.executionTime) {
+              <span class="small text-muted">{{ section.executionTime }}ms</span>
+            }
+            @if (section.timestamp) {
+              <span class="small text-muted">{{ section.timestamp | date:'HH:mm:ss.SSS' }}</span>
+            }
+          </div>
+          @if (section.expanded) {
+            <div class="p-3 bg-dark console-section-content">
+              @switch (section.type) {
+                @case ('custom') {
+                  <!-- Custom output cards for CQL execution functions -->
+                  <app-custom-output-card [section]="section"></app-custom-output-card>
+                }
+                @case ('json') {
+                  <!-- Syntax highlighted output for JSON and XML -->
+                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+                }
+                @case ('xml') {
+                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+                }
+                @default {
+                  <!-- Standard syntax highlighted output for other types -->
+                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+                }
+              }
+            </div>
+          }
         </div>
-        <div class="p-3 bg-dark console-section-content" *ngIf="section.expanded">
-          <ng-container [ngSwitch]="section.type">
-            <!-- Custom output cards for CQL execution functions -->
-            <app-custom-output-card *ngSwitchCase="'custom'" [section]="section"></app-custom-output-card>
-            
-            <!-- Syntax highlighted output for JSON and XML -->
-            <app-syntax-highlighter *ngSwitchCase="'json'" [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
-            <app-syntax-highlighter *ngSwitchCase="'xml'" [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
-            
-            <!-- Standard syntax highlighted output for other types -->
-            <app-syntax-highlighter *ngSwitchDefault [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
-          </ng-container>
+      }
+    </div>
+    @if (outputSections().length === 0 && !isEvaluating) {
+      <div class="no-console d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+        <span>No console output yet. Click "Execute All" to run open libraries.</span>
+      </div>
+    }
+    @if (isEvaluating) {
+      <div class="p-3 border-top bg-secondary">
+        <div class="progress mb-2">
+          <div class="progress-bar" [style.width.%]="executionProgress"></div>
         </div>
+        <span class="small text-light">{{ executionStatus }}</span>
       </div>
-    </div>
-    <div *ngIf="outputSections().length === 0 && !isEvaluating"
-      class="no-console d-flex flex-column align-items-center justify-content-center py-4 text-muted">
-      <span>No console output yet. Click "Execute All" to run open libraries.</span>
-    </div>
-    <div *ngIf="isEvaluating" class="p-3 border-top bg-secondary">
-      <div class="progress mb-2">
-        <div class="progress-bar" [style.width.%]="executionProgress"></div>
-      </div>
-      <span class="small text-light">{{ executionStatus }}</span>
-    </div>
+    }
   </div>
 </div>

@@ -7,71 +7,80 @@
 >
   <!-- Panel Header with Tabs -->
   <div class="bg-dark border-dark border-bottom d-flex">
-    <button 
-      *ngFor="let tab of panel.tabs" 
-      class="btn rounded-0 flex-fill" 
-      [class.active]="tab.isActive"
-      (click)="onTabClick(tab)"
-      draggable="true"
-      (dragstart)="onTabDragStart($event, tab)"
-    >
-      {{ tab.title }}
-    </button>
+    @for (tab of panel.tabs; track tab.id) {
+      <button 
+        class="btn rounded-0 flex-fill" 
+        [class.active]="tab.isActive"
+        (click)="onTabClick(tab)"
+        draggable="true"
+        (dragstart)="onTabDragStart($event, tab)"
+      >
+        {{ tab.title }}
+      </button>
+    }
   </div>
   
   <!-- Panel Content -->
   <div class="panel-content h-100 d-flex flex-column">
     <!-- Navigation Tab -->
-    <app-navigation-tab 
-      *ngIf="getActiveTab()?.type === 'navigation'"
-      (executeAllEvent)="onExecuteAll()">
-    </app-navigation-tab>
+    @if (getActiveTab()?.type === 'navigation') {
+      <app-navigation-tab 
+        (executeAllEvent)="onExecuteAll()">
+      </app-navigation-tab>
+    }
     
     <!-- Outline Tab -->
-    <app-outline-tab 
-      *ngIf="getActiveTab()?.type === 'outline'"
-      (navigateToLine)="onNavigateToLine($event)">
-    </app-outline-tab>
+    @if (getActiveTab()?.type === 'outline') {
+      <app-outline-tab 
+        (navigateToLine)="onNavigateToLine($event)">
+      </app-outline-tab>
+    }
     
     <!-- FHIR Tab -->
-    <app-fhir-tab 
-      *ngIf="getActiveTab()?.type === 'fhir'"
-      (deleteLibrary)="onDeleteLibraryFromServer()">
-    </app-fhir-tab>
+    @if (getActiveTab()?.type === 'fhir') {
+      <app-fhir-tab 
+        (deleteLibrary)="onDeleteLibraryFromServer()">
+      </app-fhir-tab>
+    }
     
     <!-- ELM Tab -->
-    <app-elm-tab 
-      *ngIf="getActiveTab()?.type === 'elm'"
-      [cqlContent]="getActiveLibraryCqlContent()"
-      [isTranslating]="ideStateService.isTranslating()"
-      [elmTranslationResults]="ideStateService.elmTranslationResults()"
-      (translateCqlToElm)="onTranslateCqlToElm()"
-      (clearElmTranslation)="onClearElmTranslation()">
-    </app-elm-tab>
+    @if (getActiveTab()?.type === 'elm') {
+      <app-elm-tab 
+        [cqlContent]="getActiveLibraryCqlContent()"
+        [isTranslating]="ideStateService.isTranslating()"
+        [elmTranslationResults]="ideStateService.elmTranslationResults()"
+        (translateCqlToElm)="onTranslateCqlToElm()"
+        (clearElmTranslation)="onClearElmTranslation()">
+      </app-elm-tab>
+    }
     
     <!-- Problems Tab -->
-    <app-problems-tab *ngIf="getActiveTab()?.type === 'problems'"></app-problems-tab>
+    @if (getActiveTab()?.type === 'problems') {
+      <app-problems-tab></app-problems-tab>
+    }
     
     <!-- Console Tab -->
-    <app-console-tab 
-      *ngIf="getActiveTab()?.type === 'output'"
-      [preserveLogs]="ideStateService.preserveLogs()"
-      [isEvaluating]="ideStateService.isExecuting()"
-      [executionProgress]="ideStateService.executionProgress()"
-      [executionStatus]="ideStateService.executionStatus()"
-      (clearOutput)="onClearOutput()"
-      (copyOutput)="onCopyOutput()"
-      (toggleAllSections)="onToggleAllSections()"
-      (preserveLogsChange)="onPreserveLogsChange($event)">
-    </app-console-tab>
+    @if (getActiveTab()?.type === 'output') {
+      <app-console-tab 
+        [preserveLogs]="ideStateService.preserveLogs()"
+        [isEvaluating]="ideStateService.isExecuting()"
+        [executionProgress]="ideStateService.executionProgress()"
+        [executionStatus]="ideStateService.executionStatus()"
+        (clearOutput)="onClearOutput()"
+        (copyOutput)="onCopyOutput()"
+        (toggleAllSections)="onToggleAllSections()"
+        (preserveLogsChange)="onPreserveLogsChange($event)">
+      </app-console-tab>
+    }
     
     <!-- AI Tab -->
-    <app-ai-tab 
-      *ngIf="getActiveTab()?.type === 'ai'"
-      [cqlContent]="getActiveLibraryCqlContent()"
-      (insertCqlCode)="onInsertCqlCode($event)"
-      (replaceCqlCode)="onReplaceCqlCode($event)">
-    </app-ai-tab>
+    @if (getActiveTab()?.type === 'ai') {
+      <app-ai-tab 
+        [cqlContent]="getActiveLibraryCqlContent()"
+        (insertCqlCode)="onInsertCqlCode($event)"
+        (replaceCqlCode)="onReplaceCqlCode($event)">
+      </app-ai-tab>
+    }
   </div>
   
   <!-- Resize Handle -->

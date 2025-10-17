@@ -33,16 +33,17 @@
   </div>
   
   <div class="flex-fill overflow-auto">
-    <div 
-      class="outline-item d-flex align-items-center px-2 py-1 cursor-pointer" 
-      *ngFor="let item of filteredOutlineItems(); trackBy: trackByOutlineItem"
-      (click)="onOutlineItemClick(item)"
-      title="Click to go to line {{ item.line }}"
-    >
-      <i class="bi bi-{{ getIconForType(item.type) }} me-1 text-info" style="font-size: 0.75rem;"></i>
-      <span class="text-light small flex-fill">{{ item.name }}</span>
-      <span class="text-muted small">{{ item.line }}</span>
-    </div>
+    @for (item of filteredOutlineItems(); track trackByOutlineItem($index, item)) {
+      <div 
+        class="outline-item d-flex align-items-center px-2 py-1 cursor-pointer" 
+        (click)="onOutlineItemClick(item)"
+        title="Click to go to line {{ item.line }}"
+      >
+        <i class="bi bi-{{ getIconForType(item.type) }} me-1 text-info" style="font-size: 0.75rem;"></i>
+        <span class="text-light small flex-fill">{{ item.name }}</span>
+        <span class="text-muted small">{{ item.line }}</span>
+      </div>
+    }
     @if (filteredOutlineItems().length === 0 && outlineItems().length > 0) {
       <div class="text-center text-muted py-4">
         <span>No matches</span>

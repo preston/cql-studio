@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, Input, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectorRef, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
@@ -44,7 +43,7 @@ const darkHighlightStyle = {
 @Component({
   selector: 'app-cql-editor',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './cql-editor.component.html',
   styleUrls: ['./cql-editor.component.scss']
 })

@@ -1,12 +1,11 @@
 // Author: Preston Lee
 
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-ide-status-bar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './ide-status-bar.component.html',
   styleUrls: ['./ide-status-bar.component.scss']
 })

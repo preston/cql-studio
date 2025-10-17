@@ -39,17 +39,19 @@
     </div>
     
     <!-- ELM Translation Results -->
-    <div *ngIf="isTranslating || elmTranslationResults">
+    @if (isTranslating || elmTranslationResults) {
       <div class="border rounded p-2" style="overflow-y: auto;">
-        <div *ngIf="isTranslating" class="d-flex align-items-center justify-content-center py-4 text-muted">
-          <i class="bi bi-arrow-clockwise me-2"></i>
-          <span>Translating CQL to ELM...</span>
-        </div>
+        @if (isTranslating) {
+          <div class="d-flex align-items-center justify-content-center py-4 text-muted">
+            <i class="bi bi-arrow-clockwise me-2"></i>
+            <span>Translating CQL to ELM...</span>
+          </div>
+        }
         
-        <div *ngIf="!isTranslating && elmTranslationResults">
+        @if (!isTranslating && elmTranslationResults) {
           <app-syntax-highlighter [code]="elmTranslationResultsAsString()" [language]="'xml'"></app-syntax-highlighter>
-        </div>
+        }
       </div>
-    </div>
+    }
   </div>
 </div>

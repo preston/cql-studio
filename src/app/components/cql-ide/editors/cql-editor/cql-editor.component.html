@@ -8,8 +8,12 @@
         [disabled]="!canExecute() || isExecuting" 
         title="Execute Library"
       >
-        <i class="bi bi-play me-1" *ngIf="!isExecuting"></i>
-        <i class="bi bi-arrow-clockwise me-1" *ngIf="isExecuting"></i>
+        @if (!isExecuting) {
+          <i class="bi bi-play me-1"></i>
+        }
+        @if (isExecuting) {
+          <i class="bi bi-arrow-clockwise me-1"></i>
+        }
         Execute
       </button>
       <button 

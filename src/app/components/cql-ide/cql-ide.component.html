@@ -2,20 +2,21 @@
   <!-- Main Layout -->
   <div class="ide-layout">
     <!-- Left Panel -->
-    <app-ide-panel
-      *ngIf="ideStateService.getPanel('left')?.isVisible"
-      [panel]="ideStateService.getPanel('left')!"
-      [position]="'left'"
-      (togglePanel)="onTogglePanel('left')"
-      (setActiveTab)="onSetActiveTab('left', $event)"
-      (startResize)="onStartResize($event)"
-      (moveTab)="onMoveTab($event)"
-      (tabDrop)="onTabDrop($event)"
-      (dragOver)="onDragOver($event)"
-      (dragLeave)="onDragLeave($event)"
-      (executeAll)="onExecuteAll()"
-      (navigateToLine)="onNavigateToLine($event)">
-    </app-ide-panel>
+    @if (ideStateService.getPanel('left')?.isVisible) {
+      <app-ide-panel
+        [panel]="ideStateService.getPanel('left')!"
+        [position]="'left'"
+        (togglePanel)="onTogglePanel('left')"
+        (setActiveTab)="onSetActiveTab('left', $event)"
+        (startResize)="onStartResize($event)"
+        (moveTab)="onMoveTab($event)"
+        (tabDrop)="onTabDrop($event)"
+        (dragOver)="onDragOver($event)"
+        (dragLeave)="onDragLeave($event)"
+        (executeAll)="onExecuteAll()"
+        (navigateToLine)="onNavigateToLine($event)">
+      </app-ide-panel>
+    }
 
     <!-- Main Content Area -->
     <div class="main-content">
@@ -29,24 +30,25 @@
       <!-- CQL Editor -->
       <div class="editor-area">
         @for (library of ideStateService.libraryResources(); track library.id) {
-          <app-cql-editor
-            *ngIf="library.id === ideStateService.activeLibraryId()"
-            [libraryId]="library.id"
-            [editorState]="ideStateService.editorState()"
-            [placeholder]="'Start writing CQL...'"
-            [height]="'100%'"
-            [readonly]="false"
-            [cqlVersion]="'1.5.3'"
-            [isNewLibrary]="!library.library"
-            (contentChange)="onEditorContentChange($event, library.id)"
-            (syntaxErrors)="onEditorSyntaxErrors($event)"
-            (executeLibrary)="onExecuteLibrary()"
-            (reloadLibrary)="onReloadLibrary()"
-            (cqlVersionChange)="onCqlVersionChange($event)"
-            (formatCql)="onFormatCql()"
-            (validateCql)="onValidateCql()"
-            (saveLibrary)="onSaveLibrary()">
-          </app-cql-editor>
+          @if (library.id === ideStateService.activeLibraryId()) {
+            <app-cql-editor
+              [libraryId]="library.id"
+              [editorState]="ideStateService.editorState()"
+              [placeholder]="'Start writing CQL...'"
+              [height]="'100%'"
+              [readonly]="false"
+              [cqlVersion]="'1.5.3'"
+              [isNewLibrary]="!library.library"
+              (contentChange)="onEditorContentChange($event, library.id)"
+              (syntaxErrors)="onEditorSyntaxErrors($event)"
+              (executeLibrary)="onExecuteLibrary()"
+              (reloadLibrary)="onReloadLibrary()"
+              (cqlVersionChange)="onCqlVersionChange($event)"
+              (formatCql)="onFormatCql()"
+              (validateCql)="onValidateCql()"
+              (saveLibrary)="onSaveLibrary()">
+            </app-cql-editor>
+          }
         }
         @if (!ideStateService.activeLibraryId()) {
           <div class="d-flex align-items-center justify-content-center h-100 p-4">
@@ -81,36 +83,38 @@
     </div>
 
     <!-- Right Panel -->
+    @if (ideStateService.getPanel('right')?.isVisible) {
+      <app-ide-panel
+        [panel]="ideStateService.getPanel('right')!"
+        [position]="'right'"
+        (togglePanel)="onTogglePanel('right')"
+        (setActiveTab)="onSetActiveTab('right', $event)"
+        (startResize)="onStartResize($event)"
+        (moveTab)="onMoveTab($event)"
+        (tabDrop)="onTabDrop($event)"
+        (dragOver)="onDragOver($event)"
+        (dragLeave)="onDragLeave($event)"
+        (executeAll)="onExecuteAll()"
+        (navigateToLine)="onNavigateToLine($event)">
+      </app-ide-panel>
+    }
+  </div>
+
+  <!-- Bottom Panel -->
+  @if (ideStateService.getPanel('bottom')?.isVisible) {
     <app-ide-panel
-      *ngIf="ideStateService.getPanel('right')?.isVisible"
-      [panel]="ideStateService.getPanel('right')!"
-      [position]="'right'"
-      (togglePanel)="onTogglePanel('right')"
-      (setActiveTab)="onSetActiveTab('right', $event)"
+      [panel]="ideStateService.getPanel('bottom')!"
+      [position]="'bottom'"
+      (togglePanel)="onTogglePanel('bottom')"
+      (setActiveTab)="onSetActiveTab('bottom', $event)"
       (startResize)="onStartResize($event)"
       (moveTab)="onMoveTab($event)"
       (tabDrop)="onTabDrop($event)"
       (dragOver)="onDragOver($event)"
       (dragLeave)="onDragLeave($event)"
-      (executeAll)="onExecuteAll()"
-      (navigateToLine)="onNavigateToLine($event)">
+      (executeAll)="onExecuteAll()">
     </app-ide-panel>
-  </div>
-
-  <!-- Bottom Panel -->
-  <app-ide-panel
-    *ngIf="ideStateService.getPanel('bottom')?.isVisible"
-    [panel]="ideStateService.getPanel('bottom')!"
-    [position]="'bottom'"
-    (togglePanel)="onTogglePanel('bottom')"
-    (setActiveTab)="onSetActiveTab('bottom', $event)"
-    (startResize)="onStartResize($event)"
-    (moveTab)="onMoveTab($event)"
-    (tabDrop)="onTabDrop($event)"
-    (dragOver)="onDragOver($event)"
-    (dragLeave)="onDragLeave($event)"
-    (executeAll)="onExecuteAll()">
-  </app-ide-panel>
+  }
 
   <!-- Status Bar -->
   <app-ide-status-bar
