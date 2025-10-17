@@ -5,12 +5,11 @@ import { RouterOutlet, Router, ActivatedRoute } from '@angular/router';
 
 import { FormsModule } from '@angular/forms';
 import { NavigationComponent } from './components/navigation/navigation.component';
-import { FooterComponent } from './components/footer/footer.component';
 import { SettingsService } from './services/settings.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, FormsModule, NavigationComponent, FooterComponent],
+  imports: [RouterOutlet, FormsModule, NavigationComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
