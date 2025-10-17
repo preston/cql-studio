@@ -156,6 +156,41 @@
   51%, 100% { opacity: 0; }
 }
 
+// Minimal markdown styling for chat - use ::ng-deep to penetrate component encapsulation
+:host ::ng-deep .ai-tab-container markdown {
+  h1, h2, h3, h4, h5, h6 {
+    color: theme.$ide-text-white !important;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin: 0.2rem 0 0.1rem 0;
+  }
+  
+  p {
+    color: theme.$ide-text-white !important;
+    margin-bottom: 0.2rem;
+    font-size: 0.85rem;
+  }
+  
+  ul, ol {
+    color: theme.$ide-text-white !important;
+    margin-bottom: 0.2rem;
+    padding-left: 1rem;
+    font-size: 0.85rem;
+  }
+  
+  a {
+    color: theme.$ide-blue !important;
+  }
+  
+  code {
+    background-color: theme.$ide-bg-secondary;
+    color: theme.$ide-text-white;
+    padding: 0.1rem 0.2rem;
+    border-radius: 2px;
+    font-size: 0.75rem;
+  }
+}
+
 // Assistant message styling
 .ai-tab-container {
   .ai-chat-area {

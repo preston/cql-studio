@@ -119,20 +119,20 @@
     <div class="messages-area flex-fill overflow-auto p-3">
 
       <!-- Messages -->
-      @if (activeConversationId()) {
+      @if (activeConversationId() && activeConversation()?.messages && activeConversation()!.messages.length > 0) {
       <div class="messages">
-        @for (message of activeConversation()?.messages || []; track $index) {
+        @for (message of activeConversation()!.messages; track $index) {
         <div class="message mb-4" [class.user-message]="message.role === 'user'" [class.assistant-message]="message.role === 'assistant'">
           @if (message.role === 'user') {
           <div class="d-flex">
             <div class="message-body bg-info text-white rounded-1 m-1 p-1">
-              <div [innerHTML]="formatMessageContent(message.content)"></div>
+              <markdown [data]="message.content"></markdown>
             </div>
           </div>
           } @else {
           <div class="message-content">
             <div class="message-body">
-              <div [innerHTML]="formatMessageContent(message.content)"></div>
+              <markdown [data]="message.content"></markdown>
             </div>
           </div>
           }
@@ -146,15 +146,17 @@
       <div class="message mb-4 assistant-message">
         <div class="message-content">
           <div class="message-body">
-            <div [innerHTML]="formatMessageContent(streamingResponse())"></div>
+            <markdown [data]="streamingResponse()"></markdown>
             <div class="streaming-cursor mt-1">
               <span class="text-primary">▋</span>
             </div>
           </div>
         </div>
       </div>
-      } @else {
-      <!-- Welcome Message -->
+      }
+
+      <!-- Welcome Message - Only show when no active conversation or no messages -->
+      @if (!activeConversationId() || !activeConversation()?.messages || activeConversation()!.messages.length === 0) {
       <div class="welcome-message d-flex align-items-center justify-content-center h-100">
         <div class="text-center">
           <i class="bi bi-robot mb-3" style="font-size: 3rem; color: #6c757d;"></i>
@@ -221,9 +223,9 @@
       
       <div class="input-group rounded-0">
         <textarea 
-          class="form-control rounded-0" 
-          rows="3" 
-          placeholder="Ask me anything about CQL..."
+          class="form-control rounded-0 fs-6" 
+          rows="2" 
+          placeholder="Ask or build anything with CQL..."
           [value]="currentMessage()"
           (input)="onMessageChange($event)"
           (keydown)="onKeyPress($event)"

@@ -4,6 +4,7 @@ import { Component, Input, Output, EventEmitter, computed, signal, ViewChild, El
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { MarkdownComponent } from 'ngx-markdown';
 import { AiService, AIConversation, OllamaMessage } from '../../../../services/ai.service';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
@@ -11,7 +12,7 @@ import { SettingsService } from '../../../../services/settings.service';
 @Component({
   selector: 'app-ai-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownComponent],
   templateUrl: './ai-tab.component.html',
   styleUrls: ['./ai-tab.component.scss']
 })
@@ -337,14 +338,6 @@ export class AiTabComponent implements AfterViewChecked {
     }
   }
 
-  formatMessageContent(content: string): string {
-    // Basic markdown-like formatting
-    return content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-      .replace(/\n/g, '<br>');
-  }
 
   extractCodeBlocks(content: string): Array<{ language: string; code: string }> {
     const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
