@@ -7,6 +7,7 @@ import { catchError, map } from 'rxjs/operators';
 import { BaseService } from './base.service';
 import { SettingsService } from './settings.service';
 import { IdeStateService } from './ide-state.service';
+import { ConversationContextService, ConversationContext } from './conversation-context.service';
 
 // Ollama API types (based on official Ollama API)
 export interface OllamaMessage {
@@ -56,6 +57,9 @@ export interface AIConversation {
   messages: OllamaMessage[];
   createdAt: Date;
   updatedAt: Date;
+  contextId?: string;
+  editorId?: string;
+  editorType?: 'cql' | 'fhir' | 'general';
 }
 
 @Injectable({
@@ -68,7 +72,8 @@ export class AiService extends BaseService {
   constructor(
     protected override http: HttpClient,
     private settingsService: SettingsService,
-    private ideStateService: IdeStateService
+    private ideStateService: IdeStateService,
+    private conversationContextService: ConversationContextService
   ) {
     super(http);
   }
@@ -103,6 +108,18 @@ export class AiService extends BaseService {
         return throwError(() => new Error(`Connection test failed: ${error.message || 'Unknown error'}`));
       })
     );
+  }
+
+  /**
+   * Send a context-aware message to Ollama
+   */
+  sendContextAwareMessage(
+    message: string,
+    useMCPTools: boolean = true,
+    cqlContent?: string
+  ): Observable<OllamaResponse> {
+    const contextId = this.conversationContextService.getRelevantConversation();
+    return this.sendMessage(message, contextId || undefined, useMCPTools);
   }
 
   /**
@@ -162,6 +179,18 @@ export class AiService extends BaseService {
       }),
       catchError(this.handleError)
     );
+  }
+
+  /**
+   * Send a context-aware streaming message to Ollama
+   */
+  sendContextAwareStreamingMessage(
+    message: string,
+    useMCPTools: boolean = true,
+    cqlContent?: string
+  ): Observable<{type: 'start' | 'chunk' | 'end', content?: string, fullResponse?: string}> {
+    const contextId = this.conversationContextService.getRelevantConversation();
+    return this.sendStreamingMessage(message, contextId || undefined, useMCPTools, cqlContent);
   }
 
   /**
@@ -472,6 +501,55 @@ ${cqlContent}
    */
   clearAllConversations(): void {
     localStorage.removeItem(this.CONVERSATION_STORAGE_KEY);
+  }
+
+  /**
+   * Get conversations for a specific context
+   */
+  getConversationsForContext(editorId: string): AIConversation[] {
+    return this.getConversations().filter(c => c.editorId === editorId);
+  }
+
+  /**
+   * Get the most relevant conversation for current context
+   */
+  getRelevantConversation(): string | null {
+    return this.conversationContextService.getRelevantConversation();
+  }
+
+  /**
+   * Create a new conversation with context
+   */
+  createContextualConversation(firstMessage: string): AIConversation {
+    const conversation = this.createNewConversation(firstMessage);
+    const context = this.conversationContextService.createOrGetContext(conversation.id);
+    
+    // Update conversation with context information
+    conversation.contextId = context.id;
+    conversation.editorId = context.editorId;
+    conversation.editorType = context.editorType;
+    
+    this.saveConversation(conversation);
+    return conversation;
+  }
+
+  /**
+   * Update conversation context when editor changes
+   */
+  updateConversationContext(conversationId: string, editorId: string): void {
+    const conversation = this.getConversation(conversationId);
+    if (conversation) {
+      conversation.editorId = editorId;
+      this.saveConversation(conversation);
+    }
+  }
+
+
+  /**
+   * Switch to a different editor context
+   */
+  switchToEditorContext(editorId: string): string | null {
+    return this.conversationContextService.switchToEditorContext(editorId);
   }
 
   private createNewConversation(firstMessage: string): AIConversation {

@@ -62,7 +62,8 @@
     <div class="ai-toolbar border-bottom p-2 sticky-top">
       <div class="d-flex justify-content-between align-items-center">
         <div class="d-flex gap-2 align-items-center">
-          <!-- Conversations Dropdown -->
+          
+          <!-- Conversations & Context Dropdown -->
           <div class="dropdown">
             <button class="btn btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-chat-dots me-1"></i>Conversations
@@ -72,12 +73,44 @@
             </button>
             <ul class="dropdown-menu">
               <li>
-                <button class="dropdown-item " (click)="onNewConversation()">
+                <button class="dropdown-item" (click)="onNewConversation()">
                   <i class="bi bi-plus-circle me-2"></i>New Conversation
                 </button>
               </li>
+              
+              <!-- Context History Section -->
+              @if (getContextHistory().length > 0) {
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <div class="dropdown-header">
+                  <i class="bi bi-clock-history me-1"></i>Context History
+                </div>
+              </li>
+              @for (context of getContextHistory(); track context.id) {
+              <li>
+                <button class="dropdown-item d-flex justify-content-between align-items-center"
+                        (click)="onSwitchToEditorContext(context.editorId)"
+                        [title]="context.contextSummary">
+                  <div class="flex-fill">
+                    <div class="fw-bold">{{ getContextDisplayName(context) }}</div>
+                    <small class="text-muted">{{ context.lastAccessed | date:'short' }}</small>
+                  </div>
+                  @if (context.id === currentContext()?.id) {
+                  <i class="bi bi-check-circle text-success"></i>
+                  }
+                </button>
+              </li>
+              }
+              }
+              
+              <!-- Conversations Section -->
               @if (conversations().length > 0) {
               <li><hr class="dropdown-divider"></li>
+              <li>
+                <div class="dropdown-header">
+                  <i class="bi bi-chat-dots me-1"></i>All Conversations
+                </div>
+              </li>
               @for (conversation of conversations(); track conversation.id) {
               <li>
                 <button class="dropdown-item d-flex justify-content-between align-items-center"
@@ -96,6 +129,7 @@
               </li>
               }
               }
+              
               <li><hr class="dropdown-divider"></li>
               <li>
                 <button class="dropdown-item text-white" (click)="onClearAllConversations()">
@@ -108,6 +142,9 @@
         </div>
         
         <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-warning" (click)="testContextSwitching()" title="Test Context Switching">
+            <i class="bi bi-bug"></i>
+          </button>
           <button class="btn btn-sm" (click)="onNavigateToSettings()" title="Settings">
             <i class="bi bi-gear"></i>
           </button>

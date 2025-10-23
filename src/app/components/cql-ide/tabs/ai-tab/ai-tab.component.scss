@@ -40,6 +40,47 @@
     min-height: 48px;
     flex-shrink: 0; // Prevent toolbar from shrinking
     
+    // Context indicators
+    .context-indicator {
+      .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.375rem;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        background-color: theme.$ide-blue !important;
+        color: white !important;
+      }
+    }
+    
+    // Context history dropdown
+    .dropdown-menu {
+      max-height: 300px;
+      overflow-y: auto;
+      background-color: theme.$ide-bg-secondary;
+      border-color: theme.$ide-border;
+      
+      .dropdown-item {
+        padding: 0.5rem 1rem;
+        color: theme.$ide-text-white;
+        
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.1);
+          color: theme.$ide-text-white;
+        }
+        
+        &.active {
+          background-color: rgba(255, 255, 255, 0.2);
+          color: theme.$ide-text-white;
+        }
+        
+        .text-muted {
+          color: theme.$ide-text-primary !important;
+        }
+      }
+    }
   }
   
   // Main Chat Area

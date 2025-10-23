@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, Input, Output, EventEmitter, computed, signal, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed, signal, ViewChild, ElementRef, AfterViewChecked, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -8,6 +8,7 @@ import { MarkdownComponent } from 'ngx-markdown';
 import { AiService, AIConversation, OllamaMessage } from '../../../../services/ai.service';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
+import { ConversationContextService, ConversationContext } from '../../../../services/conversation-context.service';
 
 @Component({
   selector: 'app-ai-tab',
@@ -16,13 +17,15 @@ import { SettingsService } from '../../../../services/settings.service';
   templateUrl: './ai-tab.component.html',
   styleUrls: ['./ai-tab.component.scss']
 })
-export class AiTabComponent implements AfterViewChecked {
+export class AiTabComponent implements OnInit, AfterViewChecked {
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   private _cqlContent = signal<string>('');
   @Input() set cqlContent(value: string) {
     this._cqlContent.set(value);
     // Reload suggested commands when CQL content changes
     this.loadSuggestedCommands();
+    // Update context when CQL content changes
+    this.updateContextForContentChange();
   }
   get cqlContent(): string {
     return this._cqlContent();
@@ -30,12 +33,30 @@ export class AiTabComponent implements AfterViewChecked {
   @Output() insertCqlCode = new EventEmitter<string>();
   @Output() replaceCqlCode = new EventEmitter<string>();
 
-  // Component state
+  // Component state signals
   private _isLoading = signal(false);
   private _currentMessage = signal('');
   private _conversations = signal<AIConversation[]>([]);
   private _activeConversationId = signal<string | null>(null);
   private _error = signal<string | null>(null);
+  private _currentContext = signal<ConversationContext | null>(null);
+  private _contextualConversations = signal<AIConversation[]>([]);
+  private _lastProcessedEditorId = signal<string | null>(null);
+  private _contextSwitchingSetup = false;
+  
+  // Connection state signals
+  private _connectionStatus = signal<'unknown' | 'testing' | 'connected' | 'error'>('unknown');
+  private _availableModels = signal<string[]>([]);
+  private _connectionError = signal<string>('');
+  
+  // Streaming state signals
+  private _streamingResponse = signal<string>('');
+  private _isStreaming = signal<boolean>(false);
+  
+  // Suggestions state signals
+  private _suggestedCommands = signal<string[]>([]);
+  private _isLoadingSuggestions = signal<boolean>(false);
+
   // Computed properties
   public isLoading = computed(() => this._isLoading());
   public currentMessage = computed(() => this._currentMessage());
@@ -52,22 +73,38 @@ export class AiTabComponent implements AfterViewChecked {
     !this._isLoading() && this._currentMessage().trim().length > 0
   );
   public isAiAvailable = computed(() => this.aiService.isAiAssistantAvailable());
-  public connectionStatus = signal<'unknown' | 'testing' | 'connected' | 'error'>('unknown');
-  public availableModels = signal<string[]>([]);
-  public connectionError = signal<string>('');
-  public streamingResponse = signal<string>('');
-  public isStreaming = signal<boolean>(false);
-  public suggestedCommands = signal<string[]>([]);
-  public isLoadingSuggestions = signal<boolean>(false);
+  public currentContext = computed(() => this._currentContext());
+  public contextualConversations = computed(() => this._contextualConversations());
+  
+  // Connection computed properties
+  public connectionStatus = computed(() => this._connectionStatus());
+  public availableModels = computed(() => this._availableModels());
+  public connectionError = computed(() => this._connectionError());
+  
+  // Streaming computed properties
+  public streamingResponse = computed(() => this._streamingResponse());
+  public isStreaming = computed(() => this._isStreaming());
+  
+  // Suggestions computed properties
+  public suggestedCommands = computed(() => this._suggestedCommands());
+  public isLoadingSuggestions = computed(() => this._isLoadingSuggestions());
 
   constructor(
     private aiService: AiService,
     public ideStateService: IdeStateService,
     public settingsService: SettingsService,
+    private conversationContextService: ConversationContextService,
     private router: Router
   ) {
+    console.log('AiTabComponent constructor called');
     this.loadConversations();
     this.loadSuggestedCommands();
+    this.loadCurrentContext();
+  }
+
+  ngOnInit(): void {
+    console.log('ngOnInit called, setting up context switching');
+    this.setupContextSwitching();
   }
 
   onMessageChange(event: Event): void {
@@ -111,21 +148,31 @@ export class AiTabComponent implements AfterViewChecked {
     }
 
     // Clear suggested commands when starting a conversation
-    this.suggestedCommands.set([]);
+    this._suggestedCommands.set([]);
 
     this._isLoading.set(true);
     this._error.set(null);
-    this.isStreaming.set(true);
-    this.streamingResponse.set('');
+    this._isStreaming.set(true);
+    this._streamingResponse.set('');
     
     console.log('Starting streaming - isStreaming set to:', this.isStreaming());
     console.log('AI Assistant available:', this.isAiAvailable());
     console.log('Use MCP Tools:', this.useMCPTools());
     console.log('CQL Content length:', this.cqlContent.length);
 
+    // Use context-aware message sending
+    let conversationId = this._activeConversationId();
+    
+    // If no active conversation, try to get relevant one for current context
+    if (!conversationId) {
+      conversationId = this.aiService.getRelevantConversation();
+    }
+    
+    console.log('Sending message with conversation ID:', conversationId);
+    
     this.aiService.sendStreamingMessage(
       message,
-      this._activeConversationId() || undefined,
+      conversationId || undefined,
       this.useMCPTools(),
       this.cqlContent
     ).subscribe({
@@ -134,29 +181,34 @@ export class AiTabComponent implements AfterViewChecked {
         if (event.type === 'start') {
           console.log('Streaming started');
           // Start of streaming response
-          this.streamingResponse.set('');
+          this._streamingResponse.set('');
         } else if (event.type === 'chunk') {
           console.log('Streaming chunk:', event.content);
           
           // Add chunk to streaming response
-          this.streamingResponse.set(this.streamingResponse() + (event.content || ''));
-          console.log('Updated streaming response:', this.streamingResponse());
+          this._streamingResponse.set(this._streamingResponse() + (event.content || ''));
+          console.log('Updated streaming response:', this._streamingResponse());
         } else if (event.type === 'end') {
           console.log('Streaming ended');
           // End of streaming response
           this._isLoading.set(false);
           this._currentMessage.set('');
-          this.isStreaming.set(false);
-          this.streamingResponse.set('');
+          this._isStreaming.set(false);
+          this._streamingResponse.set('');
           
           // Update conversations
           this.loadConversations();
           
-          // If this was a new conversation, set it as active
+          // If this was a new conversation, set it as active and associate with current context
           if (!this._activeConversationId()) {
             const conversations = this._conversations();
             if (conversations.length > 0) {
-              this._activeConversationId.set(conversations[conversations.length - 1].id);
+              const newConversationId = conversations[conversations.length - 1].id;
+              this._activeConversationId.set(newConversationId);
+              
+              // Associate the new conversation with the current context
+              this.conversationContextService.createOrGetContext(newConversationId);
+              this.loadCurrentContext();
             }
           }
         }
@@ -164,8 +216,8 @@ export class AiTabComponent implements AfterViewChecked {
       error: (error) => {
         console.error('Streaming error:', error);
         this._isLoading.set(false);
-        this.isStreaming.set(false);
-        this.streamingResponse.set('');
+        this._isStreaming.set(false);
+        this._streamingResponse.set('');
         this._error.set(error.message || 'Failed to send message');
       }
     });
@@ -230,72 +282,64 @@ export class AiTabComponent implements AfterViewChecked {
     }
   }
 
-  onGetFhirData(resourceType: string, id?: string): void {
-    this._isLoading.set(true);
-    this._error.set(null);
-
-    this.aiService.getFhirData(resourceType, id).subscribe({
-      next: (data) => {
-        this._isLoading.set(false);
-        // Could display the FHIR data in a modal or expand the message
-        console.log('FHIR Data:', data);
-      },
-      error: (error) => {
-        this._isLoading.set(false);
-        this._error.set(error.message || 'Failed to fetch FHIR data');
-      }
-    });
-  }
-
-  onGetMCPTools(): void {
-    this._isLoading.set(true);
-    this._error.set(null);
-
-    this.aiService.getMCPTools().subscribe({
-      next: (tools) => {
-        this._isLoading.set(false);
-        console.log('Available MCP Tools:', tools);
-        // Could display tools in a modal or sidebar
-      },
-      error: (error) => {
-        this._isLoading.set(false);
-        this._error.set(error.message || 'Failed to fetch MCP tools');
-      }
-    });
-  }
 
   onClearAllConversations(): void {
     if (confirm('Are you sure you want to clear all conversations? This action cannot be undone.')) {
       this.aiService.clearAllConversations();
       this._conversations.set([]);
       this._activeConversationId.set(null);
-      this.streamingResponse.set('');
+      this._streamingResponse.set('');
     }
   }
 
   private loadConversations(): void {
     this._conversations.set(this.aiService.getConversations());
+    this.loadContextualConversations();
+  }
+
+  private loadCurrentContext(): void {
+    const context = this.conversationContextService.activeContext();
+    this._currentContext.set(context || null);
+    
+    if (context) {
+      // Load conversation for this context
+      const conversation = this.aiService.getConversation(context.conversationId);
+      if (conversation) {
+        this._activeConversationId.set(conversation.id);
+      }
+    }
+  }
+
+  private loadContextualConversations(): void {
+    const currentContext = this._currentContext();
+    if (currentContext) {
+      const contextualConversations = this.aiService.getConversationsForContext(currentContext.editorId);
+      this._contextualConversations.set(contextualConversations);
+    } else {
+      this._contextualConversations.set([]);
+    }
   }
 
   private loadSuggestedCommands(): void {
     // Only load suggestions if no active conversation and CQL content exists
     if (this.hasActiveConversation() || !this.cqlContent?.trim()) {
-      this.suggestedCommands.set([]);
+      this._suggestedCommands.set([]);
       return;
     }
 
-    this.isLoadingSuggestions.set(true);
-    this.suggestedCommands.set([]);
+    this._isLoadingSuggestions.set(true);
+    this._suggestedCommands.set([]);
 
+    // Use AI-generated suggestions based on current content
     this.aiService.generateSuggestedCommands(this.cqlContent).subscribe({
       next: (commands) => {
-        this.suggestedCommands.set(commands);
-        this.isLoadingSuggestions.set(false);
+        this._suggestedCommands.set(commands);
+        this._isLoadingSuggestions.set(false);
       },
       error: (error) => {
         console.warn('Failed to load suggested commands:', error);
-        this.suggestedCommands.set([]);
-        this.isLoadingSuggestions.set(false);
+        this._suggestedCommands.set([]);
+        this._isLoadingSuggestions.set(false);
       }
     });
   }
@@ -312,135 +356,235 @@ export class AiTabComponent implements AfterViewChecked {
     this.loadSuggestedCommands();
   }
 
-  getMessageDisplayName(message: OllamaMessage): string {
-    switch (message.role) {
-      case 'user':
-        return 'You';
-      case 'assistant':
-        return 'AI Assistant';
-      case 'system':
-        return 'System';
-      default:
-        return 'Unknown';
-    }
-  }
-
-  getMessageIcon(message: OllamaMessage): string {
-    switch (message.role) {
-      case 'user':
-        return 'bi-person';
-      case 'assistant':
-        return 'bi-robot';
-      case 'system':
-        return 'bi-gear';
-      default:
-        return 'bi-question';
-    }
-  }
-
-
-  extractCodeBlocks(content: string): Array<{ language: string; code: string }> {
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-    const blocks: Array<{ language: string; code: string }> = [];
-    let match;
-
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      blocks.push({
-        language: match[1] || 'text',
-        code: match[2].trim()
-      });
-    }
-
-    return blocks;
-  }
-
-  getConversationTitle(conversation: AIConversation): string {
-    return conversation.title || `Conversation ${conversation.id.slice(0, 8)}`;
-  }
-
-  getConversationPreview(conversation: AIConversation): string {
-    const lastMessage = conversation.messages[conversation.messages.length - 1];
-    if (!lastMessage) return 'No messages';
-    
-    const preview = lastMessage.content.slice(0, 100);
-    return preview.length < lastMessage.content.length ? preview + '...' : preview;
-  }
-
-  trackByConversationId(index: number, conversation: AIConversation): string {
-    return conversation.id;
-  }
-
-  trackByMessageIndex(index: number, message: OllamaMessage): number {
-    return index;
-  }
 
   onNavigateToSettings(): void {
     this.router.navigate(['/settings']);
   }
 
   testConnection(): void {
-    this.connectionStatus.set('testing');
-    this.connectionError.set('');
+    this._connectionStatus.set('testing');
+    this._connectionError.set('');
     
     this.aiService.testOllamaConnection().subscribe({
       next: (result) => {
-        this.connectionStatus.set('connected');
-        this.availableModels.set(result.models);
-        this.connectionError.set('');
+        this._connectionStatus.set('connected');
+        this._availableModels.set(result.models);
+        this._connectionError.set('');
       },
       error: (error) => {
-        this.connectionStatus.set('error');
-        this.connectionError.set(error.message);
-        this.availableModels.set([]);
+        this._connectionStatus.set('error');
+        this._connectionError.set(error.message);
+        this._availableModels.set([]);
       }
     });
   }
 
-  getStatusButtonClass(): string {
-    const baseClass = 'btn btn-sm';
-    switch (this.connectionStatus()) {
-      case 'connected':
-        return `${baseClass} btn-success`;
-      case 'error':
-        return `${baseClass} btn-danger`;
-      case 'testing':
-        return `${baseClass} btn-warning`;
-      default:
-        return `${baseClass} btn-light`;
-    }
+  testContextSwitching(): void {
+    console.log('Manual context switching test');
+    console.log('Current library ID:', this.ideStateService.activeLibraryId());
+    console.log('Current panel state:', this.ideStateService.panelState());
+    console.log('Last processed editor ID:', this._lastProcessedEditorId());
+    console.log('Current context:', this._currentContext());
+    console.log('Active conversation ID:', this._activeConversationId());
+    
+    // Test manual context change
+    this.onEditorContextChanged('test_editor_123');
   }
 
-  getStatusText(): string {
-    switch (this.connectionStatus()) {
-      case 'connected':
-        return 'Connected';
-      case 'error':
-        return 'Error';
-      case 'testing':
-        return 'Testing...';
-      default:
-        return 'Unknown';
-    }
-  }
-
-  getStatusTooltip(): string {
-    switch (this.connectionStatus()) {
-      case 'connected':
-        return `Ollama server is connected. Available models: ${this.availableModels().join(', ')}`;
-      case 'error':
-        return `Connection failed: ${this.connectionError()}`;
-      case 'testing':
-        return 'Testing connection to Ollama server...';
-      default:
-        return 'Click to test connection to Ollama server';
-    }
-  }
 
   ngAfterViewChecked(): void {
     // Auto-scroll to bottom when new messages arrive or streaming
     if (this.messagesContainer) {
       const element = this.messagesContainer.nativeElement;
       element.scrollTop = element.scrollHeight;
+    }
+  }
+
+  /**
+   * Update context when CQL content changes
+   */
+  private updateContextForContentChange(): void {
+    const activeConversationId = this._activeConversationId();
+    if (activeConversationId) {
+      const contentSummary = this.generateContentSummary();
+      this.conversationContextService.updateContextForContentChange(activeConversationId, contentSummary);
+    }
+  }
+
+  /**
+   * Generate a summary of the current content for context
+   */
+  private generateContentSummary(): string {
+    const content = this.cqlContent;
+    if (!content || content.trim().length === 0) {
+      return 'Empty content';
+    }
+
+    // Generate a brief summary of the content
+    const lines = content.split('\n');
+    const firstLine = lines[0]?.trim() || '';
+    const lineCount = lines.length;
+    
+    if (firstLine.includes('library')) {
+      return `CQL Library (${lineCount} lines): ${firstLine.substring(0, 50)}...`;
+    } else if (firstLine.includes('define')) {
+      return `CQL Expression (${lineCount} lines): ${firstLine.substring(0, 50)}...`;
+    } else {
+      return `CQL Content (${lineCount} lines): ${firstLine.substring(0, 50)}...`;
+    }
+  }
+
+  /**
+   * Switch to a different editor context
+   */
+  onSwitchToEditorContext(editorId: string): void {
+    const conversationId = this.aiService.switchToEditorContext(editorId);
+    if (conversationId) {
+      this._activeConversationId.set(conversationId);
+      this.loadCurrentContext();
+      this.loadContextualConversations();
+    }
+  }
+
+  /**
+   * Get context history for current editor
+   */
+  getContextHistory(): ConversationContext[] {
+    const currentContext = this._currentContext();
+    if (currentContext) {
+      return this.conversationContextService.getContextHistory(currentContext.editorId);
+    }
+    return [];
+  }
+
+  /**
+   * Get context display name
+   */
+  getContextDisplayName(context: ConversationContext): string {
+    if (context.libraryName) {
+      return `CQL: ${context.libraryName}`;
+    } else if (context.fileName) {
+      return `File: ${context.fileName}`;
+    } else {
+      return context.contextSummary;
+    }
+  }
+
+  /**
+   * Setup automatic context switching when IDE state changes
+   */
+  private setupContextSwitching(): void {
+    console.log('setupContextSwitching called, already setup:', this._contextSwitchingSetup);
+    if (this._contextSwitchingSetup) {
+      return; // Already setup
+    }
+    this._contextSwitchingSetup = true;
+    console.log('Setting up context switching effects');
+    
+    // Test effect to verify effects are working
+    effect(() => {
+      console.log('Test effect triggered - effects are working!');
+    });
+    
+    // Watch for changes in active library using effect
+    effect(() => {
+      try {
+        const libraryId = this.ideStateService.activeLibraryId();
+        console.log('Library effect triggered, libraryId:', libraryId);
+        console.log('IDE State Service available:', !!this.ideStateService);
+        console.log('activeLibraryId method available:', typeof this.ideStateService.activeLibraryId);
+        if (libraryId) {
+          const editorId = `library_${libraryId}`;
+          console.log('Processing library editorId:', editorId, 'lastProcessed:', this._lastProcessedEditorId());
+          if (this._lastProcessedEditorId() !== editorId) {
+            this._lastProcessedEditorId.set(editorId);
+            this.onEditorContextChanged(editorId);
+          }
+        }
+      } catch (error) {
+        console.error('Error in library effect:', error);
+      }
+    });
+
+    // Watch for changes in panel tabs to detect editor changes
+    effect(() => {
+      try {
+        const panelState = this.ideStateService.panelState();
+        console.log('Panel effect triggered, panelState:', panelState);
+        if (!panelState) return;
+        
+        const leftPanel = panelState.left;
+        const rightPanel = panelState.right;
+        const bottomPanel = panelState.bottom;
+        
+        if (!leftPanel || !rightPanel || !bottomPanel) return;
+        
+        // Check for active tabs in each panel, but only for relevant tab types
+        const activeTabs = [
+          ...(leftPanel.tabs || []).filter(tab => tab.isActive && this.isRelevantTabType(tab.type)),
+          ...(rightPanel.tabs || []).filter(tab => tab.isActive && this.isRelevantTabType(tab.type)),
+          ...(bottomPanel.tabs || []).filter(tab => tab.isActive && this.isRelevantTabType(tab.type))
+        ];
+        
+        console.log('Active tabs found:', activeTabs);
+        
+        if (activeTabs.length > 0) {
+          const activeTab = activeTabs[0]; // Get the first active tab
+          const editorId = `tab_${activeTab.id}`;
+          console.log('Processing tab editorId:', editorId, 'lastProcessed:', this._lastProcessedEditorId());
+          
+          if (this._lastProcessedEditorId() !== editorId) {
+            this._lastProcessedEditorId.set(editorId);
+            this.onEditorContextChanged(editorId);
+          }
+        }
+      } catch (error) {
+        console.error('Error in panel effect:', error);
+      }
+    });
+  }
+
+  /**
+   * Check if a tab type is relevant for context switching
+   */
+  private isRelevantTabType(tabType: string): boolean {
+    // Only switch contexts for tabs that contain actual content/editors
+    const relevantTypes = ['fhir', 'elm', 'problems', 'output', 'ai'];
+    return relevantTypes.includes(tabType);
+  }
+
+  /**
+   * Handle editor context changes
+   */
+  private onEditorContextChanged(editorId: string): void {
+    try {
+      console.log('onEditorContextChanged called with:', editorId);
+      // Switch to the relevant conversation for this editor
+      const relevantConversationId = this.aiService.switchToEditorContext(editorId);
+      const currentConversationId = this._activeConversationId();
+      
+      console.log('Context change - relevant:', relevantConversationId, 'current:', currentConversationId);
+      
+      // Only update if there's an actual change
+      if (relevantConversationId !== currentConversationId) {
+        if (relevantConversationId) {
+          console.log('Switching to conversation:', relevantConversationId);
+          this._activeConversationId.set(relevantConversationId);
+          this.loadCurrentContext();
+          this.loadContextualConversations();
+          this.loadSuggestedCommands();
+        } else {
+          console.log('Clearing active conversation');
+          this._activeConversationId.set(null);
+          this.loadCurrentContext();
+          this.loadContextualConversations();
+          this.loadSuggestedCommands();
+        }
+      } else {
+        console.log('No change needed for context');
+      }
+    } catch (error) {
+      console.error('Error in context change:', error);
     }
   }
 }
