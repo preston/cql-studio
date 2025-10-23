@@ -2,7 +2,7 @@
 
     <div class="row">
 
-        <div class="col-sm-6">
+        <div class="col-sm-6 p-4">
             <h4><span class="bi bi-code-slash"></span> Advanced</h4>
             <div class="form-check form-switch mt-3 ms-1 ">
                 <input id="experimental_switch" class="form-check-input" type="checkbox" name="experimental_switch"
@@ -29,7 +29,7 @@
         </div>
 
 
-        <div class="col-sm-6">
+        <div class="col-sm-6 p-4">
             <h4><span class="bi bi-person"></span> Preferences</h4>
             <div class="form-floating">
                 <select class="form-select" name="theme" [(ngModel)]="settingsService.settings().theme_preferred"
@@ -77,10 +77,11 @@
         <div class="row">
 
 
-            <div class="col-sm-6">
+            <div class="col-sm-6 p-4">
 
                 <h4 class="mt-4"><span class="bi bi-cloud"></span> Integrations</h4>
 
+                <h6 class="mt-4">CQL Tests Runner & Results</h6>
                 <div class="form-floating mt-3">
                     <input type="url" class="form-control" id="runnerApiBaseUrl" name="runnerApiBaseUrl"
                         [(ngModel)]="settingsService.settings().runnerApiBaseUrl"
@@ -92,30 +93,12 @@
                 </div>
 
                 <div class="form-floating mt-3">
-                    <input type="url" class="form-control" id="fhirBaseUrl" name="fhirBaseUrl"
-                        [(ngModel)]="settingsService.settings().fhirBaseUrl"
-                        [placeholder]="settingsService.getDefaultFhirBaseUrl()">
-                    <label for="fhirBaseUrl">FHIR Base URL</label>
-                    <small class="form-text">Base URL for the FHIR server. Defaults to CQL_STUDIO_FHIR_BASE_URL or {{
-                        settingsService.getDefaultFhirBaseUrl() }}</small>
-                </div>
-
-                <div class="form-floating mt-3">
                     <input type="url" class="form-control" id="runnerFhirBaseUrl" name="runnerFhirBaseUrl"
-                        [(ngModel)]="settingsService.settings().runnerFhirBaseUrl"
-                        [placeholder]="settingsService.getDefaultRunnerFhirBaseUrl()">
+                    [(ngModel)]="settingsService.settings().runnerFhirBaseUrl"
+                    [placeholder]="settingsService.getDefaultRunnerFhirBaseUrl()">
                     <label for="runnerFhirBaseUrl">Runner FHIR Base URL</label>
                     <small class="form-text">Base FHIR URL to pass to the CQL Tests Runner, which must be network-accessible from the runner service. Defaults to CQL_STUDIO_RUNNER_FHIR_BASE_URL or {{
                         settingsService.getDefaultRunnerFhirBaseUrl() }}</small>
-                </div>
-
-                <div class="form-floating mt-3">
-                    <input type="url" class="form-control" id="translationBaseUrl" name="translationBaseUrl"
-                        [(ngModel)]="settingsService.settings().translationBaseUrl"
-                        [placeholder]="settingsService.getDefaultTranslationBaseUrl()">
-                    <label for="translationBaseUrl">Translation Base URL</label>
-                    <small class="form-text">Base URL for the translation service. Defaults to
-                        CQL_STUDIO_TRANSLATION_BASE_URL or {{ settingsService.getDefaultTranslationBaseUrl() }}</small>
                 </div>
 
                 <div class="form-floating mt-3">
@@ -129,9 +112,30 @@
                         }}</small>
                 </div>
 
+                <h6 class="mt-4">FHIR Server</h6>
+                <div class="form-floating mt-3">
+                    <input type="url" class="form-control" id="fhirBaseUrl" name="fhirBaseUrl"
+                        [(ngModel)]="settingsService.settings().fhirBaseUrl"
+                        [placeholder]="settingsService.getDefaultFhirBaseUrl()">
+                    <label for="fhirBaseUrl">FHIR Base URL</label>
+                    <small class="form-text">Base URL for the FHIR server. Defaults to CQL_STUDIO_FHIR_BASE_URL or {{
+                        settingsService.getDefaultFhirBaseUrl() }}</small>
+                </div>
+
+                <h6 class="mt-4">CQL Translation</h6>
+                <div class="form-floating mt-3">
+                    <input type="url" class="form-control" id="translationBaseUrl" name="translationBaseUrl"
+                        [(ngModel)]="settingsService.settings().translationBaseUrl"
+                        [placeholder]="settingsService.getDefaultTranslationBaseUrl()">
+                    <label for="translationBaseUrl">Translation Base URL</label>
+                    <small class="form-text">Base URL for the translation service. Defaults to
+                        CQL_STUDIO_TRANSLATION_BASE_URL or {{ settingsService.getDefaultTranslationBaseUrl() }}</small>
+                </div>
+
+
             </div>
 
-            <div class="col-sm-6">
+            <div class="col-sm-6 p-4">
 
                 <h4 class="mt-4"><span class="bi bi-robot"></span> AI Assistant</h4>
 
@@ -183,7 +187,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-12">
+        <div class="col-sm-12 p-4">
             <br>
             <button id="save-settings-btn" class="btn btn-primary" (click)="save()"><span
                     class="bi bi-file-check"></span> Save to
