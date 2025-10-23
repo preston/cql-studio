@@ -22,13 +22,13 @@ The easiest way to run this application is using Docker:
 
 ```bash
 # Build the Docker image
-docker build -t hlseven/quality-cql-tests-ui:latest .
+docker build -t hlseven/quality-cql-studio:latest .
 
 # Alternatively, build images for multiple architectures if supported by your build environment
-docker buildx build --platform linux/arm64,linux/amd64 -t hlseven/quality-cql-tests-ui:latest .
+docker buildx build --platform linux/arm64,linux/amd64 -t hlseven/quality-cql-studio:latest .
 
 # Run the container
-docker run -p 4200:80 hlseven/quality-cql-tests-ui
+docker run -p 4200:80 hlseven/quality-cql-studio
 ```
 
 Once the container is running, open your browser and navigate to `http://localhost:4200/`.
