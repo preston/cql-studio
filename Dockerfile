@@ -23,7 +23,7 @@ WORKDIR /usr/share/nginx/html
 RUN rm -rf *
 
 # Copy build from "builder" stage, as well as runtime configuration script public folder
-COPY --from=builder /app/dist/cql-tests-ui/browser .
+COPY --from=builder /app/dist/cql-studio/browser .
 
 # CMD ["./configure-from-environment.sh", "&&", "exec", "nginx", "-g", "'daemon off;'"]
 COPY entrypoint.sh .

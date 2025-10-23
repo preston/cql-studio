@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "cql-tests-ui": {
+    "cql-studio": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -73,10 +73,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "cql-tests-ui:build:production"
+              "buildTarget": "cql-studio:build:production"
             },
             "development": {
-              "buildTarget": "cql-tests-ui:build:development"
+              "buildTarget": "cql-studio:build:development"
             }
           },
           "defaultConfiguration": "development"

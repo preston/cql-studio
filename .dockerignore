@@ -1,6 +1,7 @@
 .angular
 .cursor
 .git
+.cursor
 .vscode
 .dockerignore
 .drone.yml
