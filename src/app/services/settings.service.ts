@@ -85,6 +85,10 @@ export class SettingsService {
           parsedSettings.fhirBaseUrl = '';
           shouldSave = true;
         }
+        if (parsedSettings.runnerFhirBaseUrl == null) {
+          parsedSettings.runnerFhirBaseUrl = '';
+          shouldSave = true;
+        }
         if (parsedSettings.translationBaseUrl == null) {
           parsedSettings.translationBaseUrl = '';
           shouldSave = true;
@@ -158,6 +162,11 @@ export class SettingsService {
     return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:8080/fhir';
   }
 
+  getDefaultRunnerFhirBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_RUNNER_FHIR_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:8080/fhir';
+  }
+
   getDefaultTranslationBaseUrl(): string {
     const envValue = (window as any)['CQL_STUDIO_TRANSLATION_BASE_URL'];
     return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3001';
@@ -175,7 +184,7 @@ export class SettingsService {
 
   getDefaultOllamaModel(): string {
     const envValue = (window as any)['CQL_STUDIO_OLLAMA_MODEL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'llama3.2:latest';
+    return envValue && envValue.trim() !== '' ? envValue : 'deepseek-coder:6.7b';
   }
 
   getDefaultMCPBaseUrl(): string {
@@ -191,6 +200,11 @@ export class SettingsService {
   getEffectiveFhirBaseUrl(): string {
     const settingValue = this.settings().fhirBaseUrl;
     return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultFhirBaseUrl();
+  }
+
+  getEffectiveRunnerFhirBaseUrl(): string {
+    const settingValue = this.settings().runnerFhirBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultRunnerFhirBaseUrl();
   }
 
   getEffectiveTranslationBaseUrl(): string {

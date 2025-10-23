@@ -83,7 +83,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
       ...currentConfig,
       FhirServer: {
         ...currentConfig.FhirServer,
-        BaseUrl: this.settingsService.getEffectiveFhirBaseUrl()
+        BaseUrl: this.settingsService.getEffectiveRunnerFhirBaseUrl()
       }
     });
     
@@ -256,7 +256,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   protected reset(): void {
     this.config.set({
       FhirServer: {
-        BaseUrl: this.settingsService.getEffectiveFhirBaseUrl(),
+        BaseUrl: this.settingsService.getEffectiveRunnerFhirBaseUrl(),
         CqlOperation: '$cql'
       },
       Build: {

@@ -14,6 +14,7 @@ export class Settings {
     public enableElmTranslation: boolean = false;
     public runnerApiBaseUrl: string = '';
     public fhirBaseUrl: string = '';
+    public runnerFhirBaseUrl: string = '';
     public translationBaseUrl: string = '';
     public defaultTestResultsIndexUrl: string = '';
     
