@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -11,6 +11,7 @@ import { FileLoaderService } from '../../services/file-loader.service';
 import { SchemaValidationService } from '../../services/schema-validation.service';
 import { SettingsService } from '../../services/settings.service';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
+import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
 import { 
   StatusFilter, 
   GroupByOption, 
@@ -21,6 +22,7 @@ import {
   isValidSortByOption,
   isValidSortOrder
 } from '../../models/query-params.model';
+import { interval, Subscription } from 'rxjs';
 import { 
   COLOR_SUCCESS, 
   COLOR_DANGER, 
@@ -40,11 +42,11 @@ Chart.register(...registerables);
 @Component({
   selector: 'app-results-viewer',
   standalone: true,
-  imports: [CommonModule, FormsModule, BaseChartDirective],
+  imports: [CommonModule, FormsModule, BaseChartDirective, SyntaxHighlighterComponent],
   templateUrl: './results-viewer.component.html',
   styleUrl: './results-viewer.component.scss'
 })
-export class ResultsViewerComponent implements OnInit {
+export class ResultsViewerComponent implements OnInit, OnDestroy {
   testResults = signal<CqlTestResults | null>(null);
   filteredResults = signal<TestResult[]>([]);
   selectedStatus = signal<StatusFilter>(StatusFilter.ALL);
@@ -65,6 +67,10 @@ export class ResultsViewerComponent implements OnInit {
   
   // Store the original URL parameter to preserve it
   private originalUrl: string | null = null;
+  
+  // Polling for new results
+  private pollingSubscription?: Subscription;
+  private lastResultsHash: string | null = null;
 
   // Chart data properties
   pieChartData: any = {
@@ -231,6 +237,15 @@ export class ResultsViewerComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadResults();
+    this.startPolling();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
+  private loadResults(): void {
     const storedData = sessionStorage.getItem(SessionStorageKeys.CQL_TEST_RESULTS);
     if (storedData) {
       try {
@@ -246,6 +261,9 @@ export class ResultsViewerComponent implements OnInit {
         
         // Ensure URL parameter is set in the browser address bar after initialization
         this.updateUrlWithPreservedParams();
+        
+        // Update the hash for change detection
+        this.lastResultsHash = this.generateResultsHash(data);
       } catch (error) {
         console.error('Error parsing stored data:', error);
         this.router.navigate(['/']);
@@ -759,5 +777,59 @@ export class ResultsViewerComponent implements OnInit {
       console.error('Error loading from URL:', error);
       this.router.navigate(['/']);
     }
+  }
+
+  /**
+   * Start polling for new results in sessionStorage
+   */
+  private startPolling(): void {
+    this.pollingSubscription = interval(1000) // Check every second
+      .subscribe(() => {
+        this.checkForNewResults();
+      });
+  }
+
+  /**
+   * Stop polling for new results
+   */
+  private stopPolling(): void {
+    if (this.pollingSubscription) {
+      this.pollingSubscription.unsubscribe();
+      this.pollingSubscription = undefined;
+    }
+  }
+
+  /**
+   * Check if there are new results in sessionStorage
+   */
+  private checkForNewResults(): void {
+    const storedData = sessionStorage.getItem(SessionStorageKeys.CQL_TEST_RESULTS);
+    if (storedData) {
+      try {
+        const data = JSON.parse(storedData) as CqlTestResults;
+        const currentHash = this.generateResultsHash(data);
+        
+        // If the hash has changed, reload the results
+        if (this.lastResultsHash !== currentHash) {
+          console.log('New results detected, refreshing...');
+          this.testResults.set(data);
+          this.applyFilters();
+          this.updateChartData();
+          this.lastResultsHash = currentHash;
+        }
+      } catch (error) {
+        console.error('Error parsing stored data during polling:', error);
+      }
+    }
+  }
+
+  /**
+   * Generate a simple hash for the results data to detect changes
+   */
+  private generateResultsHash(data: CqlTestResults): string {
+    // Create a simple hash based on the results data
+    const resultsString = JSON.stringify(data.results || []);
+    const summaryString = JSON.stringify(data.testResultsSummary || {});
+    return btoa(resultsString + summaryString).substring(0, 16);
   }
 }

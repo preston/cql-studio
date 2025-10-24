@@ -69,15 +69,20 @@ export class OpenComponent implements OnInit {
     }
   }
 
-  onLoadExample(): void {
-    this.loadExampleFile();
+  onLoadUrlExample(): void {
+    this.loadFromUrl('/examples/results.json');
   }
+
 
   onLoadIndexFile(): void {
     const url = this.indexUrl().trim();
     if (url) {
       this.loadIndexFile(url);
     }
+  }
+
+  onLoadExampleIndex(): void {
+    this.loadIndexFile(this.settingsService.getEffectiveTestResultsIndexUrl());
   }
 
   onLoadFileFromIndex(filename: string): void {
@@ -96,8 +101,13 @@ export class OpenComponent implements OnInit {
     sessionStorage.setItem(SessionStorageKeys.INDEX_URL, this.indexUrl());
     sessionStorage.setItem(SessionStorageKeys.INDEX_FILES, JSON.stringify(this.indexFiles()));
     
-    // Navigate to dashboard
-    this.router.navigate(['/dashboard']);
+    // Navigate to dashboard with index query parameter preserved
+    const queryParams: any = {};
+    if (this.indexUrl()) {
+      queryParams['index'] = this.indexUrl();
+    }
+    
+    this.router.navigate(['/dashboard'], { queryParams });
   }
 
   onValidateSchemaChange(): void {
@@ -178,23 +188,6 @@ export class OpenComponent implements OnInit {
     }
   }
 
-  private async loadExampleFile(): Promise<void> {
-    this.isLoading.set(true);
-    this.errorMessage.set('');
-    this.validationErrors.set([]);
-
-    try {
-      const data = await this.fileLoader.loadFromExample();
-      sessionStorage.setItem(SessionStorageKeys.ORIGINAL_FILENAME, 'results.json');
-      // Use the example file URL for deep linking support
-      const exampleUrl = '/examples/results.json';
-      await this.validateAndNavigateWithUrl(data, exampleUrl);
-    } catch (error) {
-      this.errorMessage.set((error as Error).message);
-    } finally {
-      this.isLoading.set(false);
-    }
-  }
 
   private async loadIndexFile(url: string): Promise<void> {
     this.indexLoading.set(true);

@@ -1,0 +1,183 @@
+<div class="fhir-panel">
+  <div class="p-3 text-light">
+    <!-- FHIR Server Connection -->
+    <div class="mb-4 pb-3 border-bottom">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi-server"></i>
+          <span class="fw-semibold small text-white">Server</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-info text-truncate fhir-url ms-2" 
+                [class.cursor-pointer]="fhirServerUrl()" 
+                [class.text-decoration-underline]="fhirServerUrl()"
+                (click)="onNavigateToSettings()" 
+                [title]="fhirServerUrl() ? 'Click to change FHIR Server' : 'No server connected'">
+            {{ fhirServerUrl() || 'Not connected' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Library Management -->
+    @if (hasSelectedLibrary()) {
+      <div class="mb-3">
+      <!-- Library Form -->
+      <div class="mb-3">
+        <div class="form-floating mb-3">
+          <input 
+            id="library-id-input"
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="activeLibrary()?.id || ''"
+            (ngModelChange)="onLibraryIdChange($event)"
+            placeholder="Enter library ID"
+          >
+          <label for="library-id-input" class="text-white">Library ID</label>
+        </div>
+        
+        <div class="form-floating mb-3">
+          <input 
+            id="library-name-input"
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="activeLibrary()?.name || ''"
+            (ngModelChange)="onLibraryNameChange($event)"
+            (input)="onLibraryNameInput($event)"
+            pattern="[-a-zA-Z0-9_]+"
+            title="Library name can only contain letters, numbers, hyphens, and underscores"
+            placeholder="Enter library name (letters, numbers, hyphens, underscores only)"
+          >
+          <label for="library-name-input" class="text-white">Name</label>
+        </div>
+        
+        <div class="form-floating mb-3">
+          <input 
+            id="library-title-input"
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="activeLibrary()?.title || ''"
+            (ngModelChange)="onLibraryTitleChange($event)"
+            placeholder="Enter library title"
+          >
+          <label for="library-title-input" class="text-white">Title</label>
+        </div>
+        
+        <div class="form-floating mb-3">
+          <input 
+            id="library-version-input"
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="activeLibrary()?.version || ''"
+            (ngModelChange)="onLibraryVersionChange($event)"
+            placeholder="0.0.0"
+          >
+          <label for="library-version-input" class="text-white">Version</label>
+        </div>
+        
+        <div class="form-floating mb-3">
+          <input 
+            id="library-description-input"
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="activeLibrary()?.description || ''"
+            (ngModelChange)="onLibraryDescriptionChange($event)"
+            placeholder="Library description"
+          >
+          <label for="library-description-input" class="text-white">Description</label>
+        </div>
+        
+        <div class="form-floating mb-3">
+          <input 
+            id="library-url-input"
+            type="text" 
+            class="form-control form-control-sm" 
+            [ngModel]="activeLibrary()?.url || ''"
+            readonly
+            placeholder="Library URL will be generated automatically"
+            title="Library URL is automatically generated based on FHIR server settings"
+          >
+          <label for="library-url-input" class="text-white">URL</label>
+        </div>
+      </div>
+
+      <!-- Library Actions -->
+      <div class="d-flex justify-content-end">
+        <button 
+          class="btn btn-danger btn-sm" 
+          (click)="onDeleteLibrary()" 
+          title="Delete Library"
+        >
+          <i class="bi-trash me-1"></i> Delete from Server
+        </button>
+      </div>
+      </div>
+    }
+
+    <!-- Resource Section -->
+    <div class="mt-4">
+      <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi-document"></i>
+          <span class="fw-semibold small text-white">Resource</span>
+        </div>
+        <button 
+          class="btn btn-outline-light btn-sm" 
+          (click)="onCopyResourceToClipboard()" 
+          title="Copy FHIR resource JSON to clipboard"
+          [disabled]="!hasSelectedLibrary() && !hasSelectedPatients()"
+        >
+          <i class="bi-files"></i>
+        </button>
+      </div>
+      <div>
+        @if (!hasSelectedLibrary() && !hasSelectedPatients()) {
+          <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+            <i class="bi-document fs-1 mb-2"></i>
+            <span>Select a library and patient(s) to view FHIR resources</span>
+          </div>
+        }
+        
+        <!-- Library Resource Inputs -->
+        @if (hasSelectedLibrary()) {
+          <div class="mb-3">
+            
+            
+            <!-- Library Resource Display -->
+            <div class="border rounded p-3 bg-dark" style="max-height: 350px; overflow-y: auto;">
+              <app-syntax-highlighter 
+                [code]="libraryAsString() || 'No library resource available'"
+                language="json">
+              </app-syntax-highlighter>
+            </div>
+          </div>
+        }
+        
+        <!-- Patient Resources -->
+        @if (hasSelectedPatients()) {
+          <div class="mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
+              <i class="bi-patient text-info"></i>
+              <span class="fw-semibold small text-white">Patient Resources ({{ selectedPatients().length }})</span>
+            </div>
+            @for (patient of selectedPatients(); track trackByPatientId($index, patient)) {
+              <div class="mb-3">
+                <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
+                  <i class="bi-patient text-info"></i>
+                  <span class="fw-medium text-white">{{ getPatientDisplayName(patient) }}</span>
+                  <span class="small text-muted">({{ patient.id }})</span>
+                </div>
+                <div class="border rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
+                  <app-syntax-highlighter 
+                    [code]="patientAsString(patient) || 'No patient resource available'"
+                    language="autodetect">
+                  </app-syntax-highlighter>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

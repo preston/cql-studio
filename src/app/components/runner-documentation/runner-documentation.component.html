@@ -1,0 +1,402 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <h1 class="mb-4">CQL Test Runner Documentation</h1>
+    </div>
+  </div>
+  
+  <div class="row">
+    <!-- Vertical Tabs Navigation -->
+    <div class="col-md-3">
+      <div class="nav flex-column nav-pills documentation-nav" role="tablist">
+        <button 
+          class="nav-link" 
+          [class.active]="activeTab === 'overview'"
+          (click)="setActiveTab('overview')"
+          type="button">
+          Overview
+        </button>
+        <button 
+          class="nav-link" 
+          [class.active]="activeTab === 'configuration'"
+          (click)="setActiveTab('configuration')"
+          type="button">
+          Configuration
+        </button>
+        <button 
+          class="nav-link" 
+          [class.active]="activeTab === 'test-execution'"
+          (click)="setActiveTab('test-execution')"
+          type="button">
+          Test Execution
+        </button>
+        <button 
+          class="nav-link" 
+          [class.active]="activeTab === 'job-management'"
+          (click)="setActiveTab('job-management')"
+          type="button">
+          Job Management
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="col-md-9">
+      <div class="tab-content">
+        
+        <!-- Overview Tab -->
+        <div class="tab-pane" [class.active]="activeTab === 'overview'">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="h4 mb-0">CQL Test Runner Overview</h2>
+            </div>
+            <div class="card-body">
+              <p class="lead">The CQL Test Runner is a powerful tool for executing CQL (Clinical Quality Language) tests against FHIR servers and analyzing the results.</p>
+
+              <h3>What is the CQL Test Runner?</h3>
+              <p>The CQL Test Runner is an asynchronous testing system that allows you to:</p>
+              <ul>
+                <li><strong>Execute CQL Tests</strong> - Run comprehensive test suites against FHIR servers</li>
+                <li><strong>Configure Test Parameters</strong> - Customize FHIR server settings, build options, and test behavior</li>
+                <li><strong>Manage Test Jobs</strong> - Create, monitor, and track long-running test executions</li>
+                <li><strong>Analyze Results</strong> - Download and view detailed test results with pass/fail status</li>
+                <li><strong>Skip Specific Tests</strong> - Configure skip lists for tests that should be excluded</li>
+              </ul>
+
+              <h3>Key Features</h3>
+              <div class="row">
+                <div class="col-md-6">
+                  <h4><i class="bi bi-server me-2"></i>FHIR Server Integration</h4>
+                  <p>Connect to any FHIR R4 server and execute CQL operations using the <code>$cql</code> operation.</p>
+                </div>
+                <div class="col-md-6">
+                  <h4><i class="bi bi-gear me-2"></i>Flexible Configuration</h4>
+                  <p>Configure CQL file versions, output paths, and debug options through an intuitive interface.</p>
+                </div>
+                <div class="col-md-6">
+                  <h4><i class="bi bi-clock me-2"></i>Asynchronous Execution</h4>
+                  <p>Run tests as background jobs with real-time status monitoring and progress tracking.</p>
+                </div>
+                <div class="col-md-6">
+                  <h4><i class="bi bi-download me-2"></i>Results Management</h4>
+                  <p>Download test results in JSON format and view them directly in the results viewer.</p>
+                </div>
+              </div>
+
+              <h3>Workflow Overview</h3>
+              <ol>
+                <li><strong>Configure Settings</strong> - Set up FHIR server connection and test parameters</li>
+                <li><strong>Create Test Job</strong> - Submit a test execution request to the runner service</li>
+                <li><strong>Monitor Progress</strong> - Track job status and progress in real-time</li>
+                <li><strong>Download Results</strong> - Retrieve test results when the job completes</li>
+                <li><strong>Analyze Results</strong> - Use the results viewer to examine test outcomes</li>
+              </ol>
+
+              <div class="alert alert-info">
+                <strong>Note:</strong> The CQL Test Runner requires a running CQL Test Runner API service. Make sure the service is properly configured in your settings before attempting to run tests.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configuration Tab -->
+        <div class="tab-pane" [class.active]="activeTab === 'configuration'">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="h4 mb-0">Configuration Options</h2>
+            </div>
+            <div class="card-body">
+              <p class="lead">The CQL Test Runner provides comprehensive configuration options to customize your test execution environment.</p>
+
+              <h3>Configuration Sections</h3>
+              
+              <h4>FHIR Server Configuration</h4>
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Setting</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>Base URL</code></td>
+                    <td>FHIR server base URL for CQL operations</td>
+                    <td><code>https://cloud.alphora.com/sandbox/r4/cds/fhir</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>CQL Operation</code></td>
+                    <td>FHIR operation for CQL execution</td>
+                    <td><code>$cql</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>Original Base URL</code></td>
+                    <td>Optional original base URL for reference</td>
+                    <td><code>https://example.com/fhir</code></td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h4>Build Configuration</h4>
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Setting</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>CQL File Version</code></td>
+                    <td>Version identifier for CQL files</td>
+                    <td><code>1.0.000</code></td>
+                  </tr>
+                  <tr>
+                    <td><code>CQL Output Path</code></td>
+                    <td>Directory path for CQL output files</td>
+                    <td><code>./cql</code></td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h4>Debug Configuration</h4>
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Setting</th>
+                    <th>Description</th>
+                    <th>Default</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>Quick Test</code></td>
+                    <td>Run only quick tests (skip long-running tests)</td>
+                    <td><code>true</code></td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h4>Tests Configuration</h4>
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Setting</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>Results Path</code></td>
+                    <td>Directory path for test results output</td>
+                    <td><code>./results</code></td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h3>Configuration Modes</h3>
+              <p>The runner supports two configuration modes:</p>
+              <ul>
+                <li><strong>Form Editor</strong> - Visual form-based configuration with individual input fields</li>
+                <li><strong>JSON Editor</strong> - Direct JSON configuration editing for advanced users</li>
+              </ul>
+
+              <div class="alert alert-warning">
+                <strong>Tip:</strong> Use the JSON editor for complex configurations or when copying settings between environments. The form editor is recommended for most users.
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- Test Execution Tab -->
+        <div class="tab-pane" [class.active]="activeTab === 'test-execution'">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="h4 mb-0">Test Execution Process</h2>
+            </div>
+            <div class="card-body">
+              <p class="lead">Understanding how CQL tests are executed and what happens during the process.</p>
+
+              <h3>Execution Flow</h3>
+              <ol>
+                <li><strong>Job Creation</strong> - Submit configuration to the runner service</li>
+                <li><strong>Validation</strong> - Verify configuration and server connectivity</li>
+                <li><strong>Test Preparation</strong> - Load CQL libraries and prepare test data</li>
+                <li><strong>Test Execution</strong> - Run individual CQL tests against the FHIR server</li>
+                <li><strong>Result Collection</strong> - Gather test results and compile summary</li>
+                <li><strong>Job Completion</strong> - Mark job as complete and make results available</li>
+              </ol>
+
+              <h3>Test Types</h3>
+              <div class="row">
+                <div class="col-md-6">
+                  <h4>Quick Tests</h4>
+                  <p>Fast-running tests that validate basic CQL functionality:</p>
+                  <ul>
+                    <li>Simple arithmetic operations</li>
+                    <li>Basic data type handling</li>
+                    <li>Elementary FHIR resource access</li>
+                    <li>Basic comparison operations</li>
+                  </ul>
+                </div>
+                <div class="col-md-6">
+                  <h4>Comprehensive Tests</h4>
+                  <p>Full test suites that include complex scenarios:</p>
+                  <ul>
+                    <li>Complex CQL expressions</li>
+                    <li>Multi-resource queries</li>
+                    <li>Performance testing</li>
+                    <li>Edge case validation</li>
+                  </ul>
+                </div>
+              </div>
+
+              <h3>Test Results Structure</h3>
+              <p>Each test execution produces detailed results including:</p>
+              <ul>
+                <li><strong>Test Status</strong> - Pass, fail, skip, or error</li>
+                <li><strong>Execution Time</strong> - How long the test took to run</li>
+                <li><strong>Error Messages</strong> - Detailed error information for failed tests</li>
+                <li><strong>Output Values</strong> - Actual vs expected values</li>
+                <li><strong>FHIR Response</strong> - Raw FHIR server response data</li>
+              </ul>
+
+              <h3>Skip List Management</h3>
+              <p>The skip list allows you to exclude specific tests from execution:</p>
+              <ul>
+                <li><strong>Test Suite Level</strong> - Skip entire test suites</li>
+                <li><strong>Group Level</strong> - Skip test groups within suites</li>
+                <li><strong>Individual Tests</strong> - Skip specific test cases</li>
+                <li><strong>Reason Tracking</strong> - Document why tests are skipped</li>
+              </ul>
+
+              <h3>Performance Considerations</h3>
+              <div class="alert alert-warning">
+                <strong>Important:</strong> Test execution time varies based on:
+                <ul class="mb-0 mt-2">
+                  <li>Number of tests in the suite</li>
+                  <li>Complexity of CQL expressions</li>
+                  <li>FHIR server response time</li>
+                  <li>Network latency</li>
+                  <li>Server load and capacity</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Job Management Tab -->
+        <div class="tab-pane" [class.active]="activeTab === 'job-management'">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="h4 mb-0">Job Management</h2>
+            </div>
+            <div class="card-body">
+              <p class="lead">The CQL Test Runner uses asynchronous job processing to handle long-running test executions.</p>
+
+              <h3>Job Lifecycle</h3>
+              <div class="row">
+                <div class="col-md-3">
+                  <div class="text-center">
+                    <div class="badge bg-primary fs-6 mb-2">Pending</div>
+                    <p class="small">Job created and queued for execution</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="text-center">
+                    <div class="badge bg-warning fs-6 mb-2">Running</div>
+                    <p class="small">Tests are actively being executed</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="text-center">
+                    <div class="badge bg-success fs-6 mb-2">Completed</div>
+                    <p class="small">All tests finished successfully</p>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="text-center">
+                    <div class="badge bg-danger fs-6 mb-2">Failed</div>
+                    <p class="small">Job encountered an error</p>
+                  </div>
+                </div>
+              </div>
+
+              <h3>Job Monitoring</h3>
+              <p>Once a job is created, you can monitor its progress in real-time:</p>
+              <ul>
+                <li><strong>Status Updates</strong> - Automatic status polling every few seconds</li>
+                <li><strong>Progress Indicators</strong> - Visual progress bars and status badges</li>
+                <li><strong>Error Reporting</strong> - Immediate notification of any errors</li>
+                <li><strong>Completion Alerts</strong> - Notification when jobs finish</li>
+              </ul>
+
+              <h3>Job Information</h3>
+              <p>Each job provides detailed information:</p>
+              <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>Job ID</code></td>
+                    <td>Unique identifier for tracking the job</td>
+                  </tr>
+                  <tr>
+                    <td><code>Status</code></td>
+                    <td>Current execution status (pending, running, completed, failed)</td>
+                  </tr>
+                  <tr>
+                    <td><code>Created At</code></td>
+                    <td>Timestamp when the job was created</td>
+                  </tr>
+                  <tr>
+                    <td><code>Completed At</code></td>
+                    <td>Timestamp when the job finished (if completed)</td>
+                  </tr>
+                  <tr>
+                    <td><code>Message</code></td>
+                    <td>Human-readable status message</td>
+                  </tr>
+                  <tr>
+                    <td><code>Error</code></td>
+                    <td>Error details (if the job failed)</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h3>Job Actions</h3>
+              <p>Once a job completes successfully, you can:</p>
+              <ul>
+                <li><strong>Download Results</strong> - Get the complete test results as JSON</li>
+                <li><strong>View Results</strong> - Open results directly in the results viewer</li>
+                <li><strong>Reset Configuration</strong> - Clear the form and start over</li>
+              </ul>
+
+              <h3>Best Practices</h3>
+              <div class="alert alert-info">
+                <strong>Tips for Job Management:</strong>
+                <ul class="mb-0 mt-2">
+                  <li>Monitor job status regularly during execution</li>
+                  <li>Download results promptly after completion</li>
+                  <li>Keep job IDs for reference and troubleshooting</li>
+                  <li>Use descriptive skip list reasons for documentation</li>
+                  <li>Test with quick tests before running comprehensive suites</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+    </div>
+  </div>
+</div>

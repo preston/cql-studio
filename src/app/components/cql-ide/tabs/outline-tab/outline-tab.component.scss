@@ -1,0 +1,44 @@
+// Author: Preston Lee
+
+.outline-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--ide-bg-primary) !important;
+}
+
+.outline-item {
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  min-height: 24px;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(1px);
+  }
+  
+  &:active {
+    background-color: rgba(255, 255, 255, 0.12);
+    transform: translateX(0.5px);
+  }
+  
+  // Make the line number less prominent
+  .text-muted {
+    font-size: 0.7rem;
+    opacity: 0.7;
+  }
+  
+  // Style the type icons
+  i {
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+  }
+  
+  &:hover i {
+    opacity: 0.9;
+  }
+}

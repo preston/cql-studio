@@ -1,0 +1,220 @@
+// Author: Preston Lee
+
+
+/* IDE Layout */
+.ide-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Ensure the app-cql-ide component takes full height */
+app-cql-ide {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+app-cql-ide .ide-container {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ide-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Main Content */
+.ide-container .main-content {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  padding: 0 !important; /* Override any global padding */
+}
+
+/* Editor Area */
+.editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.editor-wrapper.hidden {
+  display: none;
+}
+
+.welcome-message {
+  border-radius: 0.375rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Panel Layout */
+.sidebar,
+.right-panel,
+.bottom-panel {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+
+.bottom-panel {
+  min-height: 100px;
+  contain: layout;
+  flex-shrink: 0;
+}
+
+/* Panel Visibility */
+.sidebar:not(.visible) {
+  display: none;
+}
+
+.right-panel:not(.visible) {
+  display: none;
+}
+
+.bottom-panel:not(.visible) {
+  display: none;
+}
+
+/* Resize handles are defined in the panel component SCSS */
+
+/* Tab Bar Layout */
+.tab-bar {
+  min-height: 36px;
+}
+
+.tab-bar .d-flex.align-items-center {
+  min-height: 36px;
+  cursor: grab;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.tab-bar .d-flex.align-items-center:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tab-bar .d-flex.align-items-center.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  transform: rotate(2deg);
+}
+
+.tab-bar .d-flex.align-items-center.drag-over {
+  background-color: rgba(0, 122, 204, 0.1);
+}
+
+/* Tab Close Button */
+.tab-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+
+.tab-close-btn:active {
+  background-color: #6a6a6a;
+}
+
+/* Panel Content */
+.sidebar-content,
+.right-panel .flex-fill,
+.bottom-panel .flex-fill {
+  overflow: hidden;
+}
+
+/* Bottom Panel Height Control */
+.ide-container .bottom-panel.visible {
+  flex-shrink: 0;
+  min-height: 200px;
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ide-container .bottom-panel[style*="height"] {
+  flex-shrink: 0 !important;
+}
+
+/* Ensure bottom panel is properly positioned in flex layout */
+.ide-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.ide-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ide-container {
+    height: 100vh;
+  }
+  
+  .tab-bar {
+    height: 40px;
+  }
+  
+  .sidebar {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  .bottom-panel {
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Panel Scrollbar Styling */
+.ide-container .sidebar .overflow-auto,
+.ide-container .right-panel .overflow-auto,
+.ide-container .bottom-panel .overflow-auto {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar styling for panels */
+.ide-container .sidebar .overflow-auto::-webkit-scrollbar,
+.ide-container .right-panel .overflow-auto::-webkit-scrollbar,
+.ide-container .bottom-panel .overflow-auto::-webkit-scrollbar {
+  width: 8px;
+}

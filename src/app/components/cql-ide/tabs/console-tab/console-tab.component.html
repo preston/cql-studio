@@ -1,0 +1,89 @@
+<div class="console-panel d-flex flex-column bg-dark text-light">
+  <div class="console-toolbar d-flex align-items-center gap-2 px-2 border-bottom sticky-top bg-dark">
+    <button class="btn  btn-sm" (click)="onClearOutput()" title="Clear Console">
+      <i class="bi-trash me-1"></i> Clear
+    </button>
+    <button class="btn  btn-sm" (click)="onCopyOutput()" title="Copy Console">
+      <i class="bi-copy me-1"></i> Copy
+    </button>
+    <button class="btn btn-sm" (click)="onToggleAllSections()" title="Toggle All Sections">
+      <i class="bi-{{ allSectionsExpanded ? 'collapse' : 'expand' }} me-1"></i>
+      {{ allSectionsExpanded ? 'Collapse All' : 'Expand All' }}
+    </button>
+    <div class="d-flex align-items-center gap-3 ms-auto">
+      <div class="form-check d-flex align-items-center gap-2">
+        <input class="form-check-input" type="checkbox" id="preserveLogs" [ngModel]="preserveLogs"
+          (ngModelChange)="onPreserveLogsChange($event)" title="Preserve logs between executions">
+        <label class="form-check-label small text-light mb-0" for="preserveLogs">
+          Preserve Logs
+        </label>
+      </div>
+      <div class="form-check d-flex align-items-center gap-2">
+        <input class="form-check-input" type="checkbox" id="autoscroll" [ngModel]="autoscrollEnabled"
+          (ngModelChange)="onAutoscrollChange($event)" title="Automatically scroll to bottom when new content is added">
+        <label class="form-check-label small text-light mb-0" for="autoscroll">
+          Autoscroll
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="flex-fill overflow-auto" [class.executing]="isEvaluating" #consoleContent (scroll)="onConsoleScroll($event)">
+    <div class="p-2">
+      @for (section of outputSections(); track section.id; let i = $index) {
+        <div [ngClass]="getOutputClass(section)"
+             [class.expanded]="section.expanded">
+          <div class="d-flex align-items-center gap-2 p-2 border-bottom console-section-header" (click)="onToggleSection(i)">
+            <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
+            <i class="bi {{ getOutputIcon(section) }} text-muted"></i>
+            <span class="fw-medium flex-fill text-white">{{ section.title }}</span>
+            <span class="badge" [class.bg-success]="section.status === 'success'"
+              [class.bg-danger]="section.status === 'error'"
+              [class.bg-warning]="section.status !== 'success' && section.status !== 'error'">
+              {{ section.status === 'success' ? 'SUCCESS' : section.status === 'error' ? 'ERROR' : 'PENDING' }}
+            </span>
+            @if (section.executionTime) {
+              <span class="small text-muted">{{ section.executionTime }}ms</span>
+            }
+            @if (section.timestamp) {
+              <span class="small text-muted">{{ section.timestamp | date:'HH:mm:ss.SSS' }}</span>
+            }
+          </div>
+          @if (section.expanded) {
+            <div class="p-3 bg-dark console-section-content">
+              @switch (section.type) {
+                @case ('custom') {
+                  <!-- Custom output cards for CQL execution functions -->
+                  <app-custom-output-card [section]="section"></app-custom-output-card>
+                }
+                @case ('json') {
+                  <!-- Syntax highlighted output for JSON and XML -->
+                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+                }
+                @case ('xml') {
+                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+                }
+                @default {
+                  <!-- Standard syntax highlighted output for other types -->
+                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+                }
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+    @if (outputSections().length === 0 && !isEvaluating) {
+      <div class="no-console d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+        <span>No console output yet. Click "Execute All" to run open libraries.</span>
+      </div>
+    }
+    @if (isEvaluating) {
+      <div class="p-3 border-top bg-secondary">
+        <div class="progress mb-2">
+          <div class="progress-bar" [style.width.%]="executionProgress"></div>
+        </div>
+        <span class="small text-light">{{ executionStatus }}</span>
+      </div>
+    }
+  </div>
+</div>

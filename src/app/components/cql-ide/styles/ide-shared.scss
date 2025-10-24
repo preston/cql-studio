@@ -1,0 +1,56 @@
+// Author: Preston Lee
+
+/* Import shared IDE styles */
+@use './ide-theme' as theme;
+@use './ide-layout' as layout;
+@use './ide-editor' as editor;
+
+/* Additional shared styles */
+.ide-container {
+  /* Override any transparent backgrounds and background images */
+  * {
+    background-image: none !important;
+  }
+}
+
+/* Status bar animations */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Outline Panel Styles */
+.outline-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(2px);
+  }
+  
+  &:active {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: translateX(1px);
+  }
+}
+
+/* FHIR URL styling */
+.fhir-url {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 11px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,154 @@
+// Author: Preston Lee
+
+// Custom PrismJS theme overrides to match IDE styling
+.syntax-highlighter {
+  background-color: var(--ide-bg-primary) !important;
+  color: #d4d4d4 !important;
+  border: 1px solid var(--ide-border) !important;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 0;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+// Line numbers styling to match IDE theme
+.syntax-highlighter.line-numbers {
+  position: relative;
+  padding-left: 3.8em;
+  counter-reset: linenumber;
+}
+
+.syntax-highlighter.line-numbers > code {
+  position: relative;
+  white-space: inherit;
+}
+
+.syntax-highlighter.line-numbers .line-numbers-rows {
+  position: absolute;
+  pointer-events: none;
+  top: 0;
+  font-size: 100%;
+  left: -3.8em;
+  width: 3em;
+  letter-spacing: -1px;
+  border-right: 1px solid var(--ide-border);
+  user-select: none;
+  background-color: var(--ide-bg-secondary) !important;
+  padding: 12px 8px 12px 0;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.syntax-highlighter.line-numbers .line-numbers-rows > span {
+  pointer-events: none;
+  display: block;
+  counter-increment: linenumber;
+  color: #858585 !important; // Muted color for line numbers
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: right;
+  padding-right: 8px;
+}
+
+.syntax-highlighter.line-numbers .line-numbers-rows > span:before {
+  content: counter(linenumber);
+  color: #858585 !important;
+  display: block;
+  padding-right: 0.8em;
+  text-align: right;
+}
+
+// Override PrismJS tomorrow theme colors to match IDE
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6a9955 !important; // Green comments
+}
+
+.token.punctuation {
+  color: #d4d4d4 !important; // Light gray punctuation
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #b5cea8 !important; // Light green for properties
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #ce9178 !important; // Orange for strings
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #d4d4d4 !important; // Light gray for operators
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #569cd6 !important; // Blue for keywords
+}
+
+.token.function,
+.token.class-name {
+  color: #dcdcaa !important; // Yellow for functions
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #d16969 !important; // Red for regex/important
+}
+
+// JSON specific styling
+.language-json .token.property {
+  color: #9cdcfe !important; // Light blue for JSON keys
+}
+
+.language-json .token.string {
+  color: #ce9178 !important; // Orange for JSON string values
+}
+
+.language-json .token.number {
+  color: #b5cea8 !important; // Light green for JSON numbers
+}
+
+.language-json .token.boolean {
+  color: #569cd6 !important; // Blue for JSON booleans
+}
+
+.language-json .token.null {
+  color: #808080 !important; // Gray for null values
+}
+
+// XML specific styling
+.language-xml-doc .token.tag {
+  color: #569cd6 !important; // Blue for XML tags
+}
+
+.language-xml-doc .token.attr-name {
+  color: #9cdcfe !important; // Light blue for XML attributes
+}
+
+.language-xml-doc .token.attr-value {
+  color: #ce9178 !important; // Orange for XML attribute values
+}

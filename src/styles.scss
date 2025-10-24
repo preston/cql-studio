@@ -1,6 +1,12 @@
 // Import color variables
 @use 'app/styles/_colors' as colors;
 
+// Import Bootstrap
+@use 'bootstrap/scss/bootstrap';
+
+// Import PrismJS theme overrides
+@use 'app/styles/prism-theme';
+
 body:has([data-bs-theme=light]) {
   background: url("/images/textures/crossword.png") repeat;
 
@@ -41,10 +47,17 @@ body:has([data-bs-theme=dark]) {
   p,
   li,
   b,
-  span,
+  span:not(.cm-editor span):not(.cm-editor *):not(.icon):not([class*="bi-"]), // Exclude CodeMirror spans and icons
   // a,
   .lead {
     // Simplex override for the default font color that's way too dark.
     color: colors.$color-text-muted;
   }
+}
+
+// Ensure icons are not italicized
+i[class*="bi-"],
+.icon,
+[class*="bi-"] {
+  font-style: normal !important;
 }

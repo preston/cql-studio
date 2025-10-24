@@ -1,0 +1,41 @@
+<div class="editor-tabs d-flex align-items-center border-dark border-bottom">
+  <!-- Drop zone at the beginning -->
+  <div 
+    class="drop-zone"
+    [class.drag-over]="isDragOver"
+    (dragover)="onTabDragOver($event)"
+    (dragenter)="onTabDragEnter($event)"
+    (dragleave)="onTabDragLeave($event)"
+    (drop)="onTabDropAtPosition($event, 0)"
+  ></div>
+  
+  @for (library of libraryResources(); track trackByLibraryId($index, library); let i = $index) {
+    <div 
+      class="editor-tab d-flex align-items-center px-3 py-2 border-end border-dark cursor-pointer"
+      [class.active]="library.id === activeLibraryId()"
+      [class.dirty]="library.isDirty"
+      (click)="onSelectLibrary(library.id)"
+      draggable="true"
+      (dragstart)="onTabDragStart($event, library.id)"
+      (dragover)="onTabDragOver($event)"
+      (drop)="onTabDrop($event)"
+    >
+      <span class="me-2 tab-name">{{ library.name }}</span>
+      <button 
+        class="btn-close btn-close-white btn-sm" 
+        (click)="onCloseLibrary(library.id, $event)"
+        title="Close tab"
+      ></button>
+    </div>
+  }
+  
+  <!-- Drop zone at the end -->
+  <div 
+    class="drop-zone"
+    [class.drag-over]="isDragOver"
+    (dragover)="onTabDragOver($event)"
+    (dragenter)="onTabDragEnter($event)"
+    (dragleave)="onTabDragLeave($event)"
+    (drop)="onTabDropAtPosition($event, -1)"
+  ></div>
+</div>

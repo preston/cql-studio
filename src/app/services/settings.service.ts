@@ -73,6 +73,50 @@ export class SettingsService {
           parsedSettings.validateSchema = false;
           shouldSave = true;
         }
+        if (parsedSettings.enableElmTranslation == null) {
+          parsedSettings.enableElmTranslation = false;
+          shouldSave = true;
+        }
+        if (parsedSettings.runnerApiBaseUrl == null) {
+          parsedSettings.runnerApiBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.fhirBaseUrl == null) {
+          parsedSettings.fhirBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.runnerFhirBaseUrl == null) {
+          parsedSettings.runnerFhirBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.translationBaseUrl == null) {
+          parsedSettings.translationBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.defaultTestResultsIndexUrl == null) {
+          parsedSettings.defaultTestResultsIndexUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.ollamaBaseUrl == null) {
+          parsedSettings.ollamaBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.ollamaModel == null) {
+          parsedSettings.ollamaModel = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.mcpBaseUrl == null) {
+          parsedSettings.mcpBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.enableAiAssistant == null) {
+          parsedSettings.enableAiAssistant = false;
+          shouldSave = true;
+        }
+        if (parsedSettings.useMCPTools == null) {
+          parsedSettings.useMCPTools = false;
+          shouldSave = true;
+        }
         if (shouldSave) {
           this.saveSettings();
           console.log("Settings have been updated to include default field values.");
@@ -106,5 +150,90 @@ export class SettingsService {
   saveSettings() {
     localStorage.setItem(SettingsService.SETTINGS_KEY, JSON.stringify(this.settings()));
     console.log("Your settings have been saved to local browser storage on this device. They will not be sync'd to any other system, even if your browser supports such features.");
+  }
+
+  getDefaultRunnerApiBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_RUNNER_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3000';
+  }
+
+  getDefaultFhirBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_FHIR_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:8080/fhir';
+  }
+
+  getDefaultRunnerFhirBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_RUNNER_FHIR_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:8080/fhir';
+  }
+
+  getDefaultTranslationBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_TRANSLATION_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3001';
+  }
+
+  getDefaultTestResultsIndexUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_DEFAULT_TEST_RESULTS_INDEX_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : '/examples/index.json';
+  }
+
+  getDefaultOllamaBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_OLLAMA_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:11434';
+  }
+
+  getDefaultOllamaModel(): string {
+    const envValue = (window as any)['CQL_STUDIO_OLLAMA_MODEL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'deepseek-coder:6.7b';
+  }
+
+  getDefaultMCPBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_MCP_BASE_URL'];
+    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3002';
+  }
+
+  getEffectiveRunnerApiBaseUrl(): string {
+    const settingValue = this.settings().runnerApiBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultRunnerApiBaseUrl();
+  }
+
+  getEffectiveFhirBaseUrl(): string {
+    const settingValue = this.settings().fhirBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultFhirBaseUrl();
+  }
+
+  getEffectiveRunnerFhirBaseUrl(): string {
+    const settingValue = this.settings().runnerFhirBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultRunnerFhirBaseUrl();
+  }
+
+  getEffectiveTranslationBaseUrl(): string {
+    const settingValue = this.settings().translationBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTranslationBaseUrl();
+  }
+
+  getEffectiveTestResultsIndexUrl(): string {
+    const settingValue = this.settings().defaultTestResultsIndexUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTestResultsIndexUrl();
+  }
+
+  getEffectiveOllamaBaseUrl(): string {
+    const settingValue = this.settings().ollamaBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultOllamaBaseUrl();
+  }
+
+  getEffectiveOllamaModel(): string {
+    const settingValue = this.settings().ollamaModel;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultOllamaModel();
+  }
+
+  getEffectiveMCPBaseUrl(): string {
+    const settingValue = this.settings().mcpBaseUrl;
+    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultMCPBaseUrl();
+  }
+
+  updateSettings(updates: Partial<Settings>): void {
+    this.settings.update(current => ({ ...current, ...updates }));
+    this.saveSettings();
   }
 }

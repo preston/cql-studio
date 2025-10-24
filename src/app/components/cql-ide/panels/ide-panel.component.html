@@ -1,0 +1,92 @@
+<div 
+  #panelElement
+  [class]="panelClasses"
+  [style]="panelStyles"
+  (dragover)="onTabDragOver($event)"
+  (drop)="onTabDrop($event)"
+>
+  <!-- Panel Header with Tabs -->
+  <div class="bg-dark border-dark border-bottom d-flex">
+    @for (tab of panel.tabs; track tab.id) {
+      <button 
+        class="btn rounded-0 flex-fill" 
+        [class.active]="tab.isActive"
+        (click)="onTabClick(tab)"
+        draggable="true"
+        (dragstart)="onTabDragStart($event, tab)"
+      >
+        {{ tab.title }}
+      </button>
+    }
+  </div>
+  
+  <!-- Panel Content -->
+  <div class="panel-content h-100 d-flex flex-column">
+    <!-- Navigation Tab -->
+    @if (getActiveTab()?.type === 'navigation') {
+      <app-navigation-tab 
+        (executeAllEvent)="onExecuteAll()">
+      </app-navigation-tab>
+    }
+    
+    <!-- Outline Tab -->
+    @if (getActiveTab()?.type === 'outline') {
+      <app-outline-tab 
+        (navigateToLine)="onNavigateToLine($event)">
+      </app-outline-tab>
+    }
+    
+    <!-- FHIR Tab -->
+    @if (getActiveTab()?.type === 'fhir') {
+      <app-fhir-tab 
+        (deleteLibrary)="onDeleteLibraryFromServer()">
+      </app-fhir-tab>
+    }
+    
+    <!-- ELM Tab -->
+    @if (getActiveTab()?.type === 'elm') {
+      <app-elm-tab 
+        [cqlContent]="getActiveLibraryCqlContent()"
+        [isTranslating]="ideStateService.isTranslating()"
+        [elmTranslationResults]="ideStateService.elmTranslationResults()"
+        (translateCqlToElm)="onTranslateCqlToElm()"
+        (clearElmTranslation)="onClearElmTranslation()">
+      </app-elm-tab>
+    }
+    
+    <!-- Problems Tab -->
+    @if (getActiveTab()?.type === 'problems') {
+      <app-problems-tab></app-problems-tab>
+    }
+    
+    <!-- Console Tab -->
+    @if (getActiveTab()?.type === 'output') {
+      <app-console-tab 
+        [preserveLogs]="ideStateService.preserveLogs()"
+        [isEvaluating]="ideStateService.isExecuting()"
+        [executionProgress]="ideStateService.executionProgress()"
+        [executionStatus]="ideStateService.executionStatus()"
+        (clearOutput)="onClearOutput()"
+        (copyOutput)="onCopyOutput()"
+        (toggleAllSections)="onToggleAllSections()"
+        (preserveLogsChange)="onPreserveLogsChange($event)">
+      </app-console-tab>
+    }
+    
+    <!-- AI Tab -->
+    @if (getActiveTab()?.type === 'ai') {
+      <app-ai-tab 
+        [cqlContent]="getActiveLibraryCqlContent()"
+        (insertCqlCode)="onInsertCqlCode($event)"
+        (replaceCqlCode)="onReplaceCqlCode($event)">
+      </app-ai-tab>
+    }
+  </div>
+  
+  <!-- Resize Handle -->
+  <div 
+    class="resize-handle"
+    [class]="position + '-resize-handle'"
+    (mousedown)="onStartResize($event)"
+  ></div>
+</div>

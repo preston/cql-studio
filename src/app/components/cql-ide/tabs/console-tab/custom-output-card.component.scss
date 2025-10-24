@@ -1,0 +1,61 @@
+.custom-output-card {
+  border: 1px solid var(--ide-border);
+  border-radius: 6px;
+  background-color: var(--ide-bg-primary);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 12px 16px;
+  background-color: var(--ide-bg-secondary);
+  border-bottom: 1px solid var(--ide-border);
+  font-weight: 500;
+}
+
+.card-title {
+  flex: 1;
+  font-size: 14px;
+}
+
+.card-body {
+  padding: 16px;
+}
+
+.execution-info, .translation-info, .validation-info {
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.result-content {
+  background-color: var(--ide-bg-secondary);
+  padding: 12px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.cql-execution-card {
+  border-left: 4px solid #28a745;
+}
+
+.cql-translation-card {
+  border-left: 4px solid #17a2b8;
+}
+
+.cql-validation-card {
+  border-left: 4px solid #ffc107;
+}
+
+.default-custom-card {
+  border-left: 4px solid #6f42c1;
+}

@@ -1,0 +1,128 @@
+<div class="ide-container">
+  <!-- Main Layout -->
+  <div class="ide-layout">
+    <!-- Left Panel -->
+    @if (ideStateService.getPanel('left')?.isVisible) {
+      <app-ide-panel
+        [panel]="ideStateService.getPanel('left')!"
+        [position]="'left'"
+        (togglePanel)="onTogglePanel('left')"
+        (setActiveTab)="onSetActiveTab('left', $event)"
+        (startResize)="onStartResize($event)"
+        (moveTab)="onMoveTab($event)"
+        (tabDrop)="onTabDrop($event)"
+        (dragOver)="onDragOver($event)"
+        (dragLeave)="onDragLeave($event)"
+        (executeAll)="onExecuteAll()"
+        (navigateToLine)="onNavigateToLine($event)">
+      </app-ide-panel>
+    }
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Editor Tabs -->
+      <app-editor-tabs
+        (selectLibrary)="onLibraryIdChange($event)"
+        (closeLibrary)="onDeleteLibrary($event)"
+        (reorderTabs)="onReorderEditorTabs($event)">
+      </app-editor-tabs>
+
+      <!-- CQL Editor -->
+      <div class="editor-area">
+        @for (library of ideStateService.libraryResources(); track library.id) {
+          @if (library.id === ideStateService.activeLibraryId()) {
+            <app-cql-editor
+              [libraryId]="library.id"
+              [editorState]="ideStateService.editorState()"
+              [placeholder]="'Start writing CQL...'"
+              [height]="'100%'"
+              [readonly]="false"
+              [cqlVersion]="'1.5.3'"
+              [isNewLibrary]="!library.library"
+              (contentChange)="onEditorContentChange($event, library.id)"
+              (syntaxErrors)="onEditorSyntaxErrors($event)"
+              (executeLibrary)="onExecuteLibrary()"
+              (reloadLibrary)="onReloadLibrary()"
+              (cqlVersionChange)="onCqlVersionChange($event)"
+              (formatCql)="onFormatCql()"
+              (validateCql)="onValidateCql()"
+              (saveLibrary)="onSaveLibrary()">
+            </app-cql-editor>
+          }
+        }
+        @if (!ideStateService.activeLibraryId()) {
+          <div class="d-flex align-items-center justify-content-center h-100 p-4">
+            <div class="text-center" style="max-width: 600px;">
+              <h2 class="mb-3">Welcome to the CQL IDE</h2>
+              <p class="mb-4 text-muted">Open or create a new CQL library to start editing.</p>
+              
+              <!-- Keyboard Shortcuts Section -->
+              <div class="mt-4">
+                <div class="card">
+                  <div class="card-header text-center">
+                    <h6 class="mb-0">Keyboard Shortcuts</h6>
+                  </div>
+                  <div class="card-body">
+                    <div class="row g-2">
+                      @for (shortcut of getAllShortcuts(); track shortcut.key) {
+                        <div class="col-6">
+                          <div class="d-flex justify-content-between align-items-center p-2 rounded">
+                            <span class="small" [title]="shortcut?.description">{{ shortcut?.description }}</span>
+                            <kbd class="bg-dark text-light border border-secondary px-2 py-1 rounded" style="font-size: 0.75rem;">{{ shortcut?.key }}</kbd>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    @if (ideStateService.getPanel('right')?.isVisible) {
+      <app-ide-panel
+        [panel]="ideStateService.getPanel('right')!"
+        [position]="'right'"
+        (togglePanel)="onTogglePanel('right')"
+        (setActiveTab)="onSetActiveTab('right', $event)"
+        (startResize)="onStartResize($event)"
+        (moveTab)="onMoveTab($event)"
+        (tabDrop)="onTabDrop($event)"
+        (dragOver)="onDragOver($event)"
+        (dragLeave)="onDragLeave($event)"
+        (executeAll)="onExecuteAll()"
+        (navigateToLine)="onNavigateToLine($event)">
+      </app-ide-panel>
+    }
+  </div>
+
+  <!-- Bottom Panel -->
+  @if (ideStateService.getPanel('bottom')?.isVisible) {
+    <app-ide-panel
+      [panel]="ideStateService.getPanel('bottom')!"
+      [position]="'bottom'"
+      (togglePanel)="onTogglePanel('bottom')"
+      (setActiveTab)="onSetActiveTab('bottom', $event)"
+      (startResize)="onStartResize($event)"
+      (moveTab)="onMoveTab($event)"
+      (tabDrop)="onTabDrop($event)"
+      (dragOver)="onDragOver($event)"
+      (dragLeave)="onDragLeave($event)"
+      (executeAll)="onExecuteAll()">
+    </app-ide-panel>
+  }
+
+  <!-- Status Bar -->
+  <app-ide-status-bar
+    [editorState]="ideStateService.editorState()"
+    [executionProgress]="ideStateService.executionProgress()"
+    [executionStatus]="ideStateService.executionStatus()"
+    [cqlVersion]="'1.5.3'"
+    [selectedPatientsCount]="selectedPatients.length"
+    [isLoadingLibraries]="false">
+  </app-ide-status-bar>
+</div>

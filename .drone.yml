@@ -8,7 +8,7 @@ steps:
   - name: publish
     image: plugins/docker
     settings:
-      repo: hlseven/quality-cql-tests-ui
+      repo: hlseven/quality-cql-studio
       tags:
         - ${DRONE_COMMIT_BRANCH}-linux-amd64
       username:
@@ -26,7 +26,7 @@ steps:
   - name: publish
     image: plugins/docker
     settings:
-      repo: hlseven/quality-cql-tests-ui
+      repo: hlseven/quality-cql-studio
       tags:
         - ${DRONE_COMMIT_BRANCH}-linux-arm64
       username:
@@ -48,8 +48,8 @@ steps:
         from_secret: docker_username
       password:
         from_secret: docker_password
-      target: hlseven/quality-cql-tests-ui:latest
-      template: hlseven/quality-cql-tests-ui:master-OS-ARCH
+      target: hlseven/quality-cql-studio:latest
+      template: hlseven/quality-cql-studio:master-OS-ARCH
       platforms:
         - linux/amd64
         - linux/arm64

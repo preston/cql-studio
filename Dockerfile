@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:25-alpine AS builder
 LABEL maintainer="preston.lee@prestonlee.com"
 
 # Install dependencies first so they layer can be cached across builds.
@@ -23,7 +23,7 @@ WORKDIR /usr/share/nginx/html
 RUN rm -rf *
 
 # Copy build from "builder" stage, as well as runtime configuration script public folder
-COPY --from=builder /app/dist/cql-tests-ui/browser .
+COPY --from=builder /app/dist/cql-studio/browser .
 
 # CMD ["./configure-from-environment.sh", "&&", "exec", "nginx", "-g", "'daemon off;'"]
 COPY entrypoint.sh .

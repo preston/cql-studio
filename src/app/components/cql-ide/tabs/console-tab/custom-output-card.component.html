@@ -1,0 +1,81 @@
+<div class="custom-output-card" [ngClass]="getCardClass()">
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="bi {{ getCardIcon() }}"></i>
+    <span class="card-title">{{ section.title }}</span>
+    <span class="badge ms-auto" [class]="getStatusBadgeClass()">
+      {{ section.status.toUpperCase() }}
+    </span>
+  </div>
+  <div class="card-body">
+    <ng-container [ngSwitch]="getCardType()">
+      <!-- CQL Execution Result Card -->
+      <div *ngSwitchCase="'cql-execution'" class="cql-execution-card">
+        <div class="execution-info mb-3">
+          <div class="row">
+            <div class="col-md-6">
+              <strong>Library:</strong> {{ section.metadata?.['libraryName'] || 'Unknown' }}
+            </div>
+            <div class="col-md-6">
+              <strong>Patient:</strong> {{ section.metadata?.['patientName'] || 'Unknown' }}
+            </div>
+          </div>
+          <div class="row mt-2">
+            <div class="col-md-6">
+              <strong>Execution Time:</strong> {{ section.executionTime || 0 }}ms
+            </div>
+            <div class="col-md-6">
+              <strong>Timestamp:</strong> {{ section.timestamp | date:'medium' }}
+            </div>
+          </div>
+        </div>
+        <div class="execution-result">
+          <h6>Result:</h6>
+          <pre class="result-content">{{ section.content }}</pre>
+        </div>
+      </div>
+
+      <!-- CQL Translation Result Card -->
+      <div *ngSwitchCase="'cql-translation'" class="cql-translation-card">
+        <div class="translation-info mb-3">
+          <div class="row">
+            <div class="col-md-6">
+              <strong>Library:</strong> {{ section.metadata?.['libraryName'] || 'Unknown' }}
+            </div>
+            <div class="col-md-6">
+              <strong>Version:</strong> {{ section.metadata?.['cqlVersion'] || 'Unknown' }}
+            </div>
+          </div>
+        </div>
+        <div class="translation-result">
+          <h6>ELM Translation:</h6>
+          <pre class="result-content">{{ section.content }}</pre>
+        </div>
+      </div>
+
+      <!-- CQL Validation Result Card -->
+      <div *ngSwitchCase="'cql-validation'" class="cql-validation-card">
+        <div class="validation-info mb-3">
+          <div class="row">
+            <div class="col-md-6">
+              <strong>Library:</strong> {{ section.metadata?.['libraryName'] || 'Unknown' }}
+            </div>
+            <div class="col-md-6">
+              <strong>Errors:</strong> {{ section.metadata?.['errorCount'] || 0 }}
+            </div>
+          </div>
+        </div>
+        <div class="validation-result">
+          <h6>Validation Results:</h6>
+          <pre class="result-content">{{ section.content }}</pre>
+        </div>
+      </div>
+
+      <!-- Default custom card -->
+      <div *ngSwitchDefault class="default-custom-card">
+        <div class="custom-content">
+          <pre class="result-content">{{ section.content }}</pre>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</div>
