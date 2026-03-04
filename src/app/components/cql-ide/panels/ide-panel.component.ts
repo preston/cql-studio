@@ -4,7 +4,7 @@ import { Component, input, output, viewChild, ElementRef, HostListener, inject, 
 import { CommonModule } from '@angular/common';
 import { CdkDropList, CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { IdePanel, IdePanelTab } from './ide-panel-tab.interface';
-import { IdeStateService } from '../../../services/ide-state.service';
+import { IdeStateService, TabDataScope } from '../../../services/ide-state.service';
 
 export interface PanelTabListData {
   panelId: string;
@@ -161,14 +161,11 @@ export class IdePanelComponent {
         this.libraryService.delete(activeLibrary.library).subscribe({
           next: () => {
             console.log('Library deleted from server successfully');
-            // Remove it from the local state
             this.ideStateService.removeLibraryResource(activeLibraryId);
-            // Clear the active library
             this.ideStateService.selectLibraryResource('');
-            
-            // Refresh the navigation-tab's library list to reflect the deletion
+            this.ideStateService.invalidateTabData(TabDataScope.LibraryList);
             if (this.navigationTab()) {
-              this.navigationTab()!.loadPaginatedLibraries();
+              this.navigationTab()!.loadLibraries();
             }
           },
           error: (error) => {

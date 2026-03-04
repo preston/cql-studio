@@ -5,6 +5,13 @@ import { IdePanel, IdePanelTab, IdePanelState } from '../components/cql-ide/pane
 import { LibraryResource, EditorFile, ExecutionResult, OutputSection, OutputType } from '../components/cql-ide/shared/ide-types';
 import { Library, Patient, Parameters } from 'fhir/r4';
 
+/** Scopes for tab data invalidation. When data changes (e.g. library deleted from server), call invalidateTabData(scope) so tabs that display that data can refresh. Tabs subscribe via effect(() => tabDataInvalidation()[scope]). */
+export const TabDataScope = {
+  LibraryList: 'libraryList',
+  // Add more as needed: PatientList: 'patientList', Outline: 'outline', etc.
+} as const;
+export type TabDataScopeKey = keyof typeof TabDataScope;
+
 export interface EditorState {
   cursorPosition: { line: number; column: number } | undefined;
   wordCount: number | undefined;
@@ -98,6 +105,9 @@ export class IdeStateService {
   private _navigateToLineRequest = signal<number | null>(null);
   private _formatCodeRequest = signal<boolean>(false);
 
+  /** Per-scope invalidation counts. Tabs use effect(() => this.tabDataInvalidation()[scope]) and refresh when their scope's count increases. */
+  private _tabDataInvalidation = signal<Record<string, number>>({});
+
   // Public computed signals
   public panelState = computed(() => this._panelState());
   public editorState = computed(() => this._editorState());
@@ -125,6 +135,8 @@ export class IdeStateService {
   public dragOverPanel = computed(() => this._dragOverPanel());
   public navigateToLineRequest = computed(() => this._navigateToLineRequest());
   public formatCodeRequest = computed(() => this._formatCodeRequest());
+  /** Per-scope invalidation counts. Tabs subscribe in an effect and refresh when their scope's count increases (see invalidateTabData). */
+  public tabDataInvalidation = computed(() => this._tabDataInvalidation());
   public activeLibraryIsReadOnly = computed(() => this.getActiveLibraryResource()?.isReadOnly ?? false);
   public activeLibraryContentLoadError = computed(() => this.getActiveLibraryResource()?.contentLoadError ?? null);
 
@@ -208,6 +220,11 @@ export class IdeStateService {
     });
   }
 
+  /** Notify that tab data for the given scope is stale. Tabs that display that data should refresh (e.g. Navigation tab for TabDataScope.LibraryList). */
+  invalidateTabData(scope: string): void {
+    this._tabDataInvalidation.update(m => ({ ...m, [scope]: (m[scope] ?? 0) + 1 }));
+  }
+
   // Editor state management
   updateEditorState(updates: Partial<EditorState>): void {
     this._editorState.update(state => ({ ...state, ...updates }));
@@ -252,7 +269,7 @@ export class IdeStateService {
       content,
       type: 'text',
       status,
-      expanded: false,
+      expanded: true,
       timestamp: new Date()
     };
     this.addOutputSection(section);
@@ -484,13 +501,13 @@ export class IdeStateService {
     });
   }
 
-  selectLibraryResource(libraryId: string): void {
-    this._activeLibraryId.set(libraryId);
+  selectLibraryResource(libraryId: string | null): void {
+    this._activeLibraryId.set(libraryId || null);
   }
 
   getActiveLibraryResource(): LibraryResource | null {
     const activeId = this._activeLibraryId();
-    if (!activeId) return null;
+    if (activeId == null) return null;
     return this._libraryResources().find(r => r.id === activeId) || null;
   }
 

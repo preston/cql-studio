@@ -437,7 +437,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     if (wasActive && adjacentId) {
       this.ideStateService.selectLibraryResource(adjacentId);
     } else if (wasActive) {
-      this.ideStateService.selectLibraryResource('');
+      this.ideStateService.selectLibraryResource(null);
     }
 
     this.ideStateService.removeLibraryResource(libraryId);
@@ -570,7 +570,15 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       console.log('No active library to execute');
       return;
     }
-    
+    if (activeLibrary.isDirty) {
+      this.ideStateService.addTextOutput(
+        'Execute Skipped',
+        'Save the library before executing. Execution uses the saved version on the server.',
+        'pending'
+      );
+      return;
+    }
+
     this.ideStateService.setExecuting(true);
     this.ideStateService.setExecutionStatus('Translating CQL to ELM...');
     
@@ -728,13 +736,12 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
     
     // Update the library's CQL content and metadata
-    // https://github.com/hapifhir/hapi-fhir/issues/7222 - temporarily ignore Library.version
     const updatedLibrary = {
       ...library,
       id: activeLibrary?.id || library.id, // Use the current ID (which might have changed)
       name: activeLibrary?.name || library.name,
       title: activeLibrary?.title || library.title,
-      // version: activeLibrary?.version || library.version || '1.0.0',
+      version: activeLibrary?.version || library.version || '1.0.0',
       description: activeLibrary?.description || library.description,
       url: activeLibrary?.url || library.url || this.libraryService.urlFor(activeLibrary?.id || library.id),
       content: [
@@ -755,13 +762,10 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         this.ideStateService.setExecutionStatus('Library saved successfully');
         
         // Update the library resource with the saved library
-        // Also update originalContent to reflect the saved content
-        // Refresh URL to ensure it's up to date
+        // Preserve user's URL choice (including empty) - do not overwrite with generated URL
         const currentId = this.ideStateService.activeLibraryId()!;
-        const refreshedUrl = this.libraryService.urlFor(currentId);
         
         this.ideStateService.updateLibraryResource(currentId, {
-          url: refreshedUrl,
           library: savedLibrary,
           originalContent: cqlContent,
           isDirty: false
@@ -770,7 +774,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         // Add success message to Console pane
         const libraryName = activeLibrary?.name || activeLibrary?.id || 'Library';
         this.ideStateService.addTextOutput(
-          `Library Saved: ${libraryName}`,
+          `Library Saved: ${libraryName} - Server caches may be updated asynchronously`,
           `Successfully saved library "${libraryName}". Server caches may updated asynchronously.\n\nLibrary ID: ${currentId}\nContent length: ${cqlContent.length} characters`,
           'success'
         );
@@ -809,13 +813,13 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   private createNewLibrary(libraryResource: any, cqlContent: string, elmXml: string): void {
-    // Create a new FHIR Library resource
-    // https://github.com/hapifhir/hapi-fhir/issues/7222 - temporarily ignore Library.version
+    // Create a new FHIR Library resource with our id so PUT creates it with that id
     const newLibrary: Library = {
       resourceType: 'Library' as const,
+      id: libraryResource.id,
       name: libraryResource.name || libraryResource.id,
       title: libraryResource.title || libraryResource.name || libraryResource.id,
-      // version: libraryResource.version || '1.0.0',
+      version: libraryResource.version || '1.0.0',
       status: 'active' as const,
       url: libraryResource.url || this.libraryService.urlFor(libraryResource.id),
       type: {
@@ -840,111 +844,36 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       description: libraryResource.description || `Library ${libraryResource.name || libraryResource.id}`
     };
 
-    this.libraryService.post(newLibrary).subscribe({
+    this.libraryService.put(newLibrary).subscribe({
       next: (savedLibrary) => {
         console.log('Library created successfully:', savedLibrary);
-        this.ideStateService.setExecutionStatus('Updating library with server-assigned ID...');
-        
-        // Get the server-assigned ID
-        const serverAssignedId = savedLibrary.id;
-        if (serverAssignedId && serverAssignedId !== libraryResource.id) {
-          // Update the library with the server-assigned ID and correct URL
-          const updatedLibrary = {
-            ...savedLibrary,
-            url: this.libraryService.urlFor(serverAssignedId)
-          };
-          
-          // Save again with the corrected URL
-          this.libraryService.put(updatedLibrary).subscribe({
-            next: (finalLibrary) => {
-              console.log('Library updated with correct URL:', finalLibrary);
-              this.ideStateService.setExecutionStatus('Library saved successfully');
-              
-              // Update the library resource with the final library data
-              this.ideStateService.updateLibraryResource(libraryResource.id, {
-                id: serverAssignedId,
-                url: this.libraryService.urlFor(serverAssignedId),
-                library: finalLibrary,
-                originalContent: cqlContent,
-                isDirty: false
-              });
-              
-              // Update the active library ID to point to the server-assigned ID
-              this.ideStateService.selectLibraryResource(serverAssignedId);
-              
-              // Add success message to Console pane
-              const libraryName = libraryResource.name || libraryResource.id || 'Library';
-              this.ideStateService.addTextOutput(
-                `Library Created: ${libraryName}`,
-                `Successfully created and saved library "${libraryName}" to server.\n\nLibrary ID: ${serverAssignedId}\nContent length: ${cqlContent.length} characters`,
-                'success'
-              );
-              
-              // Force content refresh to update the cache
-              
-              // Clear status after a short delay
-              setTimeout(() => {
-                this.ideStateService.setExecutionStatus('');
-              }, 2000);
-            },
-            error: (error) => {
-              console.error('Failed to update library with correct URL:', error);
-              this.ideStateService.setExecutionStatus('Failed to update library URL');
-              
-              // Still update with the server-assigned ID even if URL update failed
-              this.ideStateService.updateLibraryResource(libraryResource.id, {
-                id: serverAssignedId,
-                url: this.libraryService.urlFor(serverAssignedId),
-                library: savedLibrary,
-                originalContent: cqlContent,
-                isDirty: false
-              });
-              
-              this.ideStateService.selectLibraryResource(serverAssignedId);
-              
-              // Add warning message to Console pane (library created but URL update failed)
-              const libraryName = libraryResource.name || libraryResource.id || 'Library';
-              const errorMessage = error instanceof Error ? error.message : String(error);
-              this.ideStateService.addTextOutput(
-                `Library Created (URL Update Failed): ${libraryName}`,
-                `Library "${libraryName}" was created with ID ${serverAssignedId}, but failed to update URL.\n\nError: ${errorMessage}`,
-                'error'
-              );
-              
-              setTimeout(() => {
-                this.ideStateService.setExecutionStatus('');
-              }, 3000);
-            }
-          });
-        } else {
-          // No server-assigned ID change, just update normally
-          this.ideStateService.setExecutionStatus('Library saved successfully');
-          
-          this.ideStateService.updateLibraryResource(libraryResource.id, {
-            url: this.libraryService.urlFor(libraryResource.id),
-            library: savedLibrary,
-            originalContent: cqlContent,
-            isDirty: false
-          });
-          
-          // Force content refresh to update the cache
-          
-          // Clear status after a short delay
-          setTimeout(() => {
-            this.ideStateService.setExecutionStatus('');
-          }, 2000);
-        }
+        this.ideStateService.setExecutionStatus('Library saved successfully');
+
+        this.ideStateService.updateLibraryResource(libraryResource.id, {
+          library: savedLibrary,
+          originalContent: cqlContent,
+          isDirty: false
+        });
+
+        const libraryName = libraryResource.name || libraryResource.id || 'Library';
+        this.ideStateService.addTextOutput(
+          `Library Created: ${libraryName}`,
+          `Successfully created and saved library "${libraryName}" to server.\n\nLibrary ID: ${libraryResource.id}\nContent length: ${cqlContent.length} characters`,
+          'success'
+        );
+
+        setTimeout(() => {
+          this.ideStateService.setExecutionStatus('');
+        }, 2000);
       },
       error: (error) => {
         console.error('Failed to create library:', error);
         this.ideStateService.setExecutionStatus('Failed to save library');
-        
-        // Mark as dirty again since save failed
+
         this.ideStateService.updateLibraryResource(libraryResource.id, {
           isDirty: true
         });
-        
-        // Clear error status after a short delay
+
         setTimeout(() => {
           this.ideStateService.setExecutionStatus('');
         }, 3000);
@@ -1032,6 +961,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     
     return [
       // Core CQL IDE shortcuts - Platform-specific
+      { key: 'F4', description: 'Save Active Editor' },
       { key: 'F5', description: 'Execute Active Library' },
       { 
         key: 'F6', 
@@ -1068,6 +998,13 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       });
     }
     
+    // F4 - Save Active Editor
+    if (event.key === 'F4') {
+      event.preventDefault();
+      this.onSaveLibrary();
+      return;
+    }
+
     // F5 - Execute Active Library
     if (event.key === 'F5' && !isCmdKey) {
       event.preventDefault();

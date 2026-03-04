@@ -24,16 +24,26 @@
       <div class="mb-3">
       <!-- Library Form -->
       <div class="mb-3">
-        <div class="form-floating mb-3">
-          <input 
-            id="library-id-input"
-            type="text" 
-            class="form-control form-control-sm" 
-            [ngModel]="activeLibrary()?.id || ''"
-            (ngModelChange)="onLibraryIdChange($event)"
-            placeholder="Enter library ID"
-          >
-          <label for="library-id-input" class="text-white">Library ID</label>
+        <div class="mb-3">
+          <label for="library-id-input" class="form-label text-white small">Library ID</label>
+          <div class="input-group input-group-sm">
+            <input 
+              id="library-id-input"
+              type="text" 
+              class="form-control" 
+              [ngModel]="activeLibrary()?.id ?? ''"
+              (ngModelChange)="onLibraryIdChange($event)"
+              placeholder="Enter library ID"
+            >
+            <button 
+              class="btn btn-outline-secondary" 
+              type="button"
+              (click)="onGenerateDefaultId()"
+              title="Generate default ID from library name"
+            >
+              <i class="bi-arrow-repeat"></i>
+            </button>
+          </div>
         </div>
         
         <div class="form-floating mb-3">
@@ -72,7 +82,7 @@
             (ngModelChange)="onLibraryVersionChange($event)"
             placeholder="0.0.0"
           >
-          <label for="library-version-input" class="text-white">Version (Currently Broken: Don't Set!)</label>
+          <label for="library-version-input" class="text-white">Version</label>
         </div>
         
         <div class="form-floating mb-3">
@@ -87,17 +97,26 @@
           <label for="library-description-input" class="text-white">Description</label>
         </div>
         
-        <div class="form-floating mb-3">
-          <input 
-            id="library-url-input"
-            type="text" 
-            class="form-control form-control-sm" 
-            [ngModel]="activeLibrary()?.url || ''"
-            readonly
-            placeholder="Library URL will be generated automatically"
-            title="Library URL is automatically generated based on FHIR server settings"
-          >
-          <label for="library-url-input" class="text-white">URL</label>
+        <div class="mb-3">
+          <label for="library-url-input" class="form-label text-white small">URL</label>
+          <div class="input-group input-group-sm">
+            <input 
+              id="library-url-input"
+              type="text" 
+              class="form-control" 
+              [ngModel]="activeLibrary()?.url ?? ''"
+              (ngModelChange)="onLibraryUrlChange($event)"
+              placeholder="Enter library canonical URL"
+            >
+            <button 
+              class="btn btn-outline-secondary" 
+              type="button"
+              (click)="onGenerateDefaultUrl()"
+              title="Generate default URL from FHIR server and library ID"
+            >
+              <i class="bi-arrow-repeat"></i>
+            </button>
+          </div>
         </div>
       </div>
 

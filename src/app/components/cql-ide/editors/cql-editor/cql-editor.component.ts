@@ -148,6 +148,18 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         }, 0);
       }
     });
+
+    // Re-run canExecute when library resource is updated (e.g. after save)
+    effect(() => {
+      const libraryId = this.libraryId();
+      const resources = this.ideStateService.libraryResources();
+      const library = resources.find(lib => lib.id === libraryId);
+      if (library) {
+        void library.originalContent;
+        void library.isDirty;
+        this.updateCanExecute();
+      }
+    });
   }
 
   // Get content for this specific library

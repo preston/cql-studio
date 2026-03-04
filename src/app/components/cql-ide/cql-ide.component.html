@@ -55,7 +55,7 @@
             </app-cql-editor>
           }
         }
-        @if (!ideStateService.activeLibraryId()) {
+        @if (ideStateService.activeLibraryId() == null) {
           <div class="d-flex align-items-center justify-content-center h-100 p-4">
             <div class="text-center" style="max-width: 600px;">
               <h2 class="mb-3">Welcome to the CQL IDE</h2>

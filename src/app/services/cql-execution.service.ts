@@ -59,7 +59,8 @@ export class CqlExecutionService extends BaseService {
   }
 
   /**
-   * Execute library using $evaluate operation
+   * Execute library using $evaluate operation (instance-level /Library/[id]/$evaluate).
+   * Library must be saved on the server first.
    */
   private executeLibraryWithEvaluateOperation(libraryId: string, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     if (!patientIds || patientIds.length === 0) {
@@ -162,7 +163,7 @@ export class CqlExecutionService extends BaseService {
   }
 
   /**
-   * Get the evaluate URL for a library (instance-level operation)
+   * Get the evaluate URL for a library (instance-level /Library/[id]/$evaluate)
    */
   private getLibraryEvaluateUrl(libraryId: string): string {
     const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();

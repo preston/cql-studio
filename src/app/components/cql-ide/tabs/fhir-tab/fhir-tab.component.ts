@@ -38,32 +38,35 @@ export class FhirTabComponent {
 
   onLibraryIdChange(value: string): void {
     const activeLibrary = this.activeLibrary();
-    if (activeLibrary) {
-      const trimmedValue = value.trim();
-      
-      // Don't update if the value is empty or the same as current ID
-      if (!trimmedValue || trimmedValue === activeLibrary.id) {
-        return;
-      }
-      
-      const oldId = activeLibrary.id;
-      const newId = trimmedValue;
-      
-      // Generate new URL for the new ID
-      const newUrl = this.libraryService.urlFor(newId);
-      
-      // Update the library resource with new ID and URL
-      this.ideStateService.updateLibraryResource(oldId, { 
-        id: newId,
-        url: newUrl
-      });
-      
-      // Update the active library ID to point to the new ID
-      this.ideStateService.selectLibraryResource(newId);
-      
-      // Trigger a save operation to persist the changes to the server
-      this.saveLibrary.emit();
+    if (!activeLibrary) return;
+
+    const trimmedValue = value.trim();
+    const oldId = activeLibrary.id;
+
+    if (trimmedValue === oldId) return;
+
+    if (!trimmedValue) {
+      this.ideStateService.updateLibraryResource(oldId, { id: '' });
+      this.ideStateService.selectLibraryResource('');
+      return;
     }
+
+    this.ideStateService.updateLibraryResource(oldId, { id: trimmedValue });
+    this.ideStateService.selectLibraryResource(trimmedValue);
+    this.saveLibrary.emit();
+  }
+
+  onGenerateDefaultId(): void {
+    const activeLibrary = this.activeLibrary();
+    if (!activeLibrary) return;
+
+    const base = (activeLibrary.name || 'NewLibrary').trim() || 'NewLibrary';
+    const newId = base.replace(/[^-a-zA-Z0-9_]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'NewLibrary';
+    const oldId = activeLibrary.id;
+
+    this.ideStateService.updateLibraryResource(oldId, { id: newId });
+    this.ideStateService.selectLibraryResource(newId);
+    this.saveLibrary.emit();
   }
 
   onLibraryVersionChange(value: string): void {
@@ -133,6 +136,24 @@ export class FhirTabComponent {
     }
   }
 
+  onLibraryUrlChange(value: string): void {
+    const activeLibrary = this.activeLibrary();
+    if (activeLibrary) {
+      const trimmed = value.trim();
+      this.ideStateService.updateLibraryResource(activeLibrary.id, { url: trimmed || undefined });
+      this.saveLibrary.emit();
+    }
+  }
+
+  onGenerateDefaultUrl(): void {
+    const activeLibrary = this.activeLibrary();
+    if (activeLibrary?.id) {
+      const defaultUrl = this.libraryService.urlFor(activeLibrary.id);
+      this.ideStateService.updateLibraryResource(activeLibrary.id, { url: defaultUrl });
+      this.saveLibrary.emit();
+    }
+  }
+
   onSaveLibrary(): void {
     this.saveLibrary.emit();
   }
@@ -149,27 +170,52 @@ export class FhirTabComponent {
     const activeLibrary = this.activeLibrary();
     if (!activeLibrary) return '';
 
-    const libraryCopy = { ...activeLibrary.library };
-    if (libraryCopy) {
-      libraryCopy.id = activeLibrary.id || '';
-      libraryCopy.name = activeLibrary.name || '';
-      libraryCopy.title = activeLibrary.title || activeLibrary.name || '';
-      // libraryCopy.version = activeLibrary.version || '';
-      libraryCopy.description = activeLibrary.description || '';
-      libraryCopy.url = activeLibrary.url || this.libraryService.urlFor(activeLibrary.id || '');
-      
-      if (activeLibrary.cqlContent && activeLibrary.cqlContent.trim()) {
-        libraryCopy.content = [{
-          contentType: 'text/cql',
-          data: btoa(activeLibrary.cqlContent)
-        }];
-      } else {
-        libraryCopy.content = [];
-      }
-      
-      return JSON.stringify(libraryCopy, null, 2);
+    const libraryCopy = { ...activeLibrary.library } as Record<string, unknown>;
+    if (!libraryCopy) return '';
+
+    if ((activeLibrary.id ?? '').trim()) {
+      libraryCopy['id'] = activeLibrary.id!.trim();
+    } else {
+      delete libraryCopy['id'];
     }
-    return '';
+    const nameVal = (activeLibrary.name ?? activeLibrary.id ?? '').trim();
+    if (nameVal) {
+      libraryCopy['name'] = nameVal;
+    } else {
+      delete libraryCopy['name'];
+    }
+    const titleVal = (activeLibrary.title ?? activeLibrary.name ?? activeLibrary.id ?? '').trim();
+    if (titleVal) {
+      libraryCopy['title'] = titleVal;
+    } else {
+      delete libraryCopy['title'];
+    }
+    if ((activeLibrary.description ?? '').trim()) {
+      libraryCopy['description'] = activeLibrary.description!.trim();
+    } else {
+      delete libraryCopy['description'];
+    }
+    if ((activeLibrary.url ?? '').trim()) {
+      libraryCopy['url'] = activeLibrary.url!.trim();
+    } else {
+      delete libraryCopy['url'];
+    }
+    if ((activeLibrary.version ?? '').trim()) {
+      libraryCopy['version'] = activeLibrary.version!.trim();
+    } else {
+      delete libraryCopy['version'];
+    }
+
+    if (activeLibrary.cqlContent && activeLibrary.cqlContent.trim()) {
+      libraryCopy['content'] = [{
+        contentType: 'text/cql',
+        data: btoa(activeLibrary.cqlContent)
+      }];
+    } else {
+      libraryCopy['content'] = [];
+    }
+
+    return JSON.stringify(libraryCopy, null, 2);
   }
 
   patientAsString(patient?: Patient): string {

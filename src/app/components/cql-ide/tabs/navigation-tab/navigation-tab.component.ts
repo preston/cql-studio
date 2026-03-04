@@ -1,12 +1,12 @@
 // Author: Preston Lee
 
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Library, Patient, Bundle } from 'fhir/r4';
 import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
-import { IdeStateService } from '../../../../services/ide-state.service';
+import { IdeStateService, TabDataScope } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
 
 @Component({
@@ -37,12 +37,23 @@ export class NavigationTabComponent implements OnInit {
   // Expose Math for template use
   public Math = Math;
 
+  private lastSeenLibraryListInvalidation = 0;
+
   constructor(
     public libraryService: LibraryService,
     public patientService: PatientService,
     public ideStateService: IdeStateService,
     public settingsService: SettingsService
-  ) {}
+  ) {
+    effect(() => {
+      const inv = this.ideStateService.tabDataInvalidation();
+      const count = inv[TabDataScope.LibraryList] ?? 0;
+      if (count > this.lastSeenLibraryListInvalidation) {
+        this.lastSeenLibraryListInvalidation = count;
+        this.loadLibraries();
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.loadPaginatedLibraries();
@@ -114,7 +125,7 @@ export class NavigationTabComponent implements OnInit {
     });
   }
 
-  private loadLibraries(): void {
+  loadLibraries(): void {
     if (this.libraryListSearchTerm.trim()) {
       this.loadSearchedLibraries();
     } else {
@@ -178,7 +189,7 @@ export class NavigationTabComponent implements OnInit {
               id: freshLibrary.id,
               name: freshLibrary.name || freshLibrary.id,
               title: freshLibrary.title || freshLibrary.name || freshLibrary.id,
-              // version: freshLibrary.version || '1.0.0',
+              version: freshLibrary.version || '1.0.0',
               description: freshLibrary.description || `Library ${freshLibrary.name || freshLibrary.id}`,
               url: freshLibrary.url || this.libraryService.urlFor(freshLibrary.id),
               cqlContent: '',
@@ -208,7 +219,7 @@ export class NavigationTabComponent implements OnInit {
                   id: freshLibrary.id!,
                   name: freshLibrary.name || freshLibrary.id!,
                   title: freshLibrary.title || freshLibrary.name || freshLibrary.id!,
-                  // version: freshLibrary.version || '1.0.0',
+                  version: freshLibrary.version || '1.0.0',
                   description: freshLibrary.description || `Library ${freshLibrary.name || freshLibrary.id}`,
                   url: freshLibrary.url || this.libraryService.urlFor(freshLibrary.id!),
                   cqlContent,
@@ -261,7 +272,7 @@ export class NavigationTabComponent implements OnInit {
         id,
         name: library.name || id,
         title: library.title || library.name || id,
-        // version: library.version || '1.0.0',
+        version: library.version || '1.0.0',
         description: library.description || `Library ${library.name || id}`,
         url: library.url || this.libraryService.urlFor(id),
         cqlContent: '',
@@ -291,7 +302,7 @@ export class NavigationTabComponent implements OnInit {
             id,
             name: library.name || id,
             title: library.title || library.name || id,
-            // version: library.version || '1.0.0',
+            version: library.version || '1.0.0',
             description: library.description || `Library ${library.name || id}`,
             url: library.url || this.libraryService.urlFor(id),
             cqlContent,
