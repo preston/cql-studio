@@ -4,11 +4,10 @@
   display: block;
 }
 
-// Minimal styles - let Prism handle all font-size, line-height, and padding for proper gutter alignment
+// Minimal styles - no font/line-height so Prism theme and line-numbers plugin control alignment
 .syntax-highlighter {
   margin: 0;
   background: transparent;
   border: none;
-  font-family: 'Courier New', Courier, monospace;
   overflow-x: auto;
 }

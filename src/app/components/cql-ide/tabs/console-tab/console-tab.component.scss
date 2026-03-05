@@ -145,16 +145,6 @@
   border-top: 1px solid var(--ide-border);
 }
 
-.syntax-highlighted {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #d4d4d4;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  margin: 0;
-}
-
 .no-console {
   display: flex;
   flex-direction: column;
