@@ -1,6 +1,7 @@
 // Author: Preston Lee
 
 import { Component, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
@@ -19,7 +20,7 @@ import { CqlValidationService } from '../../../../services/cql-validation.servic
 @Component({
   selector: 'app-cql-editor',
   standalone: true,
-  imports: [],
+  imports: [FormsModule],
   templateUrl: './cql-editor.component.html',
   styleUrls: ['./cql-editor.component.scss']
 })
@@ -39,7 +40,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   cursorChange = output<{ line: number; column: number }>();
   editorStateChange = output<IdeEditorState>();
   syntaxErrors = output<string[]>();
-  executeLibrary = output<void>();
+  executeLibrary = output<{ sendTerminologyRouting: boolean }>();
   reloadLibrary = output<void>();
   formatCql = output<void>();
   validateCql = output<void>();
@@ -55,6 +56,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
   // Toolbar properties
   isExecuting: boolean = false;
+  sendTerminologyRouting: boolean = true;
   
   // Signal for canExecute state
   private _canExecuteSignal = signal(false);
@@ -901,7 +903,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
 
   onExecuteLibrary(): void {
-    this.executeLibrary.emit();
+    this.executeLibrary.emit({ sendTerminologyRouting: this.sendTerminologyRouting });
   }
 
   onReloadLibrary(): void {

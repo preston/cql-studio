@@ -564,7 +564,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   // Editor toolbar methods
-  onExecuteLibrary(): void {
+  onExecuteLibrary(payload?: { sendTerminologyRouting: boolean }): void {
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
     if (!activeLibrary) {
       console.log('No active library to execute');
@@ -615,7 +615,8 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       {
         cqlContent: currentCqlContent,
         elmXml: translationResult.elmXml || undefined,
-        libraryResource: activeLibrary // Pass entire library resource with current values
+        libraryResource: activeLibrary,
+        sendTerminologyRouting: payload?.sendTerminologyRouting ?? true
       }
     ).subscribe({
       next: (result) => {

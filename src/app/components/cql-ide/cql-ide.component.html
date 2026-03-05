@@ -47,7 +47,7 @@
               [isNewLibrary]="!library.library"
               (contentChange)="onEditorContentChange($event, library.id)"
               (syntaxErrors)="onEditorSyntaxErrors($event)"
-              (executeLibrary)="onExecuteLibrary()"
+              (executeLibrary)="onExecuteLibrary($event)"
               (reloadLibrary)="onReloadLibrary()"
               (formatCql)="onFormatCql()"
               (validateCql)="onValidateCql()"

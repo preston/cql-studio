@@ -10,9 +10,13 @@ services:
     restart: unless-stopped
 
   cql-hapi-r4-data:
-    image: hapiproject/hapi:v8.6.0-1
+    image: hapiproject/hapi:v8.8.0-1
     ports:
       - "8080:8080"
+    # Optional: mount config/hapi/application-override.yaml if ValueSet resolution still fails.
+    # Uncomment below and the SPRING_CONFIG_ADDITIONAL_LOCATION env to use it.
+    # volumes:
+    #   - ./config/hapi:/configs
     environment:
       - hapi.fhir.fhir_version=R4
       - spring.main.allow-bean-definition-overriding=true
@@ -26,6 +30,20 @@ services:
       - spring.jpa.properties.hibernate.search.enabled=true
       - spring.jpa.properties.hibernate.search.backend.type=lucene
       - spring.jpa.properties.hibernate.search.backend.analysis.configurer=ca.uhn.fhir.jpa.search.HapiHSearchAnalysisConfigurers$HapiLuceneAnalysisConfigurer
+      - HAPI_FHIR_TREAT_REFERENCES_AS_LOCAL=https://asu.edu/fhir
+      - HAPI_FHIR_ALLOW_EXTERNAL_REFERENCES=true
+      # CQL/CR: allow ValueSet expansion when not pre-expanded (avoids REQUIRE failure during $evaluate)
+      - hapi.fhir.cr.cql.terminology.valueset_preexpansion_mode=USE_IF_PRESENT
+      # Pre-expand ValueSets when stored so terminology resolution can use them
+      - hapi.fhir.pre_expand_value_sets=true
+      - hapi.fhir.enable_task_pre_expand_value_sets=true
+      - hapi.fhir.maximum_expansion_size=20000
+      - hapi.fhir.pre_expand_value_sets_max_count=20000
+      - hapi.fhir.pre_expand_value_sets_default_count=20000
+      # Resolve ValueSets from JPA for this base (CQL "code in ValueSet" uses canonical URL)
+      - HAPI_FHIR_LOGICAL_URLS_8=https://asu.edu/fhir/*
+      # Optional: use application-override.yaml (uncomment volume above)
+      # - SPRING_CONFIG_ADDITIONAL_LOCATION=file:///configs/application-override.yaml
       - JAVA_TOOL_OPTIONS=-Xms1g -Xmx8g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
     deploy:
       resources:
@@ -34,7 +52,7 @@ services:
     restart: unless-stopped
 
   cql-hapi-r4-terminology:
-    image: hapiproject/hapi:v8.6.0-1
+    image: hapiproject/hapi:v8.8.0-1
     ports:
       - "8081:8080"
     environment:
@@ -50,6 +68,15 @@ services:
       - spring.jpa.properties.hibernate.search.enabled=true
       - spring.jpa.properties.hibernate.search.backend.type=lucene
       - spring.jpa.properties.hibernate.search.backend.analysis.configurer=ca.uhn.fhir.jpa.search.HapiHSearchAnalysisConfigurers$HapiLuceneAnalysisConfigurer
+      - HAPI_FHIR_TREAT_REFERENCES_AS_LOCAL=https://asu.edu/fhir
+      - HAPI_FHIR_ALLOW_EXTERNAL_REFERENCES=true
+      - hapi.fhir.cr.cql.terminology.valueset_preexpansion_mode=USE_IF_PRESENT
+      - hapi.fhir.pre_expand_value_sets=true
+      - hapi.fhir.enable_task_pre_expand_value_sets=true
+      - hapi.fhir.maximum_expansion_size=20000
+      - hapi.fhir.pre_expand_value_sets_max_count=20000
+      - hapi.fhir.pre_expand_value_sets_default_count=20000
+      - HAPI_FHIR_LOGICAL_URLS_8=https://asu.edu/fhir/*
       - JAVA_TOOL_OPTIONS=-Xms1g -Xmx8g -XX:+UseG1GC -XX:MaxGCPauseMillis=200
     deploy:
       resources:

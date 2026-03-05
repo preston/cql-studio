@@ -36,6 +36,8 @@ export interface CqlExecutionOptions {
   libraryUrl?: string;
   libraryDescription?: string;
   library?: Library; // Original Library resource to preserve all fields
+  /** When true (default), terminologyEndpoint parameter is included in the request. When false, it is omitted. */
+  sendTerminologyRouting?: boolean;
 }
 
 @Injectable({
@@ -85,7 +87,7 @@ export class CqlExecutionService extends BaseService {
    * Execute library without patient context using $evaluate
    */
   private executeLibraryWithoutPatient(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    const parameters = this.createBaseParameters();
+    const parameters = this.createBaseParameters(options);
     return this.executeHttpRequest(
       this.getLibraryEvaluateUrl(libraryId),
       parameters,
@@ -102,7 +104,7 @@ export class CqlExecutionService extends BaseService {
     const executions = patientIds
       .filter(patientId => patientId && patientId.trim().length > 0) // Filter out empty/invalid patient IDs
       .map(patientId => {
-        const parameters = this.createBaseParameters();
+        const parameters = this.createBaseParameters(options);
         this.addSubjectParameter(parameters, patientId);
         return this.executeHttpRequest(
           this.getLibraryEvaluateUrl(libraryId),
@@ -118,7 +120,7 @@ export class CqlExecutionService extends BaseService {
    * Execute CQL without patient context using $cql operation
    */
   private executeCqlWithoutPatient(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    const parameters = this.createBaseParameters();
+    const parameters = this.createBaseParameters(options);
     this.addLibraryParameter(parameters, libraryId);
     this.addExpressionParameter(parameters, options);
     return this.executeHttpRequest(
@@ -135,7 +137,7 @@ export class CqlExecutionService extends BaseService {
    */
   private executeCqlForPatients(libraryId: string, patientIds: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const executions = patientIds.map(patientId => {
-      const parameters = this.createBaseParameters();
+      const parameters = this.createBaseParameters(options);
       this.addLibraryParameter(parameters, libraryId);
       this.addSubjectParameter(parameters, patientId);
       this.addExpressionParameter(parameters, options);
@@ -199,14 +201,16 @@ export class CqlExecutionService extends BaseService {
   }
 
   /**
-   * Create base Parameters object with terminology endpoint if available
+   * Create base Parameters object with terminology endpoint if requested and available
    */
-  private createBaseParameters(): Parameters {
+  private createBaseParameters(options?: CqlExecutionOptions): Parameters {
     const parameters: Parameters = {
       resourceType: 'Parameters',
       parameter: []
     };
-    this.addTerminologyEndpoint(parameters);
+    if (options?.sendTerminologyRouting !== false) {
+      this.addTerminologyEndpoint(parameters);
+    }
     return parameters;
   }
 
@@ -261,7 +265,10 @@ export class CqlExecutionService extends BaseService {
   }
 
   /**
-   * Execute HTTP request and create CqlExecutionResult observable
+   * Execute HTTP request and create CqlExecutionResult observable.
+   * Note: HAPI may return HAPI-0450/HAPI-1857 "Did not find any content to parse" when ValueSet
+   * resolution fails during CQL evaluation (e.g. CQL uses "code in ValueSetId"), not only when the
+   * request body is malformed. The server's terminology/ValueSet path is then the likely cause.
    */
   private executeHttpRequest(
     url: string,
