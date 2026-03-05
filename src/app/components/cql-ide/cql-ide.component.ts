@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy, HostListener, viewChild, effect, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, viewChild, effect, inject, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { IdeStateService } from '../../services/ide-state.service';
@@ -34,7 +34,10 @@ import { EditorTabsComponent } from './editors/editor-tabs/editor-tabs.component
   styleUrls: ['./cql-ide.component.scss']
 })
 export class CqlIdeComponent implements OnInit, OnDestroy {
+  private static readonly MAIN_CONTENT_MIN_WIDTH_PX = 200;
+
   cqlEditor = viewChild(CqlEditorComponent);
+  ideLayoutRef = viewChild<ElementRef<HTMLElement>>('ideLayout');
   
   // Simple state properties
   leftPanelVisible = true;
@@ -514,9 +517,24 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
 
   // Additional methods needed for the template
   onStartResize(event: { type: string; event: MouseEvent; newSize?: number }): void {
-    if (event.newSize !== undefined) {
-      this.ideStateService.setPanelSize(event.type, event.newSize);
+    if (event.newSize === undefined) return;
+    let size = event.newSize;
+    const layoutEl = this.ideLayoutRef()?.nativeElement;
+    if (layoutEl && (event.type === 'left' || event.type === 'right')) {
+      const containerWidth = layoutEl.clientWidth;
+      const leftPanel = this.ideStateService.getPanel('left');
+      const rightPanel = this.ideStateService.getPanel('right');
+      const leftSize = leftPanel?.isVisible ? leftPanel.size : 0;
+      const rightSize = rightPanel?.isVisible ? rightPanel.size : 0;
+      if (event.type === 'left') {
+        const maxLeft = containerWidth - CqlIdeComponent.MAIN_CONTENT_MIN_WIDTH_PX - rightSize;
+        size = Math.min(size, maxLeft);
+      } else {
+        const maxRight = containerWidth - leftSize - CqlIdeComponent.MAIN_CONTENT_MIN_WIDTH_PX;
+        size = Math.min(size, maxRight);
+      }
     }
+    this.ideStateService.setPanelSize(event.type, size);
   }
 
   onReorderEditorTabs(event: { fromIndex: number; toIndex: number }): void {
