@@ -49,12 +49,14 @@ export class SyntaxHighlighterComponent implements AfterViewInit {
         const detectedLanguage = this.detectLanguage();
         const languageClass = `language-${detectedLanguage}`;
         
-        // Set the language class on the code element
+        // Set the language class on the code element (required for prism-js-fold and line numbers)
         codeElement.className = languageClass;
         
-        // Use PrismJS to highlight and apply line numbers
-        // highlightElement is more reliable than highlightAllUnder for single elements
-        Prism.highlightElement(codeElement);
+        // highlightAllUnder triggers before-all-elements-highlight so prism-js-fold can insert fold UI
+        const preElement = this.preElement()!.nativeElement;
+        Prism.highlightAllUnder(preElement);
+        // Expand all fold nodes by default (plugin collapses when line count >= 40)
+        preElement.querySelectorAll('details').forEach((el: Element) => el.setAttribute('open', ''));
       } else if (!code) {
         // Clear the element if there's no code
         codeElement.textContent = '';
