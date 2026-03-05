@@ -36,9 +36,12 @@ export interface CqlExecutionOptions {
   libraryUrl?: string;
   libraryDescription?: string;
   library?: Library; // Original Library resource to preserve all fields
-  /** When true (default), terminologyEndpoint parameter is included in the request. When false, it is omitted. */
+  /** When true, terminologyEndpoint parameter is included in the request. When false or omitted, it is omitted. */
   sendTerminologyRouting?: boolean;
 }
+
+/** Default for sendTerminologyRouting; opt-in only to avoid sending terminology endpoint unless requested. */
+export const DEFAULT_SEND_TERMINOLOGY_ROUTING = false;
 
 @Injectable({
   providedIn: 'root'
@@ -200,6 +203,11 @@ export class CqlExecutionService extends BaseService {
     } as Endpoint;
   }
 
+  /** True only when options explicitly request terminology routing; undefined/false means no. */
+  private shouldIncludeTerminologyEndpoint(options?: CqlExecutionOptions): boolean {
+    return options?.sendTerminologyRouting === true;
+  }
+
   /**
    * Create base Parameters object with terminology endpoint if requested and available
    */
@@ -208,7 +216,7 @@ export class CqlExecutionService extends BaseService {
       resourceType: 'Parameters',
       parameter: []
     };
-    if (options?.sendTerminologyRouting !== false) {
+    if (this.shouldIncludeTerminologyEndpoint(options)) {
       this.addTerminologyEndpoint(parameters);
     }
     return parameters;

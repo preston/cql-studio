@@ -25,6 +25,7 @@ export interface LibraryResource {
   contentLoading?: boolean;
   isReadOnly?: boolean;
   contentLoadError?: string;
+  sendTerminologyRouting?: boolean;
 }
 
 export interface OutlineItem {

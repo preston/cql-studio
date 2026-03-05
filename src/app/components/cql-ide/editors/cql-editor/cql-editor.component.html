@@ -38,7 +38,8 @@
         Execute
       </button>
       <div class="form-check form-check-inline mt-1 mb-0 ms-1">
-        <input class="form-check-input" type="checkbox" id="sendTerminologyRouting" [(ngModel)]="sendTerminologyRouting"
+        <input class="form-check-input" type="checkbox" id="sendTerminologyRouting" [ngModel]="sendTerminologyRoutingInput()"
+          (ngModelChange)="onSendTerminologyRoutingChange($event)"
           aria-label="Send terminology routing">
         <label class="form-check-label" for="sendTerminologyRouting">Send terminology routing</label>
       </div>

@@ -285,4 +285,31 @@ export class SettingsService {
     this.settings.update(current => ({ ...current, ...updates }));
     this.saveSettings();
   }
+
+  static readonly EXPORT_FILENAME = 'settings.cql-studio.json';
+
+  exportSettingsJson(): string {
+    return JSON.stringify(this.settings(), null, 2);
+  }
+
+  importSettingsJson(json: string): boolean {
+    try {
+      const parsed = JSON.parse(json) as Record<string, unknown>;
+      const defaults = new Settings();
+      const knownKeys = Object.keys(defaults) as (keyof Settings)[];
+      const filtered: Partial<Settings> = {};
+      for (const key of knownKeys) {
+        if (parsed[key] !== undefined) {
+          (filtered as Record<string, unknown>)[key] = parsed[key];
+        }
+      }
+      const merged = { ...defaults, ...this.settings(), ...filtered };
+      this.settings.set(merged as Settings);
+      this.saveSettings();
+      this.setEffectiveTheme();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }

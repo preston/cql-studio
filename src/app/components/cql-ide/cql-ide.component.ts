@@ -8,7 +8,7 @@ import { IdeTabRegistryService } from '../../services/ide-tab-registry.service';
 import { LibraryService } from '../../services/library.service';
 import { PatientService } from '../../services/patient.service';
 import { TranslationService } from '../../services/translation.service';
-import { CqlExecutionService } from '../../services/cql-execution.service';
+import { CqlExecutionService, DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../services/cql-execution.service';
 import { SettingsService } from '../../services/settings.service';
 import { AiService } from '../../services/ai.service';
 import { Library } from 'fhir/r4';
@@ -43,7 +43,10 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   activeLibraryId: string | null = null;
   libraryResources: any[] = [];
   selectedPatients: any[] = [];
-  
+
+  get defaultSendTerminologyRouting(): boolean {
+    return DEFAULT_SEND_TERMINOLOGY_ROUTING;
+  }
 
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -564,7 +567,11 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   // Editor toolbar methods
-  onExecuteLibrary(payload?: { sendTerminologyRouting: boolean }): void {
+  onSendTerminologyRoutingChange(libraryId: string, value: boolean): void {
+    this.ideStateService.updateLibraryResource(libraryId, { sendTerminologyRouting: value });
+  }
+
+  onExecuteLibrary(): void {
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
     if (!activeLibrary) {
       console.log('No active library to execute');
@@ -616,7 +623,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         cqlContent: currentCqlContent,
         elmXml: translationResult.elmXml || undefined,
         libraryResource: activeLibrary,
-        sendTerminologyRouting: payload?.sendTerminologyRouting ?? true
+        sendTerminologyRouting: activeLibrary.sendTerminologyRouting ?? DEFAULT_SEND_TERMINOLOGY_ROUTING
       }
     ).subscribe({
       next: (result) => {
@@ -1012,7 +1019,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       this.onExecuteLibrary();
       return;
     }
-    
+
     // F6 - Execute All Libraries
     if (event.key === 'F6') {
       event.preventDefault();

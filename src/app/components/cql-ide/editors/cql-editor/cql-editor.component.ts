@@ -16,6 +16,7 @@ import { IdeEditor, EditorState as IdeEditorState } from '../base-editor.interfa
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { CqlFormatterService } from '../../../../services/cql-formatter.service';
 import { CqlValidationService } from '../../../../services/cql-validation.service';
+import { DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../../../services/cql-execution.service';
 
 @Component({
   selector: 'app-cql-editor',
@@ -40,11 +41,15 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   cursorChange = output<{ line: number; column: number }>();
   editorStateChange = output<IdeEditorState>();
   syntaxErrors = output<string[]>();
-  executeLibrary = output<{ sendTerminologyRouting: boolean }>();
+  executeLibrary = output<void>();
   reloadLibrary = output<void>();
   formatCql = output<void>();
   validateCql = output<void>();
   saveLibrary = output<void>();
+  sendTerminologyRoutingChange = output<boolean>();
+
+  /** Per-library value from parent (LibraryResource.sendTerminologyRouting ?? default). */
+  sendTerminologyRoutingInput = input<boolean>(DEFAULT_SEND_TERMINOLOGY_ROUTING);
 
   private editor?: EditorView;
   private grammarManager: CqlGrammarManager;
@@ -56,7 +61,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
   // Toolbar properties
   isExecuting: boolean = false;
-  sendTerminologyRouting: boolean = true;
   
   // Signal for canExecute state
   private _canExecuteSignal = signal(false);
@@ -902,8 +906,12 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
 
 
+  onSendTerminologyRoutingChange(value: boolean): void {
+    this.sendTerminologyRoutingChange.emit(value);
+  }
+
   onExecuteLibrary(): void {
-    this.executeLibrary.emit({ sendTerminologyRouting: this.sendTerminologyRouting });
+    this.executeLibrary.emit();
   }
 
   onReloadLibrary(): void {
