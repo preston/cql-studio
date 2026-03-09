@@ -22,12 +22,19 @@
             "inlineStyleLanguage": "scss",
             "allowedCommonJsDependencies": [
               "ajv",
-              "ajv-formats"
+              "ajv-formats",
+              "pdfjs-dist",
+              "mammoth"
             ],
             "assets": [
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "pdf.worker.mjs",
+                "input": "node_modules/pdfjs-dist/build",
+                "output": "/"
               }
             ],
             "styles": [

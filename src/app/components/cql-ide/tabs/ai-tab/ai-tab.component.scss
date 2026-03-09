@@ -202,6 +202,41 @@
           }
         }
       }
+
+      &.ai-input-area-drag-over {
+        outline: 2px dashed theme.$ide-blue;
+        outline-offset: -2px;
+      }
+
+      .ai-attachment-strip {
+        min-height: 32px;
+        border-bottom: 1px solid theme.$ide-border;
+        background-color: theme.$ide-bg-primary;
+
+        .ai-attachment-chip {
+          max-width: 200px;
+          padding: 0.2rem 0.4rem;
+          border-radius: 0.25rem;
+          background-color: theme.$ide-bg-secondary;
+          border: 1px solid theme.$ide-border;
+          color: theme.$ide-text-white;
+
+          .ai-attachment-name {
+            max-width: 120px;
+          }
+
+          .ai-attachment-remove {
+            border: none;
+            min-width: 24px;
+            color: theme.$ide-text-white;
+            opacity: 0.8;
+
+            &:hover {
+              opacity: 1;
+            }
+          }
+        }
+      }
       
       .input-group {
         .form-control {

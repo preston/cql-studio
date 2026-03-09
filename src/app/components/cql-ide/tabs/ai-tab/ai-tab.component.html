@@ -280,7 +280,11 @@
     </div>
 
     <!-- Input Area -->
-    <div class="ai-input-area border-top sticky-bottom">
+    <div class="ai-input-area border-top sticky-bottom"
+         [class.ai-input-area-drag-over]="dragOver()"
+         (dragover)="onDragOver($event)"
+         (dragleave)="onDragLeave($event)"
+         (drop)="onDrop($event)">
       @if (error()) {
       <div class="alert alert-danger alert-sm m-2" role="alert">
         <i class="bi bi-exclamation-triangle me-2"></i>{{ error() }}
@@ -314,6 +318,36 @@
           <i class="bi bi-lightbulb me-2"></i>
           }
           Generate Suggestions
+        </button>
+      </div>
+
+      <!-- Attachment strip -->
+      <div class="ai-attachment-strip d-flex flex-wrap align-items-center gap-2 px-2 py-1">
+        @if (attachedFiles().length > 0) {
+        @for (entry of attachedFiles(); track entry.id) {
+        <span class="ai-attachment-chip d-inline-flex align-items-center gap-1 small">
+          <span class="ai-attachment-name text-truncate" [title]="entry.file.name">{{ entry.file.name }}</span>
+          <span class="ai-attachment-size text-muted">({{ formatFileSize(entry.file.size) }})</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary ai-attachment-remove p-0"
+                  (click)="onRemoveAttachment(entry.id)"
+                  [attr.aria-label]="'Remove ' + entry.file.name"
+                  [id]="'ai-attachment-remove-' + entry.id">
+            <i class="bi bi-x"></i>
+          </button>
+        </span>
+        }
+        }
+        <input #attachFileInput type="file" class="d-none" id="ai-attach-file-input"
+               [attr.accept]="acceptedAttachmentExtensions"
+               multiple
+               (change)="onFileInputChange($event)">
+        <button type="button" class="btn btn-sm"
+                (click)="onAttachClick()"
+                [disabled]="isLoading() || isStreaming()"
+                title="Attach files"
+                id="ai-attach-files-btn"
+                aria-label="Attach files">
+          <i class="bi bi-paperclip me-1"></i>Attach
         </button>
       </div>
       

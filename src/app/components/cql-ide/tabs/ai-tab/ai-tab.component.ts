@@ -21,6 +21,13 @@ import { ReplaceCodeTool } from '../../../../services/tools/replace-code.tool';
 import { ToolPolicyService } from '../../../../services/tool-policy.service';
 import { PlanDisplayComponent } from './plan-display.component';
 import { TimeagoPipe } from 'ngx-timeago';
+import { AttachmentParserService } from '../../../../services/attachment-parser.service';
+import { v4 as uuidv4 } from 'uuid';
+
+export interface AttachedFileEntry {
+  id: string;
+  file: File;
+}
 
 @Component({
   selector: 'app-ai-tab',
@@ -33,6 +40,7 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
   messagesContainer = viewChild<ElementRef>('messagesContainer');
   scrollSentinel = viewChild<ElementRef>('scrollSentinel');
   thinkingFullContent = viewChild<ElementRef>('thinkingFullContent');
+  attachFileInput = viewChild<ElementRef<HTMLInputElement>>('attachFileInput');
   cqlContent = input<string>('');
   replaceCqlCode = output<string>();
   insertCqlCode = output<string>();
@@ -55,8 +63,11 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
   private _showDiffPreview = signal<boolean>(false);
   private _resettingMCPTools = signal<boolean>(false);
   private _thinkingAccordionExpanded = signal<boolean>(false);
+  private _attachedFiles = signal<AttachedFileEntry[]>([]);
+  private _dragOver = signal<boolean>(false);
 
   private static readonly STREAMING_PREVIEW_LINES = 6;
+  private static readonly ACCEPTED_ATTACHMENT_EXTENSIONS = '.txt,.md,.json,.xml,.csv,.docx,.pdf';
 
   public currentMode = computed(() => {
     const conversation = this.activeConversation();
@@ -84,9 +95,13 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
   public conversations = computed(() => this.conversationManager.conversations());
   public hasActiveConversation = computed(() => !!this.activeConversation());
   
-  public canSendMessage = computed(() => 
-    !this._isLoading() && this._currentMessage().trim().length > 0
+  public canSendMessage = computed(() =>
+    !this._isLoading() &&
+    (this._currentMessage().trim().length > 0 || this._attachedFiles().length > 0)
   );
+  public attachedFiles = computed(() => this._attachedFiles());
+  public dragOver = computed(() => this._dragOver());
+  public acceptedAttachmentExtensions = AiTabComponent.ACCEPTED_ATTACHMENT_EXTENSIONS;
   public canStop = computed(() => 
     this._isLoading() || this.conversationState.isStreaming()
   );
@@ -142,7 +157,8 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     private conversationState: AiConversationStateService,
     private toolExecutionManager: AiToolExecutionManagerService,
     private streamHandler: AiStreamResponseHandlerService,
-    private toolPolicyService: ToolPolicyService
+    private toolPolicyService: ToolPolicyService,
+    private attachmentParser: AttachmentParserService
   ) {
   }
 
@@ -277,6 +293,62 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     this.autoResizeTextarea(target);
   }
 
+  onAttachFiles(files: FileList | File[]): void {
+    const list = Array.from(files);
+    const accepted = list.filter((f) => this.attachmentParser.isAcceptedFile(f));
+    const entries: AttachedFileEntry[] = accepted.map((file) => ({ id: uuidv4(), file }));
+    this._attachedFiles.update((prev) => [...prev, ...entries]);
+  }
+
+  onRemoveAttachment(id: string): void {
+    this._attachedFiles.update((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  clearAttachments(): void {
+    this._attachedFiles.set([]);
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' kB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  onAttachClick(): void {
+    this.attachFileInput()?.nativeElement?.click();
+  }
+
+  onFileInputChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (files?.length) {
+      this.onAttachFiles(files);
+    }
+    input.value = '';
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this._dragOver.set(true);
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this._dragOver.set(false);
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this._dragOver.set(false);
+    const files = event.dataTransfer?.files;
+    if (files?.length) {
+      this.onAttachFiles(files);
+    }
+  }
+
   private autoResizeTextarea(textarea: HTMLTextAreaElement): void {
     textarea.style.height = 'auto';
     const scrollHeight = textarea.scrollHeight;
@@ -327,6 +399,7 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     this.resetContinuationTracking();
     this._currentMessage.set('');
     this._error.set(null);
+    this.clearAttachments();
   }
 
   public onDeleteConversation(conversationId: string): void {
@@ -555,10 +628,14 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     }
   }
 
-  public onSendMessage(): void {
+  public async onSendMessage(): Promise<void> {
     const message = this._currentMessage().trim();
-    
-    if (!message || this._isLoading()) {
+    const entries = this._attachedFiles();
+
+    if (this._isLoading()) {
+      return;
+    }
+    if (!message && entries.length === 0) {
       return;
     }
 
@@ -568,27 +645,45 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     this._isLoading.set(true);
     this._error.set(null);
 
+    let messageToSend = message;
+    if (entries.length > 0) {
+      try {
+        const results = await Promise.all(
+          entries.map((e) => this.attachmentParser.parseFile(e.file))
+        );
+        const blocks = results.map(
+          (text, i) => `--- Attached: ${entries[i].file.name} ---\n${text}`
+        );
+        messageToSend = (messageToSend || '') + '\n\n' + blocks.join('\n\n');
+      } catch (err) {
+        this._isLoading.set(false);
+        this._error.set((err as Error).message ?? 'Failed to parse attachments');
+        return;
+      }
+    }
+
     const editorContext = this.conversationManager.getCurrentEditorContext();
     const editorId = editorContext?.editorId;
-    
+
     if (this._currentSubscription) {
       this._currentSubscription.unsubscribe();
       this._currentSubscription = null;
     }
-    
+
     const mode = this.currentMode();
     const subscription = this.aiService.sendStreamingMessage(
-      message,
+      messageToSend,
       editorId,
       this.useMCPTools(),
       this.cqlContent(),
       undefined,
       mode
     );
-    
+
     this._currentSubscription = subscription.subscribe({
       next: async (event) => {
         if (event.type === 'start') {
+          this.clearAttachments();
           this.conversationState.startStreaming();
           this._thinkingAccordionExpanded.set(false);
         } else if (event.type === 'thinkingChunk') {
@@ -670,13 +765,14 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
       el.scrollTop = el.scrollHeight;
     }
     
-    if (messageCount > this._lastMessageCount || 
+    if (messageCount > this._lastMessageCount ||
         (isStreaming && streamingLength > this._lastStreamingLength) ||
         hasToolCalls) {
+      const shouldAutoScroll =
+        !this._userScrolledUp || messageCount > this._lastMessageCount;
       this._lastMessageCount = messageCount;
       this._lastStreamingLength = streamingLength;
-      const shouldAutoScroll = !this._userScrolledUp || messageCount > this._lastMessageCount;
-      
+
       if (shouldAutoScroll) {
         this.scheduleScroll();
       }
@@ -742,10 +838,12 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     if (this._scrollRafId !== null) {
       cancelAnimationFrame(this._scrollRafId);
     }
-    
+
     this._scrollRafId = requestAnimationFrame(() => {
-      this.scrollToBottom();
-      this._scrollRafId = null;
+      requestAnimationFrame(() => {
+        this.scrollToBottom();
+        this._scrollRafId = null;
+      });
     });
   }
   
