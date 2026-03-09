@@ -2,6 +2,7 @@
 
 import { test, expect } from '@playwright/test';
 import { TestHelpers } from './utils/test-helpers';
+import { ExamplePaths } from '../src/app/constants/example-paths.constants';
 
 test.describe('Dashboard Tests', () => {
   let helpers: TestHelpers;
@@ -15,13 +16,13 @@ test.describe('Dashboard Tests', () => {
       await helpers.goToHome();
       
       // Load index file first to enable dashboard
-      await helpers.loadFromIndex('/examples/index.json');
+      await helpers.loadFromIndex(ExamplePaths.INDEX_JSON);
       
       // Set up session storage for dashboard
-      await helpers.page.evaluate(() => {
-        sessionStorage.setItem('indexUrl', '/examples/index.json');
+      await helpers.page.evaluate((indexUrl) => {
+        sessionStorage.setItem('indexUrl', indexUrl);
         sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
-      });
+      }, ExamplePaths.INDEX_JSON);
       
       // Navigate to dashboard
       await helpers.goToDashboard();
@@ -35,13 +36,13 @@ test.describe('Dashboard Tests', () => {
 
     test('should show back to home button', async () => {
       await helpers.goToHome();
-      await helpers.loadFromIndex('/examples/index.json');
+      await helpers.loadFromIndex(ExamplePaths.INDEX_JSON);
       
       // Set up session storage for dashboard
-      await helpers.page.evaluate(() => {
-        sessionStorage.setItem('indexUrl', '/examples/index.json');
+      await helpers.page.evaluate((indexUrl) => {
+        sessionStorage.setItem('indexUrl', indexUrl);
         sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
-      });
+      }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
       
@@ -69,13 +70,13 @@ test.describe('Dashboard Tests', () => {
   test.describe('Dashboard Loading States', () => {
     test('should show loading state initially', async () => {
       await helpers.goToHome();
-      await helpers.loadFromIndex('/examples/index.json');
+      await helpers.loadFromIndex(ExamplePaths.INDEX_JSON);
       
       // Set up session storage for dashboard
-      await helpers.page.evaluate(() => {
-        sessionStorage.setItem('indexUrl', '/examples/index.json');
+      await helpers.page.evaluate((indexUrl) => {
+        sessionStorage.setItem('indexUrl', indexUrl);
         sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
-      });
+      }, ExamplePaths.INDEX_JSON);
       
       // Navigate to dashboard and wait for loading state
       await helpers.page.goto('/dashboard');
@@ -102,13 +103,13 @@ test.describe('Dashboard Tests', () => {
   test.describe('Dashboard Content Display', () => {
     test.beforeEach(async () => {
       await helpers.goToHome();
-      await helpers.loadFromIndex('/examples/index.json');
+      await helpers.loadFromIndex(ExamplePaths.INDEX_JSON);
       
       // Set up session storage for dashboard
-      await helpers.page.evaluate(() => {
-        sessionStorage.setItem('indexUrl', '/examples/index.json');
+      await helpers.page.evaluate((indexUrl) => {
+        sessionStorage.setItem('indexUrl', indexUrl);
         sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
-      });
+      }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
       await helpers.waitForDashboardLoad();
@@ -175,13 +176,13 @@ test.describe('Dashboard Tests', () => {
   test.describe('Dashboard Functionality', () => {
     test.beforeEach(async () => {
       await helpers.goToHome();
-      await helpers.loadFromIndex('/examples/index.json');
+      await helpers.loadFromIndex(ExamplePaths.INDEX_JSON);
       
       // Set up session storage for dashboard
-      await helpers.page.evaluate(() => {
-        sessionStorage.setItem('indexUrl', '/examples/index.json');
+      await helpers.page.evaluate((indexUrl) => {
+        sessionStorage.setItem('indexUrl', indexUrl);
         sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
-      });
+      }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
       await helpers.waitForDashboardLoad();
@@ -305,13 +306,13 @@ test.describe('Dashboard Tests', () => {
   test.describe('Dashboard Charts', () => {
     test.beforeEach(async () => {
       await helpers.goToHome();
-      await helpers.loadFromIndex('/examples/index.json');
+      await helpers.loadFromIndex(ExamplePaths.INDEX_JSON);
       
       // Set up session storage for dashboard
-      await helpers.page.evaluate(() => {
-        sessionStorage.setItem('indexUrl', '/examples/index.json');
+      await helpers.page.evaluate((indexUrl) => {
+        sessionStorage.setItem('indexUrl', indexUrl);
         sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
-      });
+      }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
       await helpers.waitForDashboardLoad();
@@ -359,10 +360,10 @@ test.describe('Dashboard Tests', () => {
 
     test('should handle network errors gracefully', async () => {
       // Mock network failure
-      await helpers.page.route('**/examples/*.json', route => route.abort());
+      await helpers.page.route(ExamplePaths.ROUTE_GLOB, route => route.abort());
       
       await helpers.goToHome();
-      await helpers.loadFromIndex('/examples/index.json');
+      await helpers.loadFromIndex(ExamplePaths.INDEX_JSON);
       await helpers.goToDashboard();
       await helpers.waitForDashboardLoad();
       
@@ -374,13 +375,13 @@ test.describe('Dashboard Tests', () => {
   test.describe('Dashboard Responsive Design', () => {
     test.beforeEach(async () => {
       await helpers.goToHome();
-      await helpers.loadFromIndex('/examples/index.json');
+      await helpers.loadFromIndex(ExamplePaths.INDEX_JSON);
       
       // Set up session storage for dashboard
-      await helpers.page.evaluate(() => {
-        sessionStorage.setItem('indexUrl', '/examples/index.json');
+      await helpers.page.evaluate((indexUrl) => {
+        sessionStorage.setItem('indexUrl', indexUrl);
         sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
-      });
+      }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
       await helpers.waitForDashboardLoad();

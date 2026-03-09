@@ -2,6 +2,7 @@
 
 import { test, expect } from '@playwright/test';
 import { TestHelpers } from './utils/test-helpers';
+import { ExamplePaths } from '../src/app/constants/example-paths.constants';
 
 test.describe('Runner Tests', () => {
   let helpers: TestHelpers;
@@ -58,7 +59,7 @@ test.describe('Runner Tests', () => {
 
     test('should load configuration from URL parameter', async () => {
       // Navigate to runner page with URL parameter
-      await helpers.page.goto('/runner?url=/examples/runner-config.json');
+      await helpers.page.goto(`/runner?url=${ExamplePaths.RUNNER_CONFIG_JSON}`);
       await helpers.waitForAppLoad();
       
       // Should show runner component

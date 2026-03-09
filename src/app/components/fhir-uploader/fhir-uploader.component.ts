@@ -4,8 +4,14 @@ import { Component, signal, ElementRef, HostBinding, AfterViewInit, viewChild, i
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../services/settings.service';
 import { Library } from 'fhir/r4';
+import {
+  FHIR_BUNDLE_EXAMPLE_PATHS,
+  FHIR_CQL_EXAMPLE_PATHS
+} from '../../constants/example-paths.constants';
 
 interface BundleFile {
   id: string;
@@ -65,6 +71,7 @@ export class FhirUploaderComponent implements AfterViewInit {
   protected readonly modalMessage = signal<string>('');
   protected readonly modalTitle = signal<string>('');
   protected readonly modalType = signal<'success' | 'error' | 'warning'>('success');
+  protected readonly isAddingExamples = signal<boolean>(false);
 
   @HostBinding('class.modal-open')
   get hasModalOpen(): boolean {
@@ -77,6 +84,7 @@ export class FhirUploaderComponent implements AfterViewInit {
 
   protected settingsService = inject(SettingsService);
   private router = inject(Router);
+  private http = inject(HttpClient);
 
   constructor() {
     // Initialize with the effective FHIR base URL from settings
@@ -410,6 +418,39 @@ export class FhirUploaderComponent implements AfterViewInit {
       f => !f.name.toLowerCase().startsWith('hospital') && !f.name.toLowerCase().startsWith('practitioner')
     );
     this.files.set([...hospital, ...practitioner, ...rest]);
+  }
+
+  async addBundleExamples(): Promise<void> {
+    this.isAddingExamples.set(true);
+    try {
+      const bundleFiles: File[] = [];
+      for (const path of FHIR_BUNDLE_EXAMPLE_PATHS) {
+        try {
+          const text = await firstValueFrom(this.http.get(path, { responseType: 'text' }));
+          const name = path.split('/').pop() ?? path;
+          bundleFiles.push(new File([text], name, { type: 'application/json' }));
+        } catch {
+          // Skip missing or failed bundle
+        }
+      }
+      const cqlFiles: File[] = [];
+      for (const path of FHIR_CQL_EXAMPLE_PATHS) {
+        try {
+          const text = await firstValueFrom(this.http.get(path, { responseType: 'text' }));
+          const name = path.split('/').pop() ?? path;
+          cqlFiles.push(new File([text], name, { type: 'text/plain' }));
+        } catch {
+          // Skip missing or failed CQL file
+        }
+      }
+      this.addFiles(bundleFiles);
+      this.addCqlFiles(cqlFiles);
+      if (bundleFiles.length > 0) {
+        this.reorderForSynthea();
+      }
+    } finally {
+      this.isAddingExamples.set(false);
+    }
   }
 
   clearAllFiles(): void {

@@ -8,6 +8,7 @@ import {
   SortByOption, 
   SortOrder 
 } from '../src/app/models/query-params.model';
+import { ExamplePaths } from '../src/app/constants/example-paths.constants';
 
 test.describe('Filtering and Sorting Tests', () => {
   let helpers: TestHelpers;
@@ -15,7 +16,7 @@ test.describe('Filtering and Sorting Tests', () => {
   test.beforeEach(async ({ page }) => {
     helpers = new TestHelpers(page);
     // Load test data first
-    await helpers.page.goto('/?url=/examples/results.json');
+    await helpers.page.goto(`/?url=${ExamplePaths.RESULTS_JSON}`);
     await helpers.waitForAppLoad();
     await helpers.waitForResults();
   });

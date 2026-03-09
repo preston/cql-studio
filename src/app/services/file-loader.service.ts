@@ -2,6 +2,7 @@
 
 import { Injectable } from '@angular/core';
 import { CqlTestResults } from '../models/cql-test-results.model';
+import { ExamplePaths } from '../constants/example-paths.constants';
 
 @Injectable({
   providedIn: 'root'
@@ -46,7 +47,7 @@ export class FileLoaderService {
 
   async loadFromExample(): Promise<CqlTestResults> {
     try {
-      const response = await fetch('/examples/results.json');
+      const response = await fetch(ExamplePaths.RESULTS_JSON);
       if (!response.ok) {
         throw new Error(`Failed to load example file: ${response.statusText}`);
       }

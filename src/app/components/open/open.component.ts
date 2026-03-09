@@ -10,6 +10,7 @@ import { SettingsService } from '../../services/settings.service';
 import { RunnerService } from '../../services/runner.service';
 import { ToastService } from '../../services/toast.service';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
+import { ExamplePaths } from '../../constants/example-paths.constants';
 import { CqlTestResults } from '../../models/cql-test-results.model';
 import { firstValueFrom } from 'rxjs';
 
@@ -73,7 +74,7 @@ export class OpenComponent implements OnInit {
   }
 
   onLoadUrlExample(): void {
-    this.loadFromUrl('/examples/results.json');
+    this.loadFromUrl(ExamplePaths.RESULTS_JSON);
   }
 
 

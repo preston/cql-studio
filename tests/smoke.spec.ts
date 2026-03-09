@@ -1,6 +1,7 @@
 // Author: Preston Lee
 
 import { test, expect } from '@playwright/test';
+import { ExamplePaths } from '../src/app/constants/example-paths.constants';
 
 test.describe('Smoke Tests', () => {
   test('should load the application homepage', async ({ page }) => {
@@ -89,7 +90,7 @@ test.describe('Smoke Tests', () => {
   });
 
   test('should handle deep linking with URL parameter', async ({ page }) => {
-    await page.goto('/results/open?url=/examples/results.json');
+    await page.goto(`/results/open?url=${ExamplePaths.RESULTS_JSON}`);
     await page.waitForLoadState('networkidle');
     
     // Wait for the results to load (this might take a moment)
@@ -104,7 +105,7 @@ test.describe('Smoke Tests', () => {
 
   test('should load runner configuration from URL parameter', async ({ page }) => {
     // Navigate to runner page with URL parameter
-    await page.goto('/runner?url=/examples/runner-config.json');
+    await page.goto(`/runner?url=${ExamplePaths.RUNNER_CONFIG_JSON}`);
     await page.waitForLoadState('networkidle');
     
     // Should show runner component

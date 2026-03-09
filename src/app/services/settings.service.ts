@@ -2,6 +2,7 @@
 
 import { Injectable, signal } from '@angular/core';
 import { Settings, ThemeType } from '../models/settings.model';
+import { ExamplePaths } from '../constants/example-paths.constants';
 
 @Injectable({
   providedIn: 'root'
@@ -204,7 +205,7 @@ export class SettingsService {
 
   getDefaultTestResultsIndexUrl(): string {
     const envValue = (window as any)['CQL_STUDIO_DEFAULT_TEST_RESULTS_INDEX_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : '/examples/index.json';
+    return envValue && envValue.trim() !== '' ? envValue : ExamplePaths.INDEX_JSON;
   }
 
   getDefaultOllamaBaseUrl(): string {

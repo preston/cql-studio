@@ -11,7 +11,6 @@ import { SettingsComponent } from './components/settings/settings.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { RunnerComponent } from './components/runner/runner.component';
 import { FhirUploaderComponent } from './components/fhir-uploader/fhir-uploader.component';
-import { ExampleLoaderComponent } from './components/example-loader/example-loader.component';
 import { TerminologyLayoutComponent } from './components/terminology/terminology-layout.component';
 import { ValueSetsTabComponent } from './components/terminology/valuesets-tab/valuesets-tab.component';
 import { ConceptMapsTabComponent } from './components/terminology/conceptmaps-tab/conceptmaps-tab.component';
@@ -39,7 +38,6 @@ export const routes: Routes = [
   { path: 'dashboard', component: DashboardComponent },
   { path: 'runner', component: RunnerComponent },
   { path: 'uploader', component: FhirUploaderComponent },
-  { path: 'loader', component: ExampleLoaderComponent },
   { 
     path: 'terminology', 
     component: TerminologyLayoutComponent,

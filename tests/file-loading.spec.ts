@@ -2,6 +2,7 @@
 
 import { test, expect } from '@playwright/test';
 import { TestHelpers } from './utils/test-helpers';
+import { ExamplePaths } from '../src/app/constants/example-paths.constants';
 
 test.describe('File Loading Tests', () => {
   let helpers: TestHelpers;
@@ -37,7 +38,7 @@ test.describe('File Loading Tests', () => {
 
   test.describe('Index File Loading', () => {
     test('should load index file and display file list', async () => {
-      const indexUrl = '/examples/index.json';
+      const indexUrl = ExamplePaths.INDEX_JSON;
       await helpers.loadFromIndex(indexUrl);
       
       // Should stay on home page but show file list
