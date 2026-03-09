@@ -11,7 +11,7 @@ import { ConversationManagerService } from './conversation-manager.service';
 import { AiPlanningService } from './ai-planning.service';
 import { ToolPolicyService } from './tool-policy.service';
 import { Plan, PlanStep } from '../models/plan.model';
-import { BrowserToolsRegistry } from './tools';
+import { BrowserToolsRegistry } from './tools/browser-tools-registry';
 import { CreateLibraryTool } from './tools/create-library.tool';
 import { FormatCodeTool } from './tools/format-code.tool';
 import { GetCodeTool } from './tools/get-code.tool';
@@ -36,6 +36,8 @@ export interface OllamaRequest {
   messages: OllamaMessage[];
   stream?: boolean;
   format?: OllamaFormat;
+  /** Enable reasoning trace (plain text) in stream; message.thinking vs message.content. */
+  think?: boolean | 'low' | 'medium' | 'high';
   options?: {
     temperature?: number;
     top_p?: number;
@@ -56,7 +58,7 @@ export interface OllamaTagsResponse {
 
 /** Streaming chunk: one NDJSON line from POST /api/chat with stream: true */
 export interface OllamaStreamChunk {
-  message?: { role?: string; content?: string };
+  message?: { role?: string; content?: string; thinking?: string };
   done?: boolean;
 }
 
@@ -234,7 +236,7 @@ export class AiService extends BaseService {
     message: string,
     useMCPTools: boolean = true,
     cqlContent?: string
-  ): Observable<{ type: 'start' | 'chunk' | 'end', content?: string, fullResponse?: string }> {
+  ): Observable<{ type: 'start' | 'chunk' | 'thinkingChunk' | 'end', content?: string, fullResponse?: string }> {
     const editorContext = this.conversationManager.getCurrentEditorContext();
     const editorId = editorContext?.editorId;
     return this.sendStreamingMessage(message, editorId, useMCPTools, cqlContent);
@@ -252,7 +254,7 @@ export class AiService extends BaseService {
     cqlContent?: string,
     toolResultsSummary?: string,
     mode?: 'plan' | 'act'
-  ): Observable<{ type: 'start' | 'chunk' | 'end', content?: string, fullResponse?: string }> {
+  ): Observable<{ type: 'start' | 'chunk' | 'thinkingChunk' | 'end', content?: string, fullResponse?: string }> {
     if (!this.isAiAssistantAvailable()) {
       return throwError(() => new Error('AI Assistant is not enabled or server/Ollama base URL not configured'));
     }
@@ -382,14 +384,13 @@ export class AiService extends BaseService {
               if (line.trim()) {
                 try {
                   const data = JSON.parse(line) as OllamaStreamChunk;
-                  if (data.message && data.message.content) {
-                    const content = data.message.content;
+                  const msg = data.message;
+                  if (msg?.thinking !== undefined && msg.thinking.length > 0) {
+                    observer.next({ type: 'thinkingChunk', content: msg.thinking });
+                  }
+                  if (msg?.content) {
+                    const content = msg.content;
                     fullResponse += content;
-
-                    // Don't update conversation message during streaming - only update when complete
-                    // This prevents duplicate display (conversation message vs streaming response)
-                    // Component will handle updating the conversation when streaming ends
-
                     observer.next({ type: 'chunk', content });
                   }
                 } catch (e) {

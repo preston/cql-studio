@@ -89,7 +89,7 @@
               <li><hr class="dropdown-divider"></li>
               <li>
                 <button type="button" class="dropdown-item text-white" (click)="onClearAllConversations()">
-                  <i class="bi bi-trash me-2"></i>Clear All Conversations
+                  <i class="bi bi-trash me-2"></i>Clear All
                 </button>
               </li>
             </ul>
@@ -148,15 +148,21 @@
       <!-- Messages -->
       @if (activeConversationId() && activeConversation()?.uiMessages && activeConversation()!.uiMessages.length > 0) {
       <div class="messages">
-        @for (message of activeConversation()!.uiMessages; track message.id) {
+        @for (message of activeConversation()!.uiMessages; track message.id; let i = $index) {
         <!-- Hide streaming messages - they're shown in the streaming response section below -->
         @if (!message.streaming) {
         <div class="message" [class.user-message]="message.role === 'user'" [class.assistant-message]="message.role === 'assistant'">
           @if (message.role === 'user') {
-          <div class="d-flex">
-            <div class="message-body">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="message-body flex-grow-1 min-w-0">
               <markdown [data]="message.content"></markdown>
             </div>
+            <button type="button" class="btn btn-sm flex-shrink-0"
+              (click)="onRerunFromMessage(i, message.content)"
+              title="Clear all messages after this and rerun from here"
+              id="ai-rerun-from-message-{{ i }}">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
           </div>
           } @else {
           <div class="message-content">
@@ -231,10 +237,39 @@
       <div class="message assistant-message">
         <div class="message-content">
           <div class="message-body">
-            <span class="text-muted">Generating response...</span>
-            <div class="streaming-cursor mt-1">
-              <span class="text-primary">▋</span>
+            <div class="d-flex align-items-center gap-1 mb-0">
+              <span class="text-muted small">Generating response...</span>
+              <div class="streaming-cursor">
+                <span class="text-primary small">▋</span>
+              </div>
             </div>
+            @if (hasStreamingThinkingContent()) {
+            <div class="accordion accordion-flush small" id="ai-thinking-accordion">
+              <div class="accordion-item border-0 bg-transparent">
+                <h2 class="accordion-header mb-0">
+                  <button class="accordion-button py-0 px-1 small bg-transparent rounded shadow-none border-0"
+                    [class.collapsed]="!thinkingAccordionExpanded()"
+                    type="button" [attr.aria-expanded]="thinkingAccordionExpanded()"
+                    aria-controls="ai-thinking-collapse" id="ai-thinking-accordion-btn"
+                    (click)="setThinkingAccordionExpanded(!thinkingAccordionExpanded())">
+                    <span class="text-muted small">Reasoning</span>
+                    <span class="ms-1 text-body opacity-75 small">({{ streamingThinkingLineCount() }} line(s))</span>
+                  </button>
+                </h2>
+                <div id="ai-thinking-collapse" class="accordion-collapse collapse"
+                  [class.show]="thinkingAccordionExpanded()"
+                  aria-labelledby="ai-thinking-accordion-btn">
+                  <div class="accordion-body py-0 px-1 small">
+                    <pre class="small text-muted mb-0 font-monospace overflow-auto thinking-full-content"
+                      #thinkingFullContent>{{ streamingThinking() }}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+            @if (!thinkingAccordionExpanded()) {
+            <pre class="small text-muted mb-0 mt-0 font-monospace thinking-preview">{{ streamingThinkingPreviewLines() }}</pre>
+            }
+            }
           </div>
         </div>
       </div>

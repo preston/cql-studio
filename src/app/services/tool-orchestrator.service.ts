@@ -9,7 +9,7 @@ import { SettingsService } from './settings.service';
 import { ClipboardService } from './clipboard.service';
 import { CqlValidationService } from './cql-validation.service';
 import { CqlFormatterService } from './cql-formatter.service';
-import { BrowserToolsRegistry } from './tools';
+import { BrowserToolsRegistry } from './tools/browser-tools-registry';
 
 export interface ToolCall {
   tool: string;

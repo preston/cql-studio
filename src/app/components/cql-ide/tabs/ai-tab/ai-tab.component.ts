@@ -16,7 +16,8 @@ import { CodeDiffPreviewComponent, CodeDiff } from './code-diff-preview.componen
 import { AiConversationStateService } from '../../../../services/ai-conversation-state.service';
 import { AiToolExecutionManagerService } from '../../../../services/ai-tool-execution-manager.service';
 import { AiStreamResponseHandlerService, ProcessStreamResult,StreamResponseContext} from '../../../../services/ai-stream-response-handler.service';
-import { InsertCodeTool, ReplaceCodeTool } from '../../../../services/tools';
+import { InsertCodeTool } from '../../../../services/tools/insert-code.tool';
+import { ReplaceCodeTool } from '../../../../services/tools/replace-code.tool';
 import { ToolPolicyService } from '../../../../services/tool-policy.service';
 import { PlanDisplayComponent } from './plan-display.component';
 import { TimeagoPipe } from 'ngx-timeago';
@@ -31,6 +32,7 @@ import { TimeagoPipe } from 'ngx-timeago';
 export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
   messagesContainer = viewChild<ElementRef>('messagesContainer');
   scrollSentinel = viewChild<ElementRef>('scrollSentinel');
+  thinkingFullContent = viewChild<ElementRef>('thinkingFullContent');
   cqlContent = input<string>('');
   replaceCqlCode = output<string>();
   insertCqlCode = output<string>();
@@ -52,7 +54,10 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
   private _codeDiffPreview = signal<CodeDiff | null>(null);
   private _showDiffPreview = signal<boolean>(false);
   private _resettingMCPTools = signal<boolean>(false);
-  
+  private _thinkingAccordionExpanded = signal<boolean>(false);
+
+  private static readonly STREAMING_PREVIEW_LINES = 6;
+
   public currentMode = computed(() => {
     const conversation = this.activeConversation();
     return conversation?.mode || 'act';
@@ -90,6 +95,7 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
   );
   public isAiAvailable = computed(() => this.aiService.isAiAssistantAvailable());
   public streamingResponse = computed(() => this.conversationState.streamingResponse());
+  public streamingThinking = computed(() => this.conversationState.streamingThinking());
   public isStreaming = computed(() => this.conversationState.isStreaming());
   public suggestedCommands = computed(() => this._suggestedCommands());
   public isLoadingSuggestions = computed(() => this._isLoadingSuggestions());
@@ -99,6 +105,26 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
   public codeDiffPreview = computed(() => this._codeDiffPreview());
   public showDiffPreview = computed(() => this._showDiffPreview());
   public resettingMCPTools = computed(() => this._resettingMCPTools());
+  public streamingThinkingPreviewLines = computed(() => {
+    const full = this.conversationState.streamingThinking();
+    const lines = full.split(/\r?\n/);
+    const keep = AiTabComponent.STREAMING_PREVIEW_LINES;
+    if (lines.length <= keep) return full;
+    return lines.slice(-keep).join('\n');
+  });
+
+  public hasStreamingThinkingContent = computed(() => this.conversationState.streamingThinking().length > 0);
+
+  public streamingThinkingLineCount = computed(() =>
+    this.conversationState.streamingThinking().split(/\r?\n/).length
+  );
+
+  public thinkingAccordionExpanded = computed(() => this._thinkingAccordionExpanded());
+
+  public setThinkingAccordionExpanded(expanded: boolean): void {
+    this._thinkingAccordionExpanded.set(expanded);
+  }
+
   public activePlan = computed(() => this.activeConversation()?.plan);
   public isPlanExecuting = computed(() => {
     const plan = this.activePlan();
@@ -447,6 +473,30 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     this.onSendMessage();
   }
 
+  /**
+   * Truncate conversation to before the given user message index, then resend that message.
+   */
+  public onRerunFromMessage(uiMessageIndex: number, content: string): void {
+    const conversationId = this.activeConversationId();
+    const conversation = this.activeConversation();
+    if (!conversationId || !conversation || uiMessageIndex < 0) {
+      return;
+    }
+    if (this._isLoading() || this.conversationState.isStreaming()) {
+      if (this._currentSubscription) {
+        this._currentSubscription.unsubscribe();
+        this._currentSubscription = null;
+      }
+      this._isLoading.set(false);
+      this.conversationState.resetState();
+    }
+    this.conversationManager.truncateConversationToMessageCount(conversationId, uiMessageIndex);
+    this.conversationState.resetState();
+    this._error.set(null);
+    this._currentMessage.set(content ?? '');
+    this.onSendMessage();
+  }
+
   private handleToolResult(toolCall: ParsedToolCall, result: ToolResult): void {
     if (toolCall.tool === InsertCodeTool.id || toolCall.tool === ReplaceCodeTool.id) {
       if (!result.success) {
@@ -540,6 +590,12 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
       next: async (event) => {
         if (event.type === 'start') {
           this.conversationState.startStreaming();
+          this._thinkingAccordionExpanded.set(false);
+        } else if (event.type === 'thinkingChunk') {
+          const content = event.content || '';
+          if (content.length > 0) {
+            this.conversationState.addStreamingThinkingChunk(content);
+          }
         } else if (event.type === 'chunk') {
           const chunkContent = event.content || '';
           if (chunkContent.length > 0) {
@@ -608,6 +664,11 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     const streamingLength = this.conversationState.streamingResponse().length;
     const isStreaming = this.conversationState.isStreaming();
     const hasToolCalls = this.conversationState.pendingToolCalls().length > 0;
+
+    if (this._thinkingAccordionExpanded() && this.thinkingFullContent()?.nativeElement && isStreaming) {
+      const el = this.thinkingFullContent()!.nativeElement as HTMLElement;
+      el.scrollTop = el.scrollHeight;
+    }
     
     if (messageCount > this._lastMessageCount || 
         (isStreaming && streamingLength > this._lastStreamingLength) ||
@@ -732,6 +793,7 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
 
   private startContinuationStream(editorId: string, summary: string): void {
     this.conversationState.startStreaming();
+    this._thinkingAccordionExpanded.set(false);
     this._isLoading.set(true);
     if (this._currentSubscription) {
       this._currentSubscription.unsubscribe();
@@ -742,7 +804,10 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
       .sendStreamingMessage('', editorId, this.useMCPTools(), this.cqlContent(), summary, mode)
       .subscribe({
         next: async (event) => {
-          if (event.type === 'chunk') {
+          if (event.type === 'thinkingChunk') {
+            const content = event.content || '';
+            if (content.length > 0) this.conversationState.addStreamingThinkingChunk(content);
+          } else if (event.type === 'chunk') {
             this.conversationState.addStreamingChunk(event.content || '');
           } else if (event.type === 'end') {
             const finalResponse = (event as { fullResponse?: string }).fullResponse ?? this.conversationState.streamingResponse();

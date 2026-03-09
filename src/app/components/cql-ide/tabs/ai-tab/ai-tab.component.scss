@@ -249,6 +249,19 @@
   }
 }
 
+.thinking-full-content {
+  max-height: 16rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.thinking-preview {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 8rem;
+  overflow: hidden;
+}
+
 // Scroll Sentinel - invisible element that tracks bottom of messages
 // CSS handles keeping it in view during content changes
 .scroll-sentinel {
@@ -595,7 +608,20 @@
       .message {
         margin-bottom: 0.75rem !important;
         
-        &.user-message,
+        &.user-message {
+          background-color: theme.$ide-bg-secondary;
+          border-radius: 0.25rem;
+          padding: 0.5rem 0.75rem;
+
+          .message-body {
+            color: theme.$ide-text-white !important;
+            background-color: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+        }
+
         &.assistant-message {
           .message-content,
           .message-body {
@@ -604,12 +630,6 @@
             border: none !important;
             padding: 0 !important;
             margin: 0 !important;
-          }
-        }
-        
-        &.user-message {
-          .message-body {
-            color: theme.$ide-text-white !important;
           }
         }
         

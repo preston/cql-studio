@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { Injectable } from '@angular/core';
-import { BrowserToolsRegistry } from './tools';
+import { BrowserToolsRegistry } from './tools/browser-tools-registry';
 import type { MCPTool } from './ai.service';
 
 @Injectable({

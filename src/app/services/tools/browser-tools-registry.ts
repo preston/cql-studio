@@ -50,9 +50,3 @@ export class BrowserToolsRegistry {
     return this.toolClasses.map(C => new C(ctx));
   }
 }
-
-export type BrowserToolClass = (typeof BrowserToolsRegistry.toolClasses)[number];
-
-export { BaseBrowserTool, type BrowserToolMCPMetadata, type BrowserToolContext } from './base-browser-tool';
-export { InsertCodeTool } from './insert-code.tool';
-export { ReplaceCodeTool } from './replace-code.tool';

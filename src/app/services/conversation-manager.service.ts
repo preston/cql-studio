@@ -505,6 +505,27 @@ export class ConversationManagerService {
   }
   
   /**
+   * Truncate conversation to the first keepCount messages (removes all messages after that point).
+   * Used when rerunning from a given user message.
+   */
+  truncateConversationToMessageCount(conversationId: string, keepCount: number): void {
+    const conversation = this.loadConversation(conversationId);
+    if (!conversation || keepCount < 0) {
+      return;
+    }
+    const n = Math.min(keepCount, conversation.uiMessages.length, conversation.apiMessages.length);
+    conversation.uiMessages = conversation.uiMessages.slice(0, n);
+    conversation.apiMessages = conversation.apiMessages.slice(0, n);
+    conversation.plan = undefined;
+    conversation.updatedAt = new Date();
+    conversation.lastAccessed = new Date();
+    this.saveConversation(conversation);
+    if (this._activeConversation()?.id === conversationId) {
+      this._activeConversation.set({ ...conversation });
+    }
+  }
+
+  /**
    * Delete a conversation
    */
   deleteConversation(conversationId: string): void {

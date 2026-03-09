@@ -12,7 +12,7 @@ import { ToolPolicyService } from './tool-policy.service';
 import { ConversationManagerService } from './conversation-manager.service';
 import { IdeStateService } from './ide-state.service';
 import { PlanStep } from '../models/plan.model';
-import { InsertCodeTool, ReplaceCodeTool } from './tools';
+import { BrowserToolsRegistry } from './tools/browser-tools-registry';
 
 export interface ToolExecutionEvent {
   type: 'started' | 'completed' | 'failed';
@@ -76,19 +76,31 @@ export class AiToolExecutionManagerService {
     if (!toolCall.tool || typeof toolCall.tool !== 'string') {
       return { valid: false, error: 'Tool name is required and must be a string' };
     }
-    
+
     if (!toolCall.params || typeof toolCall.params !== 'object') {
       return { valid: false, error: 'Tool params must be an object' };
     }
-    
-    // Validate code editing tools have code
-    if ((toolCall.tool === InsertCodeTool.id || toolCall.tool === ReplaceCodeTool.id)) {
-      const code = toolCall.params['code'];
-      if (!code || typeof code !== 'string') {
-        return { valid: false, error: `${toolCall.tool} requires a 'code' parameter` };
+
+    const definitions = BrowserToolsRegistry.getDefinitions();
+    const def = definitions.find(d => d.name === toolCall.tool);
+    if (def?.parameters && typeof def.parameters === 'object') {
+      const schema = def.parameters as { required?: string[]; properties?: Record<string, { type?: string }> };
+      const required = Array.isArray(schema.required) ? schema.required : [];
+      for (const key of required) {
+        const value = toolCall.params[key];
+        if (value === undefined || value === null) {
+          return { valid: false, error: `${toolCall.tool} requires a '${key}' parameter` };
+        }
+        const prop = schema.properties?.[key];
+        if (prop?.type === 'string' && typeof value !== 'string') {
+          return { valid: false, error: `${toolCall.tool} requires '${key}' to be a string` };
+        }
+        if (prop?.type === 'number' && typeof value !== 'number') {
+          return { valid: false, error: `${toolCall.tool} requires '${key}' to be a number` };
+        }
       }
     }
-    
+
     // Check mode restrictions (Plan Mode blocks modification tools)
     const conversation = this.conversationManager.activeConversation();
     if (conversation?.mode === 'plan') {

@@ -1,7 +1,8 @@
 // Author: Preston Lee
 
 import { Injectable } from '@angular/core';
-import { InsertCodeTool, ReplaceCodeTool } from './tools';
+import { InsertCodeTool } from './tools/insert-code.tool';
+import { ReplaceCodeTool } from './tools/replace-code.tool';
 
 export interface ParsedToolCall {
   tool: string;

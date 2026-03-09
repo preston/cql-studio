@@ -31,6 +31,7 @@ export class AiConversationStateService {
   // Streaming state
   private _isStreaming = signal<boolean>(false);
   private _streamingResponse = signal<string>('');
+  private _streamingThinking = signal<string>('');
   private _lastChunkTime = signal<number>(0);
   
   // Tool execution state
@@ -52,6 +53,7 @@ export class AiConversationStateService {
   public messages = computed(() => this._messages());
   public isStreaming = computed(() => this._isStreaming());
   public streamingResponse = computed(() => this._streamingResponse());
+  public streamingThinking = computed(() => this._streamingThinking());
   public pendingToolCalls = computed(() => this._pendingToolCalls());
   public executingToolCalls = computed(() => this._executingToolCalls());
   public toolExecutionResults = computed(() => this._toolExecutionResults());
@@ -78,6 +80,7 @@ export class AiConversationStateService {
   resetState(): void {
     this._isStreaming.set(false);
     this._streamingResponse.set('');
+    this._streamingThinking.set('');
     this._pendingToolCalls.set([]);
     this._executingToolCalls.set(new Map());
     this._toolExecutionResults.set(new Map());
@@ -93,6 +96,7 @@ export class AiConversationStateService {
   startStreaming(): void {
     this._isStreaming.set(true);
     this._streamingResponse.set('');
+    this._streamingThinking.set('');
     this._lastChunkTime.set(Date.now());
     this._error.set(null);
     this.transitionTo('streaming');
@@ -107,6 +111,18 @@ export class AiConversationStateService {
     }
     const current = this._streamingResponse();
     this._streamingResponse.set(current + (content || ''));
+    this._lastChunkTime.set(Date.now());
+  }
+
+  /**
+   * Add streaming thinking (reasoning) chunk; plain text from Ollama message.thinking
+   */
+  addStreamingThinkingChunk(content: string): void {
+    if (!this._isStreaming()) {
+      this.startStreaming();
+    }
+    const current = this._streamingThinking();
+    this._streamingThinking.set(current + (content || ''));
     this._lastChunkTime.set(Date.now());
   }
   
