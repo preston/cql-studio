@@ -14,18 +14,63 @@ We'll be using the official everygreen distribution published to HL7 Foundry, wh
 
 https://foundry.hl7.org/products/fb509f14-5bc1-491b-a145-fab078a901c0
 
-The application is organized around the top navigation bar. Under **Testing** you’ll find tools related to CQL engine development and testing. Under **Authoring** you have the Terminology Browser and the CQL IDE. And under **Tools** you’ll find the FHIR Uploader and other common utilities. **Settings** is where you configure your FHIR server and terminology service URLs; many features depend on these being set correctly.
+The application is organized around the top navigation bar. Under **Testing** you’ll find tools related to CQL engine development and testing. Under **Authoring** you have the Terminology Browser and the CQL IDE. And under **Tools** you’ll find the FHIR Uploader and other future utilities. **Settings** is where you set your FHIR data server URL, terminology server URLs, and many other things. Note that some features have dependencies, and will be disabled if you don't have the required components in your deployment.
 
-We’ll go through each major area in turn.
 
 ---
 
 # Settings
 
-Global settings control how CQL Studio talks to your FHIR server and terminology service. You set the FHIR base URL for data and libraries, and the terminology server info for value set and code lookups. These values are stored in your browser (localStorage) and persist across sessions local to your browser.
+Global settings control how CQL Studio talks to your FHIR server, optional seperate terminology server, optional AI endpoint, and many other things. The most important are the FHIR base URL, which is used for both data and CQL Library storage, as well as your optional terminology server info for value set and code lookups. These values are stored in your browser (localStorage) and persist across sessions local to your browser.
+
+If you have an Ollama AI endpoint available, either on your local computer or accessible on your network, you can also opt in to AI feature and provide that endpoint.
 
 ---
 
+# FHIR Uploader
+
+The FHIR Uploader under the Tools menu allows you to upload your own FHIR Bundle content in JSON format, as well as raw CQL text files.
+
+The best way to get started is to use the **Add Built-In Examples** button that adds a few small synthetic data files that come bundled with CQL Studio, as well as "Hello, World" CQL code example in one step.
+
+If you're using Synthea data, note that Synthea-produced files have to be loaded in a certain order. There's a special **Reorder Synthea Dependencies** button that automatically reorders things to the correct order based on Synthea's file naming conventions. Each row can be rearranged via the buttons or drag and drop.
+
+Assuming your FHIR data server is up and available, the "Upload Bundles" will upload everything in sequence, and will go as fast as the server can process them. After an upload, each file will show a success or failure status.
+
+If you have developer mode enabled, you'll also see a **Danger Zone** section at the bottom with the ability to completely wipe your FHIR data server. That can be very handy but is also irreversable, which is why it's hidden by default.
+
+
+---
+
+# Terminology Browser and Application Clipboard
+
+CQL Studio's default application settings use your FHIR data server as a terminology server. If you'd like to use something else, such as HL7's public terminology server, you can provide its base URL in Settings.
+
+The Terminology Browser lets you search and inspect value sets, concept maps, and code systems on your configured FHIR terminology server, as well validate codes. It isn't intended to be a full terminology authoring and management environment, but more of a quick way to locate value sets or codings from your terminology server and then add them to the app Clipboard for use in the IDE and elsewhere in the application. We'll get to that in a minute.
+
+Note that the specifications of how CQL engines resolve terminology is expect to change to support more sophisticated routing instead of a single terminology endpoint, so this area will evolve as the implementation guides change.
+
+Unlike most other areas of CQL Studio, the Terminology Browser communicates primarily with your terminology endpoint in Settings. So if you're not seeing what you expect, check your settings and make sure you're not confusing your FHIR data endpoint with your terminology endpoint.
+
+To view your Clipboard, go to the Tools menu and select Clipboard Manager. You can think of the Clipboard as a temporary space to keep FHIR objects you're currently working on. If you have AI services set up, Clipboard content will also be accessible to the underlying LLM.
+
+The search interface in the clipboard manager is querying your FHIR data endpoint, not your terminology endpoint. So you can add anything from Patient and Practitioner resources to any other resource exposed by your FHIR server. And the interface is dynamic so it will attempt to provide only the search functions as claimed by the FHIR server's metadata endpoint.
+
+
+---
+
+# CQL IDE
+
+The CQL IDE under the Authoring menu is the main place for authoring CQL logic itself. You can open existing libraries from your FHIR server, create new ones, edit and save them, and of course run them using data stored on your FHIR server. CQL with syntax highlighting and diagnostics, translate to ELM, save back to the server, and execute against your configured FHIR data.
+
+The layout has left, right, and bottom panels with tabs that can be rearranged, which is a common paradigm for those familiar with other IDEs. And you can also quickly insert terminology content from the Clipboard tab, and if you AI set up, can even provide files to help with automated CQL drafting. Supported file types include plain text, comma-separate value (or CSV) files, PDFs, Word documents, Markdown, and others.
+
+Note that the AI performance and quirkiness is very heavily dependent on the specific model you are using. Is a general rule of thumb you can run anything that Ollama model runner supports, but set your expectations accordingly for what's possible on the hardware you're running it on.
+
+To run the current CQL library in Patient context, search and open it, select any number of Patient resources on your server,  then click **Execute**. Execution progress and results appear in the Console tab. Keyboard shortcuts are also listed on the welcome screen.
+
+
+---
 
 # Engine Test Runner
 
@@ -43,54 +88,6 @@ When you’re ready, click **Run Tests**. A job is created and the page polls fo
 
 ---
 
-# CQL IDE
+# Engine Test Results
 
-The CQL IDE is the main place to author and edit CQL libraries: open libraries from your FHIR server, create new ones, edit CQL with syntax highlighting and diagnostics, translate to ELM, save back to the server, and execute against your configured FHIR data. You can also use the AI and Clipboard panels to assist authoring.
-
-Open the CQL IDE from **Authoring** then **CQL IDE**. This is the main authoring environment for CQL libraries.
-
-When no library is open, the center area shows a welcome message and a **Keyboard Shortcuts** card. You can open a library from the FHIR server or create a new one from the left panel.
-
-The layout has **editor tabs** across the top. Each tab is a CQL library; you can drag tabs to reorder them and drag files onto the tab bar to open new libraries. The active tab’s library is shown in the **CQL editor** below. The editor has syntax highlighting, bracket matching, and inline diagnostics. The toolbar above the editor includes **Reload** to refresh from the server, **Format** to format CQL, **Save** to persist changes to the FHIR server, and **Execute** to run the library against the configured FHIR server. There’s also a **Send terminology routing** checkbox that controls whether terminology requests are sent to the configured terminology service during execution. If the library is read-only, the Save button is replaced by a read-only badge.
-
-**Left panel** tabs typically include **Navigation**—to open or create libraries—and **Outline**—a structural view of the current library. **Right panel** tabs include **FHIR**—metadata and server actions for the current library—**ELM**—translate CQL to ELM and view or copy the XML—**AI**—for AI-assisted editing and suggestions—and **Clipboard**—to paste ValueSets, CodeSystems, or Codings from the app clipboard into your workflow. **Bottom panel** tabs include **Problems** and **Console** (output). Console shows execution progress and results when you run a library. You can drag panel tabs between the left, right, and bottom panels to rearrange the layout.
-
-To run the current library, save if needed then click **Execute**. Execution progress and results appear in the Console tab. Use the keyboard shortcuts listed on the welcome screen for format, clear, and other actions.
-
----
-
-# Terminology Browser
-
-The Terminology Browser lets you search and inspect value sets, concept maps, and code systems on your configured FHIR terminology server, validate codes, and expand value sets to see member codes. It isn't intended to be a full terminology authoring management environment, but more of a quick way to locate value sets or codings and add them to the app clipboard for use in the CQL IDE or and elsewhere in the application.
-
-Open the Terminology Browser from **Authoring** then **Terminology Browser**. This section requires a configured terminology server in Settings. If the server is unavailable, an alert is shown with a link to Settings.
-
-The browser has several tabs: **Value Sets**, **Concept Maps**, **Code Systems**, **Code Validation**, and **Code Search**.
-
-**Value Sets**: Search by name, then browse results. You can change page size and use “next” and “previous” for pagination. Select a value set to see its details in a side or detail pane. From there you can expand to see included codes and add value sets or codings to the app clipboard for use in the CQL IDE or elsewhere.
-
-**Concept Maps** and **Code Systems**: These tabs let you search and browse concept maps and code systems from the terminology server in a similar way—search, select, view details, and optionally add resources to the clipboard.
-
-**Code Validation**: Enter a **Code** and select or search for a **Code System** and optionally a **ValueSet** URL. Click the validate button to check whether the code is valid in the given system or value set. Results indicate valid or invalid and any message from the server.
-
-**Code Search**: Pick or enter a **ValueSet** URL—with search-as-you-type support—then optionally set a filter, count, offset, and options like “Include designations” and “Active only.” Run the search to expand the value set and see the list of codes. You can expand rows for more detail and add codings to the clipboard. This is useful for finding codes to use in CQL or measure definitions.
-
-Across the terminology browser, the clipboard is a shared workspace: items you add here can be used in the CQL IDE’s Clipboard tab, in the standalone Clipboard Manager under Tools, and by AI tools when authoring CQL.
-
----
-
-## 4. FHIR Uploader
-
-The FHIR Uploader sends FHIR JSON bundles and CQL files to your configured FHIR server—for example to load sample data, load CQL libraries as FHIR Library resources, or reset and repopulate a development server.
-
-Open the FHIR Uploader from **Tools** then **FHIR Uploader**. This tool uploads FHIR JSON bundles and CQL files to the FHIR server configured in Settings.
-
-At the top you see the **FHIR Base URL** in use—read-only—with a link to **Application Settings** to change it. The **Continue on Error** switch controls whether upload continues to the next file when one fails.
-
-There are two **drop zones**. The first is for **FHIR JSON files**: drag and drop or click “Choose JSON Files” to add transaction bundles or other FHIR JSON. The second is for **CQL files**: add one or more CQL files to be converted to FHIR Library resources and uploaded. You can add multiple files to each list.
-
-The **Selected Files** list shows all added files with checkboxes to enable or disable each for upload. Use **Toggle All** to enable or disable everything, and **Clear All** to remove all files. For JSON bundles there may be a **Reorder Synthea Dependencies** button to fix dependency order for Synthea-style bundles. Each file row has move up, move down, and remove buttons. Drag the grip handle to reorder. After an upload, each file shows success or failure; you can expand successful ones to see the server response.
-
-Click **Upload Bundles** to start the upload. A progress bar shows completion. JSON bundles are sent first, then CQL files as Library resources. If **Continue on Error** is off, the process stops at the first failure. When done, review the per-file status and expand any result to inspect the server response.
-
-In developer mode, a **Danger Zone** section at the bottom offers **Reset Server** with options such as **Expunge** (for HAPI) or **Purge All** (for WildFHIR) to remove all resources from the server. These actions are irreversible and are only shown when developer settings are enabled.
+Open the Test Results screen from **Testing** then **Test Results**. You can open results in three ways. **Open Local File** lets you select a JSON file from your machine; the file is not uploaded. **Load from URL** accepts a single URL to a results JSON file—paste the URL and click Load, or use Example to try a sample. **Load an Entire Index** is for a summary index: enter a URL to a JSON file that contains metadata or where to locate individual result files, then click **Load Index**. After the index loads, you’ll see a list of available files. Click **Summary Dashboard & Comparison Matrix** to open the dashboard and compare all results in the index side by side, or click **Load** next to any filename to open that single results file in the results viewer.
