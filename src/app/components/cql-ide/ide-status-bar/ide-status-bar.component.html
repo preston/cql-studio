@@ -12,10 +12,6 @@
         {{ wordCount }} words
       </span>
     }
-    <span class="d-flex align-items-center gap-1 small">
-      <i class="bi bi-code-slash"></i>
-      CQL {{ cqlVersion }}
-    </span>
     <span class="d-flex align-items-center gap-1 small" [class.text-success]="isValidSyntax" [class.text-danger]="!isValidSyntax">
       <i class="bi bi-{{ isValidSyntax ? 'check' : 'exclamation-triangle' }}"></i>
       {{ isValidSyntax ? 'Valid' : 'Invalid' }}

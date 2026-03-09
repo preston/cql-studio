@@ -16,7 +16,7 @@ export class IdeStatusBarComponent {
   @Input() isTranslating: boolean = false;
   @Input() executionProgress: number = 0;
   @Input() executionStatus: string = '';
-  @Input() cqlVersion: string = '1.5.3';
+  // @Input() cqlVersion: string = '1.5.3';
   @Input() selectedPatientsCount: number = 0;
   @Input() isLoadingLibraries: boolean = false;
 
