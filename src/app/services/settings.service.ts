@@ -125,6 +125,10 @@ export class SettingsService {
           parsedSettings.useMCPTools = false;
           shouldSave = true;
         }
+        if (parsedSettings.allowAiWriteOperations == null) {
+          parsedSettings.allowAiWriteOperations = false;
+          shouldSave = true;
+        }
         if (parsedSettings.autoApplyCodeEdits == null) {
           parsedSettings.autoApplyCodeEdits = false;
           shouldSave = true;

@@ -7,7 +7,7 @@ export class ListLibrariesTool extends BaseBrowserTool {
   static override planModeAllowed = true;
   static override statusMessage = 'Listing libraries...';
   readonly name = ListLibrariesTool.id;
-  readonly description = 'List all loaded CQL libraries';
+  readonly description = 'List all CQL libraries loaded into the CQL IDE. It does not make FHIR queries or access any server resources.';
   readonly parameters = {
     type: 'object',
     properties: {}

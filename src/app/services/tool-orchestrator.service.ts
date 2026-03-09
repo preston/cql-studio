@@ -9,7 +9,9 @@ import { SettingsService } from './settings.service';
 import { ClipboardService } from './clipboard.service';
 import { CqlValidationService } from './cql-validation.service';
 import { CqlFormatterService } from './cql-formatter.service';
+import { FhirClientService } from './fhir-client.service';
 import { BrowserToolsRegistry } from './tools/browser-tools-registry';
+import { FhirRequestToolRead, FhirRequestToolWrite, isWriteMethod } from './tools/fhir-request.tool';
 
 export interface ToolCall {
   tool: string;
@@ -35,7 +37,8 @@ export class ToolOrchestratorService {
     private settingsService: SettingsService,
     private clipboardService: ClipboardService,
     private cqlValidationService: CqlValidationService,
-    private cqlFormatterService: CqlFormatterService
+    private cqlFormatterService: CqlFormatterService,
+    private fhirClientService: FhirClientService
   ) {
     this.browserTools = BrowserToolsRegistry.createTools({
       ideStateService: this.ideStateService,
@@ -65,10 +68,71 @@ export class ToolOrchestratorService {
   }
 
   executeToolCall(toolName: string, params: any): Observable<ToolResult> {
+    if (toolName === FhirRequestToolRead.id) {
+      return this.executeFhirRequestToolRead(toolName, params);
+    }
+    if (toolName === FhirRequestToolWrite.id) {
+      return this.executeFhirRequestToolWrite(toolName, params);
+    }
     if (this.isBrowserNativeTool(toolName)) {
       return of(this.executeBrowserTool(toolName, params));
     }
     return this.executeServerTool(toolName, params);
+  }
+
+  private executeFhirRequestToolRead(toolName: string, params: any): Observable<ToolResult> {
+    const path = params?.path != null ? String(params.path).trim() : '';
+    if (!path) {
+      return of({
+        tool: toolName,
+        success: false,
+        error: `${toolName} requires 'path' parameter`
+      });
+    }
+    return this.fhirClientService.request('GET', path).pipe(
+      map(result => ({ tool: toolName, success: true, result })),
+      catchError(err => of({
+        tool: toolName,
+        success: false,
+        error: err?.message ?? err?.error?.message ?? 'FHIR request failed'
+      }))
+    );
+  }
+
+  private executeFhirRequestToolWrite(toolName: string, params: any): Observable<ToolResult> {
+    const method = params?.method != null ? String(params.method).trim() : '';
+    const path = params?.path != null ? String(params.path).trim() : '';
+    if (!method || !path) {
+      return of({
+        tool: toolName,
+        success: false,
+        error: `${toolName} requires 'method' and 'path' parameters`
+      });
+    }
+    const methodUpper = method.toUpperCase();
+    if (!isWriteMethod(methodUpper)) {
+      return of({
+        tool: toolName,
+        success: false,
+        error: `${toolName} only accepts POST, PUT, PATCH, or DELETE`
+      });
+    }
+    if (!this.settingsService.settings().allowAiWriteOperations) {
+      return of({
+        tool: toolName,
+        success: false,
+        error: 'AI write operations are disabled. Enable "Allow AI write operations" in Settings to allow write operations.'
+      });
+    }
+    const body = params?.body != null && typeof params.body === 'object' ? params.body : undefined;
+    return this.fhirClientService.request(methodUpper as 'POST' | 'PUT' | 'PATCH' | 'DELETE', path, body).pipe(
+      map(result => ({ tool: toolName, success: true, result })),
+      catchError(err => of({
+        tool: toolName,
+        success: false,
+        error: err?.message ?? err?.error?.message ?? 'FHIR request failed'
+      }))
+    );
   }
 
   private executeBrowserTool(toolName: string, params: any): ToolResult {

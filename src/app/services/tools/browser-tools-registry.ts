@@ -19,6 +19,7 @@ import { ListClipboardTool } from './list-clipboard.tool';
 import { ClearClipboardTool } from './clear-clipboard.tool';
 import { AddToClipboardTool } from './add-to-clipboard.tool';
 import { RemoveFromClipboardTool } from './remove-from-clipboard.tool';
+import { FhirRequestToolRead, FhirRequestToolWrite } from './fhir-request.tool';
 
 export class BrowserToolsRegistry {
   static readonly toolClasses = [
@@ -38,7 +39,9 @@ export class BrowserToolsRegistry {
     ListClipboardTool,
     ClearClipboardTool,
     AddToClipboardTool,
-    RemoveFromClipboardTool
+    RemoveFromClipboardTool,
+    FhirRequestToolRead,
+    FhirRequestToolWrite
   ] as const;
 
   static getDefinitions(): BrowserToolMCPMetadata[] {

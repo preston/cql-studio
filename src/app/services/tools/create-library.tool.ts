@@ -6,7 +6,7 @@ export class CreateLibraryTool extends BaseBrowserTool {
   static readonly id = 'create_library';
   static override statusMessage = 'Creating library...';
   readonly name = CreateLibraryTool.id;
-  readonly description = 'Create a new, empty, unsaved CQL library and open it in the editor (same as clicking "Create New Library" button). Adding actual CQL content to it requires a different tool call.';
+  readonly description = 'Creates a new, empty, unsaved CQL library and open it in the editor (same as clicking "Create New Library" button). This does not addactual CQL content.';
   readonly parameters = {
     type: 'object',
     properties: {

@@ -26,6 +26,7 @@ export class Settings {
     public searxngBaseUrl: string = '';
     public enableAiAssistant: boolean = false;
     public useMCPTools: boolean = false;
+    public allowAiWriteOperations: boolean = false;
     public autoApplyCodeEdits: boolean = false;
     public requireDiffPreview: boolean = false;
     public planActSeparateModels: boolean = false;

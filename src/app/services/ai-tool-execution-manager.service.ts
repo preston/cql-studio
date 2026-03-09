@@ -11,8 +11,10 @@ import { AiService } from './ai.service';
 import { ToolPolicyService } from './tool-policy.service';
 import { ConversationManagerService } from './conversation-manager.service';
 import { IdeStateService } from './ide-state.service';
+import { SettingsService } from './settings.service';
 import { PlanStep } from '../models/plan.model';
 import { BrowserToolsRegistry } from './tools/browser-tools-registry';
+import { FhirRequestToolRead, FhirRequestToolWrite } from './tools/fhir-request.tool';
 
 export interface ToolExecutionEvent {
   type: 'started' | 'completed' | 'failed';
@@ -49,7 +51,8 @@ export class AiToolExecutionManagerService {
     private toolPolicyService: ToolPolicyService,
     private aiService: AiService,
     private conversationManager: ConversationManagerService,
-    private ideStateService: IdeStateService
+    private ideStateService: IdeStateService,
+    private settingsService: SettingsService
   ) {}
   
   /**
@@ -116,7 +119,25 @@ export class AiToolExecutionManagerService {
         return { valid: false, error: modeValidation.reason };
       }
     }
-    
+
+    if (toolCall.tool === FhirRequestToolRead.id) {
+      const path = toolCall.params?.['path'];
+      if (path === undefined || path === null || String(path).trim() === '') {
+        return { valid: false, error: `${FhirRequestToolRead.id} requires 'path' parameter` };
+      }
+    }
+
+    if (toolCall.tool === FhirRequestToolWrite.id) {
+      const method = toolCall.params?.['method'] != null ? String(toolCall.params['method']).toUpperCase() : '';
+      const path = toolCall.params?.['path'];
+      if (method === '' || path === undefined || path === null) {
+        return { valid: false, error: `${FhirRequestToolWrite.id} requires 'method' and 'path' parameters` };
+      }
+      if (!this.settingsService.settings().allowAiWriteOperations) {
+        return { valid: false, error: 'AI write operations are disabled. Enable "Allow AI write operations" in Settings to allow write operations.' };
+      }
+    }
+
     return { valid: true };
   }
   

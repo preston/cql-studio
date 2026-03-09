@@ -11,6 +11,8 @@ import { TranslationService } from '../../services/translation.service';
 import { CqlExecutionService, DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../services/cql-execution.service';
 import { SettingsService } from '../../services/settings.service';
 import { AiService } from '../../services/ai.service';
+import { CqlValidationService } from '../../services/cql-validation.service';
+import { ToastService } from '../../services/toast.service';
 import { Library } from 'fhir/r4';
 import { KeyboardShortcut } from './shared/ide-types';
 
@@ -61,6 +63,8 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   private cqlExecutionService = inject(CqlExecutionService);
   public settingsService = inject(SettingsService);
   private aiService = inject(AiService);
+  private cqlValidationService = inject(CqlValidationService);
+  private toastService = inject(ToastService);
 
   constructor() {
     // Watch for editor action requests from tool orchestrator (effect must be in constructor)
@@ -752,8 +756,46 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   onValidateCql(): void {
-    console.log('Validate CQL');
-    // TODO: Implement CQL validation
+    const editor = this.cqlEditor();
+    if (!editor) {
+      this.toastService.showWarning('Open a library to validate.', 'Validate CQL');
+      return;
+    }
+    const cql = editor.getValue();
+    if (!cql?.trim()) {
+      this.toastService.showWarning('No CQL content to validate.', 'Validate CQL');
+      return;
+    }
+    const structuredErrors = this.cqlValidationService.getStructuredErrors(cql);
+    const structuredWarnings = this.cqlValidationService.getStructuredWarnings(cql);
+    const syntaxErrors = [
+      ...structuredErrors.map(e => `Error: ${e.formattedMessage}`),
+      ...structuredWarnings.map(w => `Warning: ${w.formattedMessage}`)
+    ];
+    this.ideStateService.updateEditorState({
+      syntaxErrors,
+      isValidSyntax: structuredErrors.length === 0
+    });
+    const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    const libraryName = activeLibrary?.name ?? activeLibrary?.id ?? 'Library';
+    this.ideStateService.addCqlValidationOutput(
+      libraryName,
+      { errors: structuredErrors, warnings: structuredWarnings },
+      structuredErrors.length
+    );
+    if (structuredErrors.length === 0 && structuredWarnings.length === 0) {
+      this.toastService.showSuccess('CQL validation passed with no errors or warnings.', 'Validate CQL');
+    } else if (structuredErrors.length === 0) {
+      this.toastService.showSuccess(
+        `CQL validation passed with ${structuredWarnings.length} warning(s). See Problems and Console.`,
+        'Validate CQL'
+      );
+    } else {
+      this.toastService.showError(
+        `CQL validation found ${structuredErrors.length} error(s). See Problems and Console.`,
+        'Validate CQL'
+      );
+    }
   }
 
   // Library save helper methods

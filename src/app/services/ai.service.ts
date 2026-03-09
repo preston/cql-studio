@@ -718,7 +718,14 @@ Use this context when helping improve, debug, or extend the code.`;
     if (useMCPTools) {
       systemContent += `
 
-**CRITICAL – Use tools in your first response:** When the user asks about code, editing, or anything that requires context (current file, libraries, search), you MUST include a "tool_call" in your very first response. Do not reply with only a comment or explanation until you have called the appropriate tool (e.g. ${GetCodeTool.id}, ${SearchCodeTool.id}) and received results. Example first response: {"comment": "Reading the current code.", "next_action": "tool", "tool_call": {"tool": "${GetCodeTool.id}", "params": {}}}.
+## FHIR Data Access
+
+- User references patient or medical data should be presumed to be accessible on the user-configured FHIR server via FHIR-related MCP tools, not embedded in any CQL library code.
+- Use FHIR R4 query syntax for all FHIR data access to medical, health, and billing data.
+- Minimize the number of FHIR queries you make, and only make queries that are necessary to answer the user's question.
+- Parse FHIR server as JSON objects and search the results to answer the user's question.
+
+**CRITICAL - Use tools in your first response:** When the user asks about code, editing, or anything that requires context (current file, libraries, search), you MUST include a "tool_call" in your very first response. Do not reply with only a comment or explanation until you have called the appropriate tool (e.g. ${GetCodeTool.id}, ${SearchCodeTool.id}) and received results. Example first response: {"comment": "Reading the current code.", "next_action": "tool", "tool_call": {"tool": "${GetCodeTool.id}", "params": {}}}.
 
 **Response format (structured JSON):** Every response must be a JSON object with "comment" (required) and "next_action" (required: "tool" | "final"). If "next_action" is "tool", "tool_call" is required with {"tool": string, "params": object}. If "next_action" is "final", do not include "tool_call". Example with tool: {"comment": "Reading current code.", "next_action": "tool", "tool_call": {"tool": "${GetCodeTool.id}", "params": {}}}. Example final: {"comment": "Here is the summary.", "next_action": "final"}. Always call a tool first when you need information; do not answer directly until you have results.`;
 

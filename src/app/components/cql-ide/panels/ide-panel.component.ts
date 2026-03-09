@@ -13,6 +13,7 @@ export interface PanelTabListData {
 import { LibraryService } from '../../../services/library.service';
 import { TranslationService } from '../../../services/translation.service';
 import { SettingsService } from '../../../services/settings.service';
+import { ToastService } from '../../../services/toast.service';
 
 // Import all tab components
 import { NavigationTabComponent } from '../tabs/navigation-tab/navigation-tab.component';
@@ -76,6 +77,7 @@ export class IdePanelComponent {
   private libraryService = inject(LibraryService);
   private translationService = inject(TranslationService);
   private settingsService = inject(SettingsService);
+  private toastService = inject(ToastService);
 
   private isResizing: boolean = false;
   private resizeType: string = '';
@@ -138,13 +140,22 @@ export class IdePanelComponent {
   }
 
   onCopyOutput(): void {
-    // TODO: Implement copy output functionality
-    console.log('Copy output');
+    const sections = this.ideStateService.outputSections();
+    if (sections.length === 0) {
+      this.toastService.showWarning('No console output to copy.', 'Copy');
+      return;
+    }
+    const text = sections
+      .map(s => `--- ${s.title} ---\n${s.content}`)
+      .join('\n\n');
+    navigator.clipboard?.writeText(text).then(
+      () => this.toastService.showSuccess('Console output copied to clipboard.', 'Copy'),
+      () => this.toastService.showError('Failed to copy to clipboard.', 'Copy')
+    );
   }
 
   onToggleAllSections(): void {
-    // TODO: Implement toggle all sections functionality
-    console.log('Toggle all sections');
+    // Expand/collapse state is updated by the console tab when its toolbar button is clicked.
   }
 
   onPreserveLogsChange(value: boolean): void {
