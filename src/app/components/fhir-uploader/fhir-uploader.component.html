@@ -70,6 +70,14 @@
           <button type="button" class="btn btn-outline-secondary btn-sm me-3" (click)="toggleAllFiles()">
             <i class="bi bi-toggle-on"></i>Toggle All
           </button>
+          @if (files().length > 0) {
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="reorderForSynthea" (click)="reorderForSynthea()">
+            Reorder Synthea Dependencies
+          </button>
+          }
+          <button type="button" class="btn btn-outline-danger btn-sm ms-auto" id="clearAllFiles" (click)="clearAllFiles()" title="Remove all files">
+            <i class="bi bi-trash"></i> Clear All
+          </button>
         </div>
         <div class="list-group">
           @for (file of files(); track file.id) {

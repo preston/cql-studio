@@ -389,17 +389,33 @@ export class FhirUploaderComponent implements AfterViewInit {
   toggleAllFiles(): void {
     const currentFiles = [...this.files()];
     const currentCqlFiles = [...this.cqlFiles()];
-    
+
     currentFiles.forEach(file => {
       file.enabled = !file.enabled;
     });
-    
+
     currentCqlFiles.forEach(file => {
       file.enabled = !file.enabled;
     });
-    
+
     this.files.set(currentFiles);
     this.cqlFiles.set(currentCqlFiles);
+  }
+
+  reorderForSynthea(): void {
+    const current = [...this.files()];
+    const hospital = current.filter(f => f.name.toLowerCase().startsWith('hospital'));
+    const practitioner = current.filter(f => f.name.toLowerCase().startsWith('practitioner'));
+    const rest = current.filter(
+      f => !f.name.toLowerCase().startsWith('hospital') && !f.name.toLowerCase().startsWith('practitioner')
+    );
+    this.files.set([...hospital, ...practitioner, ...rest]);
+  }
+
+  clearAllFiles(): void {
+    this.files.set([]);
+    this.cqlFiles.set([]);
+    this.expandedResult.set(null);
   }
 
   removeCqlFile(id: string): void {
@@ -456,6 +472,10 @@ export class FhirUploaderComponent implements AfterViewInit {
       alert('Please configure a FHIR Base URL in Application Settings.');
       return;
     }
+
+    this.files.set(this.files().map(f => ({ ...f, uploadResult: undefined })));
+    this.cqlFiles.set(this.cqlFiles().map(f => ({ ...f, uploadResult: undefined })));
+    this.expandedResult.set(null);
 
     this.isUploading.set(true);
     this.uploadProgress.set(0);
