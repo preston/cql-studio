@@ -257,8 +257,8 @@ export class FhirUploaderComponent implements AfterViewInit {
   }
 
   private convertCqlToFhirLibrary(cqlContent: string, fileName: string): any {
-    // Extract library name from CQL content or use filename
-    const libraryNameMatch = cqlContent.match(/library\s+(\w+)/i);
+    const contentWithoutComments = this.stripCqlComments(cqlContent);
+    const libraryNameMatch = contentWithoutComments.match(/library\s+(\w+)/i);
     const libraryName = libraryNameMatch ? libraryNameMatch[1] : fileName.replace('.cql', '');
     
     // Extract version if present
@@ -298,6 +298,11 @@ export class FhirUploaderComponent implements AfterViewInit {
     };
     console.log(library); 
     return library;
+  }
+
+  private stripCqlComments(cqlContent: string): string {
+    const withoutBlockComments = cqlContent.replace(/\/\*[\s\S]*?\*\//g, '');
+    return withoutBlockComments.replace(/\/\/[^\n\r]*(?=[\n\r]|$)/g, '');
   }
 
   private readFileAsText(file: File): Promise<string> {
