@@ -153,3 +153,12 @@
     opacity: 1;
   }
 }
+
+.selected-patient-info {
+  /* Allow `text-truncate` to work inside flexbox rows. */
+  min-width: 0;
+}
+
+.selected-patient-remove {
+  flex: 0 0 auto;
+}

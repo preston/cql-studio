@@ -146,12 +146,12 @@
         </button>
       </div>
       @for (patient of patientService.selectedPatients; track trackByPatientId($index, patient)) {
-      <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
-        <div class="flex-fill">
+      <div class="selected-patient-row d-flex justify-content-between align-items-center p-2 border-bottom">
+        <div class="selected-patient-info flex-fill">
           <div class="fw-semibold text-white text-truncate">{{ getPatientDisplayName(patient) }}</div>
-          <div class="small text-muted">{{ patient.id }}</div>
+          <div class="small text-muted text-truncate">{{ patient.id }}</div>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" (click)="removePatient(patient.id!)" title="Remove Patient">
+        <button class="selected-patient-remove btn btn-outline-secondary btn-sm" (click)="removePatient(patient.id!)" title="Remove Patient">
           <i class="bi bi-x"></i>
         </button>
       </div>

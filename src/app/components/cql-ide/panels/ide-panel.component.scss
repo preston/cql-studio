@@ -14,10 +14,12 @@
 
 .sidebar {
   border-right: 4px solid theme.$ide-border;
+  min-width: 300px;
 }
 
 .right-panel {
   border-left: 4px solid theme.$ide-border;
+  min-width: 300px;
 }
 
 .bottom-panel {

@@ -31,7 +31,7 @@ export class IdeStateService {
       size: 300,
       tabs: [],
       activeTabId: null,
-      minSize: 80,
+      minSize: 300,
       maxSize: 10000,
       position: 'left',
       resizeHandleDirection: 'right'
@@ -42,7 +42,7 @@ export class IdeStateService {
       size: 300,
       tabs: [],
       activeTabId: null,
-      minSize: 80,
+      minSize: 300,
       maxSize: 10000,
       position: 'right',
       resizeHandleDirection: 'left'
