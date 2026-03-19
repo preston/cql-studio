@@ -1,4 +1,6 @@
 # CQL Studio
+![Docker Image Version](https://shields.foundry.hl7.org/docker/v/hlseven/quality-cql-studio)
+![Docker Pulls](https://shields.foundry.hl7.org/docker/pulls/hlseven/quality-cql-studio)
 
 See [CQL Studio Website](https://cqlstudio.com) for screenshots and product information.
 
