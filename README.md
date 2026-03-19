@@ -2,11 +2,14 @@
 ![Docker Image Version](https://shields.foundry.hl7.org/docker/v/hlseven/quality-cql-studio)
 ![Docker Pulls](https://shields.foundry.hl7.org/docker/pulls/hlseven/quality-cql-studio)
 
-See [CQL Studio Website](https://cqlstudio.com) for screenshots and product information.
-
 A integrated web application suite for developing, testing, and publication of CQL (Clinical Quality Language) and FHIR-based artifacts using classical IDE concepts and optional AI-assisted drafting, as well as full support of official CQL _engine_ compatibility test cases, runner services, and results analysis.
 
+See [CQL Studio Website](https://cqlstudio.com) for screenshots and product information.
+
+
 ## Quick Start with Docker
+
+**This is just the UI component of CQL Studio. If you want to use the full distribution, you will likely want a fully configured, downloadable bundle such as distributed through [HL7 Foundry](https://foundry.hl7.org/products/fb509f14-5bc1-491b-a145-fab078a901c0)**.
 
 The easiest way to run this application is using Docker:
 
