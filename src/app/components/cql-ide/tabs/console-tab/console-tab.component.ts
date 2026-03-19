@@ -26,7 +26,6 @@ export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChec
   
   clearOutput = output<void>();
   copyOutput = output<void>();
-  toggleAllSections = output<void>();
   preserveLogsChange = output<boolean>();
   autoscrollChange = output<boolean>();
 
@@ -35,7 +34,6 @@ export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChec
   get outputSections() {
     return this.ideStateService.outputSections;
   }
-  public allSectionsExpanded = false;
   private shouldAutoScroll = true;
   private previousOutputCount = 0;
 
@@ -43,7 +41,6 @@ export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChec
 
   ngOnInit(): void {
     // Component initialization
-    this.updateAllSectionsExpandedState();
     this.previousOutputCount = this.outputSections().length;
   }
 
@@ -121,17 +118,22 @@ export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChec
     this.copyOutput.emit();
   }
 
-  onToggleAllSections(): void {
-    this.allSectionsExpanded = !this.allSectionsExpanded;
-    
-    // Update all sections with the new expanded state
+  private setAllSectionsExpandedState(expanded: boolean): void {
+    // Update all sections with the new expanded state.
     const sections = this.outputSections().map(section => ({
       ...section,
-      expanded: this.allSectionsExpanded
+      expanded
     }));
-    
+
     this.ideStateService.setOutputSections(sections);
-    this.toggleAllSections.emit();
+  }
+
+  onExpandAllSections(): void {
+    this.setAllSectionsExpandedState(true);
+  }
+
+  onCollapseAllSections(): void {
+    this.setAllSectionsExpandedState(false);
   }
 
   onToggleSection(index: number): void {
@@ -139,18 +141,6 @@ export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChec
       const sections = [...this.outputSections()];
       sections[index] = { ...sections[index], expanded: !sections[index].expanded };
       this.ideStateService.setOutputSections(sections);
-      
-      // Update allSectionsExpanded state based on current sections
-      this.updateAllSectionsExpandedState();
-    }
-  }
-
-  private updateAllSectionsExpandedState(): void {
-    const sections = this.outputSections();
-    if (sections.length === 0) {
-      this.allSectionsExpanded = false;
-    } else {
-      this.allSectionsExpanded = sections.every(section => section.expanded);
     }
   }
 

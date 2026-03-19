@@ -154,10 +154,6 @@ export class IdePanelComponent {
     );
   }
 
-  onToggleAllSections(): void {
-    // Expand/collapse state is updated by the console tab when its toolbar button is clicked.
-  }
-
   onPreserveLogsChange(value: boolean): void {
     this.ideStateService.setPreserveLogs(value);
   }

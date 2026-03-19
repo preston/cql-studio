@@ -6,9 +6,11 @@
     <button class="btn  btn-sm" (click)="onCopyOutput()" title="Copy Console">
       <i class="bi-copy me-1"></i> Copy
     </button>
-    <button class="btn btn-sm" (click)="onToggleAllSections()" title="Toggle All Sections">
-      <i class="bi-{{ allSectionsExpanded ? 'collapse' : 'expand' }} me-1"></i>
-      {{ allSectionsExpanded ? 'Collapse All' : 'Expand All' }}
+    <button class="btn btn-sm" (click)="onExpandAllSections()" title="Expand All">
+      <i class="bi bi-expand me-1"></i> Expand All
+    </button>
+    <button class="btn btn-sm" (click)="onCollapseAllSections()" title="Collapse All">
+      <i class="bi bi-collapse me-1"></i> Collapse All
     </button>
     <div class="d-flex align-items-center gap-3 ms-auto">
       <div class="form-check d-flex align-items-center gap-2">
