@@ -329,7 +329,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     console.log('Library description changed:', description);
   }
 
-  onSaveLibrary(): void {
+  async onSaveLibrary(): Promise<void> {
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
     if (!activeLibrary) {
       console.warn('No active library to save');
@@ -348,6 +348,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.setTranslating(true);
 
     // Translate CQL to ELM using the translation service (as if triggered from ELM tab)
+    await this.translationService.ensureTranslationAssetsLoaded();
     const translationResult = this.translationService.translateCqlToElm(currentContent);
     
     // Update translation state with errors/warnings
@@ -593,7 +594,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.updateLibraryResource(libraryId, { sendTerminologyRouting: value });
   }
 
-  onExecuteLibrary(): void {
+  async onExecuteLibrary(): Promise<void> {
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
     if (!activeLibrary) {
       console.log('No active library to execute');
@@ -618,6 +619,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const currentCqlContent = activeLibrary.cqlContent || '';
     
     // Translate CQL to ELM using the translation service (similar to Save)
+    await this.translationService.ensureTranslationAssetsLoaded();
     const translationResult = this.translationService.translateCqlToElm(currentCqlContent);
     
     // Update translation state with errors/warnings
@@ -951,24 +953,59 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
 
   // Helper methods for output formatting
   private formatAndAddExecutionResults(results: any[], title: string): void {
+    const hasPatientResults = results.some(r => r.patientId);
+
+    // If we executed with patient context, log each patient result separately
+    // so Console renders multiple items (one per patient), not a single combined blob.
+    if (hasPatientResults) {
+      results.forEach((r) => {
+        const patientLabel = r.patientName || r.patientId || 'Unknown patient';
+        const status = r.error ? 'error' : 'success';
+        const executionTime = r.executionTime || 0;
+        const librarySuffix = r.libraryName && !title.includes(r.libraryName) ? ` (${r.libraryName})` : '';
+
+        this.ideStateService.addOutputSection({
+          id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          title: `${title}${librarySuffix} - ${patientLabel}`,
+          content: JSON.stringify({
+            libraryId: r.libraryId,
+            libraryName: r.libraryName,
+            patientId: r.patientId,
+            patientName: r.patientName,
+            functionName: r.functionName,
+            executionTime: r.executionTime,
+            error: r.error ?? undefined,
+            result: r.result ?? undefined
+          }),
+          type: 'json',
+          status,
+          executionTime,
+          expanded: true,
+          timestamp: new Date()
+        });
+      });
+      return;
+    }
+
+    // No patient context: keep existing behavior (one combined json section).
     const content = this.formatExecutionResults(results);
     const status = results.some(r => r.error) ? 'error' : 'success';
     const executionTime = results.reduce((total, r) => total + (r.executionTime || 0), 0);
-    
+
     this.ideStateService.addOutputSection({
       id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      title: title,
-      content: content,
+      title,
+      content,
       type: 'json',
-      status: status,
-      executionTime: executionTime,
+      status,
+      executionTime,
       expanded: true,
       timestamp: new Date()
     });
   }
 
   private addErrorToOutput(title: string, error: any): void {
-    const content = `Execution failed:\n${JSON.stringify(error, null, 2)}`;
+    const content = `Execution failed:\n${JSON.stringify(error)}`;
     
     this.ideStateService.addOutputSection({
       id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -983,39 +1020,17 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   private formatExecutionResults(results: any[]): string {
-    let output = '';
-    
-    if (results.length === 0) {
-      output += 'No execution results.\n';
-      return output;
-    }
+    if (results.length === 0) return JSON.stringify([], null, 2);
 
-    // Check if we have patient-specific results
-    const hasPatientResults = results.some(r => r.patientId);
-    
-    if (hasPatientResults) {
-      // Multiple patients
-      results.forEach((result, index) => {
-        output += `--- Patient ${index + 1}: ${result.patientName || result.patientId} (${result.patientId}) ---\n`;
-        
-        if (result.error) {
-          output += `${JSON.stringify(result.error, null, 2)}\n\n`;
-        } else {
-          output += `${JSON.stringify(result.result, null, 2)}\n\n`;
-        }
-      });
-    } else {
-      // Single execution without patient
-      results.forEach((result, index) => {
-        if (result.error) {
-          output += `${JSON.stringify(result.error, null, 2)}\n\n`;
-        } else {
-          output += `${JSON.stringify(result.result, null, 2)}\n\n`;
-        }
-      });
-    }
-    
-    return output;
+    // Emit valid JSON so the Console can pretty-print + Prism-highlight it correctly.
+    const payload = results.map(r => ({
+      executionTime: r.executionTime,
+      functionName: r.functionName,
+      error: r.error ?? undefined,
+      result: r.result ?? undefined
+    }));
+
+    return JSON.stringify(payload);
   }
 
   // Platform detection utility

@@ -2,8 +2,8 @@
 
 import { Injectable, inject } from '@angular/core';
 import { BaseService } from './base.service';
-import { Observable, forkJoin, of } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, forkJoin, of, defer } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
 import { Parameters, Endpoint, Library } from 'fhir/r4';
@@ -283,39 +283,38 @@ export class CqlExecutionService extends BaseService {
     parameters: Parameters,
     metadata: Partial<CqlExecutionResult>
   ): Observable<CqlExecutionResult> {
-    const startTime = Date.now();
     const baseResult: Partial<CqlExecutionResult> = {
       libraryName: metadata.libraryName || metadata.libraryId || 'Unknown',
       ...metadata
     };
-    
-    return new Observable<CqlExecutionResult>(observer => {
+
+    // Use defer so each subscription has its own start time and can be cancelled.
+    return defer(() => {
+      const startTime = Date.now();
+
       // Use FHIR content type headers for FHIR operations
       const fhirHeaders = new HttpHeaders({
         'Content-Type': 'application/fhir+json',
         'Accept': 'application/fhir+json'
       });
-      
+
       // Pass the object directly - HttpClient will serialize it correctly
-      this.http.post<Parameters>(url, parameters, { headers: fhirHeaders })
-        .subscribe({
-          next: (response: any) => {
-            observer.next({
-              result: response,
-              ...baseResult,
-              executionTime: Date.now() - startTime
-            } as CqlExecutionResult);
-            observer.complete();
-          },
-          error: (error: any) => {
-            observer.next({
-              error: error,
-              ...baseResult,
-              executionTime: Date.now() - startTime
-            } as CqlExecutionResult);
-            observer.complete();
-          }
-        });
+      return this.http.post<any>(url, parameters, { headers: fhirHeaders }).pipe(
+        map((response: any) => {
+          return {
+            result: response,
+            ...baseResult,
+            executionTime: Date.now() - startTime
+          } as CqlExecutionResult;
+        }),
+        catchError((error: any) => {
+          return of({
+            error: error,
+            ...baseResult,
+            executionTime: Date.now() - startTime
+          } as CqlExecutionResult);
+        })
+      );
     });
   }
 }

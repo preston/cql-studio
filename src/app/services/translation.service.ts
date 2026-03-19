@@ -42,6 +42,45 @@ export class TranslationService {
   // Hardcoded FHIR version - not configurable
   private readonly FHIR_VERSION = '4.0.1';
 
+  private modelInfoCache = new Map<string, string>();
+  private librarySourceCache = new Map<string, string>();
+  private translationAssetsLoaded = false;
+  private translationAssetsLoadPromise: Promise<void> | null = null;
+
+  private async fetchTextResource(path: string): Promise<string> {
+    const response = await fetch(path);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${path}: ${response.status} ${response.statusText}`);
+    }
+    return await response.text();
+  }
+
+  /**
+   * Preload translation assets asynchronously to avoid blocking the UI thread.
+   * Providers registered with @cqframework/cql are synchronous, so we cache the
+   * fetched text and serve from memory synchronously during translation.
+   */
+  async ensureTranslationAssetsLoaded(): Promise<void> {
+    if (this.translationAssetsLoaded) return;
+    if (this.translationAssetsLoadPromise) return this.translationAssetsLoadPromise;
+
+    this.translationAssetsLoadPromise = Promise.all([
+      this.fetchTextResource('/cql/system-modelinfo.xml').then(text => {
+        this.modelInfoCache.set('/cql/system-modelinfo.xml', text);
+      }),
+      this.fetchTextResource(`/cql/fhir-modelinfo-${this.FHIR_VERSION}.xml`).then(text => {
+        this.modelInfoCache.set(`/cql/fhir-modelinfo-${this.FHIR_VERSION}.xml`, text);
+      }),
+      this.fetchTextResource(`/cql/FHIRHelpers-${this.FHIR_VERSION}.cql`).then(text => {
+        this.librarySourceCache.set(`/cql/FHIRHelpers-${this.FHIR_VERSION}.cql`, text);
+      })
+    ]).then(() => {
+      this.translationAssetsLoaded = true;
+    });
+
+    return this.translationAssetsLoadPromise;
+  }
+
   constructor() {
     // Create ModelManager with default model info loading enabled
     this.modelManager = new ModelManager(undefined, true);
@@ -68,24 +107,14 @@ export class TranslationService {
       (id: string, system: string | null | undefined, version: string | null | undefined) => {
         // System model
         if (id === 'System' && !system && !version) {
-          try {
-            const xml = this.fetchModelInfoSync('/cql/system-modelinfo.xml');
-            return stringAsSource(xml);
-          } catch (e) {
-            console.warn('Failed to load System model info:', e);
-            return null;
-          }
+          const xml = this.modelInfoCache.get('/cql/system-modelinfo.xml');
+          return xml ? stringAsSource(xml) : null;
         }
         
         // FHIR model - only support 4.0.1
         if (id === 'FHIR' && !system && version === this.FHIR_VERSION) {
-          try {
-            const xml = this.fetchModelInfoSync(`/cql/fhir-modelinfo-${this.FHIR_VERSION}.xml`);
-            return stringAsSource(xml);
-          } catch (e) {
-            console.warn(`Failed to load FHIR ${this.FHIR_VERSION} model info:`, e);
-            return null;
-          }
+          const xml = this.modelInfoCache.get(`/cql/fhir-modelinfo-${this.FHIR_VERSION}.xml`);
+          return xml ? stringAsSource(xml) : null;
         }
         
         // Reject other FHIR versions
@@ -108,13 +137,8 @@ export class TranslationService {
       (id: string, system: string | null | undefined, version: string | null | undefined) => {
         // FHIRHelpers library - only support 4.0.1
         if (id === 'FHIRHelpers' && !system && version === this.FHIR_VERSION) {
-          try {
-            const cql = this.fetchModelInfoSync(`/cql/FHIRHelpers-${this.FHIR_VERSION}.cql`);
-            return stringAsSource(cql);
-          } catch (e) {
-            console.warn(`Failed to load FHIRHelpers ${this.FHIR_VERSION}:`, e);
-            return null;
-          }
+          const cql = this.librarySourceCache.get(`/cql/FHIRHelpers-${this.FHIR_VERSION}.cql`);
+          return cql ? stringAsSource(cql) : null;
         }
         
         // Reject other FHIRHelpers versions
@@ -128,23 +152,13 @@ export class TranslationService {
     );
     
     this.libraryManager.librarySourceLoader.registerProvider(librarySourceProvider);
+
+    // Begin loading translation assets immediately to minimize latency.
+    // Callers that need translation should still await ensureTranslationAssetsLoaded().
+    void this.ensureTranslationAssetsLoaded();
   }
 
-  /**
-   * Synchronously fetch model info XML from local app resources
-   * Files are served from the public/cql directory at runtime
-   */
-  private fetchModelInfoSync(path: string): string {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', path, false); // false = synchronous
-    xhr.send(null);
-    
-    if (xhr.status === 200) {
-      return xhr.responseText;
-    } else {
-      throw new Error(`Failed to fetch ${path}: ${xhr.status} ${xhr.statusText}`);
-    }
-  }
+  // Translation assets are loaded via ensureTranslationAssetsLoaded() and cached.
 
   /**
    * Translate CQL to ELM using the @cqframework/cql library
@@ -153,6 +167,16 @@ export class TranslationService {
    */
   translateCqlToElm(cql: string): TranslationResult {
     try {
+      if (!this.translationAssetsLoaded) {
+        return {
+          elmXml: null,
+          errors: ['Translation assets are still loading. Please try again in a moment.'],
+          warnings: [],
+          messages: [],
+          hasErrors: true
+        };
+      }
+
       const translator = CqlTranslator.fromText(cql, this.libraryManager);
       
       // Extract errors, warnings, and messages
@@ -208,6 +232,16 @@ export class TranslationService {
    */
   translateCqlToElmRaw(cql: string): RawTranslationResult {
     try {
+      if (!this.translationAssetsLoaded) {
+        return {
+          elmXml: null,
+          errors: [{ message: 'Translation assets are still loading. Please try again in a moment.' } as CqlCompilerException],
+          warnings: [],
+          messages: [],
+          hasErrors: true
+        };
+      }
+
       const translator = CqlTranslator.fromText(cql, this.libraryManager);
       
       // Extract raw errors, warnings, and messages

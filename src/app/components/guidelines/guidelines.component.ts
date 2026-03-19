@@ -160,7 +160,7 @@ export class GuidelinesComponent implements OnInit, OnDestroy {
     this.showNewModal.set(true);
   }
 
-  onNewGuidelineCreate(libraryData: Partial<Library>): void {
+  async onNewGuidelineCreate(libraryData: Partial<Library>): Promise<void> {
     this.showNewModal.set(false);
 
     // Create the library resource first
@@ -187,7 +187,8 @@ export class GuidelinesComponent implements OnInit, OnDestroy {
     // Generate initial CQL
     const cqlContent = this.cqlGenerationService.generateCql(artifact);
 
-    // Translate to ELM
+    // Translate to ELM (ensure translation assets are ready)
+    await this.translationService.ensureTranslationAssetsLoaded();
     const translationResult = this.translationService.translateCqlToElm(cqlContent);
     
     if (translationResult.hasErrors) {

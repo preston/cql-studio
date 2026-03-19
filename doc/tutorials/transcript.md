@@ -6,20 +6,30 @@ This transcript is intended for voiceover with screen recordings. It walks throu
 
 # Introduction
 
+Hi and welcome this CQL Studio Quickstart Tutorial that will get you up and running CQL Studio on your local computer using the prebuilt official distribution. The website is simply https://cqlstudio.com where you'll find more info and GitHub links to the source code for contributions.
+
 CQL Studio is an integrated suite for developing, testing, and publishing standards-based FHIR and CQL artifacts. You can author and edit CQL libraries, test them against your own FHIR data, run official engine compatibility tests, browse and validate terminology, and more.
 
 CQL Studio can be deployed in many ways: locally, in a shared team environment, or as a public or cloud-hosted instance. These tutorials focus on a typical local deployment, but the same areas and workflows apply in other environments. Also note that certain areas are optional, such as AI integration features, and won't be visible unless configured.
 
 We'll be using the official everygreen distribution published to HL7 Foundry, which is targetted to local CQL users wanting to run CQL Studio on your local laptop, and is tested to deploy out-of-the-box via Docker. If you don't have Docker Desktop installed, do that now. The evergreen distribution always uses the latest releases of all components, so expect things to change.
 
+You'll need to be logged in to Foundry with your free HL7 account. Just search for CQL Studio. You might see some component products but the one you want is the complete bundle called just "CQL Studio".
 https://foundry.hl7.org/products/fb509f14-5bc1-491b-a145-fab078a901c0
 
-The application is organized around the top navigation bar. Under **Testing** you’ll find tools related to CQL engine development and testing. Under **Authoring** you have the Terminology Browser and the CQL IDE. And under **Tools** you’ll find the FHIR Uploader and other future utilities. **Settings** is where you set your FHIR data server URL, terminology server URLs, and many other things. Note that some features have dependencies, and will be disabled if you don't have the required components in your deployment.
+You'll want to go to the Configuration tab and download a generated configuration file for Docker Desktop. Save that wherever you like, and then go to the Instructions tab for the command you'll need to run. In your system Terminal or console, navigate to the directory and run the command. This will download all the current software images, which may take a minute, and start them up.
+
+Once that's running, go back to the Foundry instructions for the clickable links which will now be available on your computer.
 
 
 ---
 
-# Settings
+
+# Overview and Settings
+
+
+CQL Studio default to using your operating system-defined theme mode, which is either light or dark. Mine happens to be dark and this is is changable in system settings. The UI is organized around the top navigation bar. Under **Testing** you’ll find tools related to CQL engine development and testing. Under **Authoring** you have the Terminology Browser and the CQL IDE. And under **Tools** you’ll find the FHIR Uploader and other future utilities. **Settings** is where you set your FHIR data server URL, terminology server URLs, and many other things. Note that some features have dependencies, and will be disabled if you don't have the required components in your deployment.
+
 
 Global settings control how CQL Studio talks to your FHIR server, optional seperate terminology server, optional AI endpoint, and many other things. The most important are the FHIR base URL, which is used for both data and CQL Library storage, as well as your optional terminology server info for value set and code lookups. These values are stored in your browser (localStorage) and persist across sessions local to your browser.
 
@@ -46,7 +56,7 @@ If you have developer mode enabled, you'll also see a **Danger Zone** section at
 
 CQL Studio's default application settings use your FHIR data server as a terminology server. If you'd like to use something else, such as HL7's public terminology server, you can provide its base URL in Settings.
 
-The Terminology Browser lets you search and inspect value sets, concept maps, and code systems on your configured FHIR terminology server, as well validate codes. It isn't intended to be a full terminology authoring and management environment, but more of a quick way to locate value sets or codings from your terminology server and then add them to the app Clipboard for use in the IDE and elsewhere in the application. We'll get to that in a minute.
+The Terminology Browser in the Authoring menu lets you search and inspect value sets, concept maps, and code systems on your configured FHIR terminology server, as well validate codes. It isn't intended to be a full terminology authoring and management environment, but more of a quick way to locate value sets or codings from your terminology server and then add them to the app Clipboard for use in the IDE and elsewhere in the application. We'll get to that in a minute.
 
 Note that the specifications of how CQL engines resolve terminology is expect to change to support more sophisticated routing instead of a single terminology endpoint, so this area will evolve as the implementation guides change.
 
@@ -74,7 +84,9 @@ To run the current CQL library in Patient context, search and open it, select an
 
 # Engine Test Runner
 
-The Test Runner runs the official CQL engine compatibility test suite against a test runner API, so engine and tooling developers can verify their implementation against the same tests. Test Results (under Testing) is where you open or view saved result files from past runs.
+Now let's talk about CQL engine testing.
+
+The Test Runner under the Testing menu runs the official CQL engine compatibility test suite against a test runner API, so engine and tooling developers can verify their implementation against the same tests. Test Results (under Testing) is where you open or view saved result files from past runs.
 
 Open the Test Runner from the top menu: **Testing** then **Test Runner**. This screen lets you run the official CQL engine compatibility test suite against a test runner API.
 

@@ -164,7 +164,7 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
     this.activeTab.set(tab);
   }
 
-  saveGuideline(showMessage: boolean = true): void {
+  async saveGuideline(showMessage: boolean = true): Promise<void> {
     const artifact = this.artifact();
     if (!artifact) {
       this.guidelinesStateService.setError('No guideline to save');
@@ -195,7 +195,8 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
     // Generate CQL from visual model using CqlGenerationService
     const cqlContent = this.cqlGenerationService.generateCql(artifact);
 
-    // Translate to ELM for validation
+    // Translate to ELM for validation (ensure translation assets are ready)
+    await this.translationService.ensureTranslationAssetsLoaded();
     const translationResult = this.translationService.translateCqlToElm(cqlContent);
     
     if (translationResult.hasErrors) {

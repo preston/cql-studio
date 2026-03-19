@@ -20,6 +20,8 @@ export class SyntaxHighlighterComponent implements AfterViewInit {
   codeElement = viewChild<ElementRef>('codeElement');
   preElement = viewChild<ElementRef>('preElement');
 
+  private highlightSeq = 0;
+
   constructor() {
     // Reactively highlight code when inputs change
     effect(() => {
@@ -51,12 +53,46 @@ export class SyntaxHighlighterComponent implements AfterViewInit {
         
         // Set the language class on the code element (required for prism-js-fold and line numbers)
         codeElement.className = languageClass;
-        
-        // highlightAllUnder triggers before-all-elements-highlight so prism-js-fold can insert fold UI
-        const preElement = this.preElement()!.nativeElement;
-        Prism.highlightAllUnder(preElement);
-        // Expand all fold nodes by default (plugin collapses when line count >= 40)
-        preElement.querySelectorAll('details').forEach((el: Element) => el.setAttribute('open', ''));
+
+        // Defer heavy work (pretty JSON + Prism highlighting) until the browser is idle,
+        // so the UI can remain responsive while the console card is being added.
+        this.highlightSeq++;
+        const scheduledSeq = this.highlightSeq;
+        const run = () => {
+          if (scheduledSeq !== this.highlightSeq) return;
+
+          // Pretty-print JSON for display (only when the configured language is json).
+          let prettyCode = code;
+          if (detectedLanguage === 'json') {
+            try {
+              prettyCode = JSON.stringify(JSON.parse(code), null, 2);
+            } catch {
+              // If it's not valid JSON, keep the original text.
+              prettyCode = code;
+            }
+          }
+
+          codeElement.textContent = prettyCode;
+
+          // Highlight only this element (avoid highlightAllUnder scanning).
+          Prism.highlightElement(codeElement);
+
+          // Open the first few folded nodes to keep the UX usable without massive DOM expansion.
+          let opened = 0;
+          codeElement.querySelectorAll('details').forEach((el: Element) => {
+            if (opened >= 25) return;
+            el.setAttribute('open', '');
+            opened++;
+          });
+        };
+
+        const w = window as any;
+        if (typeof w.requestIdleCallback === 'function') {
+          w.requestIdleCallback(run, { timeout: 1000 });
+        } else {
+          // Fallback: next frame keeps it off the current call stack.
+          requestAnimationFrame(run);
+        }
       } else if (!code) {
         // Clear the element if there's no code
         codeElement.textContent = '';
