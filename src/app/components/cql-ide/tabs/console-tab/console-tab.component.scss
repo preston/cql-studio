@@ -1,20 +1,33 @@
 // Author: Preston Lee
 
+:host {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 .console-panel {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   background-color: var(--ide-bg-primary) !important;
   color: #d4d4d4;
+  overflow: hidden; /* Prevent panel-content from scrolling outside the console body */
 }
 
 .console-panel .flex-fill.overflow-auto {
   scroll-behavior: smooth;
-  height: 100%;
-  max-height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
+
+.console-toolbar {
+  flex-shrink: 0; /* Keep toolbar visible while the output scrolls */
+}
+
 
 /* Override Bootstrap bg-dark classes in console panel */
 .console-panel .bg-dark {

@@ -1,5 +1,5 @@
 <div class="console-panel d-flex flex-column bg-dark text-light">
-  <div class="console-toolbar d-flex align-items-center gap-2 px-2 border-bottom sticky-top bg-dark">
+  <div class="console-toolbar d-flex align-items-center gap-2 px-2 border-bottom bg-dark">
     <button class="btn  btn-sm" (click)="onClearOutput()" title="Clear Console">
       <i class="bi-trash me-1"></i> Clear
     </button>
@@ -29,6 +29,7 @@
       </div>
     </div>
   </div>
+
   <div class="flex-fill overflow-auto" [class.executing]="isEvaluating()" #consoleContent (scroll)="onConsoleScroll($event)">
     <div class="p-2">
       @for (section of outputSections(); track section.id; let i = $index) {
