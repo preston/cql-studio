@@ -221,6 +221,18 @@
     </div>
   </div>
 
+  @if (testResults()) {
+  <div class="row mb-3">
+    <div class="col">
+      <button id="create-runner-config-from-visible-tests-btn" type="button" class="btn btn-outline-primary"
+        [disabled]="filteredResults().length === 0"
+        [attr.title]="filteredResults().length === 0 ? 'Load results with at least one visible test (adjust filters if needed).' : null"
+        (click)="createRunnerConfigFromVisibleTests()">
+        Create Test Runner Configuration for Visible Tests
+      </button>
+    </div>
+  </div>
+  }
 
   <!-- Results Table -->
   <div class="row">

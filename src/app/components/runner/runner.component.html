@@ -25,6 +25,20 @@
           Recheck Tests Runner Health
           }
         </button>
+        <button id="run-tests-top-btn" type="button" class="btn btn-primary mx-2" (click)="createJob()"
+          [disabled]="isCreatingJob() || isPolling() || apiUnavailable()"
+          [class.btn-outline-secondary]="apiUnavailable()">
+          @if (isCreatingJob()) {
+          <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+          Initializing Test Run...
+          } @else if (apiUnavailable()) {
+          <i class="bi bi-wifi-off me-2"></i>
+          API Unavailable - Cannot Run Tests
+          } @else {
+          <i class="bi bi-play-circle me-2"></i>
+          Run Tests
+          }
+        </button>
       </div>
 
 

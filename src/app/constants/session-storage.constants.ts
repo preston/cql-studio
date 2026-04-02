@@ -13,6 +13,9 @@ export class SessionStorageKeys {
   public static readonly INDEX_FILES = 'indexFiles';
   public static readonly CURRENT_FILE_URL = 'currentFileUrl';
 
+  /** JSON array of { testsName, groupName, testName } to prefill runner Tests.OnlyList */
+  public static readonly RUNNER_PREFILL_ONLY_LIST = 'runnerPrefillOnlyList';
+
   // Filter and view state (temporary)
   public static readonly INITIAL_STATUS = 'initialStatus';
   public static readonly INITIAL_SEARCH = 'initialSearch';

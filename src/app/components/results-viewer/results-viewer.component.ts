@@ -452,6 +452,29 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
     // No chart update needed for sort order changes
   }
 
+  createRunnerConfigFromVisibleTests(): void {
+    const visible = this.filteredResults();
+    if (visible.length === 0) {
+      return;
+    }
+    const seen = new Set<string>();
+    const onlyList: { testsName: string; groupName: string; testName: string }[] = [];
+    for (const r of visible) {
+      const key = `${r.testsName}\0${r.groupName}\0${r.testName}`;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      onlyList.push({
+        testsName: r.testsName,
+        groupName: r.groupName,
+        testName: r.testName
+      });
+    }
+    sessionStorage.setItem(SessionStorageKeys.RUNNER_PREFILL_ONLY_LIST, JSON.stringify(onlyList));
+    void this.router.navigate(['/runner']);
+  }
+
   private applyFilters(): void {
     const results = this.testResults()?.results || [];
     let filtered = results;

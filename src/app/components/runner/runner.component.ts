@@ -4,7 +4,7 @@ import { Component, OnInit, signal, AfterViewInit, ElementRef, viewChild, OnDest
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { RunnerService, CQLTestConfiguration, JobResponse, JobStatus } from '../../services/runner.service';
+import { RunnerService, CQLTestConfiguration, CqlTestTargetRef, JobResponse, JobStatus } from '../../services/runner.service';
 import { FileLoaderService } from '../../services/file-loader.service';
 import { SettingsService } from '../../services/settings.service';
 import { ToastService } from '../../services/toast.service';
@@ -83,7 +83,51 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   private toastService = inject(ToastService);
 
   ngOnInit(): void {
-    // Initialize FHIR URL from settings
+    const params = this.route.snapshot.queryParams;
+    if (params['url']) {
+      sessionStorage.removeItem(SessionStorageKeys.RUNNER_PREFILL_ONLY_LIST);
+      this.applyDefaultFhirBaseUrlPatch();
+      this.loadFromUrl(params['url']);
+    } else if (!this.tryApplyRunnerOnlyListPrefill()) {
+      this.applyDefaultFhirBaseUrlPatch();
+      this.updateJsonConfig();
+    }
+
+    if (this.lastApiCheck()) {
+      this.startApiCheckTimer();
+    }
+
+    this.checkApiHealth();
+  }
+
+  private buildDefaultRunnerConfiguration(): CQLTestConfiguration {
+    return {
+      FhirServer: {
+        BaseUrl: this.settingsService.getEffectiveRunnerFhirBaseUrl(),
+        CqlOperation: '$cql'
+      },
+      Build: {
+        CqlFileVersion: '1.0.000',
+        CqlOutputPath: './cql',
+        CqlVersion: '1.5.3',
+        testsRunDescription: 'Quick Test Run',
+        cqlTranslator: '',
+        cqlTranslatorVersion: '',
+        cqlEngine: '',
+        cqlEngineVersion: ''
+      },
+      Debug: {
+        QuickTest: true
+      },
+      Tests: {
+        ResultsPath: './results',
+        SkipList: [],
+        OnlyList: []
+      }
+    };
+  }
+
+  private applyDefaultFhirBaseUrlPatch(): void {
     const currentConfig = this.config();
     this.config.set({
       ...currentConfig,
@@ -92,22 +136,69 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
         BaseUrl: this.settingsService.getEffectiveRunnerFhirBaseUrl()
       }
     });
-    
-    // Check if there's a URL parameter to load configuration from
-    const params = this.route.snapshot.queryParams;
-    if (params['url']) {
-      this.loadFromUrl(params['url']);
-    } else {
+  }
+
+  /**
+   * Consumes sessionStorage prefill from results viewer; returns true if config was applied.
+   */
+  private tryApplyRunnerOnlyListPrefill(): boolean {
+    const key = SessionStorageKeys.RUNNER_PREFILL_ONLY_LIST;
+    const raw = sessionStorage.getItem(key);
+    if (raw === null) {
+      return false;
+    }
+    sessionStorage.removeItem(key);
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        return false;
+      }
+      const onlyList = this.parsePrefillOnlyListItems(parsed);
+      const base = this.buildDefaultRunnerConfiguration();
+      this.config.set({
+        ...base,
+        Tests: {
+          ...base.Tests,
+          OnlyList: onlyList
+        }
+      });
       this.updateJsonConfig();
+      return true;
+    } catch {
+      return false;
     }
-    
-    // Start API check timer if we have a last check time
-    if (this.lastApiCheck()) {
-      this.startApiCheckTimer();
+  }
+
+  private parsePrefillOnlyListItems(items: unknown[]): CqlTestTargetRef[] {
+    const seen = new Set<string>();
+    const out: CqlTestTargetRef[] = [];
+    for (const item of items) {
+      if (!item || typeof item !== 'object') {
+        continue;
+      }
+      const o = item as Record<string, unknown>;
+      const testsName = o['testsName'];
+      const groupName = o['groupName'];
+      const testName = o['testName'];
+      if (
+        typeof testsName !== 'string' ||
+        typeof groupName !== 'string' ||
+        typeof testName !== 'string'
+      ) {
+        continue;
+      }
+      const dedupeKey = `${testsName}\0${groupName}\0${testName}`;
+      if (seen.has(dedupeKey)) {
+        continue;
+      }
+      seen.add(dedupeKey);
+      out.push({
+        testsName,
+        groupName,
+        testName
+      });
     }
-    
-    // Automatically run health check on component load
-    this.checkApiHealth();
+    return out;
   }
 
   ngAfterViewInit(): void {
@@ -269,30 +360,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected reset(): void {
-    this.config.set({
-      FhirServer: {
-        BaseUrl: this.settingsService.getEffectiveRunnerFhirBaseUrl(),
-        CqlOperation: '$cql'
-      },
-      Build: {
-        CqlFileVersion: '1.0.000',
-        CqlOutputPath: './cql',
-        CqlVersion: '1.5.3',
-        testsRunDescription: 'Quick Test Run',
-        cqlTranslator: '',
-        cqlTranslatorVersion: '',
-        cqlEngine: '',
-        cqlEngineVersion: ''
-      },
-      Debug: {
-        QuickTest: true
-      },
-      Tests: {
-        ResultsPath: './results',
-        SkipList: [],
-        OnlyList: []
-      }
-    });
+    this.config.set(this.buildDefaultRunnerConfiguration());
     this.currentJob.set(null);
     this.jobStatus.set(null);
     this.healthStatus.set(null);

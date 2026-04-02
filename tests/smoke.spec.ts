@@ -89,6 +89,18 @@ test.describe('Smoke Tests', () => {
     await expect(page.locator('table')).toBeVisible();
   });
 
+  test('should prefill runner OnlyList from visible results tests', async ({ page }) => {
+    await page.goto('/results/open');
+    await page.waitForLoadState('networkidle');
+    await page.click('#example-load-button');
+    await page.waitForSelector('app-results-viewer', { timeout: 10000 });
+    await expect(page.locator('#create-runner-config-from-visible-tests-btn')).toBeEnabled();
+    await page.click('#create-runner-config-from-visible-tests-btn');
+    await expect(page).toHaveURL(/\/runner$/);
+    await expect(page.locator('app-runner')).toBeVisible();
+    await expect(page.locator('#only-testsName-0')).toBeVisible();
+  });
+
   test('should handle deep linking with URL parameter', async ({ page }) => {
     await page.goto(`/results/open?url=${ExamplePaths.RESULTS_JSON}`);
     await page.waitForLoadState('networkidle');
