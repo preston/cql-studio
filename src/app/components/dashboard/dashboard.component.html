@@ -177,6 +177,30 @@
                                         </div>
                                     </div>
                                 </div>
+                                @if (statisticsDataGaps().length > 0) {
+                                    <div id="summary-statistics-gaps" class="mt-3">
+                                        <div class="alert alert-warning mb-0" role="status">
+                                            <h6 id="summary-statistics-gaps-heading" class="alert-heading small mb-2">
+                                                <i class="bi bi-exclamation-triangle me-1"></i>Incomplete or inconsistent statistics
+                                            </h6>
+                                            <p class="small mb-2 mb-md-3 text-body-secondary">
+                                                Some result files were missing fields in <code class="small">testResultsSummary</code>, had values that could not be parsed as numbers, or disagreed with the <code class="small">results</code> array. Details by file:
+                                            </p>
+                                            <ul id="summary-statistics-gaps-list" class="small mb-0 ps-3">
+                                                @for (gap of statisticsDataGaps(); track gap.filename) {
+                                                    <li class="mb-2">
+                                                        <span class="fw-semibold">{{ gap.filename }}</span>
+                                                        <ul class="mb-0 mt-1 ps-3">
+                                                            @for (issue of gap.issues; track $index) {
+                                                                <li>{{ issue }}</li>
+                                                            }
+                                                        </ul>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         </div>
                     </div>

@@ -15,6 +15,8 @@ interface DashboardData {
   results: TestResult[];
   engine: string;
   timestamp: string;
+  /** Set when testResultsSummary was missing, incomplete, invalid, or inconsistent with results. */
+  statisticsIssues?: string[];
 }
 
 interface ChartDataPoint {
@@ -148,6 +150,13 @@ export class DashboardComponent implements OnInit {
   totalFail = computed(() => this.filteredData().reduce((sum, item) => sum + item.summary.failCount, 0));
   totalSkip = computed(() => this.filteredData().reduce((sum, item) => sum + item.summary.skipCount, 0));
   totalError = computed(() => this.filteredData().reduce((sum, item) => sum + item.summary.errorCount, 0));
+
+  /** Files in the current filter selection that had gaps or fixes in summary statistics. */
+  statisticsDataGaps = computed((): { filename: string; issues: string[] }[] => {
+    return this.filteredData()
+      .filter(item => item.statisticsIssues && item.statisticsIssues.length > 0)
+      .map(item => ({ filename: item.filename, issues: item.statisticsIssues! }));
+  });
   
   // Comparison matrix data
   comparisonMatrix = computed((): ComparisonTest[] => {
@@ -442,17 +451,97 @@ export class DashboardComponent implements OnInit {
       
       const data: CqlTestResults = await response.json();
       
+      const built = this.buildTestResultsSummary(data);
       return {
         filename,
-        summary: data.testResultsSummary,
+        summary: built.summary,
         results: data.results,
         engine: data.cqlengine.cqlEngine || data.cqlengine.apiUrl,
-        timestamp: data.testsRunDateTime
+        timestamp: data.testsRunDateTime,
+        ...(built.issues.length > 0 ? { statisticsIssues: built.issues } : {})
       };
     } catch (error) {
       console.error(`Error loading ${filename}:`, error);
       return null;
     }
+  }
+
+  /**
+   * Ensures summary counts are finite numbers and records what was missing or inconsistent.
+   */
+  private buildTestResultsSummary(data: CqlTestResults): { summary: TestResultsSummary; issues: string[] } {
+    const issues: string[] = [];
+    const results = data.results ?? [];
+    const raw = data.testResultsSummary as unknown as Record<string, unknown> | null | undefined;
+
+    if (!raw || typeof raw !== 'object') {
+      issues.push('The testResultsSummary object was missing. Totals were recomputed by counting each row in results.');
+      return { summary: this.summarizeFromResults(results), issues };
+    }
+
+    const summary: TestResultsSummary = {
+      passCount: 0,
+      skipCount: 0,
+      failCount: 0,
+      errorCount: 0
+    };
+
+    (['passCount', 'skipCount', 'failCount', 'errorCount'] as const).forEach(metric => {
+      const picked = raw[metric];
+      if (picked === undefined || picked === null || picked === '') {
+        issues.push(
+          `testResultsSummary.${metric} was missing or empty (schema requires this field). It was treated as 0.`
+        );
+        return;
+      }
+      const n = Number(picked);
+      if (!Number.isFinite(n)) {
+        issues.push(
+          `testResultsSummary.${metric} (${JSON.stringify(picked)}) was not a valid number. It was treated as 0.`
+        );
+        return;
+      }
+      summary[metric] = n;
+    });
+
+    if (results.length > 0) {
+      const derived = this.summarizeFromResults(results);
+      const mismatch: string[] = [];
+      (['passCount', 'skipCount', 'failCount', 'errorCount'] as const).forEach(m => {
+        if (summary[m] !== derived[m]) {
+          mismatch.push(`${m}: file says ${summary[m]}, results tally ${derived[m]}`);
+        }
+      });
+      if (mismatch.length > 0) {
+        issues.push(
+          'Summary counts in the file did not match a tally of the results array: ' + mismatch.join('; ') + '. The dashboard uses the normalized values from testResultsSummary.'
+        );
+      }
+    }
+
+    return { summary, issues };
+  }
+
+  private summarizeFromResults(results: TestResult[]): TestResultsSummary {
+    const summary: TestResultsSummary = {
+      passCount: 0,
+      skipCount: 0,
+      failCount: 0,
+      errorCount: 0
+    };
+    for (const r of results) {
+      const status = r.testStatus ?? 'skip';
+      if (status === 'pass') {
+        summary.passCount++;
+      } else if (status === 'fail') {
+        summary.failCount++;
+      } else if (status === 'error') {
+        summary.errorCount++;
+      } else {
+        summary.skipCount++;
+      }
+    }
+    return summary;
   }
   
   private getBaseUrlFromIndexUrl(indexUrl: string): string {
