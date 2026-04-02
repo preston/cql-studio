@@ -1,10 +1,5 @@
 // Author: Preston Lee
 
-.table-responsive {
-  max-height: 600px;
-  overflow-y: auto;
-}
-
 .table th {
   background-color: #f8f9fa;
   border-top: none;
@@ -68,24 +63,4 @@ canvas {
 .btn:hover {
   transform: translateY(-1px);
   transition: transform 0.2s ease-in-out;
-}
-
-// Custom scrollbar for table
-.table-responsive::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.table-responsive::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
 }
