@@ -350,89 +350,91 @@ export class DashboardComponent implements OnInit {
   private route = inject(ActivatedRoute);
   
   ngOnInit(): void {
-    // Check if there's an index query parameter and no session storage data
     const indexParam = this.route.snapshot.queryParams['index'];
-    const hasSessionData = sessionStorage.getItem(SessionStorageKeys.INDEX_URL) && 
-                          sessionStorage.getItem(SessionStorageKeys.INDEX_FILES);
-    
-    if (indexParam && !hasSessionData) {
-      // If there's an index parameter but no session data, load the index file directly
+    const hasIndexUrlInSession = !!sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
+
+    if (indexParam && !hasIndexUrlInSession) {
       this.loadIndexFileDirectly(indexParam);
       return;
     }
-    
+
     this.loadDashboardData();
   }
   
   async loadDashboardData(): Promise<void> {
     this.isLoading.set(true);
     this.errorMessage.set('');
-    
+
     try {
       const indexUrl = sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
-      const indexFilesStr = sessionStorage.getItem(SessionStorageKeys.INDEX_FILES);
-      
-      if (!indexUrl || !indexFilesStr) {
+      if (!indexUrl) {
         throw new Error('No index data found. Please load an index file first.');
       }
-      
-      const indexFiles: string[] = JSON.parse(indexFilesStr);
-      const baseUrl = this.getBaseUrlFromIndexUrl(indexUrl);
-      
-      // Load all files
-      const dataPromises = indexFiles.map(filename => this.loadFileData(baseUrl, filename));
-      const results = await Promise.allSettled(dataPromises);
-      
-      const dashboardData: DashboardData[] = [];
-      
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled' && result.value) {
-          dashboardData.push(result.value);
-        } else {
-          console.warn(`Failed to load ${indexFiles[index]}:`, result.status === 'rejected' ? result.reason : 'Unknown error');
-        }
-      });
-      
-      if (dashboardData.length === 0) {
-        throw new Error('No valid test result files could be loaded.');
-      }
-      
-      this.dashboardData.set(dashboardData);
-      this.selectedFiles.set(indexFiles);
+      const indexFiles = await this.fetchIndexFilesList(indexUrl);
+      await this.applyIndexFilesToDashboard(indexUrl, indexFiles);
     } catch (error) {
       this.errorMessage.set((error as Error).message);
     } finally {
       this.isLoading.set(false);
     }
   }
-  
+
+  private async fetchIndexFilesList(indexUrl: string): Promise<string[]> {
+    const indexResponse = await fetch(indexUrl);
+    if (!indexResponse.ok) {
+      throw new Error(`Failed to load index file: ${indexResponse.statusText}`);
+    }
+    const indexData = await indexResponse.json();
+    if (!indexData.files || !Array.isArray(indexData.files)) {
+      throw new Error('Invalid index file format: missing or invalid files array');
+    }
+    return indexData.files;
+  }
+
+  private async applyIndexFilesToDashboard(indexUrl: string, indexFiles: string[]): Promise<void> {
+    const baseUrl = this.getBaseUrlFromIndexUrl(indexUrl);
+
+    const dataPromises = indexFiles.map(filename => this.loadFileData(baseUrl, filename));
+    const results = await Promise.allSettled(dataPromises);
+
+    const dashboardData: DashboardData[] = [];
+
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value) {
+        dashboardData.push(result.value);
+      } else {
+        console.warn(`Failed to load ${indexFiles[index]}:`, result.status === 'rejected' ? result.reason : 'Unknown error');
+      }
+    });
+
+    if (dashboardData.length === 0) {
+      throw new Error('No valid test result files could be loaded.');
+    }
+
+    this.dashboardData.set(dashboardData);
+    this.selectedFiles.set(indexFiles);
+  }
+
   private async loadIndexFileDirectly(indexUrl: string): Promise<void> {
     this.isLoading.set(true);
     this.errorMessage.set('');
-    
+
     try {
-      // Decode the URL in case it's URL-encoded
       const decodedUrl = decodeURIComponent(indexUrl);
-      
-      // Load the index file
+
       const response = await fetch(decodedUrl);
       if (!response.ok) {
         throw new Error(`Failed to load index file: ${response.statusText}`);
       }
-      
+
       const indexData = await response.json();
-      
+
       if (!indexData.files || !Array.isArray(indexData.files)) {
         throw new Error('Invalid index file format: missing or invalid files array');
       }
-      
-      // Store the index data in session storage
+
       sessionStorage.setItem(SessionStorageKeys.INDEX_URL, decodedUrl);
-      sessionStorage.setItem(SessionStorageKeys.INDEX_FILES, JSON.stringify(indexData.files));
-      
-      // Now load the dashboard data
-      await this.loadDashboardData();
-      
+      await this.applyIndexFilesToDashboard(decodedUrl, indexData.files);
     } catch (error) {
       this.errorMessage.set(`Failed to load index file: ${(error as Error).message}`);
     } finally {

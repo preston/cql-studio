@@ -10,7 +10,6 @@ export class SessionStorageKeys {
   public static readonly VALIDATION_ERRORS = 'validationErrors';
   public static readonly ORIGINAL_FILENAME = 'originalFilename';
   public static readonly INDEX_URL = 'indexUrl';
-  public static readonly INDEX_FILES = 'indexFiles';
   public static readonly CURRENT_FILE_URL = 'currentFileUrl';
 
   /** JSON array of { testsName, groupName, testName } to prefill runner Tests.OnlyList */

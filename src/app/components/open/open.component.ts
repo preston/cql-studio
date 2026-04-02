@@ -101,9 +101,7 @@ export class OpenComponent implements OnInit {
   }
 
   onOpenDashboard(): void {
-    // Store the index URL and files for the dashboard
     sessionStorage.setItem(SessionStorageKeys.INDEX_URL, this.indexUrl());
-    sessionStorage.setItem(SessionStorageKeys.INDEX_FILES, JSON.stringify(this.indexFiles()));
     
     // Navigate to dashboard with index query parameter preserved
     const queryParams: any = {};

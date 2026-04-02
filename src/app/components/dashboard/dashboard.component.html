@@ -394,7 +394,7 @@
                             <!-- Sort Order, Clear & Download -->
                             <div class="col-md-1">
                                 <div class="d-flex flex-column gap-2">
-                                    <button id="matrix-sort-order-btn" class="btn btn-outline-secondary" 
+                                    <button id="matrix-sort-order-btn" class="btn btn-outline-secondary btn-sm" 
                                             (click)="onMatrixSortOrderChange()" 
                                             title="Toggle sort order">
                                         <i class="bi" [class.bi-sort-alpha-down]="matrixSortOrder() === 'asc'"
@@ -403,7 +403,7 @@
                                     <button id="clear-matrix-filters-btn" class="btn btn-outline-danger btn-sm" 
                                             (click)="clearMatrixFilters()" 
                                             title="Clear all filters">
-                                        <i class="bi bi-x-circle"></i>
+                                        <i class="bi bi-x-circle"></i> Reset Filters
                                     </button>
                                 </div>
                             </div>

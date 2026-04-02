@@ -21,7 +21,6 @@ test.describe('Dashboard Tests', () => {
       // Set up session storage for dashboard
       await helpers.page.evaluate((indexUrl) => {
         sessionStorage.setItem('indexUrl', indexUrl);
-        sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
       }, ExamplePaths.INDEX_JSON);
       
       // Navigate to dashboard
@@ -41,7 +40,6 @@ test.describe('Dashboard Tests', () => {
       // Set up session storage for dashboard
       await helpers.page.evaluate((indexUrl) => {
         sessionStorage.setItem('indexUrl', indexUrl);
-        sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
       }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
@@ -75,7 +73,6 @@ test.describe('Dashboard Tests', () => {
       // Set up session storage for dashboard
       await helpers.page.evaluate((indexUrl) => {
         sessionStorage.setItem('indexUrl', indexUrl);
-        sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
       }, ExamplePaths.INDEX_JSON);
       
       // Navigate to dashboard and wait for loading state
@@ -108,7 +105,6 @@ test.describe('Dashboard Tests', () => {
       // Set up session storage for dashboard
       await helpers.page.evaluate((indexUrl) => {
         sessionStorage.setItem('indexUrl', indexUrl);
-        sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
       }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
@@ -181,7 +177,6 @@ test.describe('Dashboard Tests', () => {
       // Set up session storage for dashboard
       await helpers.page.evaluate((indexUrl) => {
         sessionStorage.setItem('indexUrl', indexUrl);
-        sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
       }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
@@ -311,7 +306,6 @@ test.describe('Dashboard Tests', () => {
       // Set up session storage for dashboard
       await helpers.page.evaluate((indexUrl) => {
         sessionStorage.setItem('indexUrl', indexUrl);
-        sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
       }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
@@ -380,7 +374,6 @@ test.describe('Dashboard Tests', () => {
       // Set up session storage for dashboard
       await helpers.page.evaluate((indexUrl) => {
         sessionStorage.setItem('indexUrl', indexUrl);
-        sessionStorage.setItem('indexFiles', JSON.stringify(['results.json']));
       }, ExamplePaths.INDEX_JSON);
       
       await helpers.goToDashboard();
