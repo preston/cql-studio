@@ -47,7 +47,8 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     },
     Tests: {
       ResultsPath: './results',
-      SkipList: []
+      SkipList: [],
+      OnlyList: []
     }
   });
   
@@ -288,7 +289,8 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       Tests: {
         ResultsPath: './results',
-        SkipList: []
+        SkipList: [],
+        OnlyList: []
       }
     });
     this.currentJob.set(null);
@@ -334,9 +336,10 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.codeMirrorEditor) {
       try {
         const content = this.codeMirrorEditor.state.doc.toString();
-        const parsed = JSON.parse(content);
-        this.config.set(parsed);
-        this.jsonConfig.set(content);
+        const parsed = JSON.parse(content) as CQLTestConfiguration;
+        const normalized = this.normalizeLoadedConfiguration(parsed);
+        this.config.set(normalized);
+        this.jsonConfig.set(JSON.stringify(normalized, null, 2));
         this.error.set(null);
       } catch (error) {
         this.error.set('Invalid JSON format');
@@ -465,9 +468,10 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
         const validation = await firstValueFrom(this.runnerService.validateConfiguration(configData));
         
         if (validation.valid) {
-          // Load configuration into editor and update config signal
-          this.config.set(configData);
-          this.jsonConfig.set(fileContent);
+          const normalized = this.normalizeLoadedConfiguration(configData);
+          this.config.set(normalized);
+          const normalizedJson = JSON.stringify(normalized, null, 2);
+          this.jsonConfig.set(normalizedJson);
           this.error.set(null);
           
           // Update CodeMirror editor if it exists
@@ -665,6 +669,47 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  protected addOnlyListItem(): void {
+    const currentConfig = this.config();
+    const newItem = { testsName: '', groupName: '', testName: '' };
+    this.config.set({
+      ...currentConfig,
+      Tests: {
+        ...currentConfig.Tests,
+        OnlyList: [...currentConfig.Tests.OnlyList, newItem]
+      }
+    });
+  }
+
+  protected removeOnlyListItem(index: number): void {
+    const currentConfig = this.config();
+    const next = currentConfig.Tests.OnlyList.filter((_, i) => i !== index);
+    this.config.set({
+      ...currentConfig,
+      Tests: {
+        ...currentConfig.Tests,
+        OnlyList: next
+      }
+    });
+  }
+
+  /**
+   * Ensures optional Tests.OnlyList and required SkipList are arrays after loading JSON.
+   */
+  private normalizeLoadedConfiguration(data: CQLTestConfiguration): CQLTestConfiguration {
+    if (!data.Tests) {
+      return data;
+    }
+    return {
+      ...data,
+      Tests: {
+        ...data.Tests,
+        SkipList: Array.isArray(data.Tests.SkipList) ? data.Tests.SkipList : [],
+        OnlyList: Array.isArray(data.Tests.OnlyList) ? data.Tests.OnlyList : []
+      }
+    };
+  }
+
   protected getStatusBadgeClass(status: string): string {
     switch (status) {
       case 'pending':
@@ -804,7 +849,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
       
       // Validate that the loaded data is a valid CQL test configuration
       if (this.isValidConfiguration(data)) {
-        this.config.set(data as CQLTestConfiguration);
+        this.config.set(this.normalizeLoadedConfiguration(data as CQLTestConfiguration));
         this.updateJsonConfig();
         this.error.set(null);
         this.updateUrlWithPreservedParams();
@@ -831,7 +876,8 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
         typeof data.Debug.QuickTest === 'boolean' &&
         data.Tests &&
         typeof data.Tests.ResultsPath === 'string' &&
-        Array.isArray(data.Tests.SkipList);
+        Array.isArray(data.Tests.SkipList) &&
+        (!('OnlyList' in data.Tests) || Array.isArray(data.Tests.OnlyList));
     } catch (error) {
       return false;
     }

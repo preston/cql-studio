@@ -3,8 +3,17 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
+
+/** Suite / group / test identity used by SkipList and OnlyList in the runner schema. */
+export interface CqlTestTargetRef {
+  testsName: string;
+  groupName: string;
+  testName: string;
+}
+
+export type CqlTestSkipListItem = CqlTestTargetRef & { reason: string };
 
 export interface CQLTestConfiguration {
   FhirServer: {
@@ -27,12 +36,8 @@ export interface CQLTestConfiguration {
   };
   Tests: {
     ResultsPath: string;
-    SkipList: Array<{
-      testsName: string;
-      groupName: string;
-      testName: string;
-      reason: string;
-    }>;
+    SkipList: CqlTestSkipListItem[];
+    OnlyList: CqlTestTargetRef[];
   };
 }
 
@@ -166,7 +171,8 @@ export class RunnerService {
       },
       Tests: {
         ResultsPath: './results',
-        SkipList: []
+        SkipList: [],
+        OnlyList: []
       }
     };
   }

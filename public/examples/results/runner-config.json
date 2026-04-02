@@ -18,6 +18,7 @@
   },
   "Tests": {
     "ResultsPath": "./results",
+    "OnlyList": [],
     "SkipList": [
       {
         "testsName": "Example Test Suite",

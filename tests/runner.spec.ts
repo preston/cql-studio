@@ -84,6 +84,18 @@ test.describe('Runner Tests', () => {
       await expect(helpers.page.locator('#add-skip-item-btn')).toBeVisible();
     });
 
+    test('should display only list configuration', async () => {
+      await expect(helpers.page.locator('#only-list-heading')).toBeVisible();
+      await expect(helpers.page.locator('#add-only-list-item-btn')).toBeVisible();
+    });
+
+    test('should add only list item', async () => {
+      await helpers.page.click('#add-only-list-item-btn');
+      await expect(helpers.page.locator('#only-testsName-0')).toBeVisible();
+      await expect(helpers.page.locator('#only-groupName-0')).toBeVisible();
+      await expect(helpers.page.locator('#only-testName-0')).toBeVisible();
+    });
+
     test('should add skip list item', async () => {
       // Click add skip item button
       await helpers.page.click('#add-skip-item-btn');

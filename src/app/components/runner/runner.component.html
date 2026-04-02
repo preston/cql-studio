@@ -191,11 +191,11 @@
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <h5 class="card-title mb-0">
-                <i class="bi bi-skip-backward me-2"></i>Skip List
+                <i class="bi bi-skip-backward me-2"></i>Blacklist ("Skip List")
               </h5>
               <button id="add-skip-item-btn" type="button" class="btn btn-sm btn-outline-primary"
                 (click)="addSkipItem()">
-                <i class="bi bi-plus me-1"></i>Add Skip Item
+                <i class="bi bi-plus me-1"></i>Add Blacklisted Test
               </button>
             </div>
             <div class="card-body">
@@ -247,6 +247,75 @@
                       <td>
                         <button id="remove-skip-item-btn-{{ $index }}" type="button"
                           class="btn btn-sm btn-outline-danger" (click)="removeSkipItem($index)">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Only List (whitelist) -->
+        <div class="col-12 mb-4">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="card-title mb-0" id="only-list-heading">
+                <i class="bi bi-funnel me-2"></i>Whitelist ("Only List")
+              </h5>
+              <button id="add-only-list-item-btn" type="button" class="btn btn-sm btn-outline-primary"
+                (click)="addOnlyListItem()">
+                <i class="bi bi-plus me-1"></i>Add Whitelisted Test
+              </button>
+            </div>
+            <div class="card-body">
+              <p class="form-text text-muted mb-3">
+                When this list is non-empty, only those tests run; all others are skipped. An empty list means no whitelist (all tests may run, subject to Skip List and other settings). Entries in Skip List still skip tests even if they appear here.
+              </p>
+              @if (config().Tests.OnlyList.length === 0) {
+              <p class="text-muted mb-0">No only-list items configured.</p>
+              } @else {
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Tests Name</th>
+                      <th>Group Name</th>
+                      <th>Test Name</th>
+                      <th width="100">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of config().Tests.OnlyList; track $index) {
+                    <tr>
+                      <td>
+                        <div class="form-floating">
+                          <input type="text" class="form-control form-control-sm" id="only-testsName-{{ $index }}"
+                            [(ngModel)]="item.testsName" placeholder="Test suite name">
+                          <label for="only-testsName-{{ $index }}">Test Suite</label>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="form-floating">
+                          <input type="text" class="form-control form-control-sm" id="only-groupName-{{ $index }}"
+                            [(ngModel)]="item.groupName" placeholder="Group name">
+                          <label for="only-groupName-{{ $index }}">Group</label>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="form-floating">
+                          <input type="text" class="form-control form-control-sm" id="only-testName-{{ $index }}"
+                            [(ngModel)]="item.testName" placeholder="Test name">
+                          <label for="only-testName-{{ $index }}">Test</label>
+                        </div>
+                      </td>
+                      <td>
+                        <button id="remove-only-list-item-btn-{{ $index }}" type="button"
+                          class="btn btn-sm btn-outline-danger" (click)="removeOnlyListItem($index)">
                           <i class="bi bi-trash"></i>
                         </button>
                       </td>
