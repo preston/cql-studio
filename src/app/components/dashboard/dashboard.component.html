@@ -92,12 +92,13 @@
                                             (click)="onDeselectAllFiles()">Deselect All</button>
                                     </div>
                                     @for (item of dashboardData(); track item.filename) {
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" [id]="'file-' + item.filename"
+                                        <div class="form-check align-items-start">
+                                            <input class="form-check-input mt-1" type="checkbox" [id]="'file-' + item.filename"
                                                 [checked]="selectedFiles().includes(item.filename)"
                                                 (change)="onFileSelectionChange(item.filename, $event.target.checked)">
                                             <label class="form-check-label" [for]="'file-' + item.filename">
-                                                {{ item.filename }}
+                                                <span class="d-block fw-medium">{{ item.engine }}</span>
+                                                <small class="text-muted d-block text-break">{{ item.filename }}</small>
                                             </label>
                                         </div>
                                     }
