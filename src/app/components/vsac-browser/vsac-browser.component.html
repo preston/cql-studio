@@ -517,7 +517,7 @@
       </div>
       @if (expandedValueSet()) {
       <div class="card">
-        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="card-header">
           <span id="vsac-expand-summary">
             @if (expansionPageInfo().summary) {
             {{ expansionPageInfo().summary }}
@@ -525,8 +525,6 @@
             Expansion ({{ expansionRows().length }} codes this page)
             }
           </span>
-          <button type="button" class="btn btn-sm btn-success" (click)="importLoadedValueSetToTerminology()"
-            [disabled]="loading() || terminologyImportWarning()">Import to terminology</button>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
