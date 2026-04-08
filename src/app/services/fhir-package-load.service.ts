@@ -71,7 +71,7 @@ export class FhirPackageLoadService {
         index = null;
       }
     }
-    const rawRows = this.metadata.buildIndexedRows(index, files);
+    const rawRows = this.metadata.buildIndexedRows(index, files, pkgJson);
     const rows = this.scopeRowsForPackage(scope, rawRows);
     return { files, pkgJson, packageName, summary, rows };
   }

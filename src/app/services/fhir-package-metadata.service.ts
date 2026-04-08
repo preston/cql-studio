@@ -12,8 +12,15 @@ import {
   SuggestedImportTarget
 } from '../models/fhir-package-view.model';
 import { resolvePackageArchiveKey } from './fhir-package-archive-path.lib';
+import {
+  archivePathPrefixesForExampleDirectories,
+  filenameIsUnderExamplePrefixes
+} from './fhir-package-directories.lib';
 
 const TERMINOLOGY_TYPES = new Set(['CodeSystem', 'ValueSet', 'ConceptMap', 'NamingSystem']);
+
+/** SearchParameter.base values that are not concrete REST types; HAPI rejects them on write (HAPI-1684). */
+const ABSTRACT_SP_BASE_TYPES = new Set(['Resource', 'DomainResource']);
 
 @Injectable({
   providedIn: 'root'
@@ -45,20 +52,23 @@ export class FhirPackageMetadataService {
       specUrl: pkg.url ?? '',
       license: pkg.license != null ? String(pkg.license) : '',
       author: pkg.author != null ? String(pkg.author) : '',
-      date: pkg.date ?? ''
+      date: pkg.date ?? '',
+      exampleDirectoryPrefixes: archivePathPrefixesForExampleDirectories(pkg)
     };
   }
 
   buildIndexedRows(
     index: FhirPackageIndexJson | null,
-    filesInArchive: Map<string, Uint8Array>
+    filesInArchive: Map<string, Uint8Array>,
+    pkg: FhirPackageJson
   ): IndexedResourceRowVm[] {
+    const examplePrefixes = archivePathPrefixesForExampleDirectories(pkg);
     const rows: IndexedResourceRowVm[] = [];
     const seen = new Set<string>();
 
     if (index?.files?.length) {
       for (const f of index.files) {
-        const row = this.fileToRow(f, filesInArchive);
+        const row = this.fileToRow(f, filesInArchive, examplePrefixes);
         if (row) {
           rows.push(row);
           seen.add(row.filename);
@@ -77,13 +87,34 @@ export class FhirPackageMetadataService {
         continue;
       }
       const synthetic: FhirPackageIndexFile = { filename: path };
-      const row = this.fileToRow(synthetic, filesInArchive);
+      const row = this.fileToRow(synthetic, filesInArchive, examplePrefixes);
       if (row) {
         rows.push(row);
       }
     }
 
     return rows.sort((a, b) => a.filename.localeCompare(b.filename));
+  }
+
+  private searchParameterHasAbstractBaseType(path: string, files: Map<string, Uint8Array>): boolean {
+    const key = resolvePackageArchiveKey(path, files) ?? path;
+    const raw = files.get(key);
+    if (!raw) {
+      return false;
+    }
+    try {
+      const text = new TextDecoder('utf-8', { fatal: false }).decode(raw);
+      if (!text.trimStart().startsWith('{')) {
+        return false;
+      }
+      const obj = JSON.parse(text) as { resourceType?: string; base?: string[] };
+      if (obj.resourceType !== 'SearchParameter' || !Array.isArray(obj.base)) {
+        return false;
+      }
+      return obj.base.some((b) => typeof b === 'string' && ABSTRACT_SP_BASE_TYPES.has(b));
+    } catch {
+      return false;
+    }
   }
 
   private inferResourceType(path: string, files: Map<string, Uint8Array>): string {
@@ -104,7 +135,11 @@ export class FhirPackageMetadataService {
     }
   }
 
-  private fileToRow(f: FhirPackageIndexFile, files: Map<string, Uint8Array>): IndexedResourceRowVm | null {
+  private fileToRow(
+    f: FhirPackageIndexFile,
+    files: Map<string, Uint8Array>,
+    examplePrefixes: string[]
+  ): IndexedResourceRowVm | null {
     const nameFromIndex = (f.filename ?? '').trim();
     if (!nameFromIndex) {
       return null;
@@ -119,7 +154,10 @@ export class FhirPackageMetadataService {
     if (fromFile === 'CapabilityStatement') {
       rt = 'CapabilityStatement';
     }
-    const isExample = filename.includes('/examples/') || filename.includes('\\examples\\');
+    const isExample = filenameIsUnderExamplePrefixes(filename, examplePrefixes);
+    const bundleType = fromFile === 'Bundle' ? this.parseBundleTypeField(filename, files) : undefined;
+    const spAbstractBase =
+      fromFile === 'SearchParameter' && this.searchParameterHasAbstractBaseType(filename, files);
     const suggested = this.suggestTarget(rt);
     return {
       rowKey: filename,
@@ -135,25 +173,50 @@ export class FhirPackageMetadataService {
       targetTerminology: suggested === 'terminology',
       targetData: suggested === 'data',
       category: this.categoryFor(rt, f.kind, f.type),
-      importNote: this.importNoteFor(rt, suggested, isExample),
-      selected: this.rowSelectedByDefault(isExample, rt, fromFile)
+      importNote: this.importNoteFor(rt, suggested, isExample, bundleType, spAbstractBase),
+      selected: this.rowSelectedByDefault(isExample, rt, fromFile, bundleType, spAbstractBase)
     };
   }
 
+  private parseBundleTypeField(path: string, files: Map<string, Uint8Array>): string | undefined {
+    const raw = files.get(path);
+    if (!raw) {
+      return undefined;
+    }
+    try {
+      const text = new TextDecoder('utf-8', { fatal: false }).decode(raw);
+      if (!text.trimStart().startsWith('{')) {
+        return undefined;
+      }
+      const obj = JSON.parse(text) as { resourceType?: string; type?: string };
+      if (obj.resourceType !== 'Bundle') {
+        return undefined;
+      }
+      return typeof obj.type === 'string' ? obj.type : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   /**
-   * Default-off for examples, CapabilityStatement, unknown/inferred-missing types, and when the index
-   * says `Unknown` but the file parsed as something else.
+   * Default-off for examples, CapabilityStatement, ImplementationGuide, unknown/inferred-missing types, and
+   * searchset Bundles (not persistable; often referenced by IGs).
    */
   private rowSelectedByDefault(
     isExample: boolean,
     resourceType: string,
-    inferredFromFile: string
+    inferredFromFile: string,
+    bundleType: string | undefined,
+    searchParameterAbstractBase: boolean
   ): boolean {
     return !(
       isExample ||
       inferredFromFile === 'Unknown' ||
       resourceType === 'Unknown' ||
-      resourceType === 'CapabilityStatement'
+      resourceType === 'CapabilityStatement' ||
+      resourceType === 'ImplementationGuide' ||
+      bundleType === 'searchset' ||
+      searchParameterAbstractBase
     );
   }
 
@@ -199,19 +262,30 @@ export class FhirPackageMetadataService {
   private importNoteFor(
     resourceType: string,
     target: SuggestedImportTarget,
-    isExample: boolean
+    isExample: boolean,
+    bundleType: string | undefined,
+    searchParameterAbstractBase: boolean
   ): string {
+    if (resourceType === 'Bundle' && bundleType === 'searchset') {
+      return 'FHIR search result bundle (searchset); not a storable instance on most servers (HAPI-0522). US Core lists these under the IG; skip import.';
+    }
     if (isExample) {
-      return 'Example instance; optional for validation/testing.';
+      return 'Example instance (paths under package.json directories.example / directories.examples); optional for testing.';
     }
     if (target === 'terminology') {
       return 'Typical terminology server artifact (expand/validate).';
     }
-    if (resourceType === 'StructureDefinition' || resourceType === 'ImplementationGuide') {
-      return 'Conformance resource; requires a FHIR server that stores profiles/IGs.';
+    if (resourceType === 'ImplementationGuide') {
+      return 'References many `definition.resource` entries, often example Bundles (`searchset`) that cannot be persisted. Importing this alone commonly fails with HAPI-1094 (missing referenced Bundle). Prefer profiles and ValueSets; omit this row for typical validation imports.';
+    }
+    if (resourceType === 'StructureDefinition') {
+      return 'Conformance resource; requires a FHIR server that stores profiles.';
     }
     if (resourceType === 'CapabilityStatement') {
       return 'Server capability metadata; off by default—enable only if your FHIR server should store it.';
+    }
+    if (resourceType === 'SearchParameter' && searchParameterAbstractBase) {
+      return 'SearchParameter targets abstract base type(s) (Resource, DomainResource); HAPI rejects these on write (HAPI-1684). Off by default.';
     }
     if (resourceType === 'Unknown') {
       return 'Could not infer type; confirm before import.';

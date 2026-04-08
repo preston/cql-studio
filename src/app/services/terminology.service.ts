@@ -7,6 +7,8 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
+import { normalizeBundleForBasePost } from './fhir-bundle-transaction.lib';
+import { normalizeFhirBaseUrlForBundlePost } from './fhir-server-base.lib';
 
 @Injectable({
   providedIn: 'root'
@@ -564,63 +566,15 @@ export class TerminologyService extends BaseService {
 
   /**
    * POST a Bundle to the terminology server root.
-   * `Bundle.type` `collection` is converted to `transaction` with `entry.request`
-   * (`PUT {type}/{id}` or `POST {type}`) so HAPI and similar servers accept the request
-   * (e.g. HAPI-0527 rejects incoming `collection` at the base URL).
+   * `Bundle.type` `collection` is normalized via `normalizeBundleForBasePost` (same as FHIR data client).
    */
   postBundle(bundle: Bundle<Resource> | string): Observable<Bundle<Resource>> {
-    const url = `${this.getTerminologyBaseUrl()}`;
+    const url = normalizeFhirBaseUrlForBundlePost(this.getTerminologyBaseUrl());
     const payload: object | string =
-      typeof bundle === 'string'
-        ? bundle
-        : bundle.type === 'collection'
-          ? this.collectionBundleToTransaction(bundle)
-          : bundle;
+      typeof bundle === 'string' ? bundle : normalizeBundleForBasePost(bundle);
     return this.http.post<Bundle<Resource>>(url, payload, {
       headers: this.getAuthHeaders().set('Content-Type', 'application/fhir+json')
     });
-  }
-
-  /**
-   * Map a collection entry to a transaction entry when `request` is absent.
-   */
-  private collectionEntryToTransactionEntry(
-    e: NonNullable<Bundle<Resource>['entry']>[number]
-  ): NonNullable<Bundle<Resource>['entry']>[number] {
-    if (e.request) {
-      return e;
-    }
-    const res = e.resource;
-    if (!res?.resourceType) {
-      return e;
-    }
-    const rt = res.resourceType;
-    const rid = typeof (res as { id?: string }).id === 'string' ? (res as { id: string }).id.trim() : '';
-    if (rid) {
-      return {
-        ...e,
-        request: {
-          method: 'PUT' as const,
-          url: `${rt}/${encodeURIComponent(rid)}`
-        }
-      };
-    }
-    return {
-      ...e,
-      request: {
-        method: 'POST' as const,
-        url: rt
-      }
-    };
-  }
-
-  private collectionBundleToTransaction(bundle: Bundle<Resource>): Bundle<Resource> {
-    const entries = bundle.entry ?? [];
-    return {
-      ...bundle,
-      type: 'transaction',
-      entry: entries.map((entry) => this.collectionEntryToTransactionEntry(entry))
-    };
   }
 
   /**

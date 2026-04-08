@@ -26,6 +26,23 @@ export interface FhirNpmPackageManifest {
   >;
 }
 
+/**
+ * NPM `directories` field (see npm docs). Paths are relative to the folder that contains `package.json`
+ * (the `package/` root inside the `.tgz`). Example artifacts use `example` and/or `examples`.
+ */
+export interface FhirPackageJsonDirectories {
+  lib?: string;
+  bin?: string;
+  man?: string;
+  doc?: string;
+  /** Primary key for example scripts / instances (npm). */
+  example?: string;
+  /** Some packages use this key for example content. */
+  examples?: string;
+  test?: string;
+  [key: string]: string | undefined;
+}
+
 /** FHIR package.json inside the tarball (NPM + FHIR fields). */
 export interface FhirPackageJson {
   name?: string;
@@ -37,6 +54,8 @@ export interface FhirPackageJson {
   fhirVersions?: string[];
   'fhir-version-list'?: string[];
   dependencies?: Record<string, string>;
+  /** Declares where example content lives; used instead of path heuristics. */
+  directories?: FhirPackageJsonDirectories;
   jurisdiction?: string;
   url?: string;
   license?: string;

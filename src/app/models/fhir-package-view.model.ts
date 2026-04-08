@@ -17,6 +17,11 @@ export interface PackageSummaryVm {
   license: string;
   author: string;
   date: string;
+  /**
+   * Normalized archive prefixes (e.g. `package/example/`) derived from `package.json` `directories`
+   * (`example`, `examples`). Empty if none declared — no files are marked as examples.
+   */
+  exampleDirectoryPrefixes: string[];
 }
 
 export interface IndexedResourceRowVm {

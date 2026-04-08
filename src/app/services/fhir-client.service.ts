@@ -6,6 +6,8 @@ import { Observable } from 'rxjs';
 import { Bundle, Resource } from 'fhir/r4';
 import { BaseService } from './base.service';
 import { SettingsService } from './settings.service';
+import { normalizeBundleForBasePost } from './fhir-bundle-transaction.lib';
+import { normalizeFhirBaseUrlForBundlePost } from './fhir-server-base.lib';
 
 export type FhirHttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -47,15 +49,20 @@ export class FhirClientService extends BaseService {
     });
   }
 
-  /** POST a Bundle to the FHIR server base URL (same pattern as FHIR Uploader). */
+  /**
+   * POST a Bundle to the FHIR server base URL.
+   * `Bundle.type` `collection` is normalized to `transaction` with `entry.request`
+   * so HAPI and similar servers accept the request (`normalizeBundleForBasePost`).
+   */
   postBundle(bundle: Bundle<Resource>): Observable<Bundle<Resource>> {
-    const baseUrl = this.getBaseUrl();
+    const baseUrl = normalizeFhirBaseUrlForBundlePost(this.getBaseUrl());
     if (!baseUrl) {
       return new Observable((subscriber) => {
         subscriber.error(new Error('FHIR base URL is not configured'));
       });
     }
-    return this.http.post<Bundle<Resource>>(baseUrl, bundle, {
+    const payload = normalizeBundleForBasePost(bundle);
+    return this.http.post<Bundle<Resource>>(baseUrl, payload, {
       headers: this.fhirJsonHeaders()
     });
   }

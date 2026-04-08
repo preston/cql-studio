@@ -27,7 +27,7 @@ import {
 } from '../../models/fhir-package-import.types';
 import { packageInstanceKey } from '../../services/fhir-package-dependency-resolver.lib';
 
-type QuickFilter = 'all' | 'terminology' | 'conformance';
+type QuickFilter = 'all' | 'terminology' | 'conformance' | 'examples';
 
 const LOAD_STATUS_LABEL: Record<PackageLoadStatus, string> = {
   pending: 'Not loaded',
@@ -171,8 +171,19 @@ export class FhirRegistryImporterComponent {
       rows = rows.filter((r) => r.suggestedTarget === 'terminology');
     } else if (q === 'conformance') {
       rows = rows.filter((r) => r.suggestedTarget === 'data');
+    } else if (q === 'examples') {
+      rows = rows.filter((r) => r.isExample);
     }
     return rows;
+  });
+
+  /** Rows flagged as examples via package.json `directories` (for counts and toolbar). */
+  protected readonly activePackageExampleRows = computed(() => {
+    const st = this.activePackage();
+    if (!st) {
+      return [];
+    }
+    return st.rows.filter((r) => r.isExample);
   });
 
   protected readonly resourceTypeCounts = computed(() =>
@@ -215,6 +226,19 @@ export class FhirRegistryImporterComponent {
   );
 
   protected readonly planTotalCount = computed(() => this.planList().length);
+
+  /** True when every package with Import enabled has its tarball loaded (required before Import selected). */
+  protected readonly includedPackagesPreloaded = computed(() => {
+    for (const p of this.planList()) {
+      if (!p.includePackage) {
+        continue;
+      }
+      if (p.loadStatus !== 'loaded') {
+        return false;
+      }
+    }
+    return true;
+  });
 
   getEffectiveRegistryBase(): string {
     return this.settingsService.getEffectiveFhirPackageRegistryBaseUrl();
@@ -570,6 +594,23 @@ export class FhirRegistryImporterComponent {
     });
   }
 
+  setIncludeAllPackagesForImport(include: boolean): void {
+    const names = this.planList().map((p) => p.name);
+    if (names.length === 0) {
+      return;
+    }
+    this.packagesByName.update((m) => {
+      const n = new Map(m);
+      for (const name of names) {
+        const cur = n.get(name);
+        if (cur) {
+          n.set(name, { ...cur, includePackage: include });
+        }
+      }
+      return n;
+    });
+  }
+
   toggleRow(row: IndexedResourceRowVm): void {
     const name = this.activePackageName();
     if (!name) {
@@ -625,11 +666,17 @@ export class FhirRegistryImporterComponent {
   }
 
   setQuickFilter(f: QuickFilter): void {
+    if (f === 'examples') {
+      this.includeExamples.set(true);
+    }
     this.quickFilter.set(f);
   }
 
   toggleIncludeExamples(on: boolean): void {
     this.includeExamples.set(on);
+    if (!on && this.quickFilter() === 'examples') {
+      this.quickFilter.set('all');
+    }
   }
 
   protected setImportResultOutcomeFilter(value: 'all' | 'errors' | 'success'): void {
@@ -715,6 +762,12 @@ export class FhirRegistryImporterComponent {
     }
   }
 
+  /**
+   * Imports every package in `importOrderNames()` (dependency-first topological order from
+   * {@link FhirPackageDependencyResolverService.resolveTree}) for which Import is on, the tarball is
+   * loaded, and at least one row is selected. Each package uses only its own `rows` / `files` and
+   * per-row terminology vs FHIR data targets; packages are processed sequentially (`await` in order).
+   */
   async importSelected(): Promise<void> {
     const order = this.importOrderNames();
     if (order.length === 0) {

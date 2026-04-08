@@ -5,7 +5,9 @@
   </h1>
   <p class="text-muted small mb-4">
     Search FHIR NPM packages from your configured registry, resolve transitive <code>dependencies</code> from each
-    package's <code>package/package.json</code>, then import selected resources in dependency order.
+    package's <code>package/package.json</code>, then import selected resources in dependency order. Example files are
+    determined from <code>directories.example</code> / <code>directories.examples</code> in that manifest (not from
+    hardcoded folder names).
   </p>
 
   <div class="row g-3 mb-4 align-items-start">
@@ -189,15 +191,28 @@
         }
       </div>
 
+      <ng-container *ngTemplateOutlet="importWorkspaceActions; context: { idSuffix: '-top', edgeClass: 'border-bottom' }" />
+
       <div class="row g-0">
-        <div class="col-lg-4 border-end">
-          <div class="p-3 bg-body-secondary">
+        <div class="col-lg-4 border-end align-self-lg-start">
+          <div id="fhir-registry-importer-import-plan-panel"
+            class="p-3 bg-body-secondary border-bottom shadow-sm"
+            style="position: sticky; top: 0.75rem; z-index: 2">
             <h2 class="h6 mb-2">Import plan</h2>
             <p class="small text-muted mb-2">
               Dependencies import before dependents. Turn off <strong>Import</strong> to skip a package. Open a package
               to load its tarball and configure rows.
             </p>
             @if (planList().length > 0) {
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2" role="group"
+              aria-label="Select or clear import for all packages in the plan">
+              <button id="fhir-registry-importer-plan-include-all" type="button"
+                class="btn btn-sm btn-outline-secondary" (click)="setIncludeAllPackagesForImport(true)">
+Select All              </button>
+              <button id="fhir-registry-importer-plan-exclude-all" type="button"
+                class="btn btn-sm btn-outline-secondary" (click)="setIncludeAllPackagesForImport(false)">
+Select None              </button>
+            </div>
             <ul class="list-group list-group-flush small" id="fhir-registry-importer-package-plan-list">
               @for (st of planList(); track st.name) {
               <li class="list-group-item px-2 py-2" [class.active]="activePackageName() === st.name"
@@ -299,6 +314,20 @@
                 </ul>
               </details>
               }
+              @if (ps.exampleDirectoryPrefixes.length > 0) {
+              <p class="small mb-0 mt-2" id="fhir-registry-importer-example-dirs-from-manifest">
+                <strong>Example directories</strong> (from <code>package.json</code> <code>directories.example</code> /
+                <code>directories.examples</code>):
+                @for (prefix of ps.exampleDirectoryPrefixes; track prefix) {
+                <code class="d-block ms-2">{{ prefix }}</code>
+                }
+              </p>
+              } @else {
+              <p class="small text-muted mb-0 mt-2" id="fhir-registry-importer-no-example-dirs">
+                No <code>directories.example</code> or <code>directories.examples</code> in this package.json — nothing is
+                flagged as an example path.
+              </p>
+              }
             </div>
             }
 
@@ -316,6 +345,23 @@
               }
             </div>
 
+            <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Show or hide example files">
+              <button id="fhir-registry-importer-examples-hide" type="button" class="btn"
+                [class.btn-primary]="!includeExamples()" [class.btn-outline-primary]="includeExamples()"
+                (click)="toggleIncludeExamples(false)">
+                Hide examples
+              </button>
+              <button id="fhir-registry-importer-examples-show" type="button" class="btn"
+                [class.btn-primary]="includeExamples()" [class.btn-outline-primary]="!includeExamples()"
+                (click)="toggleIncludeExamples(true)">
+                Show examples
+              </button>
+            </div>
+            <p class="small text-muted mb-3" id="fhir-registry-importer-example-toolbar-hint">
+              <strong>{{ activePackageExampleRows().length }}</strong> file(s) under declared example
+              directories. Use <em>Hide</em> to remove them from the table; use <em>Show</em> to list and select them.
+            </p>
+
             <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Quick filters">
               <button id="fhir-registry-importer-filter-all" type="button" class="btn"
                 [class.btn-primary]="quickFilter() === 'all'" [class.btn-outline-primary]="quickFilter() !== 'all'"
@@ -332,12 +378,11 @@
                 [class.btn-outline-primary]="quickFilter() !== 'conformance'" (click)="setQuickFilter('conformance')">
                 Conformance / data
               </button>
-            </div>
-
-            <div class="form-check form-switch mb-3">
-              <input id="fhir-registry-importer-include-examples" class="form-check-input" type="checkbox"
-                [ngModel]="includeExamples()" (ngModelChange)="toggleIncludeExamples($event)" />
-              <label class="form-check-label" for="fhir-registry-importer-include-examples">Include example instances</label>
+              <button id="fhir-registry-importer-filter-examples" type="button" class="btn"
+                [class.btn-primary]="quickFilter() === 'examples'"
+                [class.btn-outline-primary]="quickFilter() !== 'examples'" (click)="setQuickFilter('examples')">
+                Examples only
+              </button>
             </div>
 
             <div class="d-flex flex-wrap gap-2 mb-3">
@@ -454,39 +499,9 @@
       </div>
       }
 
-      <div id="fhir-registry-importer-import-actions" class="sticky-bottom border-top bg-body px-3 py-3">
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small text-muted">
-          <span>Included packages:
-            <strong>{{ includedPlanCount() }}</strong> /
-            {{ planTotalCount() }}</span>
-          <span>Selected resources:
-            <strong>{{ selectionSummary().terminology + selectionSummary().data }}</strong> (terminology + data
-            targets)</span>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-          <button id="fhir-registry-importer-resolve-deps-button" type="button" class="btn btn-outline-primary"
-            [disabled]="resolveBusy() || packageLoading() || !rootPackageName()" (click)="resolveDependencyChain()">
-            @if (resolveBusy()) {
-            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-            }
-            Resolve dependency chain
-          </button>
-          <button id="fhir-registry-importer-load-all-button" type="button" class="btn btn-outline-secondary"
-            [disabled]="packageLoading() || planList().length === 0" (click)="loadAllPackagesForImport()">
-            Preload all packages
-          </button>
-          <button id="fhir-registry-importer-import-button" type="button" class="btn btn-success ms-auto"
-            [disabled]="importing() || packageLoading()" (click)="importSelected()">
-            @if (importing()) {
-            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-            }
-            Import selected
-          </button>
-        </div>
-        @if (importProgress()) {
-        <p class="small text-muted mt-2 mb-0" id="fhir-registry-importer-import-progress">{{ importProgress() }}</p>
-        }
-        @if (importResultsRows().length > 0) {
+      <ng-container *ngTemplateOutlet="importWorkspaceActions; context: { idSuffix: '', edgeClass: 'border-top' }" />
+      @if (importResultsRows().length > 0) {
+      <div id="fhir-registry-importer-import-results-section" class="border-top bg-body px-3 pb-3">
         <div id="fhir-registry-importer-import-results" class="mt-3 border rounded">
           <div class="px-3 py-2 border-bottom bg-body-secondary d-flex flex-wrap align-items-center gap-2">
             <span class="small fw-medium">Import results</span>
@@ -607,8 +622,49 @@
           </p>
           }
         </div>
-        }
       </div>
+      }
+
+      <ng-template #importWorkspaceActions let-idSuffix="idSuffix" let-edgeClass="edgeClass">
+        <div [attr.id]="'fhir-registry-importer-import-actions' + idSuffix" class="bg-body px-3 py-3"
+          [ngClass]="edgeClass">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small text-muted">
+            <span>Included packages:
+              <strong>{{ includedPlanCount() }}</strong> /
+              {{ planTotalCount() }}</span>
+            <span>Selected resources:
+              <strong>{{ selectionSummary().terminology + selectionSummary().data }}</strong> (terminology + data
+              targets)</span>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button [attr.id]="'fhir-registry-importer-resolve-deps-button' + idSuffix" type="button"
+              class="btn btn-outline-primary" [disabled]="resolveBusy() || packageLoading() || !rootPackageName()"
+              (click)="resolveDependencyChain()">
+              @if (resolveBusy()) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+              }
+              Resolve dependency chain
+            </button>
+            <button [attr.id]="'fhir-registry-importer-load-all-button' + idSuffix" type="button"
+              class="btn btn-outline-secondary" [disabled]="packageLoading() || planList().length === 0"
+              (click)="loadAllPackagesForImport()">
+              Preload all packages
+            </button>
+            <button [attr.id]="'fhir-registry-importer-import-button' + idSuffix" type="button" class="btn btn-success ms-auto"
+              [disabled]="importing() || packageLoading() || !includedPackagesPreloaded()"
+              [title]="includedPackagesPreloaded() ? '' : 'Load every package that is enabled for import (or use Preload all packages).'"
+              (click)="importSelected()">
+              @if (importing()) {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+              }
+              Import selected
+            </button>
+          </div>
+          @if (importProgress()) {
+          <p class="small text-muted mt-2 mb-0" [attr.id]="'fhir-registry-importer-import-progress' + idSuffix">{{ importProgress() }}</p>
+          }
+        </div>
+      </ng-template>
     </div>
   </div>
   }

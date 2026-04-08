@@ -1,12 +1,26 @@
 // Author: Preston Lee
 
+/**
+ * Registry package import sends one FHIR R4 `transaction` Bundle per server channel (terminology URL,
+ * data URL, or merged when both use the same base). Each entry is `PUT {type}/{id}` when the resource
+ * has a logical id, otherwise `POST {type}` (see `collectionBundleToTransaction`). Purely numeric
+ * logical ids are rewritten before send so HAPI-style servers accept client-assigned ids (HAPI-0960).
+ * FHIR R4 processes
+ * all POSTs before all PUTs in a transaction; resources that reference others in the same bundle may
+ * need ids/`fullUrl` patterns per server behavior (https://www.hl7.org/fhir/R4/http.html#transaction).
+ * SearchParameter resources that list only abstract `base` types (e.g. DomainResource) are skipped because
+ * HAPI validates those codes and throws HAPI-1684 (see hl7.fhir.r4.core SearchParameter-DomainResource-text.json).
+ */
+
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
-import { Bundle, OperationOutcome, Resource } from 'fhir/r4';
+import { Bundle, OperationOutcome, Resource, SearchParameter } from 'fhir/r4';
 import { FhirPackageImportItemOutcome } from '../models/fhir-package-import.types';
 import { IndexedResourceRowVm } from '../models/fhir-package-view.model';
 import { resolvePackageArchiveKey } from './fhir-package-archive-path.lib';
+import { collectionBundleToTransaction } from './fhir-bundle-transaction.lib';
+import { cloneResourcesWithHapiSafeClientIds } from './fhir-hapi-client-id.lib';
 import { TerminologyService } from './terminology.service';
 import { FhirClientService } from './fhir-client.service';
 import { SettingsService } from './settings.service';
@@ -17,6 +31,28 @@ const TERM_ORDER: Record<string, number> = {
   ValueSet: 2,
   ConceptMap: 3
 };
+
+/** Bundle types that are envelopes or search results, not persisted as `Bundle` instances (HAPI-0522). */
+const BUNDLE_TYPES_NOT_FOR_INSTANCE_STORAGE = new Set<string>([
+  'searchset',
+  'history',
+  'batch',
+  'batch-response',
+  'transaction',
+  'transaction-response'
+]);
+
+/**
+ * Abstract base types in FHIR R4 — not valid `resourceType` for persisted instances (HAPI-1684 / HAPI-2223).
+ * Some IGs (e.g. hl7.fhir.r4.core) ship example JSON using these names; servers reject `PUT DomainResource/…`.
+ */
+const R4_ABSTRACT_RESOURCE_TYPES = new Set<string>(['Resource', 'DomainResource']);
+
+function compareResourceId(a: Resource, b: Resource): number {
+  const ida = (a as { id?: string }).id ?? '';
+  const idb = (b as { id?: string }).id ?? '';
+  return ida.localeCompare(idb);
+}
 
 @Injectable({
   providedIn: 'root'
@@ -76,7 +112,7 @@ export class FhirPackageImportService {
         dataRes.push(r);
       }
     }
-    return { termRes: this.sortTermResources(termRes), dataRes };
+    return { termRes: this.sortTermResources(termRes), dataRes: this.sortDataResources(dataRes) };
   }
 
   async importTerminologyAndData(
@@ -91,7 +127,7 @@ export class FhirPackageImportService {
 
     if (merged) {
       const combined = [...termRes, ...dataRes];
-      await this.postResourcesOneByOne(
+      await this.postRegistryTransactionForChannel(
         combined,
         (bundle) => this.terminologyService.postBundle(bundle),
         'Merged import',
@@ -100,7 +136,7 @@ export class FhirPackageImportService {
       );
     } else {
       if (termRes.length > 0) {
-        await this.postResourcesOneByOne(
+        await this.postRegistryTransactionForChannel(
           termRes,
           (bundle) => this.terminologyService.postBundle(bundle),
           'Terminology',
@@ -109,7 +145,7 @@ export class FhirPackageImportService {
         );
       }
       if (dataRes.length > 0) {
-        await this.postResourcesOneByOne(
+        await this.postRegistryTransactionForChannel(
           dataRes,
           (bundle) => this.fhirClientService.postBundle(bundle),
           'FHIR data',
@@ -129,10 +165,178 @@ export class FhirPackageImportService {
       if (oa !== ob) {
         return oa - ob;
       }
-      const ida = (a as { id?: string }).id ?? '';
-      const idb = (b as { id?: string }).id ?? '';
-      return ida.localeCompare(idb);
+      return compareResourceId(a, b);
     });
+  }
+
+  private sortDataResources(list: Resource[]): Resource[] {
+    return [...list].sort((a, b) => {
+      const ta = a.resourceType;
+      const tb = b.resourceType;
+      if (ta !== tb) {
+        return ta.localeCompare(tb);
+      }
+      return compareResourceId(a, b);
+    });
+  }
+
+  /**
+   * `collection` → `transaction`: `PUT` when `id` is set, else `POST {type}`.
+   */
+  private buildRegistryTransactionBundle(resources: Resource[]): Bundle<Resource> {
+    const safe = cloneResourcesWithHapiSafeClientIds(resources);
+    return collectionBundleToTransaction({
+      resourceType: 'Bundle',
+      type: 'collection',
+      entry: safe.map((resource) => ({ resource }))
+    });
+  }
+
+  private nonStorableAbstractResourceTypeMessage(resource: Resource): string | null {
+    const rt = resource.resourceType;
+    if (!R4_ABSTRACT_RESOURCE_TYPES.has(rt)) {
+      return null;
+    }
+    return `Skipped — "${rt}" is an abstract FHIR R4 type, not a storable resource (not sent to the server).`;
+  }
+
+  private nonStorableImportedBundleMessage(resource: Resource): string | null {
+    if (resource.resourceType !== 'Bundle') {
+      return null;
+    }
+    const t = (resource as Bundle<Resource>).type;
+    if (typeof t !== 'string' || !BUNDLE_TYPES_NOT_FOR_INSTANCE_STORAGE.has(t)) {
+      return null;
+    }
+    return `Skipped — Bundle.type "${t}" is not stored as a server resource (not sent to the server).`;
+  }
+
+  /**
+   * SearchParameter.base may list abstract types (Resource, DomainResource). HAPI resolves each code via
+   * FhirContext.getResourceDefinition and fails with HAPI-1684 for abstract names even when the root
+   * resource type is SearchParameter.
+   */
+  private nonStorableSearchParameterAbstractBaseMessage(resource: Resource): string | null {
+    if (resource.resourceType !== 'SearchParameter') {
+      return null;
+    }
+    const bases = (resource as SearchParameter).base;
+    if (!Array.isArray(bases) || bases.length === 0) {
+      return null;
+    }
+    const abstractBases = bases.filter(
+      (b): b is string => typeof b === 'string' && R4_ABSTRACT_RESOURCE_TYPES.has(b)
+    );
+    if (abstractBases.length === 0) {
+      return null;
+    }
+    const uniq = [...new Set(abstractBases)];
+    return `Skipped — SearchParameter.base includes abstract type(s) (${uniq.join(', ')}) that HAPI cannot persist (HAPI-1684); not sent.`;
+  }
+
+  /**
+   * One atomic transaction per channel; HTTP errors apply to every row.
+   */
+  private async postRegistryTransactionForChannel(
+    resources: Resource[],
+    post: (b: Bundle<Resource>) => Observable<Bundle<Resource>>,
+    channelLabel: string,
+    outcomes: FhirPackageImportItemOutcome[],
+    onProgress: (message: string) => void
+  ): Promise<void> {
+    if (resources.length === 0) {
+      return;
+    }
+
+    const allowed: Resource[] = [];
+    for (const resource of resources) {
+      const abstractSkip = this.nonStorableAbstractResourceTypeMessage(resource);
+      if (abstractSkip) {
+        const fields = this.resourceImportFields(resource);
+        outcomes.push({
+          channel: channelLabel,
+          ...fields,
+          ok: true,
+          message: abstractSkip
+        });
+        continue;
+      }
+      const spAbstractSkip = this.nonStorableSearchParameterAbstractBaseMessage(resource);
+      if (spAbstractSkip) {
+        const fields = this.resourceImportFields(resource);
+        outcomes.push({
+          channel: channelLabel,
+          ...fields,
+          ok: true,
+          message: spAbstractSkip
+        });
+        continue;
+      }
+      const bundleSkip = this.nonStorableImportedBundleMessage(resource);
+      if (bundleSkip) {
+        const fields = this.resourceImportFields(resource);
+        outcomes.push({
+          channel: channelLabel,
+          ...fields,
+          ok: true,
+          message: bundleSkip
+        });
+        continue;
+      }
+      allowed.push(resource);
+    }
+    if (allowed.length === 0) {
+      return;
+    }
+
+    const bundle = this.buildRegistryTransactionBundle(allowed);
+    onProgress(`${channelLabel}: posting ${allowed.length} resources in one transaction`);
+    try {
+      const response = await firstValueFrom(post(bundle));
+      const responseEntries = response.entry ?? [];
+      for (let i = 0; i < allowed.length; i++) {
+        const resource = allowed[i];
+        const fields = this.resourceImportFields(resource);
+        const ent = responseEntries[i];
+        if (ent == null) {
+          outcomes.push({
+            channel: channelLabel,
+            ...fields,
+            ok: false,
+            message: 'Missing transaction-response entry for this resource'
+          });
+          continue;
+        }
+        const status = this.bundleEntryStatusString(ent.response?.status);
+        if (status !== '' && !/^2/.test(status)) {
+          const oc = ent.response?.outcome as OperationOutcome | undefined;
+          outcomes.push({
+            channel: channelLabel,
+            ...fields,
+            ok: false,
+            message: `${status}${this.outcomeSummary(oc)}`.trim()
+          });
+        } else {
+          outcomes.push({
+            channel: channelLabel,
+            ...fields,
+            ok: true,
+            message: status || 'OK'
+          });
+        }
+      }
+    } catch (e) {
+      const msg = this.describeFailure(e);
+      for (const resource of allowed) {
+        const fields = this.resourceImportFields(resource);
+        outcomes.push({
+          channel: channelLabel,
+          ...fields,
+          ok: false,
+          message: msg
+        });
+      }
+    }
   }
 
   private resourceImportFields(resource: Resource): {
@@ -147,15 +351,6 @@ export class FhirPackageImportService {
       resourceId: id || '—',
       filename: fn || '—'
     };
-  }
-
-  private formatResourceProgressLabel(f: {
-    resourceType: string;
-    resourceId: string;
-    filename: string;
-  }): string {
-    const tail = f.filename !== '—' ? ` — ${f.filename}` : '';
-    return `${f.resourceType}/${f.resourceId}${tail}`;
   }
 
   private outcomeSummary(outcome: OperationOutcome | undefined): string {
@@ -211,60 +406,6 @@ export class FhirPackageImportService {
       return JSON.stringify(e);
     } catch {
       return String(e);
-    }
-  }
-
-  /**
-   * One resource per request so failures name a single artifact (type, id, package path).
-   * Large imports are slower than batched bundles but easier to retry selectively.
-   */
-  private async postResourcesOneByOne(
-    resources: Resource[],
-    post: (b: Bundle<Resource>) => Observable<Bundle<Resource>>,
-    channelLabel: string,
-    outcomes: FhirPackageImportItemOutcome[],
-    onProgress: (message: string) => void
-  ): Promise<void> {
-    const total = resources.length;
-    for (let i = 0; i < resources.length; i++) {
-      const resource = resources[i];
-      const fields = this.resourceImportFields(resource);
-      const bundle: Bundle<Resource> = {
-        resourceType: 'Bundle',
-        type: 'collection',
-        entry: [{ resource }]
-      };
-      onProgress(
-        `${channelLabel}: ${i + 1}/${total} ${this.formatResourceProgressLabel(fields)}`
-      );
-      try {
-        const response = await firstValueFrom(post(bundle));
-        const ent = response.entry?.[0];
-        const status = this.bundleEntryStatusString(ent?.response?.status);
-        if (status !== '' && !/^2/.test(status)) {
-          const oc = ent?.response?.outcome as OperationOutcome | undefined;
-          outcomes.push({
-            channel: channelLabel,
-            ...fields,
-            ok: false,
-            message: `${status}${this.outcomeSummary(oc)}`.trim()
-          });
-        } else {
-          outcomes.push({
-            channel: channelLabel,
-            ...fields,
-            ok: true,
-            message: status || 'OK'
-          });
-        }
-      } catch (e) {
-        outcomes.push({
-          channel: channelLabel,
-          ...fields,
-          ok: false,
-          message: this.describeFailure(e)
-        });
-      }
     }
   }
 }
