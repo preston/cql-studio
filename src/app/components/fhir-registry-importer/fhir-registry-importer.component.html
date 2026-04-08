@@ -1,0 +1,615 @@
+<div id="fhir-registry-importer" class="container py-4">
+  <h1 class="h4 mb-3">
+    <span class="bi bi-box-seam me-2"></span>FHIR Registry Importer
+    <span class="badge text-bg-secondary ms-2">Experimental</span>
+  </h1>
+  <p class="text-muted small mb-4">
+    Search FHIR NPM packages from your configured registry, resolve transitive <code>dependencies</code> from each
+    package's <code>package/package.json</code>, then import selected resources in dependency order.
+  </p>
+
+  <div class="row g-3 mb-4 align-items-start">
+    <div class="col-lg-8">
+      <div class="card mb-0">
+    <div class="card-header d-flex align-items-center gap-2">
+      <span class="bi bi-search me-2"></span>
+      <span class="fw-medium">Find FHIR packages</span>
+      @if (manifest()) {
+      <button id="fhir-registry-importer-toggle-search" type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+        (click)="toggleFindPackagesExpanded()">
+        {{ findPackagesExpanded() ? 'Hide' : 'Show' }}
+      </button>
+      }
+    </div>
+    @if (!manifest() || findPackagesExpanded()) {
+    <div class="card-body" id="fhir-registry-importer-find-packages-body">
+      <div id="fhir-registry-importer-toolbar"
+        class="d-flex flex-column flex-md-row flex-md-nowrap gap-2 align-items-stretch align-items-md-end">
+        <span id="fhir-registry-importer-catalog-version-label" class="visually-hidden">FHIR version (optional)</span>
+        <div class="order-1 flex-grow-1 min-w-0">
+          <div class="form-floating">
+            <input id="fhir-registry-importer-search-input" type="text" class="form-control" [ngModel]="searchQuery()"
+              (ngModelChange)="searchQuery.set($event)" (keyup.enter)="onSearch()" placeholder="hl7.fhir.us.core"
+              autofocus />
+            <label for="fhir-registry-importer-search-input">name</label>
+          </div>
+        </div>
+        <div class="order-2 flex-shrink-0">
+          <div id="fhir-registry-importer-catalog-version-group" class="btn-group" role="group"
+            aria-labelledby="fhir-registry-importer-catalog-version-label">
+            @for (opt of catalogFhirVersionOptions; track opt.label) {
+            <button type="button" class="btn btn-md"
+              [id]="'fhir-registry-importer-catalog-version-' + opt.label.toLowerCase()"
+              [class.btn-primary]="catalogFhirVersionFilter() === opt.value"
+              [class.btn-outline-primary]="catalogFhirVersionFilter() !== opt.value"
+              (click)="setCatalogFhirVersion(opt.value)">
+              {{ opt.label }}
+            </button>
+            }
+          </div>
+        </div>
+        <div class="order-3 flex-shrink-0">
+          <button id="fhir-registry-importer-search-button" type="button" class="btn btn-primary w-100 w-md-auto"
+            [disabled]="searchLoading()" (click)="onSearch()">
+            @if (searchLoading()) {
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            }
+            Search
+          </button>
+        </div>
+      </div>
+      <small class="form-text text-muted d-block mt-2">
+        Filters the registry catalog by package <code>FhirVersion</code>. Use with a name substring, or pick a
+        version alone to list packages for that release line.
+      </small>
+      @if (searchError()) {
+      <div class="alert alert-warning mt-3 mb-0" role="alert">{{ searchError() }}</div>
+      }
+      @if (catalogResults().length > 0) {
+      <div class="list-group mt-3">
+        @for (entry of catalogResults(); track entry.Name) {
+        <button type="button" class="list-group-item list-group-item-action text-start"
+          [class.active]="selectedPackageId() === entry.Name" (click)="selectCatalogEntry(entry)">
+          <div class="fw-medium">{{ entry.Name }}</div>
+          <div class="small text-muted">FHIR {{ entry.FhirVersion }}</div>
+          @if (entry.Description) {
+          <div class="small mt-1">
+            {{ entry.Description!.length > 280 ? (entry.Description!.slice(0, 280) + '…') : entry.Description }}
+          </div>
+          }
+        </button>
+        }
+      </div>
+      }
+    </div>
+    }
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div id="fhir-registry-importer-import-summary" class="card border-secondary h-100">
+        <div class="card-header py-2 d-flex flex-wrap align-items-center gap-2">
+          <span class="fw-medium">Import summary</span>
+          @if (planList().length > 0) {
+          <button id="fhir-registry-importer-summary-jump-import" type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+            (click)="scrollToImportWorkspace()">
+            Jump to import
+          </button>
+          }
+        </div>
+        <div class="card-body small">
+          @if (planList().length === 0) {
+          <p class="text-muted mb-0" id="fhir-registry-importer-import-summary-empty">
+            Search and open a package, then choose a version. After the tarball loads, resolved packages and
+            selection counts appear here with links to configure each one below.
+          </p>
+          } @else {
+          <p class="text-muted mb-2" id="fhir-registry-importer-import-summary-intro">
+            Import order is dependency-first. Use <strong>Configure</strong> to open that package's resource table, or
+            <strong>Plan</strong> to scroll to its row in the import plan.
+          </p>
+          <ol class="ps-3 mb-0">
+            @for (st of planList(); track st.name) {
+            <li class="mb-3" [class.text-muted]="!st.includePackage">
+              <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                <div class="fw-medium text-body">{{ st.name }} <span class="text-muted fw-normal">{{ st.version }}</span>
+                </div>
+                <div class="form-check form-switch m-0 flex-shrink-0">
+                  <input class="form-check-input" type="checkbox" role="switch"
+                    [id]="'fhir-registry-importer-summary-include-' + st.name" [checked]="st.includePackage"
+                    (change)="setIncludePackage(st.name, $any($event.target).checked)" />
+                  <label class="form-check-label small" [for]="'fhir-registry-importer-summary-include-' + st.name">Import</label>
+                </div>
+              </div>
+              <div class="d-flex flex-wrap gap-1 align-items-center my-1">
+                @if (st.includePackage) {
+                <span class="badge text-bg-success">Included</span>
+                } @else {
+                <span class="badge text-bg-secondary">Excluded</span>
+                }
+                <span class="badge text-bg-light text-dark border">{{ packageLoadStatusLabel(st) }}</span>
+                @if (st.loadStatus === 'loaded' && st.includePackage) {
+                <span class="text-muted">{{ selectedResourceCountForPackage(st.name) }} selected</span>
+                }
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-link btn-sm p-0"
+                  [id]="'fhir-registry-importer-summary-configure-' + st.name" (click)="navigateToPackageConfigure(st.name)">
+                  Configure
+                </button>
+                <button type="button" class="btn btn-link btn-sm p-0 text-secondary"
+                  [id]="'fhir-registry-importer-summary-plan-' + st.name" (click)="scrollToPackagePlanRow(st.name)">
+                  Plan
+                </button>
+              </div>
+            </li>
+            }
+          </ol>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (manifestLoading()) {
+  <p class="text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading package manifest…</p>
+  }
+  @if (manifestError()) {
+  <div class="alert alert-danger" role="alert">{{ manifestError() }}</div>
+  }
+
+  @if (manifest()) {
+  <div id="fhir-registry-importer-import-workspace" class="card mb-4 border-primary">
+    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+      <span class="bi bi-archive me-2"></span>
+      <span class="fw-medium">{{ selectedPackageId() }}</span>
+      <span class="small text-muted ms-auto">Registry: {{ getEffectiveRegistryBase() }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="p-3 border-bottom">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <div class="form-floating">
+              <select id="fhir-registry-importer-version-select" class="form-select" [ngModel]="selectedVersion() ?? ''"
+                (ngModelChange)="onVersionChange($event)" [disabled]="packageLoading()">
+                @for (v of versionKeys(); track v) {
+                <option [value]="v">{{ v }}</option>
+                }
+              </select>
+              <label for="fhir-registry-importer-version-select">Package version</label>
+            </div>
+          </div>
+          @if (packageLoading()) {
+          <div class="col-md-8 text-muted small">
+            <span class="spinner-border spinner-border-sm me-2"></span>Downloading and unpacking package…
+          </div>
+          }
+        </div>
+        @if (packageError()) {
+        <div class="alert alert-danger mt-3 mb-0" role="alert">{{ packageError() }}</div>
+        }
+      </div>
+
+      <div class="row g-0">
+        <div class="col-lg-4 border-end">
+          <div class="p-3 bg-body-secondary">
+            <h2 class="h6 mb-2">Import plan</h2>
+            <p class="small text-muted mb-2">
+              Dependencies import before dependents. Turn off <strong>Import</strong> to skip a package. Open a package
+              to load its tarball and configure rows.
+            </p>
+            @if (planList().length > 0) {
+            <ul class="list-group list-group-flush small" id="fhir-registry-importer-package-plan-list">
+              @for (st of planList(); track st.name) {
+              <li class="list-group-item px-2 py-2" [class.active]="activePackageName() === st.name"
+                [class.text-danger]="st.loadStatus === 'error'"
+                [attr.id]="'fhir-registry-importer-package-plan-' + st.name">
+                <div class="d-flex gap-2 align-items-start">
+                  <button type="button" class="btn btn-link text-start p-0 text-decoration-none flex-grow-1 min-w-0 text-reset"
+                    [id]="'fhir-registry-importer-plan-item-' + st.name" (click)="selectPlanPackage(st.name)">
+                    <span class="me-1" [attr.aria-label]="st.loadStatus">
+                      @switch (st.loadStatus) {
+                      @case ('loaded') {
+                      <span class="bi bi-check-circle-fill text-success"></span>
+                      }
+                      @case ('loading') {
+                      <span class="spinner-border spinner-border-sm"></span>
+                      }
+                      @case ('error') {
+                      <span class="bi bi-exclamation-triangle-fill"></span>
+                      }
+                      @default {
+                      <span class="bi bi-circle text-muted"></span>
+                      }
+                      }
+                    </span>
+                    <span class="fw-medium">{{ st.name }}</span>
+                    <span class="text-muted"> {{ st.version }}</span>
+                  </button>
+                  <div class="form-check form-switch m-0 flex-shrink-0 pt-1">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                      [id]="'fhir-registry-importer-include-' + st.name" [checked]="st.includePackage"
+                      (change)="setIncludePackage(st.name, $any($event.target).checked)"
+                      (click)="$event.stopPropagation()" />
+                    <label class="form-check-label small text-nowrap" [for]="'fhir-registry-importer-include-' + st.name">
+                      Import
+                    </label>
+                  </div>
+                </div>
+                @if (st.loadError) {
+                <div class="small text-danger mt-1">{{ st.loadError }}</div>
+                }
+              </li>
+              }
+            </ul>
+            } @else {
+            <p class="small text-muted mb-0" id="fhir-registry-importer-package-plan-empty">
+              No packages in the plan yet. Choose a version above or use <strong>Resolve dependency chain</strong> after
+              the root package loads.
+            </p>
+            }
+          </div>
+        </div>
+        <div class="col-lg-8" id="fhir-registry-importer-package-detail-panel" tabindex="-1">
+          <div class="p-3">
+            @if (activePackage(); as ap) {
+            @if (ap.summary; as ps) {
+            <div class="border rounded p-3 mb-4 bg-body-secondary">
+              <div class="d-flex flex-wrap gap-2 mb-2">
+                @if (ps.packageType) {
+                <span class="badge text-bg-primary">{{ ps.packageType }}</span>
+                }
+                @for (fv of ps.fhirVersions; track fv) {
+                <span class="badge text-bg-info">FHIR {{ fv }}</span>
+                }
+              </div>
+              <h2 class="h6">{{ ps.title }}</h2>
+              <p class="small mb-2">{{ ps.description }}</p>
+              @if (ps.canonical) {
+              <p class="small mb-1">
+                <strong>Canonical:</strong>
+                @if (ps.canonicalHref) {
+                <a [href]="ps.canonicalHref" target="_blank" rel="noopener noreferrer">{{ ps.canonical }}</a>
+                } @else {
+                {{ ps.canonical }}
+                }
+              </p>
+              }
+              @if (ps.specUrl) {
+              <p class="small mb-1">
+                <strong>Specification URL:</strong>
+                <a [href]="ps.specUrl" target="_blank" rel="noopener noreferrer">{{ ps.specUrl }}</a>
+              </p>
+              }
+              @if (ps.jurisdiction) {
+              <p class="small mb-1"><strong>Jurisdiction:</strong> {{ ps.jurisdiction }}</p>
+              }
+              @if (ps.license) {
+              <p class="small mb-1"><strong>License:</strong> {{ ps.license }}</p>
+              }
+              @if (ps.author) {
+              <p class="small mb-1"><strong>Author:</strong> {{ ps.author }}</p>
+              }
+              @if (ps.dependencies.length > 0) {
+              <details class="mt-2">
+                <summary>Dependencies ({{ ps.dependencies.length }})</summary>
+                <ul class="small mb-0 mt-1">
+                  @for (d of ps.dependencies; track d.name + d.version) {
+                  <li><code>{{ d.name }}</code> @ {{ d.version }}</li>
+                  }
+                </ul>
+              </details>
+              }
+            </div>
+            }
+
+            @if (ap.loadStatus === 'pending') {
+            <p class="text-muted small">
+              Tarball not loaded. Select this package in the list or use “Load all packages” below.
+            </p>
+            }
+
+            @if (ap.rows.length > 0) {
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <span class="small fw-medium">Resource counts:</span>
+              @for (c of resourceTypeCounts(); track c.resourceType) {
+              <span class="badge text-bg-light text-dark">{{ c.resourceType }}: {{ c.count }}</span>
+              }
+            </div>
+
+            <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Quick filters">
+              <button id="fhir-registry-importer-filter-all" type="button" class="btn"
+                [class.btn-primary]="quickFilter() === 'all'" [class.btn-outline-primary]="quickFilter() !== 'all'"
+                (click)="setQuickFilter('all')">
+                All
+              </button>
+              <button id="fhir-registry-importer-filter-terminology" type="button" class="btn"
+                [class.btn-primary]="quickFilter() === 'terminology'"
+                [class.btn-outline-primary]="quickFilter() !== 'terminology'" (click)="setQuickFilter('terminology')">
+                Terminology
+              </button>
+              <button id="fhir-registry-importer-filter-conformance" type="button" class="btn"
+                [class.btn-primary]="quickFilter() === 'conformance'"
+                [class.btn-outline-primary]="quickFilter() !== 'conformance'" (click)="setQuickFilter('conformance')">
+                Conformance / data
+              </button>
+            </div>
+
+            <div class="form-check form-switch mb-3">
+              <input id="fhir-registry-importer-include-examples" class="form-check-input" type="checkbox"
+                [ngModel]="includeExamples()" (ngModelChange)="toggleIncludeExamples($event)" />
+              <label class="form-check-label" for="fhir-registry-importer-include-examples">Include example instances</label>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <button id="fhir-registry-importer-visible-target-term-on" type="button" class="btn btn-outline-secondary btn-sm"
+                (click)="setVisibleTargets('terminology', true)">
+                Enable terminology target (visible)
+              </button>
+              <button id="fhir-registry-importer-visible-target-term-off" type="button" class="btn btn-outline-secondary btn-sm"
+                (click)="setVisibleTargets('terminology', false)">
+                Disable terminology target (visible)
+              </button>
+              <button id="fhir-registry-importer-visible-target-data-on" type="button" class="btn btn-outline-secondary btn-sm"
+                (click)="setVisibleTargets('data', true)">
+                Enable FHIR data target (visible)
+              </button>
+              <button id="fhir-registry-importer-visible-target-data-off" type="button" class="btn btn-outline-secondary btn-sm"
+                (click)="setVisibleTargets('data', false)">
+                Disable FHIR data target (visible)
+              </button>
+            </div>
+
+            <p id="fhir-registry-importer-selection-summary" class="small text-muted">
+              Selection (all included packages):
+              <strong>{{ selectionSummary().terminology }}</strong> terminology,
+              <strong>{{ selectionSummary().data }}</strong> conformance/data.
+              @if (selectionSummary().mergedSingleEndpoint) {
+              <span class="text-primary">Same base URL: single merged request per package when applicable.</span>
+              }
+            </p>
+
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 2.5rem">
+                      <input type="checkbox" class="form-check-input"
+                        [checked]="filteredRows().length > 0 && filteredRows().every((r) => r.selected)"
+                        (change)="selectAllVisible($any($event.target).checked)"
+                        [attr.aria-label]="'Select all visible'" />
+                    </th>
+                    <th>Resource</th>
+                    <th>Category</th>
+                    <th>Import targets</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of filteredRows(); track row.rowKey) {
+                  <tr [class.table-secondary]="row.isExample">
+                    <td>
+                      <input type="checkbox" class="form-check-input" [checked]="row.selected" (change)="toggleRow(row)"
+                        [attr.aria-label]="'Select ' + row.filename" />
+                    </td>
+                    <td>
+                      <div class="small fw-medium">{{ row.resourceType }}</div>
+                      <div class="text-muted small text-break">{{ row.filename }}</div>
+                      @if (row.id) {
+                      <div class="small"><code>{{ row.id }}</code></div>
+                      }
+                    </td>
+                    <td class="small">{{ row.category }}</td>
+                    <td>
+                      <div class="form-check">
+                        <input type="checkbox" class="form-check-input" [checked]="row.targetTerminology"
+                          (change)="toggleRowTarget(row, 'terminology', $any($event.target).checked)"
+                          [attr.aria-label]="'Import ' + row.filename + ' to terminology'" />
+                        <label class="form-check-label small">Terminology</label>
+                      </div>
+                      <div class="form-check">
+                        <input type="checkbox" class="form-check-input" [checked]="row.targetData"
+                          (change)="toggleRowTarget(row, 'data', $any($event.target).checked)"
+                          [attr.aria-label]="'Import ' + row.filename + ' to FHIR data'" />
+                        <label class="form-check-label small">FHIR data</label>
+                      </div>
+                    </td>
+                    <td class="small">{{ row.importNote }}</td>
+                  </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            }
+            } @else {
+            <p class="text-muted small mb-0" id="fhir-registry-importer-package-detail-empty">
+              @if (planList().length > 0) {
+              Select a package in the plan list.
+              } @else {
+              The import plan will appear here after the package version loads or dependencies are resolved.
+              }
+            </p>
+            }
+          </div>
+        </div>
+      </div>
+
+      @if (dependencyWarnings().length > 0) {
+      <div class="alert alert-warning mx-3 mb-0" role="alert">
+        <div class="small fw-medium mb-1">Resolution warnings</div>
+        <ul class="small mb-0">
+          @for (w of dependencyWarnings(); track $index) {
+          <li>{{ w }}</li>
+          }
+        </ul>
+      </div>
+      }
+      @if (dependencyErrors().length > 0) {
+      <div class="alert alert-danger mx-3 mb-0" role="alert">
+        <div class="small fw-medium mb-1">Resolution messages</div>
+        <ul class="small mb-0">
+          @for (e of dependencyErrors(); track $index) {
+          <li>{{ e }}</li>
+          }
+        </ul>
+      </div>
+      }
+
+      <div id="fhir-registry-importer-import-actions" class="sticky-bottom border-top bg-body px-3 py-3">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small text-muted">
+          <span>Included packages:
+            <strong>{{ includedPlanCount() }}</strong> /
+            {{ planTotalCount() }}</span>
+          <span>Selected resources:
+            <strong>{{ selectionSummary().terminology + selectionSummary().data }}</strong> (terminology + data
+            targets)</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button id="fhir-registry-importer-resolve-deps-button" type="button" class="btn btn-outline-primary"
+            [disabled]="resolveBusy() || packageLoading() || !rootPackageName()" (click)="resolveDependencyChain()">
+            @if (resolveBusy()) {
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            }
+            Resolve dependency chain
+          </button>
+          <button id="fhir-registry-importer-load-all-button" type="button" class="btn btn-outline-secondary"
+            [disabled]="packageLoading() || planList().length === 0" (click)="loadAllPackagesForImport()">
+            Preload all packages
+          </button>
+          <button id="fhir-registry-importer-import-button" type="button" class="btn btn-success ms-auto"
+            [disabled]="importing() || packageLoading()" (click)="importSelected()">
+            @if (importing()) {
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            }
+            Import selected
+          </button>
+        </div>
+        @if (importProgress()) {
+        <p class="small text-muted mt-2 mb-0" id="fhir-registry-importer-import-progress">{{ importProgress() }}</p>
+        }
+        @if (importResultsRows().length > 0) {
+        <div id="fhir-registry-importer-import-results" class="mt-3 border rounded">
+          <div class="px-3 py-2 border-bottom bg-body-secondary d-flex flex-wrap align-items-center gap-2">
+            <span class="small fw-medium">Import results</span>
+            <span class="small text-muted">
+              {{ importResultCounts().ok }} ok · {{ importResultCounts().errors }} failed ·
+              {{ importResultCounts().total }} total
+            </span>
+            <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="Filter by outcome">
+              <button id="fhir-registry-importer-import-filter-all" type="button" class="btn"
+                [class.btn-primary]="importResultOutcomeFilter() === 'all'"
+                [class.btn-outline-secondary]="importResultOutcomeFilter() !== 'all'"
+                (click)="setImportResultOutcomeFilter('all')">
+                All
+              </button>
+              <button id="fhir-registry-importer-import-filter-errors" type="button" class="btn"
+                [class.btn-primary]="importResultOutcomeFilter() === 'errors'"
+                [class.btn-outline-secondary]="importResultOutcomeFilter() !== 'errors'"
+                (click)="setImportResultOutcomeFilter('errors')">
+                Errors only
+              </button>
+              <button id="fhir-registry-importer-import-filter-success" type="button" class="btn"
+                [class.btn-primary]="importResultOutcomeFilter() === 'success'"
+                [class.btn-outline-secondary]="importResultOutcomeFilter() !== 'success'"
+                (click)="setImportResultOutcomeFilter('success')">
+                Succeeded only
+              </button>
+            </div>
+            <button id="fhir-registry-importer-import-results-clear" type="button" class="btn btn-sm btn-outline-secondary"
+              (click)="clearImportResults()">
+              Clear results
+            </button>
+          </div>
+          <div class="px-3 py-2 border-bottom">
+            <label for="fhir-registry-importer-import-results-search" class="visually-hidden">Filter results by text</label>
+            <input id="fhir-registry-importer-import-results-search" type="search" class="form-control form-control-sm"
+              placeholder="Filter by package, channel, type, file, message…" [ngModel]="importResultSearch()"
+              (ngModelChange)="importResultSearch.set($event)" autocomplete="off" />
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0 small" id="fhir-registry-importer-import-results-table">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">
+                    <button id="fhir-registry-importer-import-sort-package" type="button"
+                      class="btn btn-link btn-sm text-start p-0 text-dark text-decoration-none fw-semibold"
+                      (click)="toggleImportResultSort('packageName')">
+                      Package{{ importResultSortChevron('packageName') }}
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button id="fhir-registry-importer-import-sort-channel" type="button"
+                      class="btn btn-link btn-sm text-start p-0 text-dark text-decoration-none fw-semibold"
+                      (click)="toggleImportResultSort('channel')">
+                      Channel{{ importResultSortChevron('channel') }}
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button id="fhir-registry-importer-import-sort-type" type="button"
+                      class="btn btn-link btn-sm text-start p-0 text-dark text-decoration-none fw-semibold"
+                      (click)="toggleImportResultSort('resourceType')">
+                      Type{{ importResultSortChevron('resourceType') }}
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button id="fhir-registry-importer-import-sort-id" type="button"
+                      class="btn btn-link btn-sm text-start p-0 text-dark text-decoration-none fw-semibold"
+                      (click)="toggleImportResultSort('resourceId')">
+                      Id{{ importResultSortChevron('resourceId') }}
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button id="fhir-registry-importer-import-sort-file" type="button"
+                      class="btn btn-link btn-sm text-start p-0 text-dark text-decoration-none fw-semibold"
+                      (click)="toggleImportResultSort('filename')">
+                      File{{ importResultSortChevron('filename') }}
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button id="fhir-registry-importer-import-sort-status" type="button"
+                      class="btn btn-link btn-sm text-start p-0 text-dark text-decoration-none fw-semibold"
+                      (click)="toggleImportResultSort('ok')">
+                      Status{{ importResultSortChevron('ok') }}
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button id="fhir-registry-importer-import-sort-message" type="button"
+                      class="btn btn-link btn-sm text-start p-0 text-dark text-decoration-none fw-semibold"
+                      (click)="toggleImportResultSort('message')">
+                      Message{{ importResultSortChevron('message') }}
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of importResultsFilteredSorted(); track trackImportResultRow($index, row)) {
+                <tr [class.table-danger]="!row.ok">
+                  <td class="text-break">{{ row.packageName }}</td>
+                  <td class="text-break">{{ row.channel }}</td>
+                  <td class="text-break">{{ row.resourceType }}</td>
+                  <td class="text-break"><code class="small">{{ row.resourceId }}</code></td>
+                  <td class="text-break text-muted">{{ row.filename }}</td>
+                  <td>
+                    @if (row.ok) {
+                    <span class="badge text-bg-success">OK</span>
+                    } @else {
+                    <span class="badge text-bg-danger">Error</span>
+                    }
+                  </td>
+                  <td class="text-break">{{ row.message }}</td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (importResultsFilteredSorted().length === 0 && importResultsRows().length > 0) {
+          <p class="small text-muted mb-0 px-3 py-2" id="fhir-registry-importer-import-results-empty-filter">
+            No rows match the current filter or search.
+          </p>
+          }
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+  }
+</div>

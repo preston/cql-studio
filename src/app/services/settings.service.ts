@@ -153,6 +153,10 @@ export class SettingsService {
           parsedSettings.vsacApiPassword = '';
           shouldSave = true;
         }
+        if (parsedSettings.fhirPackageRegistryBaseUrl == null) {
+          parsedSettings.fhirPackageRegistryBaseUrl = '';
+          shouldSave = true;
+        }
         if (shouldSave) {
           this.saveSettings();
           console.log("Settings have been updated to include default field values.");
@@ -241,6 +245,18 @@ export class SettingsService {
   getDefaultSearxngBaseUrl(): string {
     const envValue = (window as any)['CQL_STUDIO_SEARXNG_BASE_URL'];
     return envValue && envValue.trim() !== '' ? envValue : '';
+  }
+
+  getDefaultFhirPackageRegistryBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_FHIR_PACKAGE_REGISTRY_BASE_URL'];
+    return envValue && String(envValue).trim() !== '' ? String(envValue).trim() : 'https://packages.fhir.org';
+  }
+
+  getEffectiveFhirPackageRegistryBaseUrl(): string {
+    const settingValue = this.settings().fhirPackageRegistryBaseUrl;
+    const base =
+      settingValue && settingValue.trim() !== '' ? settingValue.trim() : this.getDefaultFhirPackageRegistryBaseUrl();
+    return base.replace(/\/+$/, '');
   }
 
   getEffectiveSearxngBaseUrl(): string {

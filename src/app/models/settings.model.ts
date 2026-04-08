@@ -19,6 +19,9 @@ export class Settings {
     public terminologyBasicAuthUsername: string = '';
     public terminologyBasicAuthPassword: string = '';
 
+    /** FHIR NPM package registry (normative default https://packages.fhir.org). */
+    public fhirPackageRegistryBaseUrl: string = '';
+
     /** VSAC (NLM CTS / vsac.nlm.nih.gov) — UMLS API key auth; VSAC Browser always calls NLM via CQL Studio Server (no CORS). */
     public vsacFhirBaseUrl: string = '';
     public vsacApiUsername: string = 'apikey';

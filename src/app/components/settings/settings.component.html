@@ -130,6 +130,23 @@
             <div class="col-md-6 mb-4">
                 <div class="card h-100">
                     <div class="card-header">
+                        <h6 class="card-title mb-0"><span class="bi bi-box-seam me-2"></span>FHIR Package Registry</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="fhirPackageRegistryBaseUrl" class="form-label">Registry base URL</label>
+                            <input type="url" class="form-control" id="fhirPackageRegistryBaseUrl" name="fhirPackageRegistryBaseUrl"
+                                [(ngModel)]="settingsService.settings().fhirPackageRegistryBaseUrl"
+                                [placeholder]="settingsService.getDefaultFhirPackageRegistryBaseUrl()">
+                            <small class="form-text text-muted d-block mt-1 small">Base URL for the <a href="https://build.fhir.org/packages.html" target="_blank" rel="noopener noreferrer">FHIR NPM package registry</a> (default <code>https://packages.fhir.org</code>). The FHIR Registry Browser searches and downloads published implementation guides and specification packages. For browsing, see also <a href="https://registry.fhir.org/" target="_blank" rel="noopener noreferrer">registry.fhir.org</a>.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
                         <h6 class="card-title mb-0"><span class="bi bi-cloud-download me-2"></span>U.S. Value Set Authority Center (VSAC)</h6>
                     </div>
                     <div class="card-body">

@@ -101,13 +101,11 @@
                 <i class="bi bi-book me-2"></i>Terminology Browser
               </a>
             </li>
-            @if (settingsService.settings().experimental) {
             <li>
               <a id="vsac-browser-nav-link" class="dropdown-item" routerLink="/vsac" routerLinkActive="active">
                 <i class="bi bi-cloud-download me-2"></i>VSAC Browser
               </a>
             </li>
-            }
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -122,6 +120,14 @@
                 <i class="bi bi-upload me-2"></i>FHIR Uploader
               </a>
             </li>
+            @if (settingsService.settings().experimental) {
+            <li>
+              <a id="fhir-registry-importer-nav-link" class="dropdown-item" routerLink="/fhir-registry-importer"
+                routerLinkActive="active">
+                <i class="bi bi-box-seam me-2"></i>FHIR Registry Importer
+              </a>
+            </li>
+            }
             <li>
               <hr class="dropdown-divider">
             </li>

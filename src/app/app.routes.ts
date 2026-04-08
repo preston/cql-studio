@@ -26,6 +26,7 @@ import { MeasureWorkspaceComponent } from './components/measure-editor/measure-w
 import { MeasureReportsListComponent } from './components/measure-editor/measure-reports-list/measure-reports-list.component';
 import { ClipboardManagerComponent } from './components/clipboard-manager/clipboard-manager.component';
 import { VsacBrowserComponent } from './components/vsac-browser/vsac-browser.component';
+import { FhirRegistryImporterComponent } from './components/fhir-registry-importer/fhir-registry-importer.component';
 
 export const routes: Routes = [
   // Normal app routes
@@ -62,6 +63,8 @@ export const routes: Routes = [
     ]
   },
   { path: 'vsac', component: VsacBrowserComponent },
+  { path: 'fhir-registry', redirectTo: 'fhir-registry-importer', pathMatch: 'full' },
+  { path: 'fhir-registry-importer', component: FhirRegistryImporterComponent },
   { path: 'guidelines', component: GuidelinesComponent },
   { path: 'guidelines/:id/testing', component: GuidelinesComponent },
   { path: 'guidelines/:id', component: GuidelinesComponent },
