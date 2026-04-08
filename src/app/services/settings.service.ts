@@ -11,6 +11,9 @@ export class SettingsService {
   public static SETTINGS_KEY: string = "cql_tests_ui_settings";
   public static FORCE_RESET_KEY: string = "cql_tests_ui_settings_force_reset";
 
+  /** NLM production CTS FHIR when `window.CQL_STUDIO_VSAC_FHIR_BASE_URL` is unset. */
+  private static readonly VSAC_FHIR_PRODUCTION_DEFAULT = 'https://cts.nlm.nih.gov/fhir';
+
   public settings = signal<Settings>(new Settings());
   public force_reset = signal<boolean>(false);
   public theme_effective = signal<ThemeType>(ThemeType.LIGHT);
@@ -136,6 +139,18 @@ export class SettingsService {
         }
         if (parsedSettings.requireDiffPreview == null) {
           parsedSettings.requireDiffPreview = false;
+          shouldSave = true;
+        }
+        if (parsedSettings.vsacFhirBaseUrl == null) {
+          parsedSettings.vsacFhirBaseUrl = '';
+          shouldSave = true;
+        }
+        if (parsedSettings.vsacApiUsername == null) {
+          parsedSettings.vsacApiUsername = 'apikey';
+          shouldSave = true;
+        }
+        if (parsedSettings.vsacApiPassword == null) {
+          parsedSettings.vsacApiPassword = '';
           shouldSave = true;
         }
         if (shouldSave) {
@@ -284,6 +299,57 @@ export class SettingsService {
   getEffectiveServerBaseUrl(): string {
     const settingValue = this.settings().serverBaseUrl;
     return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultServerBaseUrl();
+  }
+
+  /**
+   * Default VSAC FHIR base: `window.CQL_STUDIO_VSAC_FHIR_BASE_URL` if set, else NLM production CTS.
+   */
+  getDefaultVsacFhirBaseUrl(): string {
+    const envValue = (window as any)['CQL_STUDIO_VSAC_FHIR_BASE_URL'];
+    if (envValue != null && String(envValue).trim() !== '') {
+      return String(envValue).trim();
+    }
+    return SettingsService.VSAC_FHIR_PRODUCTION_DEFAULT;
+  }
+
+  /**
+   * Effective VSAC FHIR base: saved URL if non-empty, else getDefaultVsacFhirBaseUrl().
+   */
+  getEffectiveVsacFhirBaseUrl(): string {
+    const custom = this.settings().vsacFhirBaseUrl?.trim();
+    const base = custom || this.getDefaultVsacFhirBaseUrl();
+    return base.replace(/\/+$/, '');
+  }
+
+  getDefaultVsacApiUsername(): string {
+    const envValue = (window as any)['CQL_STUDIO_VSAC_BASIC_AUTH_USERNAME'];
+    if (envValue != null && String(envValue).trim() !== '') {
+      return String(envValue).trim();
+    }
+    return 'apikey';
+  }
+
+  getDefaultVsacApiPassword(): string {
+    const envValue = (window as any)['CQL_STUDIO_VSAC_BASIC_AUTH_PASSWORD'];
+    if (envValue != null && String(envValue).trim() !== '') {
+      return String(envValue).trim();
+    }
+    return '';
+  }
+
+  getEffectiveVsacApiUsername(): string {
+    const u = this.settings().vsacApiUsername?.trim();
+    return u || this.getDefaultVsacApiUsername();
+  }
+
+  /** UMLS API key for VSAC (separate from terminology server credentials). */
+  getEffectiveVsacApiPassword(): string {
+    const p = this.settings().vsacApiPassword?.trim();
+    return p || this.getDefaultVsacApiPassword();
+  }
+
+  vsacHasApiCredentials(): boolean {
+    return this.getEffectiveVsacApiPassword().length > 0;
   }
 
   updateSettings(updates: Partial<Settings>): void {

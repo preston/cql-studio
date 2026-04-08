@@ -1,0 +1,699 @@
+<div id="vsac-browser" class="container-fluid py-3">
+  <div class="mb-3">
+    <h1 class="h4 mb-0">Value Set Authority Center (VSAC) Browser</h1>
+    <!-- <p class="text-muted small mb-0">Search and import from the U.S. Value Set Authority Center (VSAC).</p> -->
+  </div>
+
+  @if (!settingsService.vsacHasApiCredentials()) {
+  <div class="alert alert-warning" role="alert">
+    Add your UMLS API key under <a routerLink="/settings">Settings</a>.
+    VSAC calls go through CQL Studio Server at <code>{{ settingsService.getEffectiveServerBaseUrl() }}</code> — keep
+    that server running.
+  </div>
+  }
+
+  @if (error()) {
+  <div class="alert alert-danger" role="alert">{{ error() }}</div>
+  }
+
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button id="vsac-tab-search" class="nav-link" [class.active]="activeTab() === 'search'" type="button"
+        (click)="setTab('search')">FHIR Search</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button id="vsac-tab-valueset" class="nav-link" [class.active]="activeTab() === 'valueset'" type="button"
+        (click)="setTab('valueset')">Value Set Expansion</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button id="vsac-tab-svs" class="nav-link" [class.active]="activeTab() === 'svs'" type="button"
+        (click)="setTab('svs')">Legacy SVS</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button id="vsac-tab-status" class="nav-link" [class.active]="activeTab() === 'status'" type="button"
+        (click)="setTab('status')">Status</button>
+    </li>
+  </ul>
+
+  @if (activeTab() === 'status') {
+  <div id="vsac-status-panel">
+    <form id="vsac-status-form" class="mb-3" (ngSubmit)="refreshStatus()">
+      <button id="vsac-refresh-status" type="submit" class="btn btn-primary btn-md" [disabled]="loading()">Test
+        Connection</button>
+    </form>
+    @if (loading()) {
+    <div id="vsac-status-loading" class="alert alert-secondary d-flex align-items-center mb-0" role="status">
+      <span class="spinner-border spinner-border-sm me-2 flex-shrink-0" aria-hidden="true"></span>
+      <span>Loading capability statement…</span>
+    </div>
+    } @else if (capability()) {
+    <div id="vsac-status-result" class="alert alert-success mb-0" role="status">
+      <h2 class="alert-heading h6">FHIR endpoint reachable</h2>
+      <p class="small text-muted mb-2 mb-md-3">FHIR base: <code>{{ settingsService.getEffectiveVsacFhirBaseUrl() }}</code>
+      </p>
+      <dl class="row small mb-3 mb-md-4">
+        <dt class="col-sm-3 col-md-2">FHIR version</dt>
+        <dd class="col-sm-9 col-md-10 mb-2">{{ capability()!.fhirVersion || '—' }}</dd>
+        <dt class="col-sm-3 col-md-2">Software</dt>
+        <dd class="col-sm-9 col-md-10 mb-0">{{ capability()!.software?.name || '—' }}
+          @if (capability()!.software?.version) {
+          <span class="text-muted">{{ capability()!.software?.version }}</span>
+          }
+        </dd>
+      </dl>
+      <hr class="my-2 my-md-3">
+      <h3 class="h6 mb-2">Value set package–related resource types</h3>
+      <p class="small text-muted mb-2">From the server’s CapabilityStatement.</p>
+      @if (vspTypes().length === 0) {
+      <p class="small mb-0">None detected (VSP IG resources may not be advertised on this endpoint). Post VSP-style
+        bundles with <a routerLink="/uploader">FHIR Uploader</a> or tooling that exports
+        <a href="https://build.fhir.org/ig/cqframework/vsp-ig/" target="_blank" rel="noopener noreferrer">VSP</a>
+        JSON.</p>
+      } @else {
+      <ul class="small mb-0 ps-3">
+        @for (t of vspTypes(); track t) {
+        <li><code>{{ t }}</code></li>
+        }
+      </ul>
+      }
+    </div>
+    } @else {
+    <div id="vsac-status-empty" class="alert alert-light border mb-0" role="status">
+      <p class="small mb-0">Click <strong>Test Connection</strong> to load the capability statement from the configured
+        VSAC FHIR base.</p>
+    </div>
+    }
+  </div>
+  }
+
+  @if (activeTab() === 'search') {
+  <div class="card">
+    <div class="card-body">
+      <form id="vsac-search-form" class="row g-3" (ngSubmit)="runSearch()">
+        <p class="col-12 small text-muted mb-0">
+          CTS exposes many <code>ValueSet</code> search parameters (see your server’s <code>/metadata</code>).
+          Per <a id="vsac-search-nlm-name-link"
+            href="https://www.nlm.nih.gov/vsac/support/usingvsac/vsacname-fhirname-fhirtitle.html" target="_blank"
+            rel="noopener noreferrer">NLM</a>, the VSAC display name maps to FHIR <strong>title</strong>;
+          <strong>name</strong> is the machine-oriented id.
+        </p>
+        <div class="col-lg-3 col-md-6">
+          <div class="form-floating">
+            <input id="vsac-search-title" class="form-control" placeholder=" " [ngModel]="searchTitle()"
+              (ngModelChange)="searchTitle.set($event)" [ngModelOptions]="{standalone: true}" />
+            <label for="vsac-search-title">Title contains (VSAC name)</label>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="form-floating">
+            <input id="vsac-search-name" class="form-control" placeholder=" " [ngModel]="searchName()"
+              (ngModelChange)="searchName.set($event)" [ngModelOptions]="{standalone: true}" />
+            <label for="vsac-search-name">Name contains (FHIR id)</label>
+          </div>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <div class="form-floating">
+            <input id="vsac-search-url" class="form-control" placeholder=" " [ngModel]="searchUrl()"
+              (ngModelChange)="searchUrl.set($event)" [ngModelOptions]="{standalone: true}" />
+            <label for="vsac-search-url">Canonical URL</label>
+          </div>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <div class="form-floating">
+            <select id="vsac-search-count" class="form-select" [ngModel]="searchCount()"
+              (ngModelChange)="searchCount.set(+$event)" [ngModelOptions]="{standalone: true}">
+              <option [ngValue]="20">20</option>
+              <option [ngValue]="50">50</option>
+              <option [ngValue]="100">100</option>
+              <option [ngValue]="200">200</option>
+            </select>
+            <label for="vsac-search-count">Page size</label>
+          </div>
+        </div>
+        <div class="col-lg-2 col-md-12 d-flex align-items-end">
+          <button id="vsac-search-run" type="submit" class="btn btn-primary w-100"
+            [disabled]="loading()">Search</button>
+        </div>
+        @if (valueSetSearchSupportsSort()) {
+        <div class="col-12">
+          <p id="vsac-search-sort-hint" class="small text-muted mb-0">This server advertises <code>_sort</code> for
+            <code>ValueSet</code> search. Run <strong>Status → Test Connection</strong> after changing the VSAC FHIR
+            base URL.</p>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="form-floating">
+            @if (valueSetSortFieldOptions().length > 0) {
+            <select id="vsac-search-sort-field" class="form-select" [ngModel]="searchSortField()"
+              (ngModelChange)="searchSortField.set($event)" [ngModelOptions]="{standalone: true}">
+              <option value="">Server default</option>
+              @for (p of valueSetSortFieldOptions(); track p) {
+              <option [value]="p">{{ p }}</option>
+              }
+            </select>
+            } @else {
+            <input id="vsac-search-sort-field" type="text" class="form-control" placeholder=" "
+              [ngModel]="searchSortField()" (ngModelChange)="searchSortField.set($event)"
+              [ngModelOptions]="{standalone: true}" autocomplete="off" />
+            }
+            <label for="vsac-search-sort-field">Sort (<code>_sort</code>)</label>
+          </div>
+          @if (valueSetSortFieldOptions().length === 0) {
+          <span class="form-text small text-muted">Search parameter name(s) as allowed by the server; use a leading
+            <code>-</code> for descending (e.g. <code>-_lastUpdated</code>).</span>
+          }
+        </div>
+        @if (valueSetSortFieldOptions().length > 0) {
+        <div class="col-lg-2 col-md-6">
+          <div class="form-floating">
+            <select id="vsac-search-sort-order" class="form-select" [ngModel]="searchSortOrder()"
+              (ngModelChange)="setSearchSortOrder($event)" [ngModelOptions]="{standalone: true}">
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+            <label for="vsac-search-sort-order">Order</label>
+          </div>
+        </div>
+        }
+        }
+        <div class="col-lg-4 col-md-6">
+          <div class="form-floating">
+            <input id="vsac-search-identifier" class="form-control" placeholder=" " [ngModel]="searchIdentifier()"
+              (ngModelChange)="searchIdentifier.set($event)" [ngModelOptions]="{standalone: true}" />
+            <label for="vsac-search-identifier">Identifier / OID</label>
+          </div>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <div class="form-floating">
+            <input id="vsac-search-version" class="form-control" placeholder=" " [ngModel]="searchVersion()"
+              (ngModelChange)="searchVersion.set($event)" [ngModelOptions]="{standalone: true}" />
+            <label for="vsac-search-version">Version</label>
+          </div>
+        </div>
+        <div class="col-lg-2 col-md-6">
+          <div class="form-floating">
+            <select id="vsac-search-status" class="form-select" [ngModel]="searchStatus()"
+              (ngModelChange)="searchStatus.set($event)" [ngModelOptions]="{standalone: true}">
+              <option value="">Any status</option>
+              <option value="draft">draft</option>
+              <option value="active">active</option>
+              <option value="retired">retired</option>
+              <option value="unknown">unknown</option>
+            </select>
+            <label for="vsac-search-status">Status</label>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6">
+          <div class="form-floating">
+            <input id="vsac-search-publisher" class="form-control" placeholder=" " [ngModel]="searchPublisher()"
+              (ngModelChange)="searchPublisher.set($event)" [ngModelOptions]="{standalone: true}" />
+            <label for="vsac-search-publisher">Publisher contains</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="form-floating">
+            <input id="vsac-search-description" class="form-control" placeholder=" " [ngModel]="searchDescription()"
+              (ngModelChange)="searchDescription.set($event)" [ngModelOptions]="{standalone: true}" />
+            <label for="vsac-search-description">Description contains</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <button id="vsac-search-toggle-advanced" class="btn btn-link btn-sm ps-0" type="button"
+            data-bs-toggle="collapse" data-bs-target="#vsac-search-advanced" aria-expanded="false"
+            aria-controls="vsac-search-advanced">More CTS parameters (expansion, usage, code, measure, …)</button>
+        </div>
+        <div id="vsac-search-advanced" class="col-12 collapse">
+          <div class="row g-3">
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-expansion" class="form-control" placeholder=" " [ngModel]="searchExpansion()"
+                  (ngModelChange)="searchExpansion.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-expansion">Expansion / release label</label>
+              </div>
+              <span class="form-text small text-muted">e.g. eCQM or C-CDA release name from <a
+                  href="https://www.nlm.nih.gov/vsac/support/usingvsac/vsacfhirapi.html" target="_blank"
+                  rel="noopener noreferrer">NLM expansion profiles</a></span>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-usage" class="form-control" placeholder=" " [ngModel]="searchUsage()"
+                  (ngModelChange)="searchUsage.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-usage">Usage</label>
+              </div>
+              <span class="form-text small text-muted">Composite token, e.g. <code>VSAC$covid</code></span>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-keyword" class="form-control" placeholder=" " [ngModel]="searchKeyword()"
+                  (ngModelChange)="searchKeyword.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-keyword">Keyword</label>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-code" class="form-control" placeholder=" " [ngModel]="searchCode()"
+                  (ngModelChange)="searchCode.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-code">Code</label>
+              </div>
+              <span class="form-text small text-muted">Value sets that include this code (server-defined)</span>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-codesystem" class="form-control" placeholder=" " [ngModel]="searchCodesystem()"
+                  (ngModelChange)="searchCodesystem.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-codesystem">Code system URI</label>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-measure" class="form-control" placeholder=" " [ngModel]="searchMeasure()"
+                  (ngModelChange)="searchMeasure.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-measure">Measure</label>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-library" class="form-control" placeholder=" " [ngModel]="searchLibrary()"
+                  (ngModelChange)="searchLibrary.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-library">Library</label>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-date" class="form-control" placeholder=" " [ngModel]="searchDate()"
+                  (ngModelChange)="searchDate.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-date">Publication date</label>
+              </div>
+              <span class="form-text small text-muted">FHIR date, e.g. <code>2024</code> or
+                <code>ge2020-01-01</code></span>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-resource-id" class="form-control" placeholder=" " [ngModel]="searchResourceId()"
+                  (ngModelChange)="searchResourceId.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-resource-id">Resource id (<code>_id</code>)</label>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="form-floating">
+                <input id="vsac-search-last-updated" class="form-control" placeholder=" "
+                  [ngModel]="searchLastUpdated()" (ngModelChange)="searchLastUpdated.set($event)"
+                  [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-search-last-updated">Last updated (<code>_lastUpdated</code>)</label>
+              </div>
+              <span class="form-text small text-muted">FHIR instant/date with optional prefix</span>
+            </div>
+          </div>
+        </div>
+      </form>
+      @if (searchBundle(); as sb) {
+      <div id="vsac-search-pagination"
+        class="mt-3 d-flex flex-wrap align-items-center justify-content-between gap-2 border-top pt-3">
+        <span class="small text-muted">
+          @if (searchResults().length) {
+          <span id="vsac-search-page-summary">{{ searchResults().length }} on this page</span>
+          @if (sb.total != null) {
+          <span> · {{ sb.total }} matching (server)</span>
+          }
+          } @else if (sb.total === 0) {
+          <span id="vsac-search-page-summary">No matches</span>
+          } @else {
+          <span id="vsac-search-page-summary">No rows on this page</span>
+          }
+        </span>
+        @if (searchPagination().showNav) {
+        <div class="btn-group btn-group-sm" role="group" aria-label="Search result pages">
+          <button type="button" id="vsac-search-page-first" class="btn btn-outline-secondary"
+            [disabled]="!searchPagination().first || loading()" (click)="goSearchPage('first')">First</button>
+          <button type="button" id="vsac-search-page-prev" class="btn btn-outline-secondary"
+            [disabled]="!searchPagination().previous || loading()" (click)="goSearchPage('previous')">Previous</button>
+          <button type="button" id="vsac-search-page-next" class="btn btn-outline-secondary"
+            [disabled]="!searchPagination().next || loading()" (click)="goSearchPage('next')">Next</button>
+          <button type="button" id="vsac-search-page-last" class="btn btn-outline-secondary"
+            [disabled]="!searchPagination().last || loading()" (click)="goSearchPage('last')">Last</button>
+        </div>
+        }
+      </div>
+      }
+      <div class="mt-3">
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Name / title</th>
+                <th>Status</th>
+                <th>Version</th>
+                <th>Publisher</th>
+                <th>Publication date</th>
+                <th>Last updated</th>
+                <th class="text-end">Expansion total</th>
+                <th>Immutable</th>
+                <th>Canonical URL</th>
+                <th>Description</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (vs of searchResults(); track vs.id || vs.url) {
+              <tr>
+                <td>
+                  <span class="fw-medium">{{ vs.title || vs.name || '—' }}</span>
+                  @if (vs.name && vs.title && vs.name !== vs.title) {
+                  <div class="small text-muted text-break">{{ vs.name }}</div>
+                  }
+                  <div class="small text-muted text-break mt-1">
+                    <span class="visually-hidden">OID or id: </span>
+                    <code class="small">{{ vs.id || '—' }}</code>
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex flex-wrap align-items-center gap-1">
+                    <span class="badge" [ngClass]="vsacStatusBadgeClass(vs.status)">{{ vs.status || 'unknown' }}</span>
+                    @if (vs.experimental) {
+                    <span class="badge text-bg-info">Experimental</span>
+                    }
+                  </div>
+                </td>
+                <td class="small">{{ vs.version || '—' }}</td>
+                <td class="small text-break">{{ vs.publisher || '—' }}</td>
+                <td class="small text-nowrap">{{ formatVsacDate(vs.date) }}</td>
+                <td class="small text-nowrap">{{ formatVsacDate(vs.meta?.lastUpdated) }}</td>
+                <td class="small text-end text-nowrap">{{ vs.expansion?.total ?? '—' }}</td>
+                <td class="small text-nowrap">{{ vs.immutable ? 'Yes' : '—' }}</td>
+                <td class="small text-break"><code class="small">{{ vs.url || '—' }}</code></td>
+                <td class="small text-break" [attr.title]="vs.description || null">{{
+                  truncateVsDescription(vs.description) }}</td>
+                <td class="text-end text-nowrap">
+                  <div class="btn-group btn-group-sm" role="group" [attr.aria-label]="'Actions for ' + (vs.title || vs.name || vs.id || 'value set')">
+                    <button type="button" class="btn btn-outline-primary"
+                      (click)="selectSearchResult(vs)">Open</button>
+                    <button type="button" [id]="'vsac-search-add-clipboard-' + $index" class="btn btn-outline-primary"
+                      (click)="addSearchValueSetToAppClipboard(vs)" [disabled]="loading()"
+                      title="Add ValueSet to app clipboard">
+                      <i class="bi bi-clipboard-plus" aria-hidden="true"></i><span class="visually-hidden">Add to app clipboard</span>
+                    </button>
+                    <button type="button" [id]="'vsac-search-import-terminology-' + $index"
+                      class="btn btn-outline-success" (click)="importSearchValueSetToTerminology(vs)"
+                      [disabled]="loading() || terminologyImportWarning()"
+                      title="Post this ValueSet to the configured terminology server">
+                      Import
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              } @empty {
+              <tr>
+                <td colspan="11" class="text-muted">No results yet.</td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (activeTab() === 'valueset') {
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card h-100">
+        <div class="card-header">Load</div>
+        <div class="card-body">
+          <form id="vsac-load-valueset-form" (ngSubmit)="loadValueSetByOid()">
+            <div class="input-group mb-2">
+              <div class="form-floating flex-grow-1">
+                <input id="vsac-oid" class="form-control" placeholder=" " [ngModel]="oidInput()"
+                  (ngModelChange)="oidInput.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-oid">OID or ValueSet id</label>
+              </div>
+              <button id="vsac-load-vs" type="submit" class="btn btn-primary align-self-stretch"
+                [disabled]="loading()">Load</button>
+            </div>
+          </form>
+          <p class="form-text small text-muted mb-2">Example: <code>2.16.840.1.113883.3.464.1003.101.12.1001</code></p>
+          <div class="btn-group btn-group-sm flex-wrap">
+            <button type="button" class="btn btn-outline-secondary" (click)="copyVsacOid()"
+              [disabled]="!loadedValueSet() && !oidInput().trim()">Copy OID</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="copyCanonicalUrl()"
+              [disabled]="!loadedValueSet()?.url">Copy URL</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="copyCqlSnippet()"
+              [disabled]="!loadedValueSet()?.url">Copy CQL valueset</button>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+            <button type="button" id="vsac-import-vs-terminology" class="btn btn-success btn-sm"
+              (click)="importLoadedValueSetToTerminology()"
+              [disabled]="loading() || terminologyImportWarning() || !loadedValueSet()">
+              Import to terminology server
+            </button>
+            <button type="button" id="vsac-add-vs-clipboard" class="btn btn-outline-primary btn-sm"
+              (click)="addLoadedValueSetToAppClipboard()" [disabled]="loading() || !loadedValueSet()"
+              title="Add this ValueSet resource to the app clipboard">
+              <i class="bi bi-clipboard-plus me-1" aria-hidden="true"></i>Add to app clipboard
+            </button>
+          </div>
+          <p class="form-text small text-muted mb-0 mt-2">Manage saved FHIR items under <a routerLink="/clipboard">Clipboard</a>.</p>
+          @if (loadedValueSet()) {
+          <div class="vsac-code-panel border rounded mt-3">
+            <div
+              class="vsac-code-panel-toolbar d-flex align-items-center justify-content-between px-2 py-1 border-bottom bg-body-tertiary">
+              <span class="small text-muted">ValueSet (JSON)</span>
+              <button type="button" id="vsac-copy-loaded-json" class="btn btn-sm btn-link text-body-secondary p-1"
+                (click)="copyLoadedValueSetJson()" title="Copy to clipboard">
+                <i class="bi bi-clipboard" aria-hidden="true"></i><span class="visually-hidden">Copy</span>
+              </button>
+            </div>
+            <div class="vsac-code-panel-body">
+              <app-syntax-highlighter [code]="loadedValueSetJson()" [language]="'json'"
+                [showLineNumbers]="false"></app-syntax-highlighter>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card mb-3">
+        <div class="card-header">$expand</div>
+        <form id="vsac-expand-form" (ngSubmit)="expandLoaded()">
+          <div class="card-body row g-2">
+            <div class="col-md-4">
+              <div class="form-floating">
+                <input id="vsac-ex-filter" class="form-control form-control-sm" placeholder=" "
+                  [ngModel]="expandFilter()" (ngModelChange)="expandFilter.set($event)"
+                  [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-ex-filter">Filter</label>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="form-floating">
+                <input id="vsac-ex-count" type="number" class="form-control form-control-sm" placeholder=" "
+                  [ngModel]="expandCount()" (ngModelChange)="expandCount.set(+$event || 0)"
+                  [ngModelOptions]="{standalone: true}" min="1" />
+                <label for="vsac-ex-count">Count</label>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="form-floating">
+                <input id="vsac-ex-offset" type="number" class="form-control form-control-sm" placeholder=" "
+                  [ngModel]="expandOffset()" (ngModelChange)="expandOffset.set(+$event || 0)"
+                  [ngModelOptions]="{standalone: true}" min="0" />
+                <label for="vsac-ex-offset">Offset</label>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-floating">
+                <input id="vsac-ex-profile" class="form-control form-control-sm" placeholder=" "
+                  [ngModel]="expandProfile()" (ngModelChange)="expandProfile.set($event)"
+                  [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-ex-profile">Profile (optional)</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <button id="vsac-expand-run" type="submit" class="btn btn-primary btn-sm" [disabled]="loading()">Run
+                $expand</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      @if (expandedValueSet()) {
+      <div class="card">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <span id="vsac-expand-summary">
+            @if (expansionPageInfo().summary) {
+            {{ expansionPageInfo().summary }}
+            } @else {
+            Expansion ({{ expansionRows().length }} codes this page)
+            }
+          </span>
+          <button type="button" class="btn btn-sm btn-success" (click)="importLoadedValueSetToTerminology()"
+            [disabled]="loading() || terminologyImportWarning()">Import to terminology</button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped mb-0">
+              <thead class="bg-body">
+                <tr>
+                  <th>System</th>
+                  <th>Code</th>
+                  <th>Display</th>
+                  <th class="text-end">Clipboard</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of expansionRows(); track $index) {
+                <tr>
+                  <td class="small text-break">{{ row.system }}</td>
+                  <td><code>{{ row.code }}</code></td>
+                  <td>{{ row.display }}</td>
+                  <td class="text-end text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                      [id]="'vsac-expand-add-clipboard-' + $index"
+                      (click)="addExpansionCodingToAppClipboard(row)" [disabled]="loading() || !row.system || !row.code"
+                      title="Add coding to app clipboard">
+                      <i class="bi bi-clipboard-plus" aria-hidden="true"></i><span class="visually-hidden">Add to app clipboard</span>
+                    </button>
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+        @if (expandedValueSet()?.expansion) {
+        <div class="card-footer d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
+          <span class="small text-muted">Paging uses <strong>Count</strong> and <strong>Offset</strong> above with Run $expand, or use the buttons.</span>
+          <div class="btn-group btn-group-sm" role="group" aria-label="Expansion pages">
+            <button type="button" id="vsac-expand-page-prev" class="btn btn-outline-secondary"
+              [disabled]="loading() || !expansionPageInfo().canPrev" (click)="expandGoPrevPage()">Previous page</button>
+            <button type="button" id="vsac-expand-page-next" class="btn btn-outline-secondary"
+              [disabled]="loading() || !expansionPageInfo().canNext" (click)="expandGoNextPage()">Next page</button>
+          </div>
+        </div>
+        }
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  @if (activeTab() === 'svs') {
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">Utilities</div>
+        <div class="card-body">
+          <!-- <p class="small text-muted">Requests use CQL Studio Server at <code>{{ settingsService.getEffectiveServerBaseUrl() }}</code> with Basic auth (UMLS API key).</p> -->
+          <div class="d-flex gap-2 mb-3">
+            <button id="vsac-svs-programs" type="button" class="btn btn-outline-primary btn-sm"
+              (click)="fetchPrograms()" [disabled]="loading()">GET /vsac/programs</button>
+            <button id="vsac-svs-tagnames" type="button" class="btn btn-outline-primary btn-sm"
+              (click)="fetchTagNames()" [disabled]="loading()">GET /vsac/tagNames</button>
+          </div>
+          @if (svsProgramsText()) {
+          <div class="vsac-code-panel border rounded mb-3">
+            <div
+              class="vsac-code-panel-toolbar d-flex align-items-center justify-content-between px-2 py-1 border-bottom bg-body-tertiary">
+              <span class="small text-muted">Programs response</span>
+              <button type="button" id="vsac-copy-programs" class="btn btn-sm btn-link text-body-secondary p-1"
+                (click)="copyProgramsResponse()" title="Copy to clipboard">
+                <i class="bi bi-clipboard" aria-hidden="true"></i><span class="visually-hidden">Copy</span>
+              </button>
+            </div>
+            <div class="vsac-code-panel-body vsac-code-panel-body--short">
+              <app-syntax-highlighter [code]="svsProgramsText()!" [language]="'auto'"
+                [showLineNumbers]="false"></app-syntax-highlighter>
+            </div>
+          </div>
+          }
+          @if (svsTagNamesText()) {
+          <div class="vsac-code-panel border rounded">
+            <div
+              class="vsac-code-panel-toolbar d-flex align-items-center justify-content-between px-2 py-1 border-bottom bg-body-tertiary">
+              <span class="small text-muted">tagNames response</span>
+              <button type="button" id="vsac-copy-tagnames" class="btn btn-sm btn-link text-body-secondary p-1"
+                (click)="copyTagNamesResponse()" title="Copy to clipboard">
+                <i class="bi bi-clipboard" aria-hidden="true"></i><span class="visually-hidden">Copy</span>
+              </button>
+            </div>
+            <div class="vsac-code-panel-body vsac-code-panel-body--short">
+              <app-syntax-highlighter [code]="svsTagNamesText()!" [language]="'auto'"
+                [showLineNumbers]="false"></app-syntax-highlighter>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header">RetrieveMultipleValueSets (XML)</div>
+        <form id="vsac-svs-retrieve-form" (ngSubmit)="retrieveSvs()">
+          <div class="card-body row g-2">
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input id="vsac-svs-oid" class="form-control form-control-sm" placeholder=" " [ngModel]="svsOid()"
+                  (ngModelChange)="svsOid.set($event)" [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-svs-oid">OID (id)</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input id="vsac-svs-release" class="form-control form-control-sm" placeholder=" "
+                  [ngModel]="svsRelease()" (ngModelChange)="svsRelease.set($event)"
+                  [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-svs-release">Release (optional)</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input id="vsac-svs-profile" class="form-control form-control-sm" placeholder=" "
+                  [ngModel]="svsProfile()" (ngModelChange)="svsProfile.set($event)"
+                  [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-svs-profile">Profile (optional)</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating">
+                <input id="vsac-svs-tagname" class="form-control form-control-sm" placeholder=" "
+                  [ngModel]="svsTagName()" (ngModelChange)="svsTagName.set($event)"
+                  [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-svs-tagname">Tag name (with tag value)</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="form-floating">
+                <input id="vsac-svs-tagvalue" class="form-control form-control-sm" placeholder=" "
+                  [ngModel]="svsTagValue()" (ngModelChange)="svsTagValue.set($event)"
+                  [ngModelOptions]="{standalone: true}" />
+                <label for="vsac-svs-tagvalue">Tag value</label>
+              </div>
+            </div>
+            <div class="col-12">
+              <button id="vsac-svs-retrieve" type="submit" class="btn btn-primary btn-sm"
+                [disabled]="loading()">Retrieve</button>
+            </div>
+            @if (svsXmlResult()) {
+            <div class="col-12">
+              <div class="vsac-code-panel border rounded">
+                <div
+                  class="vsac-code-panel-toolbar d-flex align-items-center justify-content-between px-2 py-1 border-bottom bg-body-tertiary">
+                  <span class="small text-muted">Response (XML)</span>
+                  <button type="button" id="vsac-copy-svs-xml" class="btn btn-sm btn-link text-body-secondary p-1"
+                    (click)="copySvsXmlResponse()" title="Copy to clipboard">
+                    <i class="bi bi-clipboard" aria-hidden="true"></i><span class="visually-hidden">Copy</span>
+                  </button>
+                </div>
+                <div class="vsac-code-panel-body vsac-code-panel-body--tall">
+                  <app-syntax-highlighter [code]="svsXmlResult()!" [language]="'xml-doc'"
+                    [showLineNumbers]="false"></app-syntax-highlighter>
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  }
+</div>

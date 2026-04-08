@@ -2,12 +2,11 @@
 
 import { Injectable, inject } from '@angular/core';
 import { BaseService } from './base.service';
-import { ValueSet, CodeSystem, ConceptMap, Bundle, Parameters, OperationOutcome } from 'fhir/r4';
+import { ValueSet, CodeSystem, ConceptMap, Bundle, Parameters, OperationOutcome, Resource } from 'fhir/r4';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
-// import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -17,16 +16,7 @@ export class TerminologyService extends BaseService {
   protected settingsService = inject(SettingsService);
 
   private getTerminologyBaseUrl(): string {
-    const baseUrl = this.settingsService.getEffectiveTerminologyBaseUrl();
-    // For VSAC, we might need to use a CORS proxy in development
-    if (baseUrl.includes('cts.nlm.nih.gov') && this.isDevelopment()) {
-      console.warn('VSAC CORS Issue: VSAC does not allow direct browser requests. Consider using a CORS proxy for development.');
-    }
-    return baseUrl;
-  }
-
-  private isDevelopment(): boolean {
-    return true; // Assume development for now
+    return this.settingsService.getEffectiveTerminologyBaseUrl();
   }
 
   private getAuthHeaders(): HttpHeaders {
@@ -38,18 +28,8 @@ export class TerminologyService extends BaseService {
     });
 
     if (username && username.trim() !== '' && password && password.trim() !== '') {
-      // Basic Auth: username:password
       const authString = btoa(`${username}:${password}`);
       headers = headers.set('Authorization', `Basic ${authString}`);
-      
-      // Debug logging for authentication troubleshooting
-      console.log('Terminology Authentication Debug:', {
-        username: username,
-        passwordLength: password.length,
-        passwordPrefix: password.substring(0, 8) + '...',
-        authStringLength: authString.length,
-        authStringPrefix: authString.substring(0, 12) + '...'
-      });
     }
     // If no credentials provided, requests will be made without authentication
 
@@ -582,5 +562,76 @@ export class TerminologyService extends BaseService {
     return this.http.delete(url, { headers: this.getAuthHeaders() });
   }
 
+  /**
+   * POST a Bundle to the terminology server root.
+   * `Bundle.type` `collection` is converted to `transaction` with `entry.request`
+   * (`PUT {type}/{id}` or `POST {type}`) so HAPI and similar servers accept the request
+   * (e.g. HAPI-0527 rejects incoming `collection` at the base URL).
+   */
+  postBundle(bundle: Bundle<Resource> | string): Observable<Bundle<Resource>> {
+    const url = `${this.getTerminologyBaseUrl()}`;
+    const payload: object | string =
+      typeof bundle === 'string'
+        ? bundle
+        : bundle.type === 'collection'
+          ? this.collectionBundleToTransaction(bundle)
+          : bundle;
+    return this.http.post<Bundle<Resource>>(url, payload, {
+      headers: this.getAuthHeaders().set('Content-Type', 'application/fhir+json')
+    });
+  }
+
+  /**
+   * Map a collection entry to a transaction entry when `request` is absent.
+   */
+  private collectionEntryToTransactionEntry(
+    e: NonNullable<Bundle<Resource>['entry']>[number]
+  ): NonNullable<Bundle<Resource>['entry']>[number] {
+    if (e.request) {
+      return e;
+    }
+    const res = e.resource;
+    if (!res?.resourceType) {
+      return e;
+    }
+    const rt = res.resourceType;
+    const rid = typeof (res as { id?: string }).id === 'string' ? (res as { id: string }).id.trim() : '';
+    if (rid) {
+      return {
+        ...e,
+        request: {
+          method: 'PUT' as const,
+          url: `${rt}/${encodeURIComponent(rid)}`
+        }
+      };
+    }
+    return {
+      ...e,
+      request: {
+        method: 'POST' as const,
+        url: rt
+      }
+    };
+  }
+
+  private collectionBundleToTransaction(bundle: Bundle<Resource>): Bundle<Resource> {
+    const entries = bundle.entry ?? [];
+    return {
+      ...bundle,
+      type: 'transaction',
+      entry: entries.map((entry) => this.collectionEntryToTransactionEntry(entry))
+    };
+  }
+
+  /**
+   * POST a single resource (e.g. ValueSet) to the terminology server.
+   */
+  postResource<T extends Resource>(resource: T): Observable<T> {
+    const rt = resource.resourceType;
+    const url = `${this.getTerminologyBaseUrl()}/${rt}`;
+    return this.http.post<T>(url, resource, {
+      headers: this.getAuthHeaders().set('Content-Type', 'application/fhir+json')
+    });
+  }
 
 }

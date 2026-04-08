@@ -18,6 +18,11 @@ export class Settings {
     public terminologyBaseUrl: string = '';
     public terminologyBasicAuthUsername: string = '';
     public terminologyBasicAuthPassword: string = '';
+
+    /** VSAC (NLM CTS / vsac.nlm.nih.gov) — UMLS API key auth; VSAC Browser always calls NLM via CQL Studio Server (no CORS). */
+    public vsacFhirBaseUrl: string = '';
+    public vsacApiUsername: string = 'apikey';
+    public vsacApiPassword: string = '';
     
     // AI Settings
     public ollamaBaseUrl: string = '';

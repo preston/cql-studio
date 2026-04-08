@@ -25,6 +25,7 @@ import { MeasureLibraryComponent } from './components/measure-editor/measure-lib
 import { MeasureWorkspaceComponent } from './components/measure-editor/measure-workspace/measure-workspace.component';
 import { MeasureReportsListComponent } from './components/measure-editor/measure-reports-list/measure-reports-list.component';
 import { ClipboardManagerComponent } from './components/clipboard-manager/clipboard-manager.component';
+import { VsacBrowserComponent } from './components/vsac-browser/vsac-browser.component';
 
 export const routes: Routes = [
   // Normal app routes
@@ -60,6 +61,7 @@ export const routes: Routes = [
       { path: ':id', component: MeasureWorkspaceComponent }
     ]
   },
+  { path: 'vsac', component: VsacBrowserComponent },
   { path: 'guidelines', component: GuidelinesComponent },
   { path: 'guidelines/:id/testing', component: GuidelinesComponent },
   { path: 'guidelines/:id', component: GuidelinesComponent },

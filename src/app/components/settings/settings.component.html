@@ -130,6 +130,38 @@
             <div class="col-md-6 mb-4">
                 <div class="card h-100">
                     <div class="card-header">
+                        <h6 class="card-title mb-0"><span class="bi bi-cloud-download me-2"></span>U.S. Value Set Authority Center (VSAC)</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted">National Library of Medicine (NLM) Value Set Authority Center (VSAC) requests from this app are sent through your <strong>CQL Studio Server</strong> instance due to NLM not permitting direct browser calls. Requires a free <a href="https://uts.nlm.nih.gov/" target="_blank" rel="noopener noreferrer">UMLS</a> account and API key. See <a href="https://www.nlm.nih.gov/vsac/support/usingvsac/vsacfhirapi.html" target="_blank" rel="noopener noreferrer">FHIR Terminology Service for VSAC</a> and <a href="https://www.nlm.nih.gov/vsac/support/usingvsac/vsacsvsapiv2.html" target="_blank" rel="noopener noreferrer">VSAC API resources</a>. NLM requests ≤20 requests/s per IP and 12–24h caching where practical.</p>
+                        <div class="mb-3">
+                            <label for="vsacFhirBaseUrl" class="form-label">VSAC FHIR base URL</label>
+                            <input type="url" class="form-control" id="vsacFhirBaseUrl" name="vsacFhirBaseUrl"
+                                [(ngModel)]="settingsService.settings().vsacFhirBaseUrl"
+                                [placeholder]="settingsService.getDefaultVsacFhirBaseUrl()">
+                            <small class="form-text text-muted d-block mt-1 small">Leave blank for the default in the placeholder (or set <code>window.CQL_STUDIO_VSAC_FHIR_BASE_URL</code> before load). UAT: <code>https://uat-cts.nlm.nih.gov/fhir</code>.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="vsacApiUsername" class="form-label">VSAC Basic Auth Username</label>
+                            <input type="text" class="form-control" id="vsacApiUsername" name="vsacApiUsername"
+                                [(ngModel)]="settingsService.settings().vsacApiUsername"
+                                [placeholder]="settingsService.getDefaultVsacApiUsername()">
+                            <small class="form-text text-muted d-block mt-1 small">NLM recommends <code>apikey</code> (or blank) with the UMLS key as password. Leave blank to use the placeholder or <code>window.CQL_STUDIO_VSAC_BASIC_AUTH_USERNAME</code>.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="vsacApiPassword" class="form-label">UMLS API Key</label>
+                            <input type="password" class="form-control" id="vsacApiPassword" name="vsacApiPassword"
+                                [(ngModel)]="settingsService.settings().vsacApiPassword">
+                            <small class="form-text text-muted d-block mt-1 small">From UTS My Profile. Independent of Terminology Services Basic Auth. Leave blank to use <code>window.CQL_STUDIO_VSAC_BASIC_AUTH_PASSWORD</code> if set at deploy time; otherwise stored only in this browser when entered here.</small>
+                        </div>
+                        <p class="small text-muted mb-0"><span class="bi bi-info-circle me-1"></span>Per NLM: include this notice in products using NLM data: &quot;This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product.&quot;</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
                         <h6 class="card-title mb-0"><span class="bi bi-server me-2"></span>CQL Studio Server</h6>
                     </div>
                     <div class="card-body">
