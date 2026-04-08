@@ -3,6 +3,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
 import { Bundle, CapabilityStatement, Parameters, ValueSet } from 'fhir/r4';
 
@@ -218,6 +219,26 @@ export class VsacService {
     return this.http.get<ValueSet>(this.fhirUrl(`/ValueSet/${enc}`), {
       headers: this.fhirHeaders()
     });
+  }
+
+  /**
+   * Read by logical id / OID, or resolve by canonical `url` when the input is an absolute http(s) URL.
+   */
+  fetchValueSetByOidOrCanonicalUrl(idOrUrl: string): Observable<ValueSet> {
+    const trimmed = idOrUrl.trim();
+    if (/^https?:\/\//i.test(trimmed)) {
+      return this.searchValueSets({ url: trimmed, _count: 1 }).pipe(
+        map((bundle) => {
+          const first = bundle.entry?.[0]?.resource;
+          if (first?.resourceType === 'ValueSet') {
+            return first as ValueSet;
+          }
+          throw new Error('No ValueSet found for this canonical URL');
+        })
+      );
+    }
+    const id = trimmed.replace(/^urn:oid:/i, '');
+    return this.getValueSetById(id);
   }
 
   expandValueSetPost(params: Parameters): Observable<ValueSet> {

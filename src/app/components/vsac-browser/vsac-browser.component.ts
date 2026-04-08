@@ -31,6 +31,9 @@ export class VsacBrowserComponent {
   private toast = inject(ToastService);
   private clipboard = inject(ClipboardService);
 
+  /** Supersedes stale in-flight ValueSet fetches (Open row or Load). */
+  private valueSetPullGen = 0;
+
   protected readonly activeTab = signal<'status' | 'search' | 'valueset' | 'svs'>('search');
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -332,33 +335,55 @@ export class VsacBrowserComponent {
       return;
     }
     if (this.loading()) return;
-    const id = raw.replace(/^urn:oid:/i, '');
     if (!this.vsacCredentialsOrWarn()) return;
-    this.loading.set(true);
-    this.error.set(null);
     this.expandedValueSet.set(null);
-    try {
-      const vs = await firstValueFrom(this.vsac.getValueSetById(id));
-      this.loadedValueSet.set(vs);
-    } catch (e) {
-      this.loadedValueSet.set(null);
-      const msg = this.errMsg(e);
-      this.error.set(msg);
-      this.toast.showError(msg, 'Load ValueSet failed');
-    } finally {
-      this.loading.set(false);
-    }
+    await this.pullFullValueSetIntoLoaded(null);
   }
 
-  selectSearchResult(vs: ValueSet): void {
+  async selectSearchResult(vs: ValueSet): Promise<void> {
     if (vs.id) {
       this.oidInput.set(vs.id);
     } else if (vs.url) {
       this.oidInput.set(vs.url);
     }
-    this.loadedValueSet.set(vs);
     this.expandedValueSet.set(null);
+    this.loadedValueSet.set(vs);
     this.setTab('valueset');
+    if (!this.oidInput().trim()) return;
+    if (!this.vsacCredentialsOrWarn()) return;
+    await this.pullFullValueSetIntoLoaded(vs);
+  }
+
+  /**
+   * Fetches full ValueSet using current `oidInput` (OID, `urn:oid:…`, or canonical http(s) URL).
+   * On failure: clears loaded when `preserveOnError` is null (Load), else restores that snapshot (Open from search).
+   */
+  private async pullFullValueSetIntoLoaded(preserveOnError: ValueSet | null): Promise<void> {
+    const raw = this.oidInput().trim();
+    if (!raw) return;
+    const gen = ++this.valueSetPullGen;
+    this.loading.set(true);
+    this.error.set(null);
+    try {
+      const full = await firstValueFrom(this.vsac.fetchValueSetByOidOrCanonicalUrl(raw));
+      if (gen !== this.valueSetPullGen) return;
+      this.loadedValueSet.set(full);
+      if (full.id) {
+        this.oidInput.set(full.id);
+      } else if (full.url) {
+        this.oidInput.set(full.url);
+      }
+    } catch (e) {
+      if (gen !== this.valueSetPullGen) return;
+      this.loadedValueSet.set(preserveOnError);
+      const msg = this.errMsg(e);
+      this.error.set(msg);
+      this.toast.showError(msg, 'Load ValueSet failed');
+    } finally {
+      if (gen === this.valueSetPullGen) {
+        this.loading.set(false);
+      }
+    }
   }
 
   async expandLoaded(): Promise<void> {
