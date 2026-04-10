@@ -1,0 +1,49 @@
+<section class="d-flex flex-column" aria-labelledby="sql-pipeline-elm-heading">
+  <header class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 pb-2 mb-3 border-bottom">
+    <h2 id="sql-pipeline-elm-heading" class="h6 fw-semibold mb-0">ELM Translation</h2>
+  </header>
+  @if (hasElmTranslationErrors()) {
+  <div class="alert alert-danger small mb-2" role="alert">
+    <h3 class="alert-heading h6 mb-1">Translation errors</h3>
+    <ul class="mb-0 ps-3">
+      @for (err of elmTranslationErrors(); track $index) {
+      <li>{{ err }}</li>
+      }
+    </ul>
+  </div>
+  }
+  @if (hasElmTranslationWarnings()) {
+  <div class="alert alert-warning small mb-2" role="alert">
+    <h3 class="alert-heading h6 mb-1">Translation warnings</h3>
+    <ul class="mb-0 ps-3">
+      @for (w of elmTranslationWarnings(); track $index) {
+      <li>{{ w }}</li>
+      }
+    </ul>
+  </div>
+  }
+  @if (elmTranslationMessages().length > 0) {
+  <div class="alert alert-info small mb-2" role="status">
+    <h3 class="alert-heading h6 mb-1">Messages</h3>
+    <ul class="mb-0 ps-3">
+      @for (m of elmTranslationMessages(); track $index) {
+      <li>{{ m }}</li>
+      }
+    </ul>
+  </div>
+  }
+  <div id="sql-elm-output" class="flex-grow-1 sql-elm-prism-wrap">
+    @if (isTranslatingElm()) {
+    <div class="d-flex align-items-center justify-content-center py-4 px-2 text-muted small">
+      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+      <span>Translating CQL to ELM...</span>
+    </div>
+    } @else if (formattedElmXml()) {
+    <app-syntax-highlighter [code]="formattedElmXml()" language="xml" [showLineNumbers]="true" />
+    } @else if (cqlPreview()) {
+    <div class="text-muted text-center py-4 px-2 small">
+      {{ hasElmTranslationErrors() ? 'No ELM XML due to translation errors.' : 'No ELM output yet.' }}
+    </div>
+    }
+  </div>
+</section>

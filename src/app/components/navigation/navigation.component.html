@@ -88,6 +88,13 @@
               </a>
             </li>
             }
+            @if (settingsService.settings().experimental && settingsService.settings().developer) {
+            <li>
+              <a id="sql-nav-link" class="dropdown-item" routerLink="/sql" routerLinkActive="active">
+                <i class="bi bi-database me-2"></i>SQL on FHIR
+              </a>
+            </li>
+            }
           </ul>
         </li>
         <li class="nav-item dropdown">

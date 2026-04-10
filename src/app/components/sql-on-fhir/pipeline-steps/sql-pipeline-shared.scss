@@ -1,0 +1,24 @@
+// Shared layout for SQL-on-FHIR pipeline step panels (imported by stage components).
+
+.sql-monospace-block {
+  min-height: 10rem;
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sql-library-json-view {
+  min-height: 0;
+}
+
+.sql-library-json-inner {
+  flex: 1 1 auto;
+}
+
+.sql-generated-sql-wrap {
+  min-height: 10rem;
+}
+
+.sql-elm-prism-wrap {
+  min-height: 10rem;
+}

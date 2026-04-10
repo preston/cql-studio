@@ -1,0 +1,12 @@
+<section aria-labelledby="sql-pipeline-cql-heading">
+  <header class="pb-2 mb-3 border-bottom">
+    <h2 id="sql-pipeline-cql-heading" class="h6 fw-semibold mb-0">Decoded CQL</h2>
+  </header>
+  @if (cqlPreview()) {
+  <div id="sql-cql-preview" class="p-1">
+    <app-cql-readonly-preview [content]="cqlPreview()" minHeight="12rem" />
+  </div>
+  } @else {
+  <div id="sql-cql-preview" class="sql-monospace-block small p-3 text-muted mb-0 rounded bg-body-secondary">No embedded CQL content loaded for this library.</div>
+  }
+</section>
