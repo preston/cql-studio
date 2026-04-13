@@ -56,7 +56,14 @@ export interface SqlViewDefinition {
 
 // ─── Standard SQL-on-FHIR view definitions ────────────────────────────────────
 
-/** All standard views for use with SQL-on-FHIR FHIR R4 resources. */
+/**
+ * Standard SQL-on-FHIR view definitions aligned with US Core 6.1 / US CDI v3.
+ *
+ * Includes only the resource elements used in CQL measure logic — avoids
+ * surfacing nested FHIR structures not needed for eCQM evaluation.
+ * Resources without clinical measure use (Organization, Practitioner, etc.)
+ * are excluded since they are referenced but not directly queried in eCQM CTEs.
+ */
 export const STANDARD_VIEW_DEFINITIONS: ViewDefinition[] = [
   patientViewDefinition(),
   observationViewDefinition(),
@@ -68,6 +75,7 @@ export const STANDARD_VIEW_DEFINITIONS: ViewDefinition[] = [
   coverageViewDefinition(),
   allergyIntoleranceViewDefinition(),
   immunizationViewDefinition(),
+  serviceRequestViewDefinition(),
 ];
 
 // ─── ViewDefinition factories ─────────────────────────────────────────────────
@@ -326,6 +334,42 @@ function immunizationViewDefinition(): ViewDefinition {
   };
 }
 
+function serviceRequestViewDefinition(): ViewDefinition {
+  return {
+    resourceType: 'ViewDefinition',
+    name: 'service_request_view',
+    title: 'ServiceRequest view (US Core 6.1)',
+    status: 'active',
+    description: 'Flattened ServiceRequest — referrals, diagnostic orders, and care orders. New in US Core 6.1.',
+    resource: 'ServiceRequest',
+    select: [{
+      column: [
+        { name: 'id',                 path: 'id',                                           type: 'id' },
+        { name: 'subject_id',         path: 'subject.getId()',                              type: 'id' },
+        { name: 'status',             path: 'status',                                       type: 'code' },
+        { name: 'intent',             path: 'intent',                                       type: 'code' },
+        { name: 'category_code',      path: 'category.first().coding.first().code',         type: 'code' },
+        { name: 'category_system',    path: 'category.first().coding.first().system',       type: 'uri' },
+        { name: 'code',               path: 'code.coding.first().code',                     type: 'code' },
+        { name: 'code_system',        path: 'code.coding.first().system',                   type: 'uri' },
+        { name: 'code_display',       path: 'code.coding.first().display',                  type: 'string' },
+        { name: 'code_text',          path: 'code.text',                                    type: 'string' },
+        { name: 'occurrence_datetime', path: 'occurrence.ofType(dateTime)',                 type: 'dateTime' },
+        { name: 'occurrence_start',   path: 'occurrence.ofType(Period).start',              type: 'dateTime' },
+        { name: 'occurrence_end',     path: 'occurrence.ofType(Period).end',                type: 'dateTime' },
+        { name: 'authored_on',        path: 'authoredOn',                                   type: 'dateTime' },
+        { name: 'requester_id',       path: 'requester.getId()',                            type: 'id' },
+        { name: 'performer_id',       path: 'performer.first().getId()',                    type: 'id' },
+        { name: 'reason_code',        path: 'reasonCode.first().coding.first().code',       type: 'code' },
+        { name: 'do_not_perform',     path: 'doNotPerform',                                 type: 'boolean' },
+        { name: 'priority',           path: 'priority',                                     type: 'code' },
+        { name: 'encounter_id',       path: 'encounter.getId()',                            type: 'id' },
+        { name: 'insurance_id',       path: 'insurance.first().getId()',                    type: 'id' },
+      ]
+    }]
+  };
+}
+
 // ─── SQL DDL generator ────────────────────────────────────────────────────────
 
 /**
@@ -335,7 +379,6 @@ function immunizationViewDefinition(): ViewDefinition {
  */
 export function viewDefinitionToSql(vd: ViewDefinition): SqlViewDefinition {
   const cols = extractColumns(vd.select);
-  const colList = cols.map(c => `  ${c.name}`).join(',\n');
   const sourcePaths = cols.map(c => `  ${pathToSqlExpr(c.path, vd.resource.toLowerCase())} AS ${c.name}`).join(',\n');
 
   const sql =

@@ -37,7 +37,13 @@ BEGIN;
 \ir views/006_medication_request_view.sql
 \ir views/007_diagnostic_report_view.sql
 
--- ── 3. Terminology support ────────────────────────────────────────────────────
+-- ── 3. US Core 6.1 supplemental views ────────────────────────────────────────
+\ir views/009_coverage_view.sql
+\ir views/010_allergy_intolerance_view.sql
+\ir views/011_immunization_view.sql
+\ir views/012_service_request_view.sql
+
+-- ── 4. Terminology support ────────────────────────────────────────────────────
 \ir views/008_value_set_expansion_view.sql
 
 -- ── 4. Summary ────────────────────────────────────────────────────────────────
