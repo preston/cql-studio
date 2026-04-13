@@ -63,3 +63,17 @@ export type {
   ViewDefinitionColumn,
   SqlViewDefinition,
 } from './views/view-definitions.js';
+
+// Value set utilities
+export { extractValueSets, extractUsedValueSets } from './valueset/value-set-extractor.js';
+export type { ValueSetReference } from './valueset/value-set-extractor.js';
+
+export { loadValueSetExpansions } from './valueset/value-set-loader.js';
+export type { ValueSetExpansionRow, ValueSetLoadResult } from './valueset/value-set-loader.js';
+
+export {
+  generateValueSetTableDdl,
+  generateValueSetInsertSql,
+  generateValueSetUpsertSql,
+  generateValueSetSeedScript,
+} from './valueset/value-set-sql.js';

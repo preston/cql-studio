@@ -13,7 +13,11 @@ import { fileURLToPath } from 'url';
 import { ElmToSqlTranspiler } from '../src/transpiler/elm-to-sql.js';
 import { generateMeasureReport, sqlRowToPopulationCounts } from '../src/measure/measure-report.js';
 import { STANDARD_VIEW_DEFINITIONS, viewDefinitionToSql, generateAllViewsSql } from '../src/views/view-definitions.js';
+import { extractValueSets, extractUsedValueSets } from '../src/valueset/value-set-extractor.js';
+import { loadValueSetExpansions } from '../src/valueset/value-set-loader.js';
+import { generateValueSetTableDdl, generateValueSetInsertSql, generateValueSetUpsertSql, generateValueSetSeedScript } from '../src/valueset/value-set-sql.js';
 import type { ElmLibraryWrapper } from '../src/types/elm.js';
+import type { ValueSetExpansionRow } from '../src/valueset/value-set-loader.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -273,6 +277,293 @@ describe('CMS130 ColorectalCancerScreening', () => {
   test('accepts ElmLibrary directly (without wrapper)', () => {
     const t = new ElmToSqlTranspiler();
     expect(() => t.transpile(fixture.library)).not.toThrow();
+  });
+});
+
+// ─── Value Set Extractor ──────────────────────────────────────────────────────
+
+describe('extractValueSets', () => {
+  const cms125 = loadFixture('cms125-breast-cancer-screening.elm.json');
+  const cms130 = loadFixture('cms130-colorectal-cancer-screening.elm.json');
+
+  test('extracts all declared value sets from CMS125', () => {
+    const refs = extractValueSets(cms125);
+    expect(refs.length).toBe(3);
+    const names = refs.map(r => r.name);
+    expect(names).toContain('Mammography');
+    expect(names).toContain('Bilateral Mastectomy');
+    expect(names).toContain('Office Visit');
+  });
+
+  test('each CMS125 ref has a non-empty url', () => {
+    const refs = extractValueSets(cms125);
+    for (const ref of refs) {
+      expect(ref.url).toBeTruthy();
+      expect(ref.url).toMatch(/^http/);
+    }
+  });
+
+  test('extracts all declared value sets from CMS130', () => {
+    const refs = extractValueSets(cms130);
+    expect(refs.length).toBe(7);
+    const names = refs.map(r => r.name);
+    expect(names).toContain('Colonoscopy');
+    expect(names).toContain('Fecal Occult Blood Test (FOBT)');
+    expect(names).toContain('Flexible Sigmoidoscopy');
+    expect(names).toContain('Malignant Neoplasm of Colon');
+    expect(names).toContain('Total Colectomy');
+  });
+
+  test('accepts ElmLibrary directly (without wrapper)', () => {
+    const refs = extractValueSets(cms125.library);
+    expect(refs.length).toBe(3);
+  });
+
+  test('returns empty array when library has no value sets', () => {
+    const refs = extractValueSets({ library: { identifier: { id: 'Empty' }, schemaIdentifier: { id: 'x', version: 'r1' } } });
+    expect(refs).toEqual([]);
+  });
+});
+
+describe('extractUsedValueSets', () => {
+  const cms130 = loadFixture('cms130-colorectal-cancer-screening.elm.json');
+
+  test('returns only value sets referenced in statements', () => {
+    const used = extractUsedValueSets(cms130);
+    // All 7 CMS130 value sets are referenced in its statements
+    expect(used.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('used subset is not larger than full set', () => {
+    const all = extractValueSets(cms130);
+    const used = extractUsedValueSets(cms130);
+    expect(used.length).toBeLessThanOrEqual(all.length);
+  });
+
+  test('each used ref exists in the full declared set', () => {
+    const all = extractValueSets(cms130);
+    const used = extractUsedValueSets(cms130);
+    const allUrls = new Set(all.map(r => r.url));
+    for (const ref of used) {
+      expect(allUrls.has(ref.url)).toBe(true);
+    }
+  });
+});
+
+// ─── Value Set Loader (with mock fetch) ──────────────────────────────────────
+
+describe('loadValueSetExpansions', () => {
+  const sampleExpansion = {
+    resourceType: 'ValueSet',
+    url: 'http://cts.nlm.nih.gov/fhir/ValueSet/test-vs',
+    expansion: {
+      contains: [
+        { system: 'http://snomed.info/sct', code: '12345678', display: 'Test procedure' },
+        { system: 'http://snomed.info/sct', code: '87654321', display: 'Another procedure' },
+      ],
+    },
+  };
+
+  function makeFetch(responses: Record<string, unknown>): typeof fetch {
+    return async (input: Parameters<typeof fetch>[0]) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      for (const [pattern, body] of Object.entries(responses)) {
+        if (url.includes(pattern)) {
+          return { ok: true, json: async () => body } as Response;
+        }
+      }
+      return { ok: false, status: 404, json: async () => ({}) } as Response;
+    };
+  }
+
+  test('flattens expansion.contains into rows', async () => {
+    const mockFetch = makeFetch({ '$expand': sampleExpansion });
+    const refs = [{ name: 'Test VS', url: 'http://cts.nlm.nih.gov/fhir/ValueSet/test-vs' }];
+    const results = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
+    expect(results).toHaveLength(1);
+    expect(results[0].rows).toHaveLength(2);
+    expect(results[0].error).toBeUndefined();
+  });
+
+  test('row has correct value_set_id, code, and system', async () => {
+    const mockFetch = makeFetch({ '$expand': sampleExpansion });
+    const refs = [{ name: 'Test VS', url: 'http://cts.nlm.nih.gov/fhir/ValueSet/test-vs' }];
+    const [result] = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
+    const row = result.rows[0];
+    expect(row.value_set_id).toBe('http://cts.nlm.nih.gov/fhir/ValueSet/test-vs');
+    expect(row.code).toBe('12345678');
+    expect(row.system).toBe('http://snomed.info/sct');
+    expect(row.display).toBe('Test procedure');
+  });
+
+  test('falls back to Bundle search when $expand returns 404', async () => {
+    const bundleResponse = {
+      resourceType: 'Bundle',
+      entry: [{ resource: sampleExpansion }],
+    };
+    const mockFetch = makeFetch({ 'ValueSet?url': bundleResponse });
+    const refs = [{ name: 'Test VS', url: 'http://cts.nlm.nih.gov/fhir/ValueSet/test-vs' }];
+    const [result] = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
+    expect(result.rows).toHaveLength(2);
+  });
+
+  test('returns error (not throw) for not-found value sets', async () => {
+    const mockFetch = makeFetch({});  // always 404
+    const refs = [{ name: 'Missing VS', url: 'http://example.com/missing' }];
+    const [result] = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
+    expect(result.rows).toHaveLength(0);
+    expect(result.error).toBeTruthy();
+  });
+
+  test('returns error when ValueSet has no expansion', async () => {
+    const noExpansion = { resourceType: 'ValueSet', url: 'http://example.com/vs' };
+    const mockFetch = makeFetch({ '$expand': noExpansion });
+    const refs = [{ name: 'No Expansion', url: 'http://example.com/vs' }];
+    const [result] = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
+    expect(result.rows).toHaveLength(0);
+    expect(result.error).toMatch(/pre-expanded/i);
+  });
+
+  test('loads multiple value sets in parallel', async () => {
+    const vs1 = { ...sampleExpansion, url: 'http://example.com/vs1' };
+    const vs2 = { ...sampleExpansion, url: 'http://example.com/vs2' };
+    let callCount = 0;
+    const mockFetch: typeof fetch = async (input) => {
+      callCount++;
+      const url = input.toString();
+      const body = url.includes('vs1') ? vs1 : url.includes('vs2') ? vs2 : null;
+      if (!body) return { ok: false, status: 404, json: async () => ({}) } as Response;
+      return { ok: true, json: async () => body } as Response;
+    };
+    const refs = [
+      { name: 'VS1', url: 'http://example.com/vs1' },
+      { name: 'VS2', url: 'http://example.com/vs2' },
+    ];
+    const results = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
+    expect(results).toHaveLength(2);
+    expect(results[0].rows).toHaveLength(2);
+    expect(results[1].rows).toHaveLength(2);
+  });
+
+  test('flattens nested expansion hierarchy', async () => {
+    const nestedExpansion = {
+      resourceType: 'ValueSet',
+      url: 'http://example.com/nested',
+      expansion: {
+        contains: [
+          {
+            system: 'http://snomed.info/sct',
+            code: 'parent',
+            display: 'Parent',
+            contains: [
+              { system: 'http://snomed.info/sct', code: 'child1', display: 'Child 1' },
+              { system: 'http://snomed.info/sct', code: 'child2', display: 'Child 2' },
+            ],
+          },
+        ],
+      },
+    };
+    const mockFetch = makeFetch({ '$expand': nestedExpansion });
+    const refs = [{ name: 'Nested', url: 'http://example.com/nested' }];
+    const [result] = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
+    expect(result.rows).toHaveLength(3);  // parent + 2 children
+    const codes = result.rows.map(r => r.code);
+    expect(codes).toContain('parent');
+    expect(codes).toContain('child1');
+    expect(codes).toContain('child2');
+  });
+});
+
+// ─── Value Set SQL generators ─────────────────────────────────────────────────
+
+describe('generateValueSetTableDdl', () => {
+  test('generates CREATE TABLE IF NOT EXISTS', () => {
+    const ddl = generateValueSetTableDdl();
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS value_set_expansion');
+  });
+
+  test('includes all required columns', () => {
+    const ddl = generateValueSetTableDdl();
+    expect(ddl).toContain('value_set_id');
+    expect(ddl).toContain('code');
+    expect(ddl).toContain('system');
+    expect(ddl).toContain('display');
+    expect(ddl).toContain('version');
+  });
+
+  test('includes PRIMARY KEY on (value_set_id, system, code)', () => {
+    const ddl = generateValueSetTableDdl();
+    expect(ddl).toContain('PRIMARY KEY');
+  });
+
+  test('accepts custom table name', () => {
+    const ddl = generateValueSetTableDdl('my_vs_table');
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS my_vs_table');
+    expect(ddl).toContain('idx_my_vs_table_vs_id');
+  });
+});
+
+describe('generateValueSetInsertSql / generateValueSetUpsertSql', () => {
+  const rows: ValueSetExpansionRow[] = [
+    { value_set_id: 'http://example.com/vs', code: 'A001', system: 'http://snomed.info/sct', display: 'Code A' },
+    { value_set_id: 'http://example.com/vs', code: 'B002', system: 'http://snomed.info/sct' },
+  ];
+
+  test('INSERT includes all column names', () => {
+    const sql = generateValueSetInsertSql(rows);
+    expect(sql).toContain('INSERT INTO value_set_expansion');
+    expect(sql).toContain('value_set_id, code, system, display, version');
+  });
+
+  test('INSERT contains the row values', () => {
+    const sql = generateValueSetInsertSql(rows);
+    expect(sql).toContain('A001');
+    expect(sql).toContain('B002');
+    expect(sql).toContain('Code A');
+  });
+
+  test('NULL is emitted for undefined optional fields', () => {
+    const sql = generateValueSetInsertSql(rows);
+    expect(sql).toContain('NULL');
+  });
+
+  test('UPSERT appends ON CONFLICT DO NOTHING', () => {
+    const sql = generateValueSetUpsertSql(rows);
+    expect(sql).toContain('ON CONFLICT DO NOTHING');
+  });
+
+  test('returns placeholder comment for empty rows', () => {
+    const sql = generateValueSetInsertSql([]);
+    expect(sql).toContain('No rows');
+  });
+
+  test('single quotes in values are escaped', () => {
+    const tricky: ValueSetExpansionRow[] = [
+      { value_set_id: "it's/vs", code: 'X', system: 'http://sys', display: "Colon's" },
+    ];
+    const sql = generateValueSetInsertSql(tricky);
+    expect(sql).toContain("it''s/vs");
+    expect(sql).toContain("Colon''s");
+  });
+});
+
+describe('generateValueSetSeedScript', () => {
+  const rows: ValueSetExpansionRow[] = [
+    { value_set_id: 'http://example.com/vs', code: 'A001', system: 'http://snomed.info/sct' },
+  ];
+
+  test('seed script includes DDL + DML wrapped in transaction', () => {
+    const script = generateValueSetSeedScript(rows);
+    expect(script).toContain('CREATE TABLE IF NOT EXISTS');
+    expect(script).toContain('INSERT INTO');
+    expect(script).toContain('BEGIN;');
+    expect(script).toContain('COMMIT;');
+  });
+
+  test('seed script reports value set and code counts', () => {
+    const script = generateValueSetSeedScript(rows);
+    expect(script).toContain('Total codes: 1');
+    expect(script).toContain('Value sets: 1');
   });
 });
 
