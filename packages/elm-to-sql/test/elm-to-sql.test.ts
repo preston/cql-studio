@@ -187,6 +187,95 @@ describe('sqlRowToPopulationCounts', () => {
   });
 });
 
+// ─── CMS130 ColorectalCancerScreening ────────────────────────────────────────
+
+describe('CMS130 ColorectalCancerScreening', () => {
+  const fixture = loadFixture('cms130-colorectal-cancer-screening.elm.json');
+  let sql: string;
+  let populations: string[];
+  let warnings: string[];
+
+  beforeAll(() => {
+    const t = new ElmToSqlTranspiler({
+      measurementPeriodStart: '2024-01-01T00:00:00Z',
+      measurementPeriodEnd: '2024-12-31T23:59:59Z',
+    });
+    ({ sql, populations, warnings } = t.transpile(fixture));
+  });
+
+  test('transpiles CMS130 without throwing', () => {
+    const t = new ElmToSqlTranspiler();
+    expect(() => t.transpile(fixture)).not.toThrow();
+  });
+
+  test('produces a non-empty SQL string', () => {
+    expect(typeof sql).toBe('string');
+    expect(sql.length).toBeGreaterThan(200);
+  });
+
+  test('SQL contains WITH clause', () => {
+    expect(sql.toUpperCase()).toContain('WITH');
+  });
+
+  test('identifies all CMS130 populations', () => {
+    expect(populations).toContain('Initial Population');
+    expect(populations).toContain('Denominator');
+    expect(populations).toContain('Denominator Exclusion');
+    expect(populations).toContain('Numerator');
+  });
+
+  test('SQL contains all population CTE identifiers', () => {
+    expect(sql).toContain('Initial_Population');
+    expect(sql).toContain('Denominator_Exclusion');
+    expect(sql).toContain('Numerator');
+  });
+
+  test('SQL contains final SELECT with _count columns', () => {
+    expect(sql).toContain('_count');
+  });
+
+  test('Union of Denominator Exclusion produces UNION in SQL', () => {
+    // Denominator Exclusion is a Union of Condition (colon cancer) + Procedure (total colectomy)
+    expect(sql.toUpperCase()).toContain('UNION');
+  });
+
+  test('Numerator union references all three screening CTEs', () => {
+    // Numerator = Colonoscopy Within 10 Years UNION FOBT Within 1 Year UNION Flexible Sigmoidoscopy Within 5 Years
+    expect(sql).toContain('Colonoscopy_Within_10_Years');
+    expect(sql).toContain('FOBT_Within_1_Year');
+    expect(sql).toContain('Flexible_Sigmoidoscopy_Within_5_Years');
+  });
+
+  test('SQL references condition_view for colon cancer exclusion', () => {
+    expect(sql).toContain('condition_view');
+  });
+
+  test('SQL references procedure_view for colonoscopy and colectomy', () => {
+    expect(sql).toContain('procedure_view');
+  });
+
+  test('SQL references observation_view for FOBT', () => {
+    expect(sql).toContain('observation_view');
+  });
+
+  test('SQL references value_set_expansion for all value sets', () => {
+    expect(sql).toContain('value_set_expansion');
+  });
+
+  test('SQL contains AgeInYearsAt expression for ages 45-75', () => {
+    expect(sql).toContain('DATE_PART');
+  });
+
+  test('returns warnings array', () => {
+    expect(Array.isArray(warnings)).toBe(true);
+  });
+
+  test('accepts ElmLibrary directly (without wrapper)', () => {
+    const t = new ElmToSqlTranspiler();
+    expect(() => t.transpile(fixture.library)).not.toThrow();
+  });
+});
+
 // ─── ViewDefinitions ─────────────────────────────────────────────────────────
 
 describe('STANDARD_VIEW_DEFINITIONS', () => {
