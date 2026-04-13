@@ -595,3 +595,265 @@ describe('STANDARD_VIEW_DEFINITIONS', () => {
     expect(sql.length).toBeGreaterThan(500);
   });
 });
+
+// ─── US Core 6.1 ViewDefinition column contracts ─────────────────────────────
+// These tests lock down the column set that the CQL-to-SQL transpiler and
+// the HAPI FHIR JPA SQL views both depend on. A column removal or rename here
+// is a breaking change for every generated measure query.
+
+describe('US Core 6.1 ViewDefinition column contracts', () => {
+  /** Helper: returns the flat column list for the named view. */
+  function cols(viewName: string): string[] {
+    const vd = STANDARD_VIEW_DEFINITIONS.find(v => v.name === viewName);
+    if (!vd) return [];
+    const result: string[] = [];
+    function walk(selects: import('../src/views/view-definitions.js').ViewDefinitionSelect[]) {
+      for (const s of selects) {
+        if (s.column) result.push(...s.column.map(c => c.name));
+        if (s.select) walk(s.select);
+      }
+    }
+    walk(vd.select);
+    return result;
+  }
+
+  // ── Inventory ──────────────────────────────────────────────────────────────
+
+  test('STANDARD_VIEW_DEFINITIONS has exactly 11 views (US Core 6.1 + base set)', () => {
+    expect(STANDARD_VIEW_DEFINITIONS).toHaveLength(11);
+  });
+
+  test('all expected view names are present', () => {
+    const names = STANDARD_VIEW_DEFINITIONS.map(v => v.name);
+    const expected = [
+      'patient_view',
+      'observation_view',
+      'condition_view',
+      'procedure_view',
+      'encounter_view',
+      'medication_request_view',
+      'diagnostic_report_view',
+      'coverage_view',
+      'allergy_intolerance_view',
+      'immunization_view',
+      'service_request_view',
+    ];
+    for (const name of expected) {
+      expect(names).toContain(name);
+    }
+  });
+
+  test('no duplicate view names', () => {
+    const names = STANDARD_VIEW_DEFINITIONS.map(v => v.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  test('all views have status active', () => {
+    for (const vd of STANDARD_VIEW_DEFINITIONS) {
+      expect(vd.status).toBe('active');
+    }
+  });
+
+  test('every view has at least one column', () => {
+    for (const vd of STANDARD_VIEW_DEFINITIONS) {
+      expect(cols(vd.name).length).toBeGreaterThan(0);
+    }
+  });
+
+  // ── patient_view ───────────────────────────────────────────────────────────
+
+  test('patient_view: has birthdate for AgeInYearsAt calculations', () => {
+    expect(cols('patient_view')).toContain('birthdate');
+  });
+
+  test('patient_view: has gender, active, deceased_datetime', () => {
+    const c = cols('patient_view');
+    expect(c).toContain('gender');
+    expect(c).toContain('active');
+    expect(c).toContain('deceased_datetime');
+  });
+
+  test('patient_view: has US Core race/ethnicity extension columns', () => {
+    const c = cols('patient_view');
+    expect(c).toContain('race_code');
+    expect(c).toContain('ethnicity_code');
+  });
+
+  // ── encounter_view ─────────────────────────────────────────────────────────
+
+  test('encounter_view: has period_start / period_end for During interval logic', () => {
+    const c = cols('encounter_view');
+    expect(c).toContain('period_start');
+    expect(c).toContain('period_end');
+  });
+
+  test('encounter_view: has type_code and class_code for encounter classification', () => {
+    const c = cols('encounter_view');
+    expect(c).toContain('type_code');
+    expect(c).toContain('class_code');
+  });
+
+  // ── condition_view ─────────────────────────────────────────────────────────
+
+  test('condition_view: has clinical_status for active-diagnosis filters', () => {
+    expect(cols('condition_view')).toContain('clinical_status');
+  });
+
+  test('condition_view: has onset_datetime and abatement_datetime for prevalence periods', () => {
+    const c = cols('condition_view');
+    expect(c).toContain('onset_datetime');
+    expect(c).toContain('abatement_datetime');
+  });
+
+  test('condition_view: has code, code_system, category_code', () => {
+    const c = cols('condition_view');
+    expect(c).toContain('code');
+    expect(c).toContain('code_system');
+    expect(c).toContain('category_code');
+  });
+
+  // ── observation_view ───────────────────────────────────────────────────────
+
+  test('observation_view: has effective_datetime for temporal interval joins', () => {
+    expect(cols('observation_view')).toContain('effective_datetime');
+  });
+
+  test('observation_view: has value_code and value_quantity for result evaluation', () => {
+    const c = cols('observation_view');
+    expect(c).toContain('value_code');
+    expect(c).toContain('value_quantity');
+  });
+
+  test('observation_view: has category_code for lab/vital-sign partitioning', () => {
+    expect(cols('observation_view')).toContain('category_code');
+  });
+
+  // ── procedure_view ─────────────────────────────────────────────────────────
+
+  test('procedure_view: has performed_datetime and performed_start for period logic', () => {
+    const c = cols('procedure_view');
+    expect(c).toContain('performed_datetime');
+    expect(c).toContain('performed_start');
+  });
+
+  test('procedure_view: has status for completed-procedure filters', () => {
+    expect(cols('procedure_view')).toContain('status');
+  });
+
+  // ── medication_request_view ────────────────────────────────────────────────
+
+  test('medication_request_view: has medication_code for formulary lookups', () => {
+    expect(cols('medication_request_view')).toContain('medication_code');
+  });
+
+  test('medication_request_view: has authored_on for timing logic', () => {
+    expect(cols('medication_request_view')).toContain('authored_on');
+  });
+
+  // ── diagnostic_report_view ─────────────────────────────────────────────────
+
+  test('diagnostic_report_view: has effective_datetime and category_code', () => {
+    const c = cols('diagnostic_report_view');
+    expect(c).toContain('effective_datetime');
+    expect(c).toContain('category_code');
+  });
+
+  // ── coverage_view (US Core 6.1) ────────────────────────────────────────────
+
+  test('coverage_view: has beneficiary_id for patient linkage', () => {
+    expect(cols('coverage_view')).toContain('beneficiary_id');
+  });
+
+  test('coverage_view: has payer_id, period_start, period_end', () => {
+    const c = cols('coverage_view');
+    expect(c).toContain('payer_id');
+    expect(c).toContain('period_start');
+    expect(c).toContain('period_end');
+  });
+
+  // ── allergy_intolerance_view (US Core 6.1) ─────────────────────────────────
+
+  test('allergy_intolerance_view: has clinical_status and verification_status', () => {
+    const c = cols('allergy_intolerance_view');
+    expect(c).toContain('clinical_status');
+    expect(c).toContain('verification_status');
+  });
+
+  test('allergy_intolerance_view: has code and code_system', () => {
+    const c = cols('allergy_intolerance_view');
+    expect(c).toContain('code');
+    expect(c).toContain('code_system');
+  });
+
+  // ── immunization_view (US Core 6.1) ───────────────────────────────────────
+
+  test('immunization_view: has vaccine_code for CVX/NDC lookups', () => {
+    const c = cols('immunization_view');
+    expect(c).toContain('vaccine_code');
+    expect(c).toContain('vaccine_system');
+  });
+
+  test('immunization_view: has occurrence_datetime for timing joins', () => {
+    expect(cols('immunization_view')).toContain('occurrence_datetime');
+  });
+
+  test('immunization_view: has primary_source boolean', () => {
+    expect(cols('immunization_view')).toContain('primary_source');
+  });
+
+  // ── service_request_view (US Core 6.1) ────────────────────────────────────
+
+  test('service_request_view: has id, subject_id, status, intent', () => {
+    const c = cols('service_request_view');
+    expect(c).toContain('id');
+    expect(c).toContain('subject_id');
+    expect(c).toContain('status');
+    expect(c).toContain('intent');
+  });
+
+  test('service_request_view: has code and code_system for value set joins', () => {
+    const c = cols('service_request_view');
+    expect(c).toContain('code');
+    expect(c).toContain('code_system');
+  });
+
+  test('service_request_view: has authored_on for temporal ordering', () => {
+    expect(cols('service_request_view')).toContain('authored_on');
+  });
+
+  test('service_request_view: has do_not_perform for exclusion logic', () => {
+    expect(cols('service_request_view')).toContain('do_not_perform');
+  });
+
+  test('service_request_view: has occurrence_datetime and occurrence_start/end', () => {
+    const c = cols('service_request_view');
+    expect(c).toContain('occurrence_datetime');
+    expect(c).toContain('occurrence_start');
+    expect(c).toContain('occurrence_end');
+  });
+
+  test('service_request_view: has encounter_id and insurance_id', () => {
+    const c = cols('service_request_view');
+    expect(c).toContain('encounter_id');
+    expect(c).toContain('insurance_id');
+  });
+
+  test('service_request_view: has 21 columns', () => {
+    expect(cols('service_request_view')).toHaveLength(21);
+  });
+
+  // ── generateAllViewsSql coverage ──────────────────────────────────────────
+
+  test('generateAllViewsSql includes all 11 view names', () => {
+    const sql = generateAllViewsSql();
+    const expected = [
+      'patient_view', 'observation_view', 'condition_view', 'procedure_view',
+      'encounter_view', 'medication_request_view', 'diagnostic_report_view',
+      'coverage_view', 'allergy_intolerance_view', 'immunization_view',
+      'service_request_view',
+    ];
+    for (const name of expected) {
+      expect(sql).toContain(name);
+    }
+  });
+});
