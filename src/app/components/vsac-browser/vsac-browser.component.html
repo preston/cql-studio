@@ -515,6 +515,15 @@
         </form>
       </div>
       @if (expandedValueSet()) {
+      <ng-template #vsacExpandPagination let-prevId="prevId" let-nextId="nextId">
+        <span class="small text-muted">Paging uses <strong>Count</strong> and <strong>Offset</strong> above with Run $expand, or use the buttons.</span>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Expansion pages">
+          <button type="button" class="btn btn-outline-secondary" [id]="prevId"
+            [disabled]="loading() || !expansionPageInfo().canPrev" (click)="expandGoPrevPage()">Previous page</button>
+          <button type="button" class="btn btn-outline-secondary" [id]="nextId"
+            [disabled]="loading() || !expansionPageInfo().canNext" (click)="expandGoNextPage()">Next page</button>
+        </div>
+      </ng-template>
       <div class="card">
         <div class="card-header">
           <span id="vsac-expand-summary">
@@ -525,6 +534,15 @@
             }
           </span>
         </div>
+        @if (expandedValueSet()?.expansion) {
+        <div
+          class="border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2 py-2 px-3 bg-body-tertiary">
+          <ng-container *ngTemplateOutlet="vsacExpandPagination; context: {
+              prevId: 'vsac-expand-page-prev-top',
+              nextId: 'vsac-expand-page-next-top'
+            }" />
+        </div>
+        }
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-sm table-striped mb-0">
@@ -558,13 +576,10 @@
         </div>
         @if (expandedValueSet()?.expansion) {
         <div class="card-footer d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
-          <span class="small text-muted">Paging uses <strong>Count</strong> and <strong>Offset</strong> above with Run $expand, or use the buttons.</span>
-          <div class="btn-group btn-group-sm" role="group" aria-label="Expansion pages">
-            <button type="button" id="vsac-expand-page-prev" class="btn btn-outline-secondary"
-              [disabled]="loading() || !expansionPageInfo().canPrev" (click)="expandGoPrevPage()">Previous page</button>
-            <button type="button" id="vsac-expand-page-next" class="btn btn-outline-secondary"
-              [disabled]="loading() || !expansionPageInfo().canNext" (click)="expandGoNextPage()">Next page</button>
-          </div>
+          <ng-container *ngTemplateOutlet="vsacExpandPagination; context: {
+              prevId: 'vsac-expand-page-prev',
+              nextId: 'vsac-expand-page-next'
+            }" />
         </div>
         }
       </div>
