@@ -162,6 +162,7 @@
     <app-valueset-details-pane [selectedValueSet]="selectedValueSet()" [expandLoading]="expandLoading()"
       [expandedCodes]="expandedCodes()" [expandedRows]="expandedRows()"
       [expandedCodeDetails]="expandedCodeDetails()" [loadingDetails]="loadingDetails()"
-      [availablePageSizes]="availablePageSizes" [onRowToggle]="toggleRowExpansion.bind(this)" />
+      [availablePageSizes]="availablePageSizes" [onRowToggle]="toggleRowExpansion.bind(this)"
+      [onDeleteValueSet]="deleteSelectedValueSet.bind(this)" />
   </div>
 </div>

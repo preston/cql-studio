@@ -439,17 +439,34 @@
               [disabled]="!loadedValueSet()?.url">Copy CQL valueset</button>
           </div>
           <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+            @if (hasComposeValueSetReferences()) {
+            <button type="button" id="vsac-recurse-dependencies" class="btn btn-outline-secondary btn-sm"
+              (click)="recurseDependenciesForLoadedValueSet()" [disabled]="loading() || dependencyBusy() || !loadedValueSet()">
+              Rerun Dependency Analysis
+            </button>
+            }
             <button type="button" id="vsac-import-vs-terminology" class="btn btn-success btn-sm"
               (click)="importLoadedValueSetToTerminology()"
               [disabled]="loading() || terminologyImportWarning() || !loadedValueSet()">
-              Import to terminology server
+              Import Only This Value Set
             </button>
+            @if (dependencyTree()) {
+            <button type="button" id="vsac-import-vs-terminology-with-dependencies" class="btn btn-success btn-sm"
+              (click)="importLoadedValueSetWithDependenciesToTerminology()"
+              [disabled]="loading() || dependencyBusy() || terminologyImportWarning() || dependencyImportNodes().length === 0">
+              Import Value Set and All Dependencies
+            </button>
+            }
             <button type="button" id="vsac-add-vs-clipboard" class="btn btn-outline-primary btn-sm"
               (click)="addLoadedValueSetToAppClipboard()" [disabled]="loading() || !loadedValueSet()"
               title="Add this ValueSet resource to the app clipboard">
-              <i class="bi bi-clipboard-plus me-1" aria-hidden="true"></i>Add to app clipboard
+              <i class="bi bi-clipboard-plus me-1" aria-hidden="true"></i>Add to Studio Clipboard
             </button>
           </div>
+          @if (dependencyStatusMessage()) {
+          <p id="vsac-dependency-status" class="form-text small mt-2 mb-0">{{ dependencyStatusMessage() }}</p>
+          }
+          <app-value-set-dependency-tree [tree]="dependencyTree()" [importableCount]="dependencyImportNodes().length"></app-value-set-dependency-tree>
           <p class="form-text small text-muted mb-0 mt-2">Manage saved FHIR items under <a routerLink="/clipboard">Clipboard</a>.</p>
           @if (loadedValueSet()) {
           <div class="vsac-code-panel border rounded mt-3">

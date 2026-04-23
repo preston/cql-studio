@@ -15,12 +15,14 @@ import { TerminologyService } from '../../services/terminology.service';
 import { ToastService } from '../../services/toast.service';
 import { ClipboardService } from '../../services/clipboard.service';
 import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
+import { ValueSetDependencyTreeComponent } from './value-set-dependency-tree.component';
 import { Bundle, CapabilityStatement, Coding, Parameters, ValueSet, Resource } from 'fhir/r4';
+import { ValueSetDependencyNode, ValueSetDependencyRef, ValueSetDependencyStatus } from './value-set-dependency.model';
 
 @Component({
   selector: 'app-vsac-browser',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SyntaxHighlighterComponent],
+  imports: [CommonModule, FormsModule, RouterLink, SyntaxHighlighterComponent, ValueSetDependencyTreeComponent],
   templateUrl: './vsac-browser.component.html',
   styleUrl: './vsac-browser.component.scss'
 })
@@ -45,7 +47,7 @@ export class VsacBrowserComponent {
   protected readonly searchUrl = signal('');
   protected readonly searchIdentifier = signal('');
   protected readonly searchVersion = signal('');
-  protected readonly searchStatus = signal('');
+  protected readonly searchStatus = signal('active');
   protected readonly searchPublisher = signal('');
   protected readonly searchDescription = signal('');
   protected readonly searchExpansion = signal('');
@@ -127,6 +129,32 @@ export class VsacBrowserComponent {
   protected readonly expandOffset = signal(0);
   protected readonly expandProfile = signal('');
   protected readonly expandedValueSet = signal<ValueSet | null>(null);
+  protected readonly dependencyTree = signal<ValueSetDependencyNode | null>(null);
+  protected readonly dependencyStatusMessage = signal<string | null>(null);
+  protected readonly dependencyBusy = signal(false);
+
+  protected readonly hasComposeValueSetReferences = computed(() => {
+    const vs = this.loadedValueSet();
+    return !!vs && this.extractComposeValueSetReferences(vs).length > 0;
+  });
+
+  protected readonly dependencyImportNodes = computed(() => {
+    const root = this.dependencyTree();
+    if (!root) return [] as ValueSetDependencyNode[];
+    const out: ValueSetDependencyNode[] = [];
+    const seen = new Set<string>();
+    const walk = (node: ValueSetDependencyNode) => {
+      for (const child of node.children) {
+        walk(child);
+      }
+      if (seen.has(node.key) || !node.valueSet) return;
+      if (node.status === 'error' || node.status === 'cycle' || node.status === 'duplicate' || node.status === 'external') return;
+      seen.add(node.key);
+      out.push(node);
+    };
+    walk(root);
+    return out;
+  });
 
   protected readonly svsProgramsText = signal<string | null>(null);
   protected readonly svsTagNamesText = signal<string | null>(null);
@@ -337,7 +365,10 @@ export class VsacBrowserComponent {
     if (this.loading()) return;
     if (!this.vsacCredentialsOrWarn()) return;
     this.expandedValueSet.set(null);
+    this.dependencyTree.set(null);
+    this.dependencyStatusMessage.set(null);
     await this.pullFullValueSetIntoLoaded(null);
+    await this.autoRecurseDependenciesIfAvailable();
   }
 
   async selectSearchResult(vs: ValueSet): Promise<void> {
@@ -347,11 +378,17 @@ export class VsacBrowserComponent {
       this.oidInput.set(vs.url);
     }
     this.expandedValueSet.set(null);
+    this.dependencyTree.set(null);
+    this.dependencyStatusMessage.set(null);
     this.loadedValueSet.set(vs);
     this.setTab('valueset');
-    if (!this.oidInput().trim()) return;
+    if (!this.oidInput().trim()) {
+      await this.autoRecurseDependenciesIfAvailable();
+      return;
+    }
     if (!this.vsacCredentialsOrWarn()) return;
     await this.pullFullValueSetIntoLoaded(vs);
+    await this.autoRecurseDependenciesIfAvailable();
   }
 
   /**
@@ -368,6 +405,8 @@ export class VsacBrowserComponent {
       const full = await firstValueFrom(this.vsac.fetchValueSetByOidOrCanonicalUrl(raw));
       if (gen !== this.valueSetPullGen) return;
       this.loadedValueSet.set(full);
+      this.dependencyTree.set(null);
+      this.dependencyStatusMessage.set(null);
       if (full.id) {
         this.oidInput.set(full.id);
       } else if (full.url) {
@@ -384,6 +423,12 @@ export class VsacBrowserComponent {
         this.loading.set(false);
       }
     }
+  }
+
+  private async autoRecurseDependenciesIfAvailable(): Promise<void> {
+    if (!this.hasComposeValueSetReferences()) return;
+    if (this.loading() || this.dependencyBusy()) return;
+    await this.recurseDependenciesForLoadedValueSet();
   }
 
   async expandLoaded(): Promise<void> {
@@ -618,6 +663,87 @@ export class VsacBrowserComponent {
     await this.postValueSetToTerminologyServer(toSend as ValueSet);
   }
 
+  async recurseDependenciesForLoadedValueSet(): Promise<void> {
+    if (this.loading() || this.dependencyBusy()) return;
+    const root = this.loadedValueSet();
+    if (!root) {
+      this.toast.showWarning('Load a value set first.', 'Dependencies');
+      return;
+    }
+    if (!this.vsacCredentialsOrWarn()) return;
+    this.dependencyBusy.set(true);
+    this.error.set(null);
+    this.dependencyStatusMessage.set(null);
+    try {
+      const visited = new Set<string>();
+      const fetchCache = new Map<string, ValueSet>();
+      const rootKey = this.valueSetKey(root, root.url || root.id || 'loaded-valueset');
+      visited.add(rootKey);
+      const rootNode: ValueSetDependencyNode = {
+        key: rootKey,
+        relation: 'root',
+        valueSet: root,
+        children: [],
+        status: 'reference',
+        statusHint: ''
+      };
+      rootNode.children = await this.fetchDependencyChildren(root, [rootKey], visited, fetchCache);
+      const classification = this.classifyDependencyNode(rootNode.valueSet, rootNode.children);
+      rootNode.status = classification.status;
+      rootNode.statusHint = classification.hint;
+      this.dependencyTree.set(rootNode);
+      const count = this.dependencyImportNodes().length;
+      this.dependencyStatusMessage.set(`Dependency tree built. ${count} ValueSet${count === 1 ? '' : 's'} ready to import.`);
+      this.toast.showSuccess('Dependency tree loaded.', 'Dependencies');
+    } catch (e) {
+      const msg = this.errMsg(e);
+      this.error.set(msg);
+      this.dependencyTree.set(null);
+      this.dependencyStatusMessage.set('Dependency recursion failed.');
+      this.toast.showError(msg, 'Dependency recursion failed');
+    } finally {
+      this.dependencyBusy.set(false);
+    }
+  }
+
+  async importLoadedValueSetWithDependenciesToTerminology(): Promise<void> {
+    if (this.loading() || this.dependencyBusy()) return;
+    if (this.terminologyImportWarning()) {
+      this.toast.showWarning('Point Terminology Services at a writable server, not VSAC.', 'Import');
+      return;
+    }
+    if (!this.dependencyTree()) {
+      this.toast.showWarning('Build dependencies first.', 'Import');
+      return;
+    }
+    const nodes = this.dependencyImportNodes();
+    if (nodes.length === 0) {
+      this.toast.showWarning('No importable dependencies found.', 'Import');
+      return;
+    }
+    this.loading.set(true);
+    this.error.set(null);
+    let success = 0;
+    let failed = 0;
+    for (const node of nodes) {
+      if (!node.valueSet) continue;
+      try {
+        await this.postValueSetToTerminologyServerNoToast(node.valueSet);
+        success += 1;
+      } catch (e) {
+        failed += 1;
+        this.toast.showError(`${this.valueSetDisplayName(node.valueSet)}: ${this.errMsg(e)}`, 'Dependency import failed');
+      }
+    }
+    this.loading.set(false);
+    const total = success + failed;
+    if (failed === 0) {
+      this.toast.showSuccess(`Imported ${success}/${total} value sets with dependencies.`, 'Import');
+    } else {
+      this.toast.showWarning(`Imported ${success}/${total}; ${failed} failed.`, 'Import');
+    }
+  }
+
   async importSearchValueSetToTerminology(vs: ValueSet): Promise<void> {
     if (this.loading()) return;
     if (this.terminologyImportWarning()) {
@@ -628,14 +754,9 @@ export class VsacBrowserComponent {
   }
 
   private async postValueSetToTerminologyServer(toSend: ValueSet): Promise<void> {
-    const collection: Bundle<Resource> = {
-      resourceType: 'Bundle',
-      type: 'collection',
-      entry: [{ resource: toSend as Resource }]
-    };
     this.loading.set(true);
     try {
-      await firstValueFrom(this.terminology.postBundle(collection));
+      await this.postValueSetToTerminologyServerNoToast(toSend);
       this.toast.showSuccess('ValueSet posted to terminology server.', 'Import');
     } catch (e) {
       this.toast.showError(this.errMsg(e), 'Import failed');
@@ -644,8 +765,175 @@ export class VsacBrowserComponent {
     }
   }
 
+  private async postValueSetToTerminologyServerNoToast(toSend: ValueSet): Promise<void> {
+    const collection: Bundle<Resource> = {
+      resourceType: 'Bundle',
+      type: 'collection',
+      entry: [{ resource: toSend as Resource }]
+    };
+    await firstValueFrom(this.terminology.postBundle(collection));
+  }
+
   expansionRows(): { code?: string; display?: string; system?: string }[] {
     return this.expandedValueSet()?.expansion?.contains ?? [];
+  }
+
+  private async fetchDependencyChildren(
+    vs: ValueSet,
+    pathKeys: string[],
+    visited: Set<string>,
+    fetchCache: Map<string, ValueSet>
+  ): Promise<ValueSetDependencyNode[]> {
+    const refs = this.extractComposeValueSetReferences(vs);
+    const children: ValueSetDependencyNode[] = [];
+    for (const ref of refs) {
+      children.push(await this.fetchDependencyNode(ref, pathKeys, visited, fetchCache));
+    }
+    return children;
+  }
+
+  private async fetchDependencyNode(
+    ref: ValueSetDependencyRef,
+    pathKeys: string[],
+    visited: Set<string>,
+    fetchCache: Map<string, ValueSet>
+  ): Promise<ValueSetDependencyNode> {
+    const refKey = this.normalizeValueSetKey(ref.reference);
+    if (pathKeys.includes(refKey)) {
+      return {
+        key: refKey,
+        relation: ref.relation,
+        reference: ref.reference,
+        valueSet: null,
+        children: [],
+        status: 'cycle',
+        statusHint: 'Reference cycle detected.'
+      };
+    }
+    let fetched: ValueSet | null = fetchCache.get(refKey) ?? null;
+    if (!fetched) {
+      try {
+        fetched = await firstValueFrom(this.vsac.fetchValueSetByOidOrCanonicalUrl(ref.reference));
+        fetchCache.set(refKey, fetched);
+      } catch {
+        return {
+          key: refKey,
+          relation: ref.relation,
+          reference: ref.reference,
+          valueSet: null,
+          children: [],
+          status: 'external',
+          statusHint: 'Reference could not be resolved as a FHIR ValueSet resource.'
+        };
+      }
+    }
+    const key = this.valueSetKey(fetched, ref.reference);
+    if (pathKeys.includes(key)) {
+      return {
+        key,
+        relation: ref.relation,
+        reference: ref.reference,
+        valueSet: fetched,
+        children: [],
+        status: 'cycle',
+        statusHint: 'Reference cycle detected.'
+      };
+    }
+    if (visited.has(key)) {
+      return {
+        key,
+        relation: ref.relation,
+        reference: ref.reference,
+        valueSet: fetched,
+        children: [],
+        status: 'duplicate',
+        statusHint: 'Already referenced elsewhere in this tree.'
+      };
+    }
+    visited.add(key);
+    const children = await this.fetchDependencyChildren(fetched, [...pathKeys, key], visited, fetchCache);
+    const classification = this.classifyDependencyNode(fetched, children);
+    return {
+      key,
+      relation: ref.relation,
+      reference: ref.reference,
+      valueSet: fetched,
+      children,
+      status: classification.status,
+      statusHint: classification.hint
+    };
+  }
+
+  private classifyDependencyNode(
+    vs: ValueSet | null,
+    children: ValueSetDependencyNode[]
+  ): { status: ValueSetDependencyStatus; hint: string } {
+    if (!vs?.compose) {
+      return { status: 'conditional', hint: 'No compose definition found; import behavior depends on server support.' };
+    }
+    const includes = vs.compose.include ?? [];
+    const excludes = vs.compose.exclude ?? [];
+    const hasConcept = includes.some((i) => (i.concept?.length ?? 0) > 0);
+    const hasFilter = includes.some((i) => (i.filter?.length ?? 0) > 0);
+    const hasValueSetRefs = this.extractComposeValueSetReferences(vs).length > 0;
+    const hasWholeSystem = includes.some((i) => !!i.system && (i.concept?.length ?? 0) === 0 && (i.filter?.length ?? 0) === 0);
+    const hasWildcardVersion = includes.some((i) => i.version === '*');
+    const hasUnresolvedChild = children.some((c) => c.status === 'external' || c.status === 'error');
+    if (hasUnresolvedChild) {
+      return { status: 'conditional', hint: 'Some dependencies are unresolved and may not import correctly.' };
+    }
+    if (hasWholeSystem) {
+      return { status: 'questionable', hint: 'Includes an entire code system; target server must provide the code system content.' };
+    }
+    if (hasFilter) {
+      return { status: 'conditional', hint: 'Uses filter-based criteria; expansion depends on terminology server capabilities.' };
+    }
+    if (hasWildcardVersion || (!!includes.length && !vs.compose.lockedDate && includes.some((i) => !i.version))) {
+      return { status: 'conditional', hint: 'Not fully version-locked (missing include version or lockedDate).' };
+    }
+    if (hasConcept) {
+      return { status: 'ideal', hint: 'Contains explicit concepts/codes and should import predictably.' };
+    }
+    if (hasValueSetRefs) {
+      return {
+        status: 'reference',
+        hint:
+          excludes.length > 0
+            ? 'References dependent value sets and has excludes; imports depend on recursive processing.'
+            : 'References dependent value sets; imports depend on recursive processing.'
+      };
+    }
+    return { status: 'conditional', hint: 'Compose semantics require server-side expansion behavior.' };
+  }
+
+  private extractComposeValueSetReferences(vs: ValueSet): ValueSetDependencyRef[] {
+    const refs: ValueSetDependencyRef[] = [];
+    for (const inc of vs.compose?.include ?? []) {
+      for (const ref of inc.valueSet ?? []) {
+        if (ref?.trim()) refs.push({ relation: 'include', reference: ref.trim() });
+      }
+    }
+    for (const exc of vs.compose?.exclude ?? []) {
+      for (const ref of exc.valueSet ?? []) {
+        if (ref?.trim()) refs.push({ relation: 'exclude', reference: ref.trim() });
+      }
+    }
+    return refs;
+  }
+
+  private normalizeValueSetKey(input: string): string {
+    const trimmed = input.trim();
+    if (!trimmed) return 'unknown';
+    return /^https?:\/\//i.test(trimmed) ? trimmed.toLowerCase() : trimmed.replace(/^urn:oid:/i, '').toLowerCase();
+  }
+
+  private valueSetKey(vs: ValueSet, fallback: string): string {
+    const preferred = vs.url || vs.id || fallback;
+    return this.normalizeValueSetKey(preferred);
+  }
+
+  private valueSetDisplayName(vs: ValueSet): string {
+    return vs.title || vs.name || vs.id || vs.url || 'ValueSet';
   }
 }
 
