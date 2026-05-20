@@ -251,6 +251,7 @@ export class FhirUploaderComponent implements AfterViewInit {
       cqlFile.isValid = true;
       cqlFile.error = undefined;
     } catch (error) {
+      console.log(error);
       cqlFile.isValid = false;
       cqlFile.error = 'Error reading or processing CQL file';
     }
