@@ -348,7 +348,7 @@ export class FhirPackageImportService {
     const fn = (resource as { __filename?: string }).__filename?.trim() ?? '';
     const id = typeof (resource as { id?: string }).id === 'string' ? (resource as { id: string }).id.trim() : '';
     return {
-      resourceType: resource.resourceType ?? 'Resource',
+      resourceType: resource.resourceType ?? '(missing resourceType)',
       resourceId: id || '—',
       filename: fn || '—'
     };

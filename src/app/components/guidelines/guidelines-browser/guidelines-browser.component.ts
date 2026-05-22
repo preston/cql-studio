@@ -42,7 +42,11 @@ export class GuidelinesBrowserComponent implements OnInit {
     this.libraryService.getAll(this.currentPage, this.pageSize, this.sortBy, this.sortOrder).subscribe({
       next: (bundle: Bundle) => {
         this.isLoading = false;
-        this.libraries = bundle.entry ? bundle.entry.map(entry => entry.resource!).filter((r): r is Library => r !== undefined) : [];
+        this.libraries = bundle.entry
+          ? bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Library => resource?.resourceType === 'Library')
+          : [];
         
         if (bundle.total && bundle.total > 0) {
           this.totalLibraries = bundle.total;
@@ -74,7 +78,11 @@ export class GuidelinesBrowserComponent implements OnInit {
       this.libraryService.search(this.searchTerm).subscribe({
         next: (bundle: Bundle) => {
           this.isLoading = false;
-          this.libraries = bundle.entry ? bundle.entry.map(entry => entry.resource!).filter((r): r is Library => r !== undefined) : [];
+          this.libraries = bundle.entry
+            ? bundle.entry
+                .map(entry => entry.resource)
+                .filter((resource): resource is Library => resource?.resourceType === 'Library')
+            : [];
           this.totalLibraries = this.libraries.length;
           this.totalPages = 1;
           this.currentPage = 1;
@@ -135,4 +143,3 @@ export class GuidelinesBrowserComponent implements OnInit {
 
   protected readonly Math = Math;
 }
-

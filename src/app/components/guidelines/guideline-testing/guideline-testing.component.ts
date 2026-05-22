@@ -59,7 +59,9 @@ export class GuidelineTestingComponent implements OnInit {
       next: (bundle: Bundle) => {
         this.isLoadingPatients.set(false);
         const loadedPatients = bundle.entry 
-          ? bundle.entry.map(entry => entry.resource!).filter((r): r is Patient => r !== undefined)
+          ? bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Patient => resource?.resourceType === 'Patient')
           : [];
         this.patients.set(loadedPatients);
         this.currentPage.set(1); // Reset to first page when loading new patients
@@ -79,7 +81,9 @@ export class GuidelineTestingComponent implements OnInit {
         next: (bundle: Bundle) => {
           this.isLoadingPatients.set(false);
           const loadedPatients = bundle.entry 
-            ? bundle.entry.map(entry => entry.resource!).filter((r): r is Patient => r !== undefined)
+            ? bundle.entry
+                .map(entry => entry.resource)
+                .filter((resource): resource is Patient => resource?.resourceType === 'Patient')
             : [];
           this.patients.set(loadedPatients);
           this.currentPage.set(1); // Reset to first page when searching
@@ -335,4 +339,3 @@ export class GuidelineTestingComponent implements OnInit {
     this.currentPage.set(1); // Reset to first page when page size changes
   }
 }
-

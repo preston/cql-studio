@@ -38,6 +38,10 @@ export class TerminologyService extends BaseService {
     return headers;
   }
 
+  private isCodeSystemResource(resource: Resource | undefined): resource is CodeSystem {
+    return resource?.resourceType === 'CodeSystem';
+  }
+
   // ValueSet Operations
   searchValueSets(params: {
     name?: string;
@@ -315,8 +319,8 @@ export class TerminologyService extends BaseService {
       .pipe(
         map(bundle => {
           const firstResource = bundle.entry?.[0]?.resource;
-          if (firstResource?.resourceType === 'CodeSystem') {
-            return firstResource as CodeSystem;
+          if (this.isCodeSystemResource(firstResource)) {
+            return firstResource;
           }
           throw new Error('CodeSystem not found');
         })

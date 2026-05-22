@@ -265,7 +265,9 @@ export class VsacBrowserComponent {
   }
 
   private applySearchBundle(bundle: Bundle): void {
-    const list = bundle.entry?.map((e) => e.resource as ValueSet).filter((r) => r?.resourceType === 'ValueSet') ?? [];
+    const list = bundle.entry
+      ?.map((entry) => entry.resource)
+      .filter((resource): resource is ValueSet => resource?.resourceType === 'ValueSet') ?? [];
     this.searchResults.set(list);
     this.searchBundle.set(bundle);
   }
