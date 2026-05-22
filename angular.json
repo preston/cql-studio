@@ -35,6 +35,21 @@
                 "glob": "pdf.worker.mjs",
                 "input": "node_modules/pdfjs-dist/build",
                 "output": "/"
+              },
+              {
+                "glob": "*.wasm",
+                "input": "node_modules/@electric-sql/pglite/dist",
+                "output": "/pglite/"
+              },
+              {
+                "glob": "*.data",
+                "input": "node_modules/@electric-sql/pglite/dist",
+                "output": "/pglite/"
+              },
+              {
+                "glob": "*.tar.gz",
+                "input": "node_modules/@electric-sql/pglite/dist",
+                "output": "/pglite/"
               }
             ],
             "styles": [

@@ -10,7 +10,7 @@
  *   code IN (SELECT code FROM value_set_expansion WHERE value_set_id = '<url>')
  */
 
-import type { ElmLibrary, ElmLibraryWrapper, ElmValueSetDef } from '../types/elm.js';
+import type { ElmLibrary, ElmLibraryWrapper, ElmValueSetDef } from '../types/elm';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 

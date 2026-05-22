@@ -1,0 +1,125 @@
+{
+  "resourceType": "Bundle",
+  "id": "cms125-demo-bundle",
+  "type": "collection",
+  "meta": {
+    "tag": [
+      { "system": "http://cqlstudio.com/tag", "code": "demo", "display": "CMS125 SQL-on-FHIR demo bundle" }
+    ]
+  },
+  "entry": [
+    {
+      "fullUrl": "Patient/pat-numerator-jane",
+      "resource": {
+        "resourceType": "Patient", "id": "pat-numerator-jane", "active": true,
+        "gender": "female", "birthDate": "1964-04-15",
+        "name": [{ "use": "official", "family": "Doe", "given": ["Jane"] }]
+      }
+    },
+    {
+      "fullUrl": "Encounter/enc-jane-office-2024",
+      "resource": {
+        "resourceType": "Encounter", "id": "enc-jane-office-2024", "status": "finished",
+        "class": { "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": "AMB" },
+        "type": [{ "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "99213", "display": "Office visit, established" }] }],
+        "subject": { "reference": "Patient/pat-numerator-jane" },
+        "period": { "start": "2024-03-12T09:00:00Z", "end": "2024-03-12T09:30:00Z" }
+      }
+    },
+    {
+      "fullUrl": "Observation/obs-jane-mammogram",
+      "resource": {
+        "resourceType": "Observation", "id": "obs-jane-mammogram", "status": "final",
+        "category": [{ "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/observation-category", "code": "imaging" }] }],
+        "code": { "coding": [{ "system": "http://loinc.org", "code": "24605-8", "display": "MG Breast Screening" }] },
+        "subject": { "reference": "Patient/pat-numerator-jane" },
+        "effectiveDateTime": "2024-04-20T10:15:00Z"
+      }
+    },
+
+    {
+      "fullUrl": "Patient/pat-denom-only-mary",
+      "resource": {
+        "resourceType": "Patient", "id": "pat-denom-only-mary", "active": true,
+        "gender": "female", "birthDate": "1968-09-30",
+        "name": [{ "use": "official", "family": "Smith", "given": ["Mary"] }]
+      }
+    },
+    {
+      "fullUrl": "Encounter/enc-mary-office-2024",
+      "resource": {
+        "resourceType": "Encounter", "id": "enc-mary-office-2024", "status": "finished",
+        "class": { "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": "AMB" },
+        "type": [{ "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "99214", "display": "Office visit, established" }] }],
+        "subject": { "reference": "Patient/pat-denom-only-mary" },
+        "period": { "start": "2024-06-05T14:00:00Z", "end": "2024-06-05T14:30:00Z" }
+      }
+    },
+
+    {
+      "fullUrl": "Patient/pat-excluded-linda",
+      "resource": {
+        "resourceType": "Patient", "id": "pat-excluded-linda", "active": true,
+        "gender": "female", "birthDate": "1960-01-12",
+        "name": [{ "use": "official", "family": "Garcia", "given": ["Linda"] }]
+      }
+    },
+    {
+      "fullUrl": "Encounter/enc-linda-office-2024",
+      "resource": {
+        "resourceType": "Encounter", "id": "enc-linda-office-2024", "status": "finished",
+        "class": { "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": "AMB" },
+        "type": [{ "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "99204", "display": "Office visit, new patient" }] }],
+        "subject": { "reference": "Patient/pat-excluded-linda" },
+        "period": { "start": "2024-02-22T11:00:00Z", "end": "2024-02-22T11:30:00Z" }
+      }
+    },
+    {
+      "fullUrl": "Procedure/proc-linda-mastectomy",
+      "resource": {
+        "resourceType": "Procedure", "id": "proc-linda-mastectomy", "status": "completed",
+        "code": { "coding": [{ "system": "http://snomed.info/sct", "code": "173425001", "display": "Bilateral mastectomy" }] },
+        "subject": { "reference": "Patient/pat-excluded-linda" },
+        "performedDateTime": "2018-08-14T08:00:00Z"
+      }
+    },
+
+    {
+      "fullUrl": "Patient/pat-not-female-bob",
+      "resource": {
+        "resourceType": "Patient", "id": "pat-not-female-bob", "active": true,
+        "gender": "male", "birthDate": "1962-11-04",
+        "name": [{ "use": "official", "family": "Johnson", "given": ["Bob"] }]
+      }
+    },
+    {
+      "fullUrl": "Encounter/enc-bob-office-2024",
+      "resource": {
+        "resourceType": "Encounter", "id": "enc-bob-office-2024", "status": "finished",
+        "class": { "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": "AMB" },
+        "type": [{ "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "99213", "display": "Office visit" }] }],
+        "subject": { "reference": "Patient/pat-not-female-bob" },
+        "period": { "start": "2024-05-10T15:00:00Z", "end": "2024-05-10T15:30:00Z" }
+      }
+    },
+
+    {
+      "fullUrl": "Patient/pat-too-young-amy",
+      "resource": {
+        "resourceType": "Patient", "id": "pat-too-young-amy", "active": true,
+        "gender": "female", "birthDate": "1994-07-20",
+        "name": [{ "use": "official", "family": "Patel", "given": ["Amy"] }]
+      }
+    },
+    {
+      "fullUrl": "Encounter/enc-amy-office-2024",
+      "resource": {
+        "resourceType": "Encounter", "id": "enc-amy-office-2024", "status": "finished",
+        "class": { "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": "AMB" },
+        "type": [{ "coding": [{ "system": "http://www.ama-assn.org/go/cpt", "code": "99202", "display": "Office visit, new patient" }] }],
+        "subject": { "reference": "Patient/pat-too-young-amy" },
+        "period": { "start": "2024-01-22T11:00:00Z", "end": "2024-01-22T11:30:00Z" }
+      }
+    }
+  ]
+}

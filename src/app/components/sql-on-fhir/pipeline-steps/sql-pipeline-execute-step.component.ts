@@ -15,6 +15,8 @@ export class SqlPipelineExecuteStepComponent {
   readonly measureReportJson = input('');
   readonly pipelineStatus = input<string | null>(null);
   readonly hasMeasureReport = input(false);
+  readonly isExecutingSql = input(false);
+  readonly canSaveMeasureReport = input(false);
 
   readonly executeSql = output<void>();
   readonly generateMeasureReport = output<void>();

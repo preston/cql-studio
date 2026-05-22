@@ -7,23 +7,26 @@
  *   ParameterRef (Measurement Period), ValueSetRef, And/Or, During, Equal
  */
 
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { ElmToSqlTranspiler } from '../src/transpiler/elm-to-sql.js';
-import { generateMeasureReport, sqlRowToPopulationCounts } from '../src/measure/measure-report.js';
-import { STANDARD_VIEW_DEFINITIONS, viewDefinitionToSql, generateAllViewsSql } from '../src/views/view-definitions.js';
-import { extractValueSets, extractUsedValueSets } from '../src/valueset/value-set-extractor.js';
-import { loadValueSetExpansions } from '../src/valueset/value-set-loader.js';
-import { generateValueSetTableDdl, generateValueSetInsertSql, generateValueSetUpsertSql, generateValueSetSeedScript } from '../src/valueset/value-set-sql.js';
-import type { ElmLibraryWrapper } from '../src/types/elm.js';
-import type { ValueSetExpansionRow } from '../src/valueset/value-set-loader.js';
+import { ElmToSqlTranspiler } from './transpiler/elm-to-sql';
+import { generateMeasureReport, sqlRowToPopulationCounts } from './measure/measure-report';
+import { STANDARD_VIEW_DEFINITIONS, viewDefinitionToSql, generateAllViewsSql } from './views/view-definitions';
+import { extractValueSets, extractUsedValueSets } from './valueset/value-set-extractor';
+import { loadValueSetExpansions } from './valueset/value-set-loader';
+import { generateValueSetTableDdl, generateValueSetInsertSql, generateValueSetUpsertSql, generateValueSetSeedScript } from './valueset/value-set-sql';
+import type { ElmLibraryWrapper } from './types/elm';
+import type { ValueSetExpansionRow } from './valueset/value-set-loader';
+import cms125Fixture from './fixtures/cms125-breast-cancer-screening.elm.json';
+import cms130Fixture from './fixtures/cms130-colorectal-cancer-screening.elm.json';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const FIXTURES: Record<string, ElmLibraryWrapper> = {
+  'cms125-breast-cancer-screening.elm.json': cms125Fixture as unknown as ElmLibraryWrapper,
+  'cms130-colorectal-cancer-screening.elm.json': cms130Fixture as unknown as ElmLibraryWrapper,
+};
 
 function loadFixture(name: string): ElmLibraryWrapper {
-  const path = join(__dirname, 'fixtures', name);
-  return JSON.parse(readFileSync(path, 'utf8')) as ElmLibraryWrapper;
+  const fixture = FIXTURES[name];
+  if (!fixture) throw new Error(`Unknown fixture: ${name}`);
+  return fixture;
 }
 
 // ─── ElmToSqlTranspiler ───────────────────────────────────────────────────────
@@ -607,7 +610,7 @@ describe('US Core 6.1 ViewDefinition column contracts', () => {
     const vd = STANDARD_VIEW_DEFINITIONS.find(v => v.name === viewName);
     if (!vd) return [];
     const result: string[] = [];
-    function walk(selects: import('../src/views/view-definitions.js').ViewDefinitionSelect[]) {
+    function walk(selects: import('./views/view-definitions').ViewDefinitionSelect[]) {
       for (const s of selects) {
         if (s.column) result.push(...s.column.map(c => c.name));
         if (s.select) walk(s.select);

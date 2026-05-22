@@ -1,11 +1,14 @@
 // Author: Preston Lee
+// Demo wiring contributions: Eugene Vestel
 
 import { Component, OnInit, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Bundle, Library, MeasureReport } from 'fhir/r4';
+import { Bundle, Library, MeasureReport, ValueSet } from 'fhir/r4';
+import type { PopulationCounts } from './elm-to-sql';
 import { LibraryService } from '../../services/library.service';
 import { SqlOnFhirPipelineService } from '../../services/sql-on-fhir-pipeline.service';
+import { SqlOnFhirDemoService, decodeLibraryCql, type DemoMeasureContent } from '../../services/sql-on-fhir-demo.service';
 import { TranslationService } from '../../services/translation.service';
 import { formatElmXml } from './format-elm-xml';
 import { SqlPipelineCqlStepComponent } from './pipeline-steps/sql-pipeline-cql-step.component';
@@ -37,6 +40,12 @@ export class SqlOnFhirComponent implements OnInit {
   private readonly libraryService = inject(LibraryService);
   private readonly pipeline = inject(SqlOnFhirPipelineService);
   private readonly translationService = inject(TranslationService);
+  private readonly demoService = inject(SqlOnFhirDemoService);
+
+  /** Seed data attached when the user loaded a built-in demo measure. Cleared on manual library selection. */
+  private demoContent: DemoMeasureContent | null = null;
+  /** Parsed population counts from the most recent executeSql, fed into MeasureReport generation. */
+  private latestPopulationCounts: PopulationCounts | null = null;
 
   private elmRunId = 0;
   private sqlRunId = 0;
@@ -58,6 +67,10 @@ export class SqlOnFhirComponent implements OnInit {
   protected readonly selectedLibraryJson = signal('');
   protected readonly cqlPreview = signal('');
   protected readonly elmXmlRaw = signal<string | null>(null);
+  protected readonly elmJsonRaw = signal<string | null>(null);
+  protected readonly isLoadingDemo = signal(false);
+  protected readonly demoLoadError = signal<string | null>(null);
+  protected readonly isExecutingSql = signal(false);
   protected readonly isTranslatingElm = signal(false);
   protected readonly elmTranslationErrors = signal<string[]>([]);
   protected readonly elmTranslationWarnings = signal<string[]>([]);
@@ -100,6 +113,7 @@ export class SqlOnFhirComponent implements OnInit {
       if (!lib?.id) {
         this.elmRunId++;
         this.elmXmlRaw.set(null);
+        this.elmJsonRaw.set(null);
         this.elmTranslationErrors.set([]);
         this.elmTranslationWarnings.set([]);
         this.elmTranslationMessages.set([]);
@@ -108,6 +122,7 @@ export class SqlOnFhirComponent implements OnInit {
       }
       if (!cql) {
         this.elmXmlRaw.set(null);
+        this.elmJsonRaw.set(null);
         this.elmTranslationErrors.set([]);
         this.elmTranslationWarnings.set([]);
         this.elmTranslationMessages.set([]);
@@ -133,6 +148,7 @@ export class SqlOnFhirComponent implements OnInit {
           }
           this.isTranslatingElm.set(false);
           this.elmXmlRaw.set(result.elmXml ?? '');
+          this.elmJsonRaw.set(result.elmJson ?? null);
           this.elmTranslationErrors.set(result.errors);
           this.elmTranslationWarnings.set(result.warnings);
           this.elmTranslationMessages.set(result.messages);
@@ -143,6 +159,7 @@ export class SqlOnFhirComponent implements OnInit {
           }
           this.isTranslatingElm.set(false);
           this.elmXmlRaw.set(null);
+          this.elmJsonRaw.set(null);
           const msg = e instanceof Error ? e.message : String(e);
           this.elmTranslationErrors.set([`Failed to load translation assets: ${msg}`]);
           this.elmTranslationWarnings.set([]);
@@ -152,25 +169,27 @@ export class SqlOnFhirComponent implements OnInit {
 
     effect(() => {
       const lib = this.selectedLibrary();
-      const elm = this.elmXmlRaw();
-      if (!lib?.id || elm == null || elm.trim() === '') {
+      const elmJson = this.elmJsonRaw();
+      if (!lib?.id || elmJson == null || elmJson.trim() === '') {
         this.sqlRunId++;
         this.sqlText.set('');
         return;
       }
       const runId = ++this.sqlRunId;
-      this.pipeline.generateSql(elm, lib).subscribe({
-        next: sql => {
+      this.pipeline.generateSql(elmJson, lib).subscribe({
+        next: result => {
           if (runId !== this.sqlRunId) {
             return;
           }
-          this.sqlText.set(sql);
+          this.sqlText.set(result.sql);
         },
-        error: () => {
+        error: (err: unknown) => {
           if (runId !== this.sqlRunId) {
             return;
           }
           this.sqlText.set('');
+          const msg = err instanceof Error ? err.message : String(err);
+          this.pipelineStatus.set(`SQL generation failed: ${msg}`);
         }
       });
     });
@@ -337,6 +356,7 @@ export class SqlOnFhirComponent implements OnInit {
     }
 
     this.pipelineStatus.set(null);
+    this.demoContent = null;
     const gen = ++this.libraryLoadGeneration;
 
     this.libraryService.get(library.id).subscribe({
@@ -390,6 +410,7 @@ export class SqlOnFhirComponent implements OnInit {
     this.activeStep.set('library');
     this.sqlExecuteFailed.set(false);
     this.elmXmlRaw.set(null);
+    this.elmJsonRaw.set(null);
     this.elmTranslationErrors.set([]);
     this.elmTranslationWarnings.set([]);
     this.elmTranslationMessages.set([]);
@@ -398,22 +419,64 @@ export class SqlOnFhirComponent implements OnInit {
     this.sqlResultsRaw.set('');
     this.measureReport.set(null);
     this.cqlPreview.set('');
+    this.latestPopulationCounts = null;
   }
 
   protected executeSql(): void {
+    if (!this.demoContent) {
+      this.pipelineStatus.set('SQL execution requires the demo data set — click "Load CMS125 demo" to seed in-browser data.');
+      this.sqlExecuteFailed.set(true);
+      return;
+    }
     this.pipelineStatus.set(null);
     this.sqlExecuteFailed.set(false);
-    this.pipeline.executeSql(this.sqlText()).subscribe({
-      next: raw => {
-        this.sqlResultsRaw.set(raw);
+    this.isExecutingSql.set(true);
+    this.pipeline.executeSql(this.sqlText(), {
+      dataKey: this.demoContent.dataKey,
+      bundle: this.demoContent.bundle,
+      valueSets: this.demoContent.valueSets,
+    }).subscribe({
+      next: result => {
+        this.isExecutingSql.set(false);
+        this.sqlResultsRaw.set(result.raw);
+        this.latestPopulationCounts = result.counts;
         this.sqlExecuteFailed.set(false);
-        this.pipelineStatus.set('SQL execution (stub) completed.');
+        this.pipelineStatus.set(`SQL executed in ${result.durationMs.toFixed(0)} ms.`);
       },
-      error: () => {
+      error: (err: unknown) => {
+        this.isExecutingSql.set(false);
         this.sqlExecuteFailed.set(true);
-        this.pipelineStatus.set('SQL execution stub failed.');
+        const msg = err instanceof Error ? err.message : String(err);
+        this.pipelineStatus.set(`SQL execution failed: ${msg}`);
       }
     });
+  }
+
+  protected loadCms125Demo(): void {
+    this.isLoadingDemo.set(true);
+    this.demoLoadError.set(null);
+    this.pipelineStatus.set(null);
+    this.demoService.loadCms125().subscribe({
+      next: (content: DemoMeasureContent) => {
+        this.demoContent = content;
+        this.libraryLoadGeneration++;
+        this.clearPipelineOutputs();
+        this.selectedLibrary.set(content.library);
+        this.selectedLibraryJson.set(JSON.stringify(content.library, null, 2));
+        this.cqlPreview.set(content.cqlSource || decodeLibraryCql(content.library));
+        this.isLoadingDemo.set(false);
+        this.pipelineStatus.set('Loaded CMS125 demo measure with sample patient bundle.');
+      },
+      error: (err: unknown) => {
+        this.isLoadingDemo.set(false);
+        const msg = err instanceof Error ? err.message : String(err);
+        this.demoLoadError.set(`Failed to load CMS125 demo: ${msg}`);
+      }
+    });
+  }
+
+  protected canSaveMeasureReport(): boolean {
+    return this.pipeline.canSaveMeasureReport();
   }
 
   protected selectWorkflowStep(step: SqlWorkflowStep): void {
@@ -554,13 +617,21 @@ export class SqlOnFhirComponent implements OnInit {
 
   protected generateMeasureReport(): void {
     const lib = this.selectedLibrary();
+    const counts = this.latestPopulationCounts;
+    if (!counts) {
+      this.pipelineStatus.set('Run "Execute SQL" first — no population counts available yet.');
+      return;
+    }
     this.pipelineStatus.set(null);
-    this.pipeline.generateMeasureReport(this.sqlResultsRaw(), lib).subscribe({
+    this.pipeline.generateMeasureReport(counts, lib).subscribe({
       next: r => {
         this.measureReport.set(r);
-        this.pipelineStatus.set('MeasureReport (stub) generated.');
+        this.pipelineStatus.set('MeasureReport generated.');
       },
-      error: () => this.pipelineStatus.set('MeasureReport stub failed.')
+      error: (err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.pipelineStatus.set(`MeasureReport generation failed: ${msg}`);
+      }
     });
   }
 
@@ -574,9 +645,12 @@ export class SqlOnFhirComponent implements OnInit {
     this.pipeline.saveMeasureReport(r).subscribe({
       next: saved => {
         this.measureReport.set(saved);
-        this.pipelineStatus.set('MeasureReport save (stub) succeeded.');
+        this.pipelineStatus.set(`MeasureReport saved to FHIR server (id: ${saved.id ?? 'unknown'}).`);
       },
-      error: () => this.pipelineStatus.set('MeasureReport save stub failed.')
+      error: (err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.pipelineStatus.set(`MeasureReport save failed: ${msg}`);
+      }
     });
   }
 

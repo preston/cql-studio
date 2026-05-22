@@ -1,4 +1,4 @@
-# @cqframework/elm-to-sql — FAQ & Current Support State
+# elm-to-sql — FAQ & Current Support State
 
 This document covers what the library currently handles, known gaps, and how to work around them. Updated as the library evolves toward the June CMS Connectathon demo.
 
@@ -223,15 +223,17 @@ Yes — IDs are generated with `Math.random()`. For idempotent runs, pass `optio
 
 ### How do I run the tests?
 
+From the CQL Studio repo root:
+
 ```bash
-cd packages/elm-to-sql
-npm install
 npm test
 ```
 
+The library's tests are picked up by the app's Vitest config (see [vitest.config.ts](../../../../../vitest.config.ts)).
+
 ### What's covered by the test suite?
 
-The `test/elm-to-sql.test.ts` suite uses a CMS125 Breast Cancer Screening ELM fixture covering:
+The `elm-to-sql.spec.ts` suite uses CMS125 Breast Cancer Screening and CMS130 Colorectal Cancer Screening ELM fixtures covering:
 - Transpilation without errors
 - SQL structure (WITH, CTEs, final SELECT)
 - Population detection

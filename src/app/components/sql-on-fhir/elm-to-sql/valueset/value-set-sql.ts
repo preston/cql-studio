@@ -13,7 +13,7 @@
  *   code IN (SELECT code FROM value_set_expansion WHERE value_set_id = '<url>')
  */
 
-import type { ValueSetExpansionRow } from './value-set-loader.js';
+import type { ValueSetExpansionRow } from './value-set-loader';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

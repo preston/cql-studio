@@ -14,7 +14,7 @@
  *    resource directly (works when the ValueSet is already pre-expanded).
  */
 
-import type { ValueSetReference } from './value-set-extractor.js';
+import type { ValueSetReference } from './value-set-extractor';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 

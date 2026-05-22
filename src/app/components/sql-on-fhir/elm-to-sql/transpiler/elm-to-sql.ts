@@ -33,8 +33,8 @@ import type {
   ElmStart,
   ElmEnd,
   ElmDurationBetween,
-} from '../types/elm.js';
-import { stripFhirNamespace, toSqlIdentifier } from '../types/elm.js';
+} from '../types/elm';
+import { stripFhirNamespace, toSqlIdentifier } from '../types/elm';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -77,6 +77,40 @@ const POPULATION_NAMES = [
 ];
 
 // ─── FHIR resource → SQL view name map ───────────────────────────────────────
+
+/**
+ * Column inside each `_view` table that holds the FHIR code used for value-set
+ * filtering. Most resources expose this as `code`; Encounter uses `type_code`
+ * (per STANDARD_VIEW_DEFINITIONS in views/view-definitions.ts).
+ */
+const RESOURCE_CODE_COLUMN: Record<string, string> = {
+  Patient: 'gender',
+  Encounter: 'type_code',
+  AllergyIntolerance: 'code',
+  Immunization: 'vaccine_code',
+  ServiceRequest: 'code',
+};
+
+function codeColumnFor(resource: string): string {
+  return RESOURCE_CODE_COLUMN[resource] ?? 'code';
+}
+
+/**
+ * Detects whether a transpiled expression is already a complete SQL statement
+ * (SELECT / VALUES / WITH / TABLE). Leading whitespace and parentheses are
+ * stripped — `(SELECT ...)` counts, but `(boolean_expr)` does not.
+ */
+function startsWithSqlStatement(sql: string): boolean {
+  let s = sql.trim();
+  // Strip a leading parenthesis only if it's followed by a SQL statement keyword.
+  // This avoids treating `(boolean_expr)` as a statement.
+  while (s.startsWith('(')) {
+    const inner = s.slice(1).trimStart();
+    if (/^(SELECT|VALUES|WITH|TABLE)\b/i.test(inner)) return true;
+    return false;
+  }
+  return /^(SELECT|VALUES|WITH|TABLE)\b/i.test(s);
+}
 
 const RESOURCE_VIEW_MAP: Record<string, string> = {
   Patient: 'patient_view',
@@ -190,6 +224,29 @@ export class ElmToSqlTranspiler {
       body = `SELECT NULL AS _unsupported -- ${msg}`;
     }
 
+    // PostgreSQL CTE bodies must be complete statements (SELECT/VALUES/WITH/etc).
+    // Scalar/boolean defines produce bare expressions — wrap them in a SELECT so
+    // they're valid CTEs returning a single-row, single-column result. If the
+    // expression references the Patient context CTE (e.g. `Patient.gender`),
+    // we filter Patient rows by the boolean so per-patient defines aggregate
+    // correctly via COUNT(*) in the final SELECT.
+    if (!startsWithSqlStatement(body)) {
+      const trimmed = body.trim();
+      if (/\bPatient\./i.test(trimmed)) {
+        body = `SELECT Patient.* FROM Patient WHERE (${trimmed})`;
+      } else {
+        body = `SELECT (${trimmed}) AS value`;
+      }
+    }
+
+    // The standard ELM "Patient" context define is `SingletonFrom(Retrieve(Patient))`
+    // which the SingletonFrom case emits with a LIMIT 1. For measure evaluation we
+    // want all patients in scope so the per-patient CTEs (Initial Population,
+    // Denominator, Numerator) iterate over the population, not just the first row.
+    if (def.name === 'Patient') {
+      body = body.replace(/\s+LIMIT\s+1\s*$/i, '');
+    }
+
     const comment = this.opts.includeComments ? `  -- define "${def.name}"\n` : '';
     return `${cteName} AS (\n${comment}${this.indent(body)}\n)`;
   }
@@ -258,7 +315,7 @@ export class ElmToSqlTranspiler {
       case 'AllTrue':         return `(SELECT bool_and(val) FROM (${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}) _a(val))`;
       default:
         this.warn(`Unsupported ELM expression type: ${(expr as { type: string }).type}`);
-        return `NULL -- unsupported: ${(expr as { type: string }).type}`;
+        return `NULL /* unsupported: ${(expr as { type: string }).type} */`;
     }
   }
 
@@ -286,14 +343,14 @@ export class ElmToSqlTranspiler {
     return lines.join('\n');
   }
 
-  private codeFilterToSql(codesExpr: ElmExpression, _resource: string): string {
+  private codeFilterToSql(codesExpr: ElmExpression, resource: string): string {
+    const codeColumn = codeColumnFor(resource);
     if (codesExpr.type === 'ValueSetRef') {
       const ref = codesExpr as ElmValueSetRef;
       const oid = this.valueSets.get(ref.name);
-      // Standard SQL-on-FHIR code column
       return oid
-        ? `code IN (SELECT code FROM value_set_expansion WHERE value_set_id = '${oid}')`
-        : `code_system IS NOT NULL -- value set: ${ref.name}`;
+        ? `${codeColumn} IN (SELECT code FROM value_set_expansion WHERE value_set_id = '${oid}')`
+        : `${codeColumn} IS NOT NULL -- value set: ${ref.name}`;
     }
     if (codesExpr.type === 'List') {
       const list = codesExpr as { element?: ElmExpression[] };
@@ -303,7 +360,7 @@ export class ElmToSqlTranspiler {
           if (e.type === 'Literal') return `'${(e as ElmLiteral).value}'`;
           return `'${(e as unknown as { id?: string }).id ?? ''}'`;
         });
-      return codes.length > 0 ? `code IN (${codes.join(', ')})` : '';
+      return codes.length > 0 ? `${codeColumn} IN (${codes.join(', ')})` : '';
     }
     return '';
   }
@@ -442,7 +499,7 @@ export class ElmToSqlTranspiler {
         return 'NULL';
       default:
         this.warn(`Unsupported FunctionRef: ${fn}`);
-        return `NULL -- FunctionRef:${fn}`;
+        return `NULL /* FunctionRef:${fn} */`;
     }
   }
 
@@ -451,10 +508,10 @@ export class ElmToSqlTranspiler {
   private parameterRefToSql(expr: ElmParameterRef): string {
     if (expr.name === 'Measurement Period') {
       // Return as an interval literal for use in comparisons
-      return `tsrange('${this.opts.measurementPeriodStart}', '${this.opts.measurementPeriodEnd}', '[)')`;
+      return `tstzrange('${this.opts.measurementPeriodStart}', '${this.opts.measurementPeriodEnd}', '[)')`;
     }
     this.warn(`Unresolved ParameterRef: ${expr.name}`);
-    return `NULL -- ParameterRef:${expr.name}`;
+    return `NULL /* ParameterRef:${expr.name} */`;
   }
 
   // ─── ValueSet references ──────────────────────────────────────────────────
@@ -488,9 +545,16 @@ export class ElmToSqlTranspiler {
       'code.coding.code': 'code',
       'code.coding.system': 'code_system',
       'code.text': 'code_text',
+      // Bare choice-typed properties map to the most common DateTime variant
+      // (effective.value, performed.value, onset.value also handled below).
+      effective: 'effective_datetime',
+      onset: 'onset_datetime',
+      performed: 'performed_datetime',
+      period: 'period_start',
       'onset.value': 'onset_datetime',
       onsetDateTime: 'onset_datetime',
       performedDateTime: 'performed_datetime',
+      'performed.value': 'performed_datetime',
       'effective.value': 'effective_datetime',
       effectiveDateTime: 'effective_datetime',
       'value.value': 'value_quantity',
@@ -522,7 +586,7 @@ export class ElmToSqlTranspiler {
     const hi = expr.high ? this.exprToSqlInline(expr.high, 'Patient') : 'NULL';
     const lBracket = expr.lowClosed !== false ? '[' : '(';
     const rBracket = expr.highClosed !== false ? ']' : ')';
-    return `tsrange(${lo}, ${hi}, '${lBracket}${rBracket}')`;
+    return `tstzrange(${lo}, ${hi}, '${lBracket}${rBracket}')`;
   }
 
   // ─── Boolean operators ────────────────────────────────────────────────────

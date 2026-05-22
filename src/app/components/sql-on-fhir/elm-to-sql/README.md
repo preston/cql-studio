@@ -1,8 +1,10 @@
-# @cqframework/elm-to-sql
+# elm-to-sql
 
-Standalone ESM library for transpiling CQL ELM (Expression Logical Model) to SQL-on-FHIR queries and generating FHIR MeasureReports — with no Node.js runtime dependencies.
+In-app library for transpiling CQL ELM (Expression Logical Model) to SQL-on-FHIR queries and generating FHIR MeasureReports. Pure TypeScript, zero runtime dependencies, no Node.js APIs.
 
-Implements part of the [CQL Studio SQL-on-FHIR epic](https://github.com/cqframework/cql-studio/issues/15).
+Lives inside CQL Studio at [src/app/components/sql-on-fhir/elm-to-sql/](.) so it can be imported directly by the `SqlOnFhirComponent` and its pipeline steps. Self-encapsulated — no app code depends on this directory leaking outward beyond the public surface in [index.ts](./index.ts).
+
+Implements part of the [CQL Studio SQL-on-FHIR epic](https://github.com/cqframework/cql-studio/issues/15) (closes [#16](https://github.com/cqframework/cql-studio/issues/16)).
 
 ## Overview
 
@@ -13,119 +15,70 @@ CQL source
 ELM JSON
     │
     ▼ (this library)
-SQL query  ──▶  run via pluggable DB adapter  ──▶  population counts
-                                                          │
-                                                          ▼
-                                                  FHIR MeasureReport
-```
-
-## Installation
-
-```bash
-npm install @cqframework/elm-to-sql
+SQL query  ──▶  run via app-side adapter (e.g. CQL Studio Server)  ──▶  population counts
+                                                                              │
+                                                                              ▼
+                                                                      FHIR MeasureReport
 ```
 
 ## Usage
 
+Import from anywhere inside the app:
+
+```typescript
+import {
+  ElmToSqlTranspiler,
+  generateMeasureReport,
+  sqlRowToPopulationCounts,
+  STANDARD_VIEW_DEFINITIONS,
+  viewDefinitionToSql,
+  generateAllViewsSql,
+} from './elm-to-sql';
+```
+
 ### Transpile ELM → SQL
 
 ```typescript
-import { ElmToSqlTranspiler } from '@cqframework/elm-to-sql';
-
-// elmJson is the output of @cqframework/cql's CqlTranslator.toJson()
-// or a manually constructed ELM library wrapper { library: {...} }
 const transpiler = new ElmToSqlTranspiler({
   measurementPeriodStart: '2024-01-01T00:00:00Z',
   measurementPeriodEnd:   '2024-12-31T23:59:59Z',
 });
 
 const { sql, populations, warnings } = transpiler.transpile(elmJson);
-console.log(sql);
-// WITH
-//   Qualifying_Encounters AS ( SELECT * FROM encounter_view WHERE ... ),
-//   Initial_Population AS ( SELECT * FROM patient_view WHERE ... ),
-//   ...
-// SELECT
-//   (SELECT COUNT(*) FROM Initial_Population) AS Initial_Population_count,
-//   (SELECT COUNT(*) FROM Denominator) AS Denominator_count,
-//   (SELECT COUNT(*) FROM Numerator) AS Numerator_count
+// elmJson is the output of @cqframework/cql's CqlTranslator.toJson()
+// or any ELM library wrapper { library: {...} }
 ```
 
-### Execute with a pluggable adapter (PostgreSQL example)
+The result is a SQL `WITH` block defining one CTE per population define, followed by a `SELECT … COUNT(*) …` aggregator suitable for a single round-trip to the database.
+
+### Convert SQL results → MeasureReport
 
 ```typescript
-import pg from 'pg';
-import { ElmToSqlTranspiler, sqlRowToPopulationCounts, generateMeasureReport } from '@cqframework/elm-to-sql';
-
-const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
-await client.connect();
-
-const transpiler = new ElmToSqlTranspiler({ measurementPeriodStart: '2024-01-01T00:00:00Z', measurementPeriodEnd: '2024-12-31T23:59:59Z' });
-const { sql } = transpiler.transpile(elmJson);
-
-const result = await client.query(sql);
-const counts = sqlRowToPopulationCounts(result.rows[0]);
+// row is whatever the app's SQL adapter returns from running `sql` above
+const counts = sqlRowToPopulationCounts(row);
 
 const report = generateMeasureReport(counts, {
   measureUrl: 'http://ecqi.healthit.gov/ecqms/Measure/BreastCancerScreening',
   periodStart: '2024-01-01',
   periodEnd: '2024-12-31',
 });
-
-// report is a FHIR MeasureReport — POST it to your FHIR server
+// POST report to the configured FHIR server via the app's FHIR client
 ```
 
-### Execute with DuckDB (in-browser or Node)
+### Generate SQL-on-FHIR view DDL
 
 ```typescript
-import * as duckdb from '@duckdb/duckdb-wasm';
-import { ElmToSqlTranspiler, sqlRowToPopulationCounts } from '@cqframework/elm-to-sql';
-
-// ... initialize DuckDB connection ...
-const { sql } = new ElmToSqlTranspiler().transpile(elmJson);
-const result = await conn.query(sql);
-const counts = sqlRowToPopulationCounts(result.toArray()[0]);
-```
-
-### Generate SQL-on-FHIR ViewDefinitions
-
-```typescript
-import { STANDARD_VIEW_DEFINITIONS, viewDefinitionToSql, generateAllViewsSql } from '@cqframework/elm-to-sql';
-
 // Get all standard FHIR resource ViewDefinition resources (JSON)
-console.log(STANDARD_VIEW_DEFINITIONS);
+STANDARD_VIEW_DEFINITIONS;
 
-// Get CREATE OR REPLACE VIEW SQL for a specific resource
+// CREATE OR REPLACE VIEW SQL for one resource
 const { sql } = viewDefinitionToSql(STANDARD_VIEW_DEFINITIONS[0]);
 
-// Get all views as a single deployable SQL script
+// All views in a single deployable script
 const script = generateAllViewsSql();
-await client.query(script);
 ```
 
-### Generate a MeasureReport
-
-```typescript
-import { generateMeasureReport } from '@cqframework/elm-to-sql';
-
-const report = generateMeasureReport(
-  {
-    'Initial Population': 150,
-    'Denominator': 120,
-    'Denominator Exclusion': 5,
-    'Numerator': 80,
-  },
-  {
-    measureUrl: 'http://ecqi.healthit.gov/ecqms/Measure/BreastCancerScreening',
-    periodStart: '2024-01-01',
-    periodEnd: '2024-12-31',
-    type: 'summary',
-  }
-);
-// POST report to FHIR server via your app's FHIR client
-```
-
-## Supported ELM Node Types
+## Supported ELM node types
 
 | Type | SQL output |
 |------|------------|
@@ -147,15 +100,16 @@ const report = generateMeasureReport(
 | `Literal` | SQL literals with type-appropriate quoting |
 | `DurationBetween` | `DATE_PART(precision, AGE(...))` |
 
-## SQL Assumptions
+## SQL assumptions
 
 - Target dialect: **PostgreSQL 14+** (primary). DuckDB is largely compatible.
-- Views must exist as flat SQL-on-FHIR tables (see `STANDARD_VIEW_DEFINITIONS`).
+- Views must exist as flat SQL-on-FHIR tables (see [`STANDARD_VIEW_DEFINITIONS`](./views/view-definitions.ts)).
 - Value sets are resolved via a `value_set_expansion(value_set_id, code)` table.
-- `patient_view` columns: `id`, `gender`, `birthdate`, `active`, ...
 - Interval comparisons use PostgreSQL `tsrange` / `@>` operator.
 
-## API
+## API surface
+
+See [index.ts](./index.ts) for the full re-export list. Key entry points:
 
 ### `ElmToSqlTranspiler`
 
@@ -174,7 +128,7 @@ transpile(elm: ElmLibraryWrapper | ElmLibrary): TranspileResult
 
 ### `generateMeasureReport(counts, options)`
 
-Converts population counts to a FHIR R4 MeasureReport. Does not make FHIR API calls.
+Converts population counts to a FHIR R4 MeasureReport. Does not make FHIR API calls — the app's FHIR client is responsible for persisting.
 
 ### `sqlRowToPopulationCounts(row)`
 
@@ -182,20 +136,20 @@ Converts a flat SQL result row (`{ Initial_Population_count: 150, ... }`) to a `
 
 ### `STANDARD_VIEW_DEFINITIONS`
 
-Array of FHIR `ViewDefinition` resources for Patient, Observation, Condition, Procedure, Encounter, MedicationRequest, DiagnosticReport, Coverage, AllergyIntolerance, Immunization.
+Array of FHIR `ViewDefinition` resources for Patient, Observation, Condition, Procedure, Encounter, MedicationRequest, DiagnosticReport, Coverage, AllergyIntolerance, Immunization, ServiceRequest, and `value_set_expansion`.
 
 ### `generateAllViewsSql()`
 
-Returns a PostgreSQL-compatible `CREATE OR REPLACE VIEW` script for all standard views.
+Returns a PostgreSQL-compatible `CREATE OR REPLACE VIEW` script for all standard views. For HAPI FHIR JPA deployments, prefer the maintained scripts under [scripts/hapi-fhir-sql-on-fhir/](../../../../../scripts/hapi-fhir-sql-on-fhir/) which target HAPI's normalized schema.
 
-## Development
+## Testing
 
 ```bash
-npm install
-npm run build
 npm test
 ```
 
+Runs via the app's Vitest config — see [vitest.config.ts](../../../../../vitest.config.ts). Tests live next to the source in [elm-to-sql.spec.ts](./elm-to-sql.spec.ts) and load JSON fixtures via ES module imports (no Node `fs`).
+
 ## License
 
-Apache 2.0 — see [LICENSE](./LICENSE).
+Apache 2.0 — inherits from the parent CQL Studio [LICENSE](../../../../../LICENSE).
