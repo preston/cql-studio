@@ -88,6 +88,13 @@
               </a>
             </li>
             }
+            @if (settingsService.settings().experimental && settingsService.settings().developer) {
+            <li>
+              <a id="sql-nav-link" class="dropdown-item" routerLink="/sql" routerLinkActive="active">
+                <i class="bi bi-database me-2"></i>SQL on FHIR
+              </a>
+            </li>
+            }
           </ul>
         </li>
         <li class="nav-item dropdown">
@@ -149,15 +156,34 @@
           </a>
           <ul class="dropdown-menu" aria-labelledby="documentationDropdown">
             <li>
+              <a id="cql-studio-website-nav-link" class="dropdown-item" href="https://cqlstudio.com/" target="_blank"
+                rel="noopener noreferrer">
+                <i class="bi bi-box-arrow-up-right me-2"></i>
+                Website
+              </a>
+            </li>
+            <li>
+              <a id="cql-studio-github-issues-nav-link" class="dropdown-item"
+                href="https://github.com/cqframework/cql-studio/issues" target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-github me-2"></i>
+                Feedback &amp; Bug Reports
+              </a>
+            </li>
+            <li>
+              <hr class="dropdown-divider">
+            </li>
+            <li>
               <a id="runner-documentation-menu-item" class="dropdown-item" routerLink="/documentation/runner"
                 routerLinkActive="active">
-                <i class="bi bi-play-circle me-2"></i>Test Runner
+                <!-- <i class="bi bi-play-circle me-2"></i> -->
+                Engine Tests Runner
               </a>
             </li>
             <li>
               <a id="results-documentation-menu-item" class="dropdown-item" routerLink="/documentation/results"
                 routerLinkActive="active">
-                <i class="bi bi-clipboard-data me-2"></i>Test Results
+                <!-- <i class="bi bi-clipboard-data me-2"></i> -->
+                Engine Tests Results
               </a>
             </li>
             <li>

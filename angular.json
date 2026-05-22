@@ -51,6 +51,7 @@
               "node_modules/prismjs/components/prism-json.min.js",
               "node_modules/prismjs/components/prism-xml-doc.min.js",
               "node_modules/prismjs/components/prism-javascript.min.js",
+              "node_modules/prismjs/components/prism-sql.min.js",
               "node_modules/prismjs/plugins/line-numbers/prism-line-numbers.min.js",
               "node_modules/prismjs/plugins/keep-markup/prism-keep-markup.min.js",
               "node_modules/prism-js-fold/prism-js-fold.js"

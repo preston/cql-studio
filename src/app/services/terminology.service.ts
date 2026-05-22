@@ -564,6 +564,12 @@ export class TerminologyService extends BaseService {
     return this.http.delete(url, { headers: this.getAuthHeaders() });
   }
 
+  // Delete a ValueSet
+  deleteValueSet(id: string): Observable<any> {
+    const url = `${this.getTerminologyBaseUrl()}/ValueSet/${id}`;
+    return this.http.delete(url, { headers: this.getAuthHeaders() });
+  }
+
   /**
    * POST a Bundle to the terminology server root.
    * `Bundle.type` `collection` is normalized via `normalizeBundleForBasePost` (same as FHIR data client).

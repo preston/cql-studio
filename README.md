@@ -52,8 +52,8 @@ npm run start
 
 This application uses a multi-stage Docker build:
 
-1. **Builder Stage**: Uses Node.js 24 Alpine to install dependencies and build the Angular application
-2. **Runtime Stage**: Uses Nginx Alpine to serve the built application
+1. **Builder Stage**: Uses Node to install dependencies and build the Angular application
+2. **Runtime Stage**: Uses Nginx to serve the built application
 
 The Docker setup includes:
 - `Dockerfile`: Multi-stage build configuration

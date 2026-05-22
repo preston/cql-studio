@@ -1,0 +1,164 @@
+<div id="sql-on-fhir-page" class="container-fluid py-3 px-3">
+  <div class="alert alert-warning py-2 mb-3" role="status">
+    <span class="small">
+      <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
+      This experimental SQL on FHIR workspace is under active development and certain features are mocked with fake
+      data. Track progress:
+      <a id="sql-on-fhir-epic-link" href="https://github.com/cqframework/cql-studio/issues/15" target="_blank"
+        rel="noopener noreferrer">issue #15</a>.
+      Specification:
+      <a href="https://build.fhir.org/ig/FHIR/sql-on-fhir.html" target="_blank" rel="noopener noreferrer">SQL on
+        FHIR</a>.
+    </span>
+  </div>
+
+  @if (listError()) {
+  <div class="alert alert-danger py-2" role="alert">{{ listError() }}</div>
+  }
+
+  <div class="row g-3 align-items-start">
+    <!-- Library picker + workflow -->
+    <div class="col-12 col-lg-3">
+      <div class="card">
+        <div class="card-header py-2">
+          <span class="fw-semibold">Server libraries</span>
+        </div>
+        <div class="card-body d-flex flex-column">
+          <div class="input-group input-group-sm mb-2">
+            <input id="sql-library-search" type="text" class="form-control" placeholder="Search libraries..."
+              [ngModel]="libraryListSearchTerm()" (ngModelChange)="libraryListSearchTerm.set($event)"
+              (keydown.enter)="onLibraryListSearch()" />
+            <button id="sql-library-search-btn" class="btn btn-outline-secondary" type="button"
+              (click)="onLibraryListSearch()" title="Search">
+              <i class="bi bi-search" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small">
+            <select class="form-select form-select-sm" style="width: auto; min-width: 6rem" [ngModel]="librarySortBy()"
+              (ngModelChange)="changeSortField($event)" title="Sort by">
+              <option value="name">Name</option>
+              <option value="version">Version</option>
+              <option value="date">Date</option>
+            </select>
+            <button class="btn btn-outline-secondary btn-sm" type="button" (click)="changeSorting(librarySortBy())"
+              [title]="'Sort ' + (librarySortOrder() === 'asc' ? 'descending' : 'ascending')">
+              <i class="bi" [class.bi-arrow-up]="librarySortOrder() === 'asc'"
+                [class.bi-arrow-down]="librarySortOrder() === 'desc'" aria-hidden="true"></i>
+            </button>
+            <select class="form-select form-select-sm" style="width: auto; min-width: 4rem" [ngModel]="pageSize()"
+              (ngModelChange)="changePageSize(+$event)" title="Items per page">
+              <option [ngValue]="1">1</option>
+              <option [ngValue]="5">5</option>
+              <option [ngValue]="10">10</option>
+              <option [ngValue]="20">20</option>
+              <option [ngValue]="50">50</option>
+            </select>
+          </div>
+
+          @if (isLoadingLibraries()) {
+          <div class="d-flex align-items-center justify-content-center py-4 text-muted">
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <span>Loading libraries...</span>
+          </div>
+          }
+
+          @if (!isLoadingLibraries()) {
+          <div id="sql-library-list" class="sql-library-list border rounded flex-grow-1" style="min-height: 12rem">
+            @for (library of paginatedLibraries(); track trackByLibraryId($index, library)) {
+            <button type="button"
+              class="sql-library-row btn w-100 text-start rounded-0 border-0 border-bottom py-2 px-2"
+              [class.bg-primary-subtle]="selectedLibrary()?.id === library.id" (click)="selectLibraryFromList(library)">
+              <div class="fw-medium text-truncate">{{ getLibraryDisplayName(library) }}</div>
+              <div class="small text-muted">v{{ getLibraryVersion(library) }}</div>
+            </button>
+            }
+            @if (paginatedLibraries().length === 0) {
+            <div class="d-flex flex-column align-items-center justify-content-center py-5 text-muted small">
+              <i class="bi bi-collection fs-3 mb-2" aria-hidden="true"></i>
+              <span>No libraries found</span>
+            </div>
+            }
+          </div>
+          }
+
+          @if (!isLoadingLibraries() && totalPages() > 1) {
+          <div class="d-flex align-items-center justify-content-center gap-1 pt-2 flex-wrap">
+            <button class="btn btn-outline-secondary btn-sm" type="button" (click)="previousPage()"
+              [disabled]="currentPage() === 1" title="Previous page">
+              <i class="bi bi-chevron-left" aria-hidden="true"></i>
+            </button>
+            @for (page of getPageNumbers(); track page) {
+            <button class="btn btn-sm" [class.btn-primary]="page === currentPage()"
+              [class.btn-outline-secondary]="page !== currentPage()" type="button" [disabled]="page === '...'"
+              (click)="onPageClick(page)">
+              {{ page }}
+            </button>
+            }
+            <button class="btn btn-outline-secondary btn-sm" type="button" (click)="nextPage()"
+              [disabled]="currentPage() === totalPages()" title="Next page">
+              <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </button>
+          </div>
+          }
+
+          @if (activePipelineLibrary()) {
+          <nav id="sql-workflow-nav" class="sql-workflow-nav border-top pt-2 mt-2"
+            aria-label="SQL on FHIR pipeline steps">
+            <div class="small text-muted mb-1 fw-semibold">Pipeline</div>
+            <ul class="list-group list-group-flush sql-workflow-list">
+              @for (step of workflowSteps; track step) {
+              <li class="list-group-item px-0 py-1 border-0 bg-transparent">
+                <button type="button"
+                  class="btn btn-sm w-100 text-start d-flex align-items-center gap-2 sql-workflow-step"
+                  [id]="'sql-workflow-step-' + step" [class.active]="activeStep() === step"
+                  [disabled]="!canNavigateToStep(step)"
+                  [title]="!canNavigateToStep(step) ? 'Complete the previous steps first' : workflowStepLabel(step)"
+                  (click)="selectWorkflowStep(step)">
+                  @if (step === 'elm' && isTranslatingElm()) {
+                  <span class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"
+                    aria-hidden="true"></span>
+                  } @else {
+                  <i [class]="workflowStepIconClasses(step) + ' flex-shrink-0'" aria-hidden="true"></i>
+                  }
+                  <span class="text-truncate">{{ workflowStepLabel(step) }}</span>
+                </button>
+              </li>
+              }
+            </ul>
+          </nav>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail + pipeline (single step) -->
+    <div class="col-12 col-lg-9">
+      @if (activePipelineLibrary(); as lib) {
+      @switch (activeStep()) {
+      @case ('library') {
+      <app-sql-pipeline-library-step [libraryId]="lib.id ?? ''" [libraryJson]="selectedLibraryJson()" />
+      }
+      @case ('cql') {
+      <app-sql-pipeline-cql-step [cqlPreview]="cqlPreview()" />
+      }
+      @case ('elm') {
+      <app-sql-pipeline-elm-step [elmTranslationErrors]="elmTranslationErrors()"
+        [elmTranslationWarnings]="elmTranslationWarnings()" [elmTranslationMessages]="elmTranslationMessages()"
+        [isTranslatingElm]="isTranslatingElm()" [formattedElmXml]="formattedElmXml()" [cqlPreview]="cqlPreview()"
+        [hasElmTranslationErrors]="hasElmTranslationErrors()"
+        [hasElmTranslationWarnings]="hasElmTranslationWarnings()" />
+      }
+      @case ('sqlGen') {
+      <app-sql-pipeline-sql-gen-step [sqlText]="sqlText()" />
+      }
+      @case ('execute') {
+      <app-sql-pipeline-execute-step [sqlText]="sqlText()" [sqlResultsRaw]="sqlResultsRaw()"
+        [measureReportJson]="measureReportJson()" [pipelineStatus]="pipelineStatus()"
+        [hasMeasureReport]="!!measureReport()" (executeSql)="executeSql()"
+        (generateMeasureReport)="generateMeasureReport()" (saveMeasureReport)="saveMeasureReport()" />
+      }
+      }
+      }
+    </div>
+  </div>
+</div>

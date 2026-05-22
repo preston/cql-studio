@@ -1,0 +1,10 @@
+<section class="d-flex flex-column h-100" aria-labelledby="sql-pipeline-library-heading">
+  <header class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 pb-2 mb-3 border-bottom">
+    <h2 id="sql-pipeline-library-heading" class="h6 fw-semibold mb-0">FHIR Library</h2>
+  </header>
+  <div id="sql-selected-library-json" class="sql-library-json-view d-flex flex-column flex-grow-1">
+    <div class="sql-library-json-inner flex-grow-1 p-3 rounded">
+      <app-syntax-highlighter [code]="libraryJson()" language="json" [showLineNumbers]="true" />
+    </div>
+  </div>
+</section>

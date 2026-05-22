@@ -1,0 +1,13 @@
+.sql-library-list {
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.sql-workflow-nav .sql-workflow-list .sql-workflow-step:not(:disabled).active {
+  font-weight: 600;
+}
+
+.sql-workflow-nav .sql-workflow-list .sql-workflow-step:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

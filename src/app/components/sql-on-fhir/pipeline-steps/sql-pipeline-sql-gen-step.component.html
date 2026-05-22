@@ -1,0 +1,12 @@
+<section aria-labelledby="sql-pipeline-sqlgen-heading">
+  <header class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 pb-2 mb-3 border-bottom">
+    <h2 id="sql-pipeline-sqlgen-heading" class="h6 fw-semibold mb-0">Generated SQL (FAKE STUB DATA)</h2>
+  </header>
+  <div id="sql-generated-sql" class="sql-generated-sql-wrap">
+    @if (sqlText()) {
+    <app-syntax-highlighter [code]="sqlText()" language="sql" [showLineNumbers]="true" />
+    } @else {
+    <div class="text-muted text-center py-4 px-2 small">No stub SQL yet (needs ELM XML).</div>
+    }
+  </div>
+</section>

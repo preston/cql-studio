@@ -1,0 +1,55 @@
+<section class="d-flex flex-column gap-4" aria-labelledby="sql-pipeline-execute-heading">
+  <h2 id="sql-pipeline-execute-heading" class="h6 fw-semibold pb-2 mb-0 border-bottom">Execute SQL</h2>
+
+  <div>
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+      <button
+        id="btn-sql-execute"
+        type="button"
+        class="btn btn-sm btn-primary"
+        [disabled]="!sqlText().trim()"
+        (click)="executeSql.emit()"
+      >
+        Execute SQL
+      </button>
+      <p class="small text-muted mb-0">Stub execution; no server call yet.</p>
+    </div>
+    <h3 id="sql-pipeline-sql-results-heading" class="h6 text-muted fw-normal mb-2">Raw SQL Results</h3>
+    <pre
+      id="sql-results-raw"
+      class="sql-monospace-block small mb-0 p-3 rounded bg-body-secondary"
+      aria-labelledby="sql-pipeline-sql-results-heading"
+    >{{ sqlResultsRaw() || '(no results yet)' }}</pre>
+  </div>
+
+  <div>
+    <h3 id="sql-pipeline-measurereport-heading" class="h6 fw-semibold pb-2 mb-3 border-bottom">MeasureReport</h3>
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+      <button id="btn-sql-generate-measurereport" type="button" class="btn btn-sm btn-outline-secondary" (click)="generateMeasureReport.emit()">
+        Generate FHIR MeasureReport
+      </button>
+      <button
+        id="btn-sql-save-measurereport"
+        type="button"
+        class="btn btn-sm btn-success"
+        [disabled]="!hasMeasureReport()"
+        (click)="saveMeasureReport.emit()"
+      >
+        Save MeasureReport
+      </button>
+    </div>
+    <textarea
+      id="sql-measurereport-json"
+      class="form-control form-control-sm font-monospace sql-monospace-block border rounded"
+      readonly
+      [value]="measureReportJson()"
+      rows="12"
+      placeholder="(no MeasureReport yet)"
+      aria-labelledby="sql-pipeline-measurereport-heading"
+    ></textarea>
+  </div>
+
+  @if (pipelineStatus()) {
+  <div id="sql-pipeline-status" class="alert alert-info py-2 mb-0 small" role="status">{{ pipelineStatus() }}</div>
+  }
+</section>
