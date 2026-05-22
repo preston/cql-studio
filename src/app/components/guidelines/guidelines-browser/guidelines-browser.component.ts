@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { Library, Bundle } from 'fhir/r4';
 import { LibraryService } from '../../../services/library.service';
 import { SettingsService } from '../../../services/settings.service';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-guidelines-browser',
@@ -45,7 +46,7 @@ export class GuidelinesBrowserComponent implements OnInit {
         this.libraries = bundle.entry
           ? bundle.entry
               .map(entry => entry.resource)
-              .filter((resource): resource is Library => resource?.resourceType === 'Library')
+              .filter((resource): resource is Library => isResourceType(resource, 'Library'))
           : [];
         
         if (bundle.total && bundle.total > 0) {
@@ -81,7 +82,7 @@ export class GuidelinesBrowserComponent implements OnInit {
           this.libraries = bundle.entry
             ? bundle.entry
                 .map(entry => entry.resource)
-                .filter((resource): resource is Library => resource?.resourceType === 'Library')
+                .filter((resource): resource is Library => isResourceType(resource, 'Library'))
             : [];
           this.totalLibraries = this.libraries.length;
           this.totalPages = 1;

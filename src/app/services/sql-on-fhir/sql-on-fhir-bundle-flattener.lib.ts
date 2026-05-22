@@ -18,6 +18,7 @@ import type {
   Period,
   Reference,
 } from 'fhir/r4';
+import { resourceTypeOf } from '../fhir-resource-type.lib';
 
 /** A single flat row keyed by column name. Values are JSON-safe primitives. */
 export type FlatRow = Record<string, string | number | boolean | null>;
@@ -49,7 +50,7 @@ export function flattenBundle(bundle: Bundle): FlatTables {
   for (const entry of bundle.entry ?? []) {
     const r = entry.resource;
     if (!r) continue;
-    switch (r.resourceType) {
+    switch (resourceTypeOf(r)) {
       case 'Patient':
         out.patient_view.push(flattenPatient(r as Patient));
         break;

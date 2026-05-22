@@ -21,6 +21,7 @@ import { IndexedResourceRowVm } from '../models/fhir-package-view.model';
 import { resolvePackageArchiveKey } from './fhir-package-archive-path.lib';
 import { collectionBundleToTransaction } from './fhir-bundle-transaction.lib';
 import { cloneResourcesWithHapiSafeClientIds } from './fhir-hapi-client-id.lib';
+import { resourceTypeOf } from './fhir-resource-type.lib';
 import { TerminologyService } from './terminology.service';
 import { FhirClientService } from './fhir-client.service';
 import { SettingsService } from './settings.service';
@@ -160,8 +161,8 @@ export class FhirPackageImportService {
 
   private sortTermResources(list: Resource[]): Resource[] {
     return [...list].sort((a, b) => {
-      const oa = TERM_ORDER[a.resourceType ?? ''] ?? 99;
-      const ob = TERM_ORDER[b.resourceType ?? ''] ?? 99;
+      const oa = TERM_ORDER[resourceTypeOf(a) ?? ''] ?? 99;
+      const ob = TERM_ORDER[resourceTypeOf(b) ?? ''] ?? 99;
       if (oa !== ob) {
         return oa - ob;
       }
@@ -171,8 +172,8 @@ export class FhirPackageImportService {
 
   private sortDataResources(list: Resource[]): Resource[] {
     return [...list].sort((a, b) => {
-      const ta = a.resourceType ?? '';
-      const tb = b.resourceType ?? '';
+      const ta = resourceTypeOf(a) ?? '';
+      const tb = resourceTypeOf(b) ?? '';
       if (ta !== tb) {
         return ta.localeCompare(tb);
       }
@@ -193,7 +194,7 @@ export class FhirPackageImportService {
   }
 
   private nonStorableAbstractResourceTypeMessage(resource: Resource): string | null {
-    const rt = resource.resourceType;
+    const rt = resourceTypeOf(resource);
     if (typeof rt !== 'string' || !R4_ABSTRACT_RESOURCE_TYPES.has(rt)) {
       return null;
     }
@@ -201,7 +202,7 @@ export class FhirPackageImportService {
   }
 
   private nonStorableImportedBundleMessage(resource: Resource): string | null {
-    if (resource.resourceType !== 'Bundle') {
+    if (resourceTypeOf(resource) !== 'Bundle') {
       return null;
     }
     const t = (resource as Bundle).type;
@@ -217,7 +218,7 @@ export class FhirPackageImportService {
    * resource type is SearchParameter.
    */
   private nonStorableSearchParameterAbstractBaseMessage(resource: Resource): string | null {
-    if (resource.resourceType !== 'SearchParameter') {
+    if (resourceTypeOf(resource) !== 'SearchParameter') {
       return null;
     }
     const bases = (resource as SearchParameter).base;
@@ -348,7 +349,7 @@ export class FhirPackageImportService {
     const fn = (resource as { __filename?: string }).__filename?.trim() ?? '';
     const id = typeof (resource as { id?: string }).id === 'string' ? (resource as { id: string }).id.trim() : '';
     return {
-      resourceType: resource.resourceType ?? '(missing resourceType)',
+      resourceType: resourceTypeOf(resource) ?? '(missing resourceType)',
       resourceId: id || '—',
       filename: fn || '—'
     };

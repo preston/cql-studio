@@ -8,6 +8,7 @@ import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ConceptMap, Bundle } from 'fhir/r4';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { ConceptMapDetailsPaneComponent } from '../conceptmap-details-pane/conceptmap-details-pane.component';
 
 @Component({
@@ -122,7 +123,7 @@ export class ConceptMapsTabComponent implements OnInit {
       this.conceptmapResults.set(
         result?.entry
           ?.map(e => e.resource)
-          .filter((resource): resource is ConceptMap => resource?.resourceType === 'ConceptMap') || []
+          .filter((resource): resource is ConceptMap => isResourceType(resource, 'ConceptMap')) || []
       );
 
       // Extract and store Bundle links

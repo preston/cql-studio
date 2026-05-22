@@ -9,6 +9,7 @@ import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { CodeSystem } from 'fhir/r4';
 import { ClipboardService } from '../../../services/clipboard.service';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-codesystems-tab',
@@ -71,7 +72,7 @@ export class CodeSystemsTabComponent implements OnInit {
       const result = await firstValueFrom(this.terminologyService.searchCodeSystems({ _count: 1000 }));
       const codeSystems = result?.entry
         ?.map(e => e.resource)
-        .filter((resource): resource is CodeSystem => resource?.resourceType === 'CodeSystem') || [];
+        .filter((resource): resource is CodeSystem => isResourceType(resource, 'CodeSystem')) || [];
       this.codeSystemsResults.set(codeSystems);
       
       // Reset to first page when loading new data

@@ -6,6 +6,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
 import { Bundle, CapabilityStatement, Parameters, ValueSet } from 'fhir/r4';
+import { isResourceType } from './fhir-resource-type.lib';
 
 const FHIR_JSON = 'application/fhir+json';
 const VSAC_FHIR_BASE_HEADER = 'X-VSAC-FHIR-Base-URL';
@@ -230,7 +231,7 @@ export class VsacService {
       return this.searchValueSets({ url: trimmed, _count: 1 }).pipe(
         map((bundle) => {
           const first = bundle.entry?.[0]?.resource;
-          if (first?.resourceType === 'ValueSet') {
+          if (isResourceType(first, 'ValueSet')) {
             return first as ValueSet;
           }
           throw new Error('No ValueSet found for this canonical URL');

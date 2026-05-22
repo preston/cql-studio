@@ -8,6 +8,7 @@ import { map } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
 import { normalizeBundleForBasePost } from './fhir-bundle-transaction.lib';
+import { isResourceType, resourceTypeOf } from './fhir-resource-type.lib';
 import { normalizeFhirBaseUrlForBundlePost } from './fhir-server-base.lib';
 
 @Injectable({
@@ -39,7 +40,7 @@ export class TerminologyService extends BaseService {
   }
 
   private isCodeSystemResource(resource: Resource | undefined): resource is CodeSystem {
-    return resource?.resourceType === 'CodeSystem';
+    return isResourceType(resource, 'CodeSystem');
   }
 
   // ValueSet Operations
@@ -592,7 +593,10 @@ export class TerminologyService extends BaseService {
    * POST a single resource (e.g. ValueSet) to the terminology server.
    */
   postResource<T extends Resource>(resource: T): Observable<T> {
-    const rt = resource.resourceType;
+    const rt = resourceTypeOf(resource);
+    if (!rt) {
+      throw new Error('resourceType is required for POST');
+    }
     const url = `${this.getTerminologyBaseUrl()}/${rt}`;
     return this.http.post<T>(url, resource, {
       headers: this.getAuthHeaders().set('Content-Type', 'application/fhir+json')

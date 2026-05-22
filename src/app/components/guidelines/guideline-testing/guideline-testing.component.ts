@@ -8,6 +8,7 @@ import { Patient, Parameters, Bundle, Library } from 'fhir/r4';
 import { PatientService } from '../../../services/patient.service';
 import { LibraryService } from '../../../services/library.service';
 import { SettingsService } from '../../../services/settings.service';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -61,7 +62,7 @@ export class GuidelineTestingComponent implements OnInit {
         const loadedPatients = bundle.entry 
           ? bundle.entry
               .map(entry => entry.resource)
-              .filter((resource): resource is Patient => resource?.resourceType === 'Patient')
+              .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
           : [];
         this.patients.set(loadedPatients);
         this.currentPage.set(1); // Reset to first page when loading new patients
@@ -83,7 +84,7 @@ export class GuidelineTestingComponent implements OnInit {
           const loadedPatients = bundle.entry 
             ? bundle.entry
                 .map(entry => entry.resource)
-                .filter((resource): resource is Patient => resource?.resourceType === 'Patient')
+                .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
             : [];
           this.patients.set(loadedPatients);
           this.currentPage.set(1); // Reset to first page when searching

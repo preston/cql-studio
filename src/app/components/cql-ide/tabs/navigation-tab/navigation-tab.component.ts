@@ -8,6 +8,7 @@ import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
 import { IdeStateService, TabDataScope } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
+import { isResourceType } from '../../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-navigation-tab',
@@ -91,7 +92,7 @@ export class NavigationTabComponent implements OnInit {
         this.paginatedLibraries = bundle.entry
           ? bundle.entry
               .map(entry => entry.resource)
-              .filter((resource): resource is Library => resource?.resourceType === 'Library')
+              .filter((resource): resource is Library => isResourceType(resource, 'Library'))
           : [];
         
         // Check for next page using FHIR bundle links
@@ -364,7 +365,7 @@ export class NavigationTabComponent implements OnInit {
         this.paginatedLibraries = bundle.entry
           ? bundle.entry
               .map(entry => entry.resource)
-              .filter((resource): resource is Library => resource?.resourceType === 'Library')
+              .filter((resource): resource is Library => isResourceType(resource, 'Library'))
           : [];
         
         // Check for next page using FHIR bundle links
@@ -464,7 +465,7 @@ export class NavigationTabComponent implements OnInit {
           if (bundle.entry && bundle.entry.length > 0) {
             this.patientSearchResults = bundle.entry
               .map(entry => entry.resource)
-              .filter((resource): resource is Patient => resource?.resourceType === 'Patient');
+              .filter((resource): resource is Patient => isResourceType(resource, 'Patient'));
             this.showPatientSearchResults = true;
           } else {
             this.patientSearchResults = [];

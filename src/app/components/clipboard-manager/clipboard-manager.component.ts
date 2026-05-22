@@ -11,6 +11,7 @@ import { ClipboardService, ClipboardItem, ClipboardSortBy, ClipboardSortOrder } 
 import { SettingsService } from '../../services/settings.service';
 import { ToastService } from '../../services/toast.service';
 import { Resource } from 'fhir/r4';
+import { resourceTypeOf } from '../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-clipboard-manager',
@@ -262,7 +263,7 @@ export class ClipboardManagerComponent implements OnInit {
     const parts = [id].filter(Boolean);
     if (name) parts.push(name);
     else if (title) parts.push(title);
-    return parts.length > 0 ? parts.join(' – ') : resource.resourceType + (id ? ' ' + id : '');
+    return parts.length > 0 ? parts.join(' – ') : (resourceTypeOf(resource) ?? 'Resource') + (id ? ' ' + id : '');
   }
 
   addToClipboard(resource: Resource): void {

@@ -8,6 +8,7 @@ import { MeasureService } from '../../../services/measure.service';
 import { SettingsService } from '../../../services/settings.service';
 import { ToastService } from '../../../services/toast.service';
 import { MeasureReportViewComponent } from '../measure-report-view/measure-report-view.component';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-measure-reports-tab',
@@ -44,7 +45,7 @@ export class MeasureReportsTabComponent {
       const measureRef = m.url ?? `Measure/${m.id}`;
       const bundle = await firstValueFrom(this.measureService.searchMeasureReports({ measure: measureRef, _count: 50 }));
       const entries = bundle?.entry ?? [];
-      this.reports.set(entries.map(e => e.resource!).filter((r): r is MeasureReport => r?.resourceType === 'MeasureReport'));
+      this.reports.set(entries.map(e => e.resource!).filter((r): r is MeasureReport => isResourceType(r, 'MeasureReport')));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load reports.';
       this.error.set(msg);

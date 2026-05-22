@@ -10,6 +10,7 @@ import { LibraryService } from '../../services/library.service';
 import { SqlOnFhirPipelineService } from '../../services/sql-on-fhir/sql-on-fhir-pipeline.service';
 import { SqlOnFhirDemoService, decodeLibraryCql, type DemoMeasureContent } from '../../services/sql-on-fhir/sql-on-fhir-demo.service';
 import { TranslationService } from '../../services/translation.service';
+import { isResourceType } from '../../services/fhir-resource-type.lib';
 import { formatElmXml } from './format-elm-xml';
 import { SqlPipelineCqlStepComponent } from './pipeline-steps/sql-pipeline-cql-step.component';
 import { SqlPipelineElmStepComponent } from './pipeline-steps/sql-pipeline-elm-step.component';
@@ -226,7 +227,7 @@ export class SqlOnFhirComponent implements OnInit {
             bundle.entry
               ? bundle.entry
                   .map(e => e.resource)
-                  .filter((resource): resource is Library => resource?.resourceType === 'Library')
+                  .filter((resource): resource is Library => isResourceType(resource, 'Library'))
               : []
           );
           this.applyBundlePagination(bundle);
@@ -283,7 +284,7 @@ export class SqlOnFhirComponent implements OnInit {
             bundle.entry
               ? bundle.entry
                   .map(e => e.resource)
-                  .filter((resource): resource is Library => resource?.resourceType === 'Library')
+                  .filter((resource): resource is Library => isResourceType(resource, 'Library'))
               : []
           );
           this.applyBundlePagination(bundle);

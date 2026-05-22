@@ -14,6 +14,7 @@ import { SettingsService } from '../../services/settings.service';
 import { TerminologyService } from '../../services/terminology.service';
 import { ToastService } from '../../services/toast.service';
 import { ClipboardService } from '../../services/clipboard.service';
+import { isResourceType } from '../../services/fhir-resource-type.lib';
 import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
 import { ValueSetDependencyTreeComponent } from './value-set-dependency-tree.component';
 import { Bundle, CapabilityStatement, Coding, Parameters, ValueSet, Resource } from 'fhir/r4';
@@ -267,7 +268,7 @@ export class VsacBrowserComponent {
   private applySearchBundle(bundle: Bundle): void {
     const list = bundle.entry
       ?.map((entry) => entry.resource)
-      .filter((resource): resource is ValueSet => resource?.resourceType === 'ValueSet') ?? [];
+      .filter((resource): resource is ValueSet => isResourceType(resource, 'ValueSet')) ?? [];
     this.searchResults.set(list);
     this.searchBundle.set(bundle);
   }
