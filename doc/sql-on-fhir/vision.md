@@ -38,7 +38,7 @@ The thesis is: **what if SQL-on-FHIR views were the execution layer for CQL?**
 CQL Studio now contains a self-contained **CQL → ELM → SQL → execute → MeasureReport** pipeline that runs entirely in the browser:
 
 - `src/app/components/sql-on-fhir/elm-to-sql/` — the in-app transpiler (per Preston's #16 review, baked into the app rather than shipped as a separate package).
-- `src/app/services/sql-on-fhir-pglite.service.ts` — lazy-boots PGlite, creates the SQL-on-FHIR flat-table schema, executes generated SQL.
+- `src/app/services/sql-on-fhir/sql-on-fhir-pglite.service.ts` — lazy-boots PGlite, creates the SQL-on-FHIR flat-table schema, executes generated SQL.
 - `public/fhir/sql-on-fhir/` — a shipped CMS125 demo: one Library, one bundle, three pre-expanded value sets.
 - The `/sql` page in CQL Studio drives the full five-stage pipeline with a single "Load CMS125 demo" click.
 

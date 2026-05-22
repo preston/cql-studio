@@ -99,7 +99,7 @@ Measure Score           0.5   (= 1 / (3 - 1))
 2. Wrap it in a FHIR Library resource: `cms<id>-library.json` with `content[0].data` set to the base64-encoded CQL.
 3. Add a small patient bundle: `<name>-bundle.json`. Five patients is enough to exercise populations.
 4. Pre-expand any value sets you reference: `valuesets/<name>.json`. Even 3–5 codes per value set is fine for demos.
-5. Add a method to [sql-on-fhir-demo.service.ts](../../src/app/services/sql-on-fhir-demo.service.ts) that fetches them in parallel.
+5. Add a method to [sql-on-fhir-demo.service.ts](../../src/app/services/sql-on-fhir/sql-on-fhir-demo.service.ts) that fetches them in parallel.
 6. Add a button to [sql-on-fhir.component.html](../../src/app/components/sql-on-fhir/sql-on-fhir.component.html).
 
 You do not need to write a Vitest spec for the new demo unless you want regression coverage on its specific population counts — the pipeline-level tests cover the moving parts.

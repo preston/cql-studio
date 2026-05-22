@@ -2,7 +2,7 @@
   <div class="alert alert-warning py-2 mb-3" role="status">
     <span class="small">
       <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
-      This experimental SQL on FHIR workspace is under active development and certain features are mocked with fake
+      This experimental SQL on FHIR workspace runs in your browser and is under active development and certain features are mocked with fake
       data. Track progress:
       <a id="sql-on-fhir-epic-link" href="https://github.com/cqframework/cql-studio/issues/15" target="_blank"
         rel="noopener noreferrer">issue #15</a>.
@@ -33,9 +33,6 @@
         <span>Load CMS125 demo</span>
       }
     </button>
-    <span class="text-muted small">
-      Runs entirely in your browser via PGlite — no FHIR server or backend required.
-    </span>
   </div>
   @if (demoLoadError()) {
   <div class="alert alert-warning py-2" role="alert">{{ demoLoadError() }}</div>

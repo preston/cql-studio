@@ -62,10 +62,10 @@ How the CQL → ELM → SQL → execute → MeasureReport pipeline is built insi
 | [src/app/components/sql-on-fhir/elm-to-sql/](../../src/app/components/sql-on-fhir/elm-to-sql/) | In-app `elm-to-sql` library. Pure TypeScript, no Node deps. |
 | [src/app/components/sql-on-fhir/elm-to-sql/transpiler/elm-to-sql.ts](../../src/app/components/sql-on-fhir/elm-to-sql/transpiler/elm-to-sql.ts) | The transpiler proper: ELM JSON in, Postgres SQL out. |
 | [src/app/components/sql-on-fhir/elm-to-sql/measure/measure-report.ts](../../src/app/components/sql-on-fhir/elm-to-sql/measure/measure-report.ts) | `generateMeasureReport(counts, options)` and `sqlRowToPopulationCounts(row)`. |
-| [src/app/services/sql-on-fhir-pipeline.service.ts](../../src/app/services/sql-on-fhir-pipeline.service.ts) | The orchestrator service the UI calls. |
-| [src/app/services/sql-on-fhir-pglite.service.ts](../../src/app/services/sql-on-fhir-pglite.service.ts) | In-browser Postgres via PGlite. Lazy boot, schema, seed, execute. |
-| [src/app/services/sql-on-fhir-bundle-flattener.lib.ts](../../src/app/services/sql-on-fhir-bundle-flattener.lib.ts) | FHIR Bundle → flat rows, matching `STANDARD_VIEW_DEFINITIONS`. |
-| [src/app/services/sql-on-fhir-demo.service.ts](../../src/app/services/sql-on-fhir-demo.service.ts) | Fetches shipped demo content. |
+| [src/app/services/sql-on-fhir/sql-on-fhir-pipeline.service.ts](../../src/app/services/sql-on-fhir/sql-on-fhir-pipeline.service.ts) | The orchestrator service the UI calls. |
+| [src/app/services/sql-on-fhir/sql-on-fhir-pglite.service.ts](../../src/app/services/sql-on-fhir/sql-on-fhir-pglite.service.ts) | In-browser Postgres via PGlite. Lazy boot, schema, seed, execute. |
+| [src/app/services/sql-on-fhir/sql-on-fhir-bundle-flattener.lib.ts](../../src/app/services/sql-on-fhir/sql-on-fhir-bundle-flattener.lib.ts) | FHIR Bundle → flat rows, matching `STANDARD_VIEW_DEFINITIONS`. |
+| [src/app/services/sql-on-fhir/sql-on-fhir-demo.service.ts](../../src/app/services/sql-on-fhir/sql-on-fhir-demo.service.ts) | Fetches shipped demo content. |
 | [src/app/services/translation.service.ts](../../src/app/services/translation.service.ts) | `@cqframework/cql` wrapper. Exposes both ELM XML and ELM JSON. |
 | [public/fhir/sql-on-fhir/](../../public/fhir/sql-on-fhir/) | Static demo Library, Bundle, and ValueSets. |
 | [scripts/hapi-fhir-sql-on-fhir/](../../scripts/hapi-fhir-sql-on-fhir/) | PostgreSQL view scripts for HAPI FHIR JPA — the server-side counterpart. |

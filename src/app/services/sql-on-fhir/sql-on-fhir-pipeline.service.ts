@@ -18,7 +18,7 @@ import {
   generateMeasureReport as buildMeasureReport,
   sqlRowToPopulationCounts,
   type PopulationCounts,
-} from '../components/sql-on-fhir/elm-to-sql';
+} from '../../components/sql-on-fhir/elm-to-sql';
 import {
   flattenBundle,
   flattenValueSets,
@@ -26,7 +26,7 @@ import {
 } from './sql-on-fhir-bundle-flattener.lib';
 import { SqlOnFhirPgliteService } from './sql-on-fhir-pglite.service';
 import type { ValueSet } from 'fhir/r4';
-import { SettingsService } from './settings.service';
+import { SettingsService } from '../settings.service';
 
 export interface GenerateSqlResult {
   sql: string;

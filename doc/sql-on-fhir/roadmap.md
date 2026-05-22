@@ -18,7 +18,7 @@ Status of the SQL-on-FHIR initiative in CQL Studio. Tracks the work that lands i
 Click "Load CMS125 demo" on `/sql`, see a real FHIR R4 MeasureReport with correct populations.
 
 - ✅ `@cqframework/elm-to-sql` library, baked into the app at `src/app/components/sql-on-fhir/elm-to-sql/` per Preston's #16 review.
-- ✅ Bundle flattener (`sql-on-fhir-bundle-flattener.lib.ts`) — pure functions, Vitest-tested.
+- ✅ Bundle flattener (`sql-on-fhir/sql-on-fhir-bundle-flattener.lib.ts`) — pure functions, Vitest-tested.
 - ✅ PGlite execution service — lazy WASM boot, flat-table schema, idempotent seeding.
 - ✅ TranslationService exposes `elmJson` (calls `CqlTranslator.toJson()`).
 - ✅ Pipeline service wires real library + PGlite (replaces the prior stub).
@@ -67,7 +67,7 @@ Today's transpiler targets PostgreSQL. The same ELM should produce DuckDB-compat
 - ⏳ Dialect option on `TranspilerOptions` (`'postgres' | 'duckdb' | 'bigquery'`).
 - ⏳ Per-dialect interval handling (DuckDB has `interval`, not `tstzrange`).
 - ⏳ Per-dialect date arithmetic.
-- ⏳ A DuckDB-WASM execution service alongside `sql-on-fhir-pglite.service.ts` for users who want it.
+- ⏳ A DuckDB-WASM execution service alongside `sql-on-fhir/sql-on-fhir-pglite.service.ts` for users who want it.
 
 ### ⏳ M6 — Save MeasureReport flow
 
