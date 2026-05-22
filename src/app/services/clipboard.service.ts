@@ -318,6 +318,7 @@ export class ClipboardService {
     }
   }
 
+
   private loadFromStorage(): void {
     if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
       return;
