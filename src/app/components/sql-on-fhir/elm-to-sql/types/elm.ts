@@ -154,6 +154,7 @@ export type ElmExpression =
   | ElmIf
   | ElmCase
   | ElmAs
+  | ElmIs
   | ElmConvert
   | ElmAggregate
   | ElmDate
@@ -400,6 +401,14 @@ export interface ElmAs {
   asType?: string;
   asTypeSpecifier?: ElmTypeSpecifier;
   strict?: boolean;
+}
+
+// Type guard — emitted by the CQL translator around choice-typed properties.
+export interface ElmIs {
+  type: 'Is';
+  operand: ElmExpression;
+  isType?: string;
+  isTypeSpecifier?: ElmTypeSpecifier;
 }
 
 export interface ElmConvert {

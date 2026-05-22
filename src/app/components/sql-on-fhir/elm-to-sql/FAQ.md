@@ -20,16 +20,19 @@ It converts CQL ELM (Expression Logical Model) JSON — the intermediate represe
 ### What SQL dialect does it target?
 
 Primary target is **PostgreSQL 14+**. The generated SQL uses:
-- `tsrange(start, end, '[)')` for interval containment
+- `tstzrange(start, end, '[)')` for interval containment (interval-vs-interval uses `<@`; point-in-interval uses `@>`)
 - `DATE_PART('year', AGE(...))` for age calculations
+- `lower()` / `upper()` to extract endpoints of an interval (preferred over `<col>_start` / `<col>_end` when the operand is a range expression)
 - `bool_or` / `bool_and` for AnyTrue/AllTrue aggregates
 - Standard `EXISTS`, `NOT EXISTS`, `UNION ALL`, `INTERSECT`, `EXCEPT`
 
-**DuckDB** is largely compatible. Differences:
-- DuckDB uses `date_diff('year', birthdate, date)` instead of `DATE_PART('year', AGE(...))`
-- DuckDB does not have `tsrange` — use `date BETWEEN start AND end` instead
+In-browser execution targets **PGlite** ([electric-sql/pglite](https://github.com/electric-sql/pglite)) which is real Postgres compiled to WebAssembly — so the same SQL runs unchanged.
 
-A DuckDB dialect option is planned.
+**DuckDB** is largely compatible. Differences:
+- DuckDB uses `date_diff('year', birthdate, date)` instead of `DATE_PART('year', AGE(...))`.
+- DuckDB does not have `tstzrange` — use `date BETWEEN start AND end` instead.
+
+A DuckDB dialect option is planned (see [doc/sql-on-fhir/roadmap.md](../../../../doc/sql-on-fhir/roadmap.md) M5).
 
 ---
 
@@ -82,16 +85,16 @@ Not directly. Parse XML to the JSON structure first. The JSON format is simpler 
 | Data access | `Retrieve`, `Query` (source, where, return, sort, relationship) |
 | References | `ExpressionRef`, `FunctionRef`, `ParameterRef`, `ValueSetRef` |
 | Primitives | `Literal` (Integer, Decimal, String, Boolean, Date, DateTime), `Null` |
-| Logic | `And`, `Or`, `Not`, `Xor` |
+| Logic | `And`, `Or`, `Not`, `Xor`, `IsNull`, `IsTrue`, `IsFalse` |
 | Comparison | `Equal`, `NotEqual`, `Less`, `Greater`, `LessOrEqual`, `GreaterOrEqual` |
 | Arithmetic | `Add`, `Subtract`, `Multiply`, `Divide` |
-| Set/interval | `In`, `During`, `IncludedIn`, `Contains`, `Exists` |
-| Aggregates | `Count`, `Sum`, `Min`, `Max`, `Avg` |
-| Temporal | `DurationBetween`, `Today`, `Now`, `Start`, `End`, `Interval` |
+| Set/interval | `In`, `During`, `IncludedIn` (point-in-interval `@>` and interval-in-interval `<@`), `Contains`, `Exists` |
+| Aggregates | `Count`, `Sum`, `Min`, `Max`, `Avg`, `AnyTrue`, `AllTrue` |
+| Temporal | `DurationBetween`, `Today`, `Now`, `Start`/`End` (via `lower()`/`upper()` for ranges), `Interval` |
 | Control flow | `If`, `Case` |
 | Collections | `Union`, `Intersect`, `Except`, `Distinct`, `Flatten`, `First`, `Last`, `List` |
-| Functions | `AgeInYearsAt`, `AgeInMonthsAt`, `AgeInDaysAt`, `ToDate`, `ToDateTime`, `ToString`, `ToInteger`, `ToDecimal`, `Coalesce`, `Lower`, `Upper`, `Length`, `Substring` |
-| Type ops | `As`, `Convert`, `ToList`, `SingletonFrom` |
+| Functions | `AgeInYearsAt`, `AgeInMonthsAt`, `AgeInDaysAt`, `CalculateAgeAt`, `CalculateAgeInYearsAt`, `ToDate`, `ToDateTime`, `ToInterval`, `ToString`, `ToInteger`, `ToDecimal`, `Coalesce`, `Lower`, `Upper`, `Length`, `Substring` |
+| Type ops | `Is`, `As`, `Convert`, `ToList`, `SingletonFrom` (Patient-context define automatically promoted to all-patient set for per-patient measure evaluation) |
 
 ### What is NOT yet supported?
 
@@ -108,7 +111,7 @@ Not directly. Parse XML to the JSON structure first. The JSON format is simpler 
 | Stratifiers | Not generated | `stratifier` in MeasureReport always empty |
 | `DateTime` arithmetic (`+ 1 year`) | Not supported | Use `DurationBetween` instead |
 
-When an unsupported node is encountered, the transpiler emits a SQL comment (`NULL -- unsupported: TypeName`) and adds an entry to `warnings[]` in the `TranspileResult`. **Always check `warnings` after transpiling.**
+When an unsupported node is encountered, the transpiler emits a SQL block comment (`NULL /* unsupported: TypeName */`) and adds an entry to `warnings[]` in the `TranspileResult`. Block-comment style means the placeholder does not break single-line expressions. **Always check `warnings` after transpiling.**
 
 ---
 

@@ -33,6 +33,9 @@ import type {
   ElmStart,
   ElmEnd,
   ElmDurationBetween,
+  ElmIs,
+  ElmAs,
+  ElmTypeSpecifier,
 } from '../types/elm';
 import { stripFhirNamespace, toSqlIdentifier } from '../types/elm';
 
@@ -93,6 +96,65 @@ const RESOURCE_CODE_COLUMN: Record<string, string> = {
 
 function codeColumnFor(resource: string): string {
   return RESOURCE_CODE_COLUMN[resource] ?? 'code';
+}
+
+/**
+ * Convert an expression that may be an interval (`tstzrange(...)`) into a single
+ * point-in-time suitable for `AGE()`, `DATE_PART()`, etc. CQL's `AgeInYearsAt(MP)`
+ * means "age at the start of MP" — extracting `lower()` of the interval matches.
+ * Other expressions pass through untouched.
+ */
+/**
+ * Returns the leaf type-name from an ELM type reference, e.g.
+ * `{urn:hl7-org:elm-types:r1}DateTime` → `DateTime`, or `Period` from a
+ * NamedTypeSpecifier wrapper.
+ */
+function isTypeLeaf(t: string | ElmTypeSpecifier | undefined): string {
+  if (!t) return '';
+  if (typeof t === 'string') return t.replace(/.*}/, '');
+  if (typeof t === 'object' && 'name' in t && typeof t.name === 'string') {
+    return t.name.replace(/.*}/, '');
+  }
+  return '';
+}
+
+/**
+ * Maps a period-bearing FHIR property name (or its already-normalized variant)
+ * to the column-name prefix used by STANDARD_VIEW_DEFINITIONS. `effective` →
+ * `effective` (so the caller gets `effective_start` / `effective_end`); already-
+ * suffixed names like `period_start` map to `period`, etc.
+ */
+function stripDateSuffix(path: string): string {
+  const known = ['period', 'effective', 'onset', 'performed', 'abatement'];
+  const lower = path.toLowerCase();
+  for (const k of known) {
+    if (lower === k) return k;
+    if (lower === `${k}_start` || lower === `${k}_end` || lower === `${k}_datetime`) return k;
+  }
+  return path.replace(/_(start|end|datetime)$/, '');
+}
+
+function asPointInTime(sql: string): string {
+  const s = sql.trim();
+  if (/^ts(tz)?range\b/i.test(s)) {
+    return `lower(${s})`;
+  }
+  return s;
+}
+
+/**
+ * Render a CQL `start of <interval>` / `end of <interval>` expression in SQL.
+ * If the inner is a `tstzrange(...)` (or `tsrange(...)`) call we use PostgreSQL's
+ * `lower()` / `upper()`; otherwise we fall back to the schema's `<col>_start` /
+ * `<col>_end` naming convention for already-flattened period columns.
+ */
+function startEndToSql(sql: string, which: 'start' | 'end'): string {
+  const s = sql.trim();
+  if (/^ts(tz)?range\b/i.test(s)) {
+    return `${which === 'start' ? 'lower' : 'upper'}(${s})`;
+  }
+  if (new RegExp(`_${which}\\b`).test(s)) return s;
+  return `${s}_${which}`;
 }
 
 /**
@@ -267,8 +329,8 @@ export class ElmToSqlTranspiler {
       case 'Interval':        return this.intervalToSql(expr as ElmInterval);
       case 'If':              return this.ifToSql(expr as ElmIf, context);
       case 'Case':            return this.caseToSql(expr as ElmCase, context);
-      case 'Start':           return `${this.exprToSql((expr as ElmStart).operand, context)}_start`;
-      case 'End':             return `${this.exprToSql((expr as ElmEnd).operand, context)}_end`;
+      case 'Start':           return startEndToSql(this.exprToSql((expr as ElmStart).operand, context), 'start');
+      case 'End':             return startEndToSql(this.exprToSql((expr as ElmEnd).operand, context), 'end');
       case 'Today':           return 'CURRENT_DATE';
       case 'Now':             return 'CURRENT_TIMESTAMP';
       case 'Exists':          return this.existsToSql((expr as ElmUnaryOp).operand, context);
@@ -276,6 +338,8 @@ export class ElmToSqlTranspiler {
       case 'IsNull':          return `(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}) IS NULL`;
       case 'IsTrue':          return `(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}) IS TRUE`;
       case 'IsFalse':         return `(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}) IS FALSE`;
+      case 'Is':              return this.isTypeToSql(expr as ElmIs, context);
+      case 'As':              return this.asTypeToSql(expr as ElmAs, context);
       case 'Count':           return this.aggregateToSql(expr as ElmAggregate, 'COUNT', context);
       case 'Sum':             return this.aggregateToSql(expr as ElmAggregate, 'SUM', context);
       case 'Min':             return this.aggregateToSql(expr as ElmAggregate, 'MIN', context);
@@ -313,9 +377,36 @@ export class ElmToSqlTranspiler {
       case 'List':            return this.listToSql((expr as { element?: ElmExpression[] }).element ?? [], context);
       case 'AnyTrue':         return `(SELECT bool_or(val) FROM (${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}) _a(val))`;
       case 'AllTrue':         return `(SELECT bool_and(val) FROM (${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}) _a(val))`;
-      default:
-        this.warn(`Unsupported ELM expression type: ${(expr as { type: string }).type}`);
-        return `NULL /* unsupported: ${(expr as { type: string }).type} */`;
+      default: {
+        const typeName = (expr as { type: string }).type;
+        // ELM age-calculation operators land here as top-level expressions
+        // (they are siblings of the FunctionRef path). The ELM signature for
+        // `CalculateAgeAt(birthDate, asOf)` is two operands; the FunctionRef
+        // path's `AgeInYearsAt` is single-operand (`asOf` only — birthDate is
+        // implicit from Patient context). Discard the birthDate operand when
+        // delegating so we hit the shared SQL emission with the correct asOf.
+        if (typeName === 'CalculateAgeAt' || typeName === 'CalculateAgeInYearsAt' || typeName === 'AgeInYearsAt') {
+          const operand = (expr as { operand?: ElmExpression[] }).operand ?? [];
+          const precision = (expr as { precision?: string }).precision ?? 'Year';
+          const fnName = `AgeIn${precision === 'Year' ? 'Years' : precision === 'Month' ? 'Months' : 'Days'}At`;
+          // CalculateAgeAt = [birthDate, asOf]; AgeInYearsAt = [asOf] only.
+          const asOf = operand.length >= 2 ? [operand[1]] : operand;
+          const synth: ElmFunctionRef = { type: 'FunctionRef', name: fnName, operand: asOf };
+          return this.functionRefToSql(synth, context);
+        }
+        // Conversion operators emitted by the translator (ToDateTime, ToDate,
+        // ToInterval) often appear as top-level types. Delegate to the same
+        // FunctionRef handler so the cast / coercion logic is shared.
+        if (typeName === 'ToDateTime' || typeName === 'ToDate' || typeName === 'ToInterval' ||
+            typeName === 'ToString' || typeName === 'ToInteger' || typeName === 'ToDecimal') {
+          const operand = (expr as { operand?: ElmExpression | ElmExpression[] }).operand;
+          const ops = Array.isArray(operand) ? operand : operand ? [operand] : [];
+          const synth: ElmFunctionRef = { type: 'FunctionRef', name: typeName, operand: ops };
+          return this.functionRefToSql(synth, context);
+        }
+        this.warn(`Unsupported ELM expression type: ${typeName}`);
+        return `NULL /* unsupported: ${typeName} */`;
+      }
     }
   }
 
@@ -449,30 +540,35 @@ export class ElmToSqlTranspiler {
 
     switch (fn) {
       case 'AgeInYearsAt':
-      case 'CalculateAgeInYearsAt': {
-        const dateArg = ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE';
-        return `DATE_PART('year', AGE(${dateArg}, p.birthdate))`;
+      case 'CalculateAgeInYearsAt':
+      case 'CalculateAgeAt': {
+        const dateArg = asPointInTime(ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE');
+        return `DATE_PART('year', AGE(${dateArg}::date, Patient.birthdate))::int`;
       }
       case 'AgeInMonthsAt': {
-        const dateArg = ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE';
-        return `(DATE_PART('year', AGE(${dateArg}, p.birthdate)) * 12 + DATE_PART('month', AGE(${dateArg}, p.birthdate)))`;
+        const dateArg = asPointInTime(ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE');
+        return `(DATE_PART('year', AGE(${dateArg}::date, Patient.birthdate)) * 12 + DATE_PART('month', AGE(${dateArg}::date, Patient.birthdate)))::int`;
       }
       case 'AgeInDaysAt': {
-        const dateArg = ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE';
-        return `(${dateArg}::date - p.birthdate::date)`;
+        const dateArg = asPointInTime(ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE');
+        return `((${dateArg})::date - Patient.birthdate::date)::int`;
       }
       case 'ToDate':
-      case 'date':
-        return ops[0] ? `(${this.exprToSqlInline(ops[0], context)})::date` : 'CURRENT_DATE';
+      case 'date': {
+        if (!ops[0]) return 'CURRENT_DATE';
+        return `(${asPointInTime(this.exprToSqlInline(ops[0], context))})::date`;
+      }
       case 'ToDateTime':
-      case 'datetime':
-        return ops[0] ? `(${this.exprToSqlInline(ops[0], context)})::timestamp` : 'CURRENT_TIMESTAMP';
+      case 'datetime': {
+        if (!ops[0]) return 'CURRENT_TIMESTAMP';
+        return `(${asPointInTime(this.exprToSqlInline(ops[0], context))})::timestamptz`;
+      }
       case 'start of':
       case 'Start':
-        return ops[0] ? `${this.exprToSqlInline(ops[0], context)}_start` : 'NULL';
+        return ops[0] ? startEndToSql(this.exprToSqlInline(ops[0], context), 'start') : 'NULL';
       case 'end of':
       case 'End':
-        return ops[0] ? `${this.exprToSqlInline(ops[0], context)}_end` : 'NULL';
+        return ops[0] ? startEndToSql(this.exprToSqlInline(ops[0], context), 'end') : 'NULL';
       case 'ToString':
         return ops[0] ? `(${this.exprToSqlInline(ops[0], context)})::text` : 'NULL';
       case 'ToInteger':
@@ -482,6 +578,22 @@ export class ElmToSqlTranspiler {
       case 'Coalesce': {
         const args = ops.map(o => this.exprToSqlInline(o, context)).join(', ');
         return `COALESCE(${args})`;
+      }
+      case 'ToInterval': {
+        // ELM coerces a FHIR `Period` (or similar choice-typed datetime element)
+        // into an `Interval<DateTime>`. Our flat-table schema stores periods as
+        // two columns (e.g. `period_start` / `period_end`), so we synthesize a
+        // `tstzrange` if the operand is a Property reference to a period-typed
+        // FHIR element. Otherwise pass through.
+        const operand = ops[0];
+        if (operand && operand.type === 'Property') {
+          const prop = operand as ElmProperty;
+          const scope = prop.scope ?? '';
+          const prefix = stripDateSuffix(prop.path);
+          const alias = scope ? `${scope}.` : '';
+          return `tstzrange(${alias}${prefix}_start, ${alias}${prefix}_end, '[)')`;
+        }
+        return ops[0] ? this.exprToSqlInline(ops[0], context) : 'NULL';
       }
       case 'Lower':
         return ops[0] ? `LOWER(${this.exprToSqlInline(ops[0], context)})` : 'NULL';
@@ -524,6 +636,13 @@ export class ElmToSqlTranspiler {
   // ─── Property access ──────────────────────────────────────────────────────
 
   private propertyToSql(expr: ElmProperty): string {
+    // FHIR primitive elements wrap their value in a `.value` property
+    // (e.g. `Patient.birthDate.value`). The CQL translator emits this as a
+    // nested Property; collapse to the underlying field rather than concatenating
+    // into a non-existent `<column>_value`.
+    if (expr.path === 'value' && expr.source && expr.source.type === 'Property') {
+      return this.propertyToSql(expr.source as ElmProperty);
+    }
     const path = this.normalizePath(expr.path);
     if (expr.scope) return `${expr.scope}.${path}`;
     if (expr.source) {
@@ -536,6 +655,11 @@ export class ElmToSqlTranspiler {
 
   /** Map common FHIR/ELM path names to SQL-on-FHIR column names */
   private normalizePath(path: string): string {
+    // FHIR primitive elements (date, dateTime, string, etc.) carry their literal
+    // value in `.value`. CQL's translator emits `birthDate.value`, `gender.value`,
+    // etc. when reading from FHIR resources — strip the trailing `.value` so
+    // the rest of the map operates on the underlying field name.
+    path = path.replace(/\.value$/, '');
     const map: Record<string, string> = {
       birthDate: 'birthdate',
       gender: 'gender',
@@ -624,8 +748,12 @@ export class ElmToSqlTranspiler {
     const l = this.exprToSqlInline(left, context);
     const r = this.exprToSqlInline(right, context);
 
-    // If right side is a tsrange, use @> operator
+    // Interval-in-interval (e.g. `E.period during MeasurementPeriod`) uses the
+    // `<@` range-containment operator instead of `@>` against a point.
     if (right.type === 'ParameterRef' || right.type === 'Interval') {
+      if (/^ts(tz)?range\b/i.test(l.trim())) {
+        return `${l} <@ ${r}`;
+      }
       return `${r} @> ${l}::timestamptz`;
     }
     // ValueSet membership
@@ -659,6 +787,45 @@ export class ElmToSqlTranspiler {
     const inner = this.exprToSqlInline(operand, context);
     if (/^\s*SELECT\b/i.test(inner)) return `EXISTS (${inner})`;
     return `EXISTS (SELECT 1 FROM (${inner}) _e)`;
+  }
+
+  // ─── Type guards (Is / As) ────────────────────────────────────────────────
+  //
+  // The CQL Translator inserts type guards around choice-typed FHIR elements
+  // (e.g. `Observation.effective` is `DateTime | Period`). In our flat-table
+  // schema there's a column per choice variant (`effective_datetime`,
+  // `effective_start`, `effective_end`), so the guard reduces to "is the
+  // datetime variant column not null".
+
+  private isTypeToSql(expr: ElmIs, context: string): string {
+    const operand = expr.operand;
+    const isTypeName = isTypeLeaf(expr.isType ?? expr.isTypeSpecifier);
+    const operandSql = this.exprToSqlInline(operand, context);
+
+    // Property whose path matches a choice element: emit a NULL check on the
+    // appropriate variant column.
+    if (operand && operand.type === 'Property') {
+      const prop = operand as ElmProperty;
+      const scope = prop.scope ? `${prop.scope}.` : '';
+      const path = prop.path;
+      if (isTypeName === 'DateTime' || isTypeName === 'Date') {
+        return `${scope}${this.normalizePath(path)} IS NOT NULL`;
+      }
+      if (isTypeName === 'Period') {
+        const prefix = stripDateSuffix(path);
+        return `(${scope}${prefix}_start IS NOT NULL OR ${scope}${prefix}_end IS NOT NULL)`;
+      }
+    }
+
+    // Fallback: any non-null value counts as "is" the requested type. Conservative
+    // but keeps query semantics sane when we don't have schema-level type info.
+    return `(${operandSql}) IS NOT NULL`;
+  }
+
+  private asTypeToSql(expr: ElmAs, context: string): string {
+    // `As DateTime` / `As Period` is a coercion. With flat columns it's a no-op:
+    // hand back the column reference and let the surrounding SQL type-check.
+    return this.exprToSqlInline(expr.operand, context);
   }
 
   // ─── If/Case ─────────────────────────────────────────────────────────────
