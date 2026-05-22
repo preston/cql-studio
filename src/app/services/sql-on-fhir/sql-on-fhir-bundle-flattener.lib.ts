@@ -51,22 +51,22 @@ export function flattenBundle(bundle: Bundle): FlatTables {
     if (!r) continue;
     switch (r.resourceType) {
       case 'Patient':
-        out.patient_view.push(flattenPatient(r));
+        out.patient_view.push(flattenPatient(r as Patient));
         break;
       case 'Encounter':
-        out.encounter_view.push(flattenEncounter(r));
+        out.encounter_view.push(flattenEncounter(r as Encounter));
         break;
       case 'Observation':
-        out.observation_view.push(flattenObservation(r));
+        out.observation_view.push(flattenObservation(r as Observation));
         break;
       case 'Procedure':
-        out.procedure_view.push(flattenProcedure(r));
+        out.procedure_view.push(flattenProcedure(r as Procedure));
         break;
       case 'Condition':
-        out.condition_view.push(flattenCondition(r));
+        out.condition_view.push(flattenCondition(r as Condition));
         break;
       case 'ValueSet':
-        out.value_set_expansion.push(...flattenValueSetExpansion(r));
+        out.value_set_expansion.push(...flattenValueSetExpansion(r as ValueSet));
         break;
     }
   }

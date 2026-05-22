@@ -1,7 +1,15 @@
 // Author: Eugene Vestel
 
 import { describe, it, expect } from 'vitest';
-import type { Bundle, ValueSet } from 'fhir/r4';
+import type {
+  Bundle,
+  ValueSet,
+  Patient,
+  Encounter,
+  Observation,
+  Procedure,
+  Condition,
+} from 'fhir/r4';
 import {
   flattenBundle,
   flattenValueSetExpansion,
@@ -30,7 +38,7 @@ describe('flattenBundle', () => {
               { use: 'usual', family: 'Nickname', given: ['Janie'] },
               { use: 'official', family: 'Doe', given: ['Jane'] },
             ],
-          },
+          } as Patient,
         },
       ],
     };
@@ -56,7 +64,7 @@ describe('flattenBundle', () => {
             resourceType: 'Patient',
             id: 'pat-2',
             name: [{ use: 'usual', family: 'OnlyName', given: ['Solo'] }],
-          },
+          } as Patient,
         },
       ],
     };
@@ -88,7 +96,7 @@ describe('flattenBundle', () => {
                 ],
               },
             ],
-          },
+          } as Patient,
         },
       ],
     };
@@ -111,7 +119,7 @@ describe('flattenBundle', () => {
             type: [{ coding: [{ system: 'http://www.ama-assn.org/go/cpt', code: '99213', display: 'Office visit' }] }],
             subject: { reference: 'Patient/pat-1' },
             period: { start: '2024-03-12T09:00:00Z', end: '2024-03-12T09:30:00Z' },
-          },
+          } as Encounter,
         },
       ],
     };
@@ -141,7 +149,7 @@ describe('flattenBundle', () => {
             code: { coding: [{ system: 'http://loinc.org', code: '24605-8', display: 'MG Breast Screening' }] },
             subject: { reference: 'Patient/pat-1' },
             effectiveDateTime: '2024-04-20T10:15:00Z',
-          },
+          } as Observation,
         },
       ],
     };
@@ -168,7 +176,7 @@ describe('flattenBundle', () => {
             code: { coding: [{ system: 'http://snomed.info/sct', code: '173425001', display: 'Bilateral mastectomy' }] },
             subject: { reference: 'Patient/pat-1' },
             performedDateTime: '2018-08-14T08:00:00Z',
-          },
+          } as Procedure,
         },
       ],
     };
@@ -194,7 +202,7 @@ describe('flattenBundle', () => {
             clinicalStatus: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: 'active' }] },
             subject: { reference: 'Patient/pat-1' },
             onsetDateTime: '2020-01-01',
-          },
+          } as Condition,
         },
       ],
     };
@@ -263,7 +271,7 @@ describe('flattenBundle', () => {
             status: 'final',
             code: { coding: [{ code: 'c1' }] },
             subject: { reference: 'Patient/foo-123' },
-          },
+          } as Observation,
         },
       ],
     };

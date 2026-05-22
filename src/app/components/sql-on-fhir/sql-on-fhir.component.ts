@@ -220,10 +220,14 @@ export class SqlOnFhirComponent implements OnInit {
     this.libraryService
       .getAll(this.currentPage(), this.pageSize(), this.librarySortBy(), this.librarySortOrder())
       .subscribe({
-        next: (bundle: Bundle<Library>) => {
+        next: (bundle: Bundle) => {
           this.isLoadingLibraries.set(false);
           this.paginatedLibraries.set(
-            bundle.entry ? bundle.entry.map(e => e.resource!).filter(Boolean) : []
+            bundle.entry
+              ? bundle.entry
+                  .map(e => e.resource)
+                  .filter((resource): resource is Library => resource?.resourceType === 'Library')
+              : []
           );
           this.applyBundlePagination(bundle);
         },
@@ -238,7 +242,7 @@ export class SqlOnFhirComponent implements OnInit {
       });
   }
 
-  private applyBundlePagination(bundle: Bundle<Library>): void {
+  private applyBundlePagination(bundle: Bundle): void {
     const entries = bundle.entry?.length ?? 0;
     const hasNextPage = bundle.link?.some(l => l.relation === 'next');
     if (bundle.total != null && bundle.total > 0) {
@@ -273,10 +277,14 @@ export class SqlOnFhirComponent implements OnInit {
         this.librarySortOrder()
       )
       .subscribe({
-        next: (bundle: Bundle<Library>) => {
+        next: (bundle: Bundle) => {
           this.isLoadingLibraries.set(false);
           this.paginatedLibraries.set(
-            bundle.entry ? bundle.entry.map(e => e.resource!).filter(Boolean) : []
+            bundle.entry
+              ? bundle.entry
+                  .map(e => e.resource)
+                  .filter((resource): resource is Library => resource?.resourceType === 'Library')
+              : []
           );
           this.applyBundlePagination(bundle);
         },

@@ -137,11 +137,11 @@ export class ValueSetsTabComponent implements OnInit {
     this.valuesetError.set(null);
 
     try {
-      let result: Bundle<ValueSet>;
+      let result: Bundle;
       
       if (url) {
         // Use provided URL from Bundle link
-        result = await firstValueFrom(this.terminologyService.fetchFromUrl<Bundle<ValueSet>>(url));
+        result = await firstValueFrom(this.terminologyService.fetchFromUrl<Bundle>(url));
       } else {
         // Initial search or search with new criteria
         const searchTerm = this.valuesetSearchTerm().trim();
@@ -158,7 +158,11 @@ export class ValueSetsTabComponent implements OnInit {
         this.valuesetCurrentPage.set(1);
       }
 
-      this.valuesetResults.set(result?.entry?.map(e => e.resource!) || []);
+      this.valuesetResults.set(
+        result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is ValueSet => resource?.resourceType === 'ValueSet') || []
+      );
 
       // Extract and store Bundle links
       const linksMap = new Map<string, string>();

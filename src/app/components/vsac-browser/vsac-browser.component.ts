@@ -66,7 +66,7 @@ export class VsacBrowserComponent {
   protected readonly searchSortOrder = signal<'asc' | 'desc'>('asc');
   protected readonly searchResults = signal<ValueSet[]>([]);
   /** Last FHIR searchset bundle (for total + pagination links). */
-  protected readonly searchBundle = signal<Bundle<ValueSet> | null>(null);
+  protected readonly searchBundle = signal<Bundle | null>(null);
 
   protected readonly valueSetSearchSupportsSort = computed(() =>
     capabilityStatementSupportsValueSetSort(this.capability())
@@ -264,7 +264,7 @@ export class VsacBrowserComponent {
     return this.searchSortOrder() === 'desc' ? `-${raw}` : raw;
   }
 
-  private applySearchBundle(bundle: Bundle<ValueSet>): void {
+  private applySearchBundle(bundle: Bundle): void {
     const list = bundle.entry?.map((e) => e.resource as ValueSet).filter((r) => r?.resourceType === 'ValueSet') ?? [];
     this.searchResults.set(list);
     this.searchBundle.set(bundle);
@@ -766,7 +766,7 @@ export class VsacBrowserComponent {
   }
 
   private async postValueSetToTerminologyServerNoToast(toSend: ValueSet): Promise<void> {
-    const collection: Bundle<Resource> = {
+    const collection: Bundle = {
       resourceType: 'Bundle',
       type: 'collection',
       entry: [{ resource: toSend as Resource }]

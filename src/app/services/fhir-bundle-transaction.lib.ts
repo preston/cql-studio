@@ -9,8 +9,8 @@ import { Bundle, Resource } from 'fhir/r4';
  * (e.g. HAPI-0527 rejects `collection` at the base URL).
  */
 export function collectionEntryToTransactionEntry(
-  e: NonNullable<Bundle<Resource>['entry']>[number]
-): NonNullable<Bundle<Resource>['entry']>[number] {
+  e: NonNullable<Bundle['entry']>[number]
+): NonNullable<Bundle['entry']>[number] {
   if (e.request) {
     return e;
   }
@@ -38,7 +38,7 @@ export function collectionEntryToTransactionEntry(
   };
 }
 
-export function collectionBundleToTransaction(bundle: Bundle<Resource>): Bundle<Resource> {
+export function collectionBundleToTransaction(bundle: Bundle): Bundle {
   const entries = bundle.entry ?? [];
   return {
     ...bundle,
@@ -48,7 +48,7 @@ export function collectionBundleToTransaction(bundle: Bundle<Resource>): Bundle<
 }
 
 /** Prepare a bundle for HTTP POST to the FHIR service root (`[base]`). */
-export function normalizeBundleForBasePost(bundle: Bundle<Resource>): Bundle<Resource> {
+export function normalizeBundleForBasePost(bundle: Bundle): Bundle {
   if (bundle.type === 'collection') {
     return collectionBundleToTransaction(bundle);
   }

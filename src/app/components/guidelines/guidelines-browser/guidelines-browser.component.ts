@@ -40,7 +40,7 @@ export class GuidelinesBrowserComponent implements OnInit {
   public loadLibraries(): void {
     this.isLoading = true;
     this.libraryService.getAll(this.currentPage, this.pageSize, this.sortBy, this.sortOrder).subscribe({
-      next: (bundle: Bundle<Library>) => {
+      next: (bundle: Bundle) => {
         this.isLoading = false;
         this.libraries = bundle.entry ? bundle.entry.map(entry => entry.resource!).filter((r): r is Library => r !== undefined) : [];
         
@@ -72,7 +72,7 @@ export class GuidelinesBrowserComponent implements OnInit {
     if (this.searchTerm.trim()) {
       this.isLoading = true;
       this.libraryService.search(this.searchTerm).subscribe({
-        next: (bundle: Bundle<Library>) => {
+        next: (bundle: Bundle) => {
           this.isLoading = false;
           this.libraries = bundle.entry ? bundle.entry.map(entry => entry.resource!).filter((r): r is Library => r !== undefined) : [];
           this.totalLibraries = this.libraries.length;

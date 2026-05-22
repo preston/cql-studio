@@ -56,7 +56,7 @@ export class GuidelineTestingComponent implements OnInit {
     this.isLoadingPatients.set(true);
     // Load all patients from FHIR server
     this.patientService.search('').subscribe({
-      next: (bundle: Bundle<Patient>) => {
+      next: (bundle: Bundle) => {
         this.isLoadingPatients.set(false);
         const loadedPatients = bundle.entry 
           ? bundle.entry.map(entry => entry.resource!).filter((r): r is Patient => r !== undefined)
@@ -76,7 +76,7 @@ export class GuidelineTestingComponent implements OnInit {
     if (this.searchTerm().trim()) {
       this.isLoadingPatients.set(true);
       this.patientService.search(this.searchTerm()).subscribe({
-        next: (bundle: Bundle<Patient>) => {
+        next: (bundle: Bundle) => {
           this.isLoadingPatients.set(false);
           const loadedPatients = bundle.entry 
             ? bundle.entry.map(entry => entry.resource!).filter((r): r is Patient => r !== undefined)

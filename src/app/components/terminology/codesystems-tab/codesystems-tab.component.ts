@@ -69,7 +69,9 @@ export class CodeSystemsTabComponent implements OnInit {
     try {
       // Request a large count to get all code systems for client-side pagination
       const result = await firstValueFrom(this.terminologyService.searchCodeSystems({ _count: 1000 }));
-      const codeSystems = result?.entry?.map(e => e.resource).filter(r => r !== undefined) || [];
+      const codeSystems = result?.entry
+        ?.map(e => e.resource)
+        .filter((resource): resource is CodeSystem => resource?.resourceType === 'CodeSystem') || [];
       this.codeSystemsResults.set(codeSystems);
       
       // Reset to first page when loading new data
