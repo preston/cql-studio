@@ -16,6 +16,31 @@
   <div class="alert alert-danger py-2" role="alert">{{ listError() }}</div>
   }
 
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <button
+      id="sql-on-fhir-load-cms125-demo"
+      type="button"
+      class="btn btn-primary btn-sm d-inline-flex align-items-center gap-2"
+      (click)="loadCms125Demo()"
+      [disabled]="isLoadingDemo()"
+      aria-label="Load CMS125 demo measure"
+      title="Load the bundled CMS125 demo measure with a synthetic patient bundle">
+      @if (isLoadingDemo()) {
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        <span>Loading demo…</span>
+      } @else {
+        <i class="bi bi-play-circle-fill" aria-hidden="true"></i>
+        <span>Load CMS125 demo</span>
+      }
+    </button>
+    <span class="text-muted small">
+      Runs entirely in your browser via PGlite — no FHIR server or backend required.
+    </span>
+  </div>
+  @if (demoLoadError()) {
+  <div class="alert alert-warning py-2" role="alert">{{ demoLoadError() }}</div>
+  }
+
   <div class="row g-3 align-items-start">
     <!-- Library picker + workflow -->
     <div class="col-12 col-lg-3">
@@ -154,7 +179,8 @@
       @case ('execute') {
       <app-sql-pipeline-execute-step [sqlText]="sqlText()" [sqlResultsRaw]="sqlResultsRaw()"
         [measureReportJson]="measureReportJson()" [pipelineStatus]="pipelineStatus()"
-        [hasMeasureReport]="!!measureReport()" (executeSql)="executeSql()"
+        [hasMeasureReport]="!!measureReport()" [isExecutingSql]="isExecutingSql()"
+        [canSaveMeasureReport]="canSaveMeasureReport()" (executeSql)="executeSql()"
         (generateMeasureReport)="generateMeasureReport()" (saveMeasureReport)="saveMeasureReport()" />
       }
       }

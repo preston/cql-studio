@@ -38,6 +38,8 @@ testem.log
 /typings
 .cursor
 test-results/
+.playwright-mcp/
+/sql-on-fhir-*.png
 
 # System files
 .DS_Store
