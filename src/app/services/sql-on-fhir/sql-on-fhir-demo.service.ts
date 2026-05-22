@@ -9,6 +9,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, forkJoin } from 'rxjs';
 import { map } from 'rxjs/operators';
 import type { Bundle, Library, ValueSet } from 'fhir/r4';
+import { decodeUtf8Base64 } from '../utf8-encoding.lib';
 
 export interface DemoMeasureContent {
   /** A FHIR Library resource with embedded base64 CQL in `content[0].data`. */
@@ -57,15 +58,12 @@ export class SqlOnFhirDemoService {
 
 export function decodeLibraryCql(library: Library): string {
   const content = library.content?.find(c => c.contentType === 'text/cql');
-  if (!content?.data) return '';
+  if (!content?.data) {
+    return '';
+  }
   try {
-    return decodeURIComponent(
-      atob(content.data)
-        .split('')
-        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join(''),
-    );
+    return decodeUtf8Base64(content.data);
   } catch {
-    return atob(content.data);
+    return '';
   }
 }

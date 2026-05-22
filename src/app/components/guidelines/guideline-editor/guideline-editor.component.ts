@@ -21,6 +21,7 @@ import { TranslationService } from '../../../services/translation.service';
 import { CqlGenerationService } from '../../../services/cql-generation.service';
 import { CqlParsingService } from '../../../services/cql-parsing.service';
 import { Library } from 'fhir/r4';
+import { decodeUtf8Base64, encodeUtf8Base64 } from '../../../services/utf8-encoding.lib';
 
 @Component({
   selector: 'app-guideline-editor',
@@ -86,7 +87,7 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
       for (const content of this.library().content!) {
         if (content.contentType === 'text/cql' && content.data) {
           try {
-            cqlContent = atob(content.data);
+            cqlContent = decodeUtf8Base64(content.data);
             break;
           } catch (e) {
             console.error('Error decoding CQL content:', e);
@@ -230,11 +231,11 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
       content: [
         {
           contentType: 'text/cql',
-          data: btoa(cqlContent)
+          data: encodeUtf8Base64(cqlContent)
         },
         {
           contentType: 'application/elm+xml',
-          data: btoa(elmXml)
+          data: encodeUtf8Base64(elmXml)
         }
       ],
       extension: [

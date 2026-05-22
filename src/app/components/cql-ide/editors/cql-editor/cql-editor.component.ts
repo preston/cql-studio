@@ -2,20 +2,17 @@
 
 import { Component, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { EditorView, basicSetup } from 'codemirror';
+import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
-import { defaultKeymap, historyKeymap } from '@codemirror/commands';
-import { searchKeymap } from '@codemirror/search';
-import { highlightSpecialChars } from '@codemirror/view';
-import { bracketMatching } from '@codemirror/language';
-import { tags } from '@lezer/highlight';
 import { linter, lintGutter, Diagnostic } from '@codemirror/lint';
 import { CqlGrammarManager } from '../../../../services/cql-grammar-manager.service';
+import { createCqlEditorBaseExtensions } from '../../../../services/cql-codemirror-extensions.lib';
+import { scanInvalidCqlCharacters } from '../../../../services/cql-character-lint.lib';
 import { IdeEditor, EditorState as IdeEditorState } from '../base-editor.interface';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { CqlFormatterService } from '../../../../services/cql-formatter.service';
-import { CqlValidationService } from '../../../../services/cql-validation.service';
+import { CqlValidationService, FullValidationResult, ValidationResult } from '../../../../services/cql-validation.service';
 import { DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../../../services/cql-execution.service';
 
 @Component({
@@ -247,16 +244,11 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       const startState = EditorState.create({
         doc: initialContent,
         extensions: [
-          basicSetup,
+          ...createCqlEditorBaseExtensions(),
           ...this.grammarManager.createExtensions(),
-          highlightSpecialChars(),
-          bracketMatching(),
           lintGutter(),
           linter(this.createLintSource()),
           keymap.of([
-            ...defaultKeymap,
-            ...historyKeymap,
-            ...searchKeymap,
             {
               key: 'Tab',
               run: (view) => {
@@ -620,53 +612,12 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
               return;
             }
 
-            // Use validation service to get errors with positions
-            const validationResult = this.cqlValidationService.validate(latestCode, latestDoc);
-            
-            // Convert ValidationError[] to Diagnostic[]
-            const diagnostics: Diagnostic[] = [
-              ...validationResult.errors.map(err => ({
-                from: err.from,
-                to: err.to,
-                severity: 'error' as const,
-                message: err.message
-              })),
-              ...validationResult.warnings.map(warn => ({
-                from: warn.from,
-                to: warn.to,
-                severity: 'warning' as const,
-                message: warn.message
-              }))
-            ];
+            const diagnostics = this.collectLintDiagnostics(latestCode, latestDoc);
+            this.emitValidationUi(diagnostics.compilerResult);
 
-            // Update current validation errors for Problems panel
-            // Use structured errors for better line/column information
-            const structuredErrors = this.cqlValidationService.getStructuredErrors(latestCode);
-            const structuredWarnings = this.cqlValidationService.getStructuredWarnings(latestCode);
-            
-            // Format for Problems panel (backward compatible with string format)
-            this.currentValidationErrors = [
-              ...structuredErrors.map(e => `Error: ${e.formattedMessage}`),
-              ...structuredWarnings.map(w => `Warning: ${w.formattedMessage}`)
-            ];
-
-            // Emit syntax errors for Problems panel
-            this.syntaxErrors.emit(this.currentValidationErrors);
-
-            // Update editor state
-            if (this.editor) {
-              this.editorStateChange.emit({
-                cursorPosition: this.getCursorPosition(),
-                wordCount: this.getWordCount(),
-                syntaxErrors: this.currentValidationErrors,
-                isValidSyntax: validationResult.errors.length === 0
-              });
-            }
-
-            // Resolve all pending lint requests with the same result
             const resolvers = this.pendingLintResolvers;
             this.pendingLintResolvers = [];
-            resolvers.forEach(r => r(diagnostics));
+            resolvers.forEach(r => r(diagnostics.all));
           } catch (error) {
             console.error('Validation error:', error);
             const resolvers = this.pendingLintResolvers;
@@ -692,31 +643,52 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       clearTimeout(this.validationTimeout);
     }
 
-    // Get structured errors for Problems panel
-    const structuredErrors = this.cqlValidationService.getStructuredErrors(code);
-    const structuredWarnings = this.cqlValidationService.getStructuredWarnings(code);
-    
-    // Format for Problems panel (backward compatible with string format)
-    this.currentValidationErrors = [
-      ...structuredErrors.map(e => `Error: ${e.formattedMessage}`),
-      ...structuredWarnings.map(w => `Warning: ${w.formattedMessage}`)
+    const diagnostics = this.collectLintDiagnostics(code, this.editor.state.doc);
+    this.emitValidationUi(diagnostics.compilerResult);
+    this.editor.dispatch({ effects: [] });
+  }
+
+  private collectLintDiagnostics(
+    code: string,
+    doc: { line: (lineNumber: number) => { from: number; to: number }; lineAt: (pos: number) => { number: number } }
+  ): { all: Diagnostic[]; compilerResult: FullValidationResult } {
+    const charDiagnostics = scanInvalidCqlCharacters(code, doc);
+    const full = this.cqlValidationService.runFullValidation(code, doc);
+    const compilerDiagnostics = this.compilerValidationToDiagnostics(full.validation);
+    return {
+      all: [...charDiagnostics, ...compilerDiagnostics],
+      compilerResult: full
+    };
+  }
+
+  private compilerValidationToDiagnostics(validation: ValidationResult): Diagnostic[] {
+    return [
+      ...validation.errors.map(err => ({
+        from: err.from,
+        to: err.to,
+        severity: 'error' as const,
+        message: err.message
+      })),
+      ...validation.warnings.map(warn => ({
+        from: warn.from,
+        to: warn.to,
+        severity: 'warning' as const,
+        message: warn.message
+      }))
     ];
+  }
 
-    // Emit syntax errors
+  private emitValidationUi(full: FullValidationResult): void {
+    this.currentValidationErrors = this.cqlValidationService.formatProblemsPanelMessages(full);
     this.syntaxErrors.emit(this.currentValidationErrors);
-
-    // Update editor state
-    this.editorStateChange.emit({
-      cursorPosition: this.getCursorPosition(),
-      wordCount: this.getWordCount(),
-      syntaxErrors: this.currentValidationErrors,
-      isValidSyntax: structuredErrors.length === 0
-    });
-
-    // Force lint update by dispatching a transaction
-    this.editor.dispatch({
-      effects: []
-    });
+    if (this.editor) {
+      this.editorStateChange.emit({
+        cursorPosition: this.getCursorPosition(),
+        wordCount: this.getWordCount(),
+        syntaxErrors: this.currentValidationErrors,
+        isValidSyntax: full.validation.errors.length === 0
+      });
+    }
   }
 
   navigateToLine(lineNumber: number): void {

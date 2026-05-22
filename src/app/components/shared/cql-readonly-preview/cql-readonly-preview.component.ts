@@ -9,11 +9,10 @@ import {
   viewChild,
   ElementRef
 } from '@angular/core';
-import { EditorView, basicSetup } from 'codemirror';
+import { EditorView } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
-import { highlightSpecialChars } from '@codemirror/view';
-import { bracketMatching } from '@codemirror/language';
 import { CqlGrammarManager } from '../../../services/cql-grammar-manager.service';
+import { createCqlEditorBaseExtensions } from '../../../services/cql-codemirror-extensions.lib';
 
 /**
  * Read-only CodeMirror view with the same CQL grammar and highlighting as {@link CqlEditorComponent}.
@@ -70,10 +69,8 @@ export class CqlReadonlyPreviewComponent implements AfterViewInit, OnDestroy {
       doc: initial,
       extensions: [
         EditorState.readOnly.of(true),
-        basicSetup,
-        ...this.grammarManager.createExtensions(),
-        highlightSpecialChars(),
-        bracketMatching()
+        ...createCqlEditorBaseExtensions(),
+        ...this.grammarManager.createExtensions()
       ]
     });
 

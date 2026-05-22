@@ -9,6 +9,7 @@ import { IndexedResourceRowVm, PackageSummaryVm } from '../models/fhir-package-v
 import { FhirPackageRegistryService } from './fhir-package-registry.service';
 import { FhirPackageTarService } from './fhir-package-tar.service';
 import { FhirPackageMetadataService } from './fhir-package-metadata.service';
+import { decodeUtf8Bytes } from './utf8-encoding.lib';
 
 export interface ParsedFhirPackageTarball {
   files: Map<string, Uint8Array>;
@@ -96,6 +97,6 @@ export class FhirPackageLoadService {
     if (!u8) {
       return null;
     }
-    return new TextDecoder('utf-8', { fatal: false }).decode(u8);
+    return decodeUtf8Bytes(u8, { fatal: false });
   }
 }

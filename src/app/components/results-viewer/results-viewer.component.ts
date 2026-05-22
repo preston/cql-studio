@@ -869,6 +869,7 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
     // Create a simple hash based on the results data
     const resultsString = JSON.stringify(data.results || []);
     const summaryString = JSON.stringify(data.testResultsSummary || {});
+    // Non-FHIR cache fingerprint over ASCII JSON; not CQL text — do not use encodeUtf8Base64.
     return btoa(resultsString + summaryString).substring(0, 16);
   }
 }

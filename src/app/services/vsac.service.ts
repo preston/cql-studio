@@ -94,6 +94,7 @@ export class VsacService {
   private authHeader(): string {
     const user = this.settingsService.getEffectiveVsacApiUsername();
     const pass = this.settingsService.getEffectiveVsacApiPassword();
+    // HTTP Basic credentials (RFC 7617 Latin-1), not FHIR Library.content — do not use encodeUtf8Base64.
     const token = btoa(`${user}:${pass}`);
     return `Basic ${token}`;
   }

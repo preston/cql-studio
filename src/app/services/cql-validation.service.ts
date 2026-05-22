@@ -1,9 +1,12 @@
 // Author: Preston Lee
 
 import { Injectable, inject } from '@angular/core';
-import { TranslationService } from './translation.service';
+import { TranslationService, RawTranslationResult } from './translation.service';
 import { CqlCompilerException } from '@cqframework/cql/cql-to-elm';
 import { CqlLocatorUtilsService } from './cql-locator-utils.service';
+import type { CqlValidationDoc } from '../models/cql-validation-doc.model';
+
+export type { CqlValidationDoc } from '../models/cql-validation-doc.model';
 
 export interface ValidationError {
   message: string;
@@ -29,6 +32,29 @@ export interface ValidationResult {
   hasErrors: boolean;
 }
 
+export interface FullValidationResult {
+  raw: RawTranslationResult;
+  validation: ValidationResult;
+  structuredErrors: StructuredError[];
+  structuredWarnings: StructuredError[];
+}
+
+const EMPTY_RAW: RawTranslationResult = {
+  elmXml: null,
+  elmJson: null,
+  errors: [],
+  warnings: [],
+  messages: [],
+  hasErrors: false
+};
+
+const EMPTY_VALIDATION: ValidationResult = {
+  errors: [],
+  warnings: [],
+  messages: [],
+  hasErrors: false
+};
+
 @Injectable({
   providedIn: 'root'
 })
@@ -36,43 +62,40 @@ export class CqlValidationService {
   private translationService = inject(TranslationService);
   private locatorUtils = inject(CqlLocatorUtilsService);
 
-  /**
-   * Validate CQL syntax and semantics using the @cqframework/cql translator
-   * @param cql The CQL code to validate
-   * @param doc The CodeMirror document (optional, for position calculation)
-   * @returns ValidationResult with errors, warnings, and messages
-   */
-  validate(cql: string, doc?: { line: (lineNumber: number) => { from: number; length: number; to: number } }): ValidationResult {
-    if (!cql || !cql.trim()) {
+  validate(cql: string, doc?: CqlValidationDoc): ValidationResult {
+    return this.runFullValidation(cql, doc).validation;
+  }
+
+  /** Single translator invocation; prefer this when you need errors and warnings together. */
+  runFullValidation(cql: string, doc?: CqlValidationDoc): FullValidationResult {
+    if (!cql?.trim()) {
       return {
-        errors: [],
-        warnings: [],
-        messages: [],
-        hasErrors: false
+        raw: EMPTY_RAW,
+        validation: EMPTY_VALIDATION,
+        structuredErrors: [],
+        structuredWarnings: []
       };
     }
+    const raw = this.translationService.translateCqlToElmRaw(cql);
+    return {
+      raw,
+      validation: this.validateFromRaw(raw, doc),
+      structuredErrors: this.getStructuredErrorsFromRaw(raw),
+      structuredWarnings: this.getStructuredWarningsFromRaw(raw)
+    };
+  }
 
-    // Use translation service to get raw validation results with locator info
-    const rawResult = this.translationService.translateCqlToElmRaw(cql);
-    
-    // Convert raw exceptions to ValidationError format with proper positions
-    const errors = this.convertExceptionsToValidationErrors(
-      rawResult.errors,
-      'error',
-      doc
-    );
-    
-    const warnings = this.convertExceptionsToValidationErrors(
-      rawResult.warnings,
-      'warning',
-      doc
-    );
-    
-    const messages = this.convertExceptionsToValidationErrors(
-      rawResult.messages,
-      'info',
-      doc
-    );
+  formatProblemsPanelMessages(full: FullValidationResult): string[] {
+    return [
+      ...full.structuredErrors.map(e => `Error: ${e.formattedMessage}`),
+      ...full.structuredWarnings.map(w => `Warning: ${w.formattedMessage}`)
+    ];
+  }
+
+  validateFromRaw(rawResult: RawTranslationResult, doc?: CqlValidationDoc): ValidationResult {
+    const errors = this.convertExceptionsToValidationErrors(rawResult.errors, 'error', doc);
+    const warnings = this.convertExceptionsToValidationErrors(rawResult.warnings, 'warning', doc);
+    const messages = this.convertExceptionsToValidationErrors(rawResult.messages, 'info', doc);
 
     return {
       errors,
@@ -89,7 +112,7 @@ export class CqlValidationService {
   private convertExceptionsToValidationErrors(
     exceptions: CqlCompilerException[],
     severity: 'error' | 'warning' | 'info',
-    doc?: { line: (lineNumber: number) => { from: number; length: number; to: number } }
+    doc?: CqlValidationDoc
   ): ValidationError[] {
     return exceptions.map(exception => {
       const message = exception.message || 'Unknown error';
@@ -112,7 +135,7 @@ export class CqlValidationService {
           // Column numbers from TrackBack appear to be 0-based (matches CodeMirror)
           // If columnNumber is null, default to 0 (start of line)
           const columnOffset = columnNumber != null 
-            ? Math.max(0, Math.min(columnNumber, startLine.length))
+            ? Math.max(0, Math.min(columnNumber, startLine.length ?? startLine.to - startLine.from))
             : 0;
           from = startLine.from + columnOffset;
           
@@ -146,11 +169,10 @@ export class CqlValidationService {
    * Get structured errors with line/column information
    */
   getStructuredErrors(cql: string): StructuredError[] {
-    if (!cql || !cql.trim()) {
-      return [];
-    }
+    return this.runFullValidation(cql).structuredErrors;
+  }
 
-    const rawResult = this.translationService.translateCqlToElmRaw(cql);
+  getStructuredErrorsFromRaw(rawResult: RawTranslationResult): StructuredError[] {
     return rawResult.errors.map(e => {
       const locatorInfo = this.locatorUtils.extractLocatorInfo(e);
       const formattedMessage = this.locatorUtils.formatLocator(locatorInfo);
@@ -164,15 +186,11 @@ export class CqlValidationService {
     });
   }
 
-  /**
-   * Get structured warnings with line/column information
-   */
   getStructuredWarnings(cql: string): StructuredError[] {
-    if (!cql || !cql.trim()) {
-      return [];
-    }
+    return this.runFullValidation(cql).structuredWarnings;
+  }
 
-    const rawResult = this.translationService.translateCqlToElmRaw(cql);
+  getStructuredWarningsFromRaw(rawResult: RawTranslationResult): StructuredError[] {
     return rawResult.warnings.map(e => {
       const locatorInfo = this.locatorUtils.extractLocatorInfo(e);
       const formattedMessage = this.locatorUtils.formatLocator(locatorInfo);

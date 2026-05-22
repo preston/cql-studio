@@ -31,6 +31,7 @@ export class TerminologyService extends BaseService {
     });
 
     if (username && username.trim() !== '' && password && password.trim() !== '') {
+      // HTTP Basic credentials (RFC 7617 Latin-1), not FHIR Library.content — do not use encodeUtf8Base64.
       const authString = btoa(`${username}:${password}`);
       headers = headers.set('Authorization', `Basic ${authString}`);
     }

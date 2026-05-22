@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { LanguageSupport } from '@codemirror/language';
-import { syntaxHighlighting, HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
+import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { completeFromList, autocompletion } from '@codemirror/autocomplete';
 import { Extension } from '@codemirror/state';
@@ -30,7 +30,6 @@ export interface CqlGrammarDefinition {
 const CQL_GRAMMAR: CqlGrammarDefinition = {
   version: '1.5.3',
   keywords: [
-    // CQL 1.5.3 keywords from official specification
     'library', 'using', 'include', 'define', 'function', 'parameter', 'context',
     'public', 'private', 'valueset', 'codesystem', 'code', 'concept', 'where',
     'return', 'if', 'then', 'else', 'end', 'and', 'or', 'not', 'xor', 'implies',
@@ -49,7 +48,6 @@ const CQL_GRAMMAR: CqlGrammarDefinition = {
     'occurs', 'or after', 'or before', 'or less', 'or more'
   ],
   functions: [
-    // CQL 1.5.3 functions from official specification
     'Abs', 'Add', 'After', 'AllTrue', 'AnyTrue', 'As', 'Avg', 'Before', 'CanConvert',
     'Ceiling', 'Coalesce', 'Code', 'CodeSystem', 'Concept', 'ConvertsToBoolean',
     'ConvertsToDate', 'ConvertsToDateTime', 'ConvertsToDecimal', 'ConvertsToInteger',
@@ -75,13 +73,41 @@ const CQL_GRAMMAR: CqlGrammarDefinition = {
   ],
   operators: ['+', '-', '*', '/', '=', '<>', '!=', '<', '>', '<=', '>=', 'and', 'or', 'not', 'xor', 'implies'],
   patterns: {
-    string: /"[^"\\]*(\\.[^"\\]*)*"/,
-    number: /\d+\.?\d*L?/,
-    datetime: /@\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?/,
-    identifier: /[a-zA-Z_][a-zA-Z0-9_]*/
+    string: /^'(?:[^\\']|\\.)*?(?:'|$)/,
+    number: /^\d+\.?\d*L?/,
+    datetime: /^@\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?/,
+    identifier: /^[a-zA-Z_][a-zA-Z0-9_]*/
   }
 };
 
+function alternationPattern(words: string[]): RegExp {
+  const sorted = [...words].sort((a, b) => b.length - a.length);
+  const escaped = sorted.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return new RegExp(`^(?:${escaped.join('|')})\\b`);
+}
+
+const COMPILED_PATTERNS = {
+  keyword: alternationPattern(CQL_GRAMMAR.keywords),
+  function: alternationPattern(CQL_GRAMMAR.functions),
+  typeName: alternationPattern(CQL_GRAMMAR.dataTypes),
+  operator: /^[+\-*/=<>!&|]+/,
+  bracket: /^[{}[\]()]/,
+  punctuation: /^[;,.:]/,
+  blockCommentEnd: /^\*\//,
+};
+
+const TOKEN_TABLE = {
+  keyword: tags.keyword,
+  string: tags.string,
+  comment: tags.comment,
+  number: tags.number,
+  function: tags.function(tags.variableName),
+  typeName: tags.typeName,
+  operator: tags.operator,
+  bracket: tags.bracket,
+  punctuation: tags.punctuation,
+  variableName: tags.variableName,
+};
 
 // Grammar Manager Service
 export class CqlGrammarManager {
@@ -91,21 +117,17 @@ export class CqlGrammarManager {
     this.currentGrammar = CQL_GRAMMAR;
   }
 
-  // Get current version (always 1.5.3)
   getCurrentVersion(): CqlVersion {
     return '1.5.3';
   }
 
-  // Get current grammar
   getCurrentGrammar(): CqlGrammarDefinition {
     return this.currentGrammar;
   }
 
-  // Create language support for current version
   createLanguageSupport(): LanguageSupport {
     const grammar = this.currentGrammar;
-    
-    // Create completions
+
     const completions = [
       ...grammar.keywords.map(keyword => ({
         label: keyword,
@@ -130,122 +152,85 @@ export class CqlGrammarManager {
       }))
     ];
 
-    // Create token table to map string tokens to Lezer tags
-    const tokenTable = {
-      'keyword': tags.keyword,
-      'string': tags.string,
-      'comment': tags.comment,
-      'number': tags.number,
-      'function': tags.function(tags.variableName),
-      'typeName': tags.typeName,
-      'operator': tags.operator,
-      'bracket': tags.bracket,
-      'punctuation': tags.punctuation,
-      'variableName': tags.variableName
-    };
-
-    // Create language definition that returns string tokens
     const language = StreamLanguage.define({
       name: `cql-${grammar.version}`,
-      token: (stream, state) => {
-        // Skip whitespace
-        if (stream.eatSpace()) return null;
-        
-        // Comments
+      tokenTable: TOKEN_TABLE,
+      token: (stream) => {
+        if (stream.eatSpace()) {
+          return null;
+        }
+
         if (stream.match('//')) {
           stream.skipToEnd();
           return 'comment';
         }
-        
+
         if (stream.match('/*')) {
           while (!stream.eol()) {
-            if (stream.match('*/')) break;
+            if (stream.match(COMPILED_PATTERNS.blockCommentEnd)) {
+              break;
+            }
             stream.next();
           }
           return 'comment';
         }
-        
-        // Strings
-        if (stream.match('"')) {
-          while (!stream.eol()) {
-            if (stream.match('"')) break;
-            if (stream.match('\\')) {
-              stream.next();
-            }
-            stream.next();
-          }
+
+        if (stream.match(grammar.patterns.string)) {
           return 'string';
         }
-        
-        // Numbers
+
         if (stream.match(grammar.patterns.number)) {
           return 'number';
         }
-        
-        // DateTime
+
         if (stream.match(grammar.patterns.datetime)) {
           return 'string';
         }
-        
-        // Keywords
-        const keywordPattern = new RegExp(`\\b(${grammar.keywords.join('|')})\\b`);
-        if (stream.match(keywordPattern)) {
-          const keyword = stream.current();
+
+        if (stream.match(COMPILED_PATTERNS.keyword)) {
           return 'keyword';
         }
-        
-        // Functions
-        const functionPattern = new RegExp(`\\b(${grammar.functions.join('|')})\\b`);
-        if (stream.match(functionPattern)) {
+
+        if (stream.match(COMPILED_PATTERNS.function)) {
           return 'function';
         }
-        
-        // Data types
-        const typePattern = new RegExp(`\\b(${grammar.dataTypes.join('|')})\\b`);
-        if (stream.match(typePattern)) {
+
+        if (stream.match(COMPILED_PATTERNS.typeName)) {
           return 'typeName';
         }
-        
-        // Operators
-        if (stream.match(/[+\-*/=<>!&|]+/)) {
+
+        if (stream.match(COMPILED_PATTERNS.operator)) {
           return 'operator';
         }
-        
-        // Brackets
-        if (stream.match(/[{}[\]()]/)) {
+
+        if (stream.match(COMPILED_PATTERNS.bracket)) {
           return 'bracket';
         }
-        
-        // Punctuation
-        if (stream.match(/[;,.:]/)) {
+
+        if (stream.match(COMPILED_PATTERNS.punctuation)) {
           return 'punctuation';
         }
-        
-        // Identifiers
+
         if (stream.match(grammar.patterns.identifier)) {
           return 'variableName';
         }
-        
-        // Default
+
         stream.next();
         return null;
       }
     });
 
-
-    
-    // Create custom highlighting style for CQL with lighter, more readable colors
     const cqlHighlightStyle = HighlightStyle.define([
-      { tag: tags.keyword, color: '#7bb3f0', fontWeight: 'bold' }, // Lighter blue for keywords
-      { tag: tags.function(tags.variableName), color: '#f0e68c' }, // Lighter yellow for functions
-      { tag: tags.typeName, color: '#6dd5ed' }, // Lighter cyan for type names
-      { tag: tags.operator, color: '#e0e0e0' }, // Light gray for operators
-      { tag: tags.number, color: '#a8d8a8' }, // Lighter green for numbers
-      { tag: tags.string, color: '#f4a261' }, // Lighter orange for strings
-      { tag: tags.variableName, color: '#b3d9ff' }, // Lighter blue for variables
-      { tag: tags.comment, color: '#8fbc8f', fontStyle: 'italic' }, // Lighter green for comments
-      { tag: tags.bracket, color: '#e0e0e0' }, // Light gray for brackets
-      { tag: tags.punctuation, color: '#e0e0e0' } // Light gray for punctuation
+      { tag: tags.keyword, color: '#7bb3f0', fontWeight: 'bold' },
+      { tag: tags.function(tags.variableName), color: '#f0e68c' },
+      { tag: tags.typeName, color: '#6dd5ed' },
+      { tag: tags.operator, color: '#e0e0e0' },
+      { tag: tags.number, color: '#a8d8a8' },
+      { tag: tags.string, color: '#f4a261' },
+      { tag: tags.variableName, color: '#b3d9ff' },
+      { tag: tags.comment, color: '#8fbc8f', fontStyle: 'italic' },
+      { tag: tags.bracket, color: '#e0e0e0' },
+      { tag: tags.punctuation, color: '#e0e0e0' }
     ]);
 
     return new LanguageSupport(language, [
@@ -264,65 +249,7 @@ export class CqlGrammarManager {
     ]);
   }
 
-  // Create extensions for current version
   createExtensions(): Extension[] {
     return [this.createLanguageSupport()];
   }
-
-  // Validate syntax for current version
-  validateSyntax(code: string): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    let isValid = true;
-
-    if (!code.trim()) {
-      return { isValid: true, errors: [] };
-    }
-
-    // Basic structural validation
-    const braceStack: string[] = [];
-    for (let i = 0; i < code.length; i++) {
-      const char = code[i];
-      if (char === '{' || char === '[' || char === '(') {
-        braceStack.push(char);
-      } else if (char === '}') {
-        if (braceStack.length === 0 || braceStack.pop() !== '{') {
-          errors.push(`Unmatched '}' at position ${i}`);
-          isValid = false;
-        }
-      } else if (char === ']') {
-        if (braceStack.length === 0 || braceStack.pop() !== '[') {
-          errors.push(`Unmatched ']' at position ${i}`);
-          isValid = false;
-        }
-      } else if (char === ')') {
-        if (braceStack.length === 0 || braceStack.pop() !== '(') {
-          errors.push(`Unmatched ')' at position ${i}`);
-          isValid = false;
-        }
-      }
-    }
-
-    if (braceStack.length > 0) {
-      isValid = false;
-      errors.push(`Unmatched '${braceStack[0]}' at the end of the code`);
-    }
-
-    return { isValid, errors };
-  }
-}
-
-// Export convenience functions
-export function createCqlLanguageSupport(): LanguageSupport {
-  const manager = new CqlGrammarManager();
-  return manager.createLanguageSupport();
-}
-
-export function createCqlExtensions(): Extension[] {
-  const manager = new CqlGrammarManager();
-  return manager.createExtensions();
-}
-
-export function validateCqlSyntax(code: string): { isValid: boolean; errors: string[] } {
-  const manager = new CqlGrammarManager();
-  return manager.validateSyntax(code);
 }

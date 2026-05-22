@@ -13,6 +13,7 @@
  */
 
 import { HttpErrorResponse } from '@angular/common/http';
+import { decodeUtf8Bytes } from './utf8-encoding.lib';
 import { Injectable, inject } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
 import { Bundle, OperationOutcome, Resource, SearchParameter } from 'fhir/r4';
@@ -78,7 +79,7 @@ export class FhirPackageImportService {
         continue;
       }
       try {
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(raw);
+        const text = decodeUtf8Bytes(raw, { fatal: false });
         const obj = JSON.parse(text) as Resource & { resourceType?: string; __filename?: string };
         if (!obj.resourceType) {
           errors.push(`Not a FHIR resource: ${row.filename}`);

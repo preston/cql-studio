@@ -8,6 +8,7 @@ import {
   ResolvedPackageNode
 } from '../models/fhir-package-import.types';
 import { FhirPackageRegistryService } from './fhir-package-registry.service';
+import { decodeUtf8Bytes } from './utf8-encoding.lib';
 import { FhirPackageTarService } from './fhir-package-tar.service';
 import {
   compareResolvedVersions,
@@ -167,7 +168,7 @@ export class FhirPackageDependencyResolverService {
         errors.push(`Tarball for "${depName}" @ "${resolved}" has no ${PKG_JSON_PATH}.`);
         return;
       }
-      const text = new TextDecoder('utf-8', { fatal: false }).decode(raw);
+      const text = decodeUtf8Bytes(raw, { fatal: false });
       const pkgJson = JSON.parse(text) as FhirPackageJson;
       nodesByName.set(depName, {
         name: depName,

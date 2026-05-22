@@ -10,6 +10,7 @@ import { PatientService } from '../../../../services/patient.service';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
 import { SyntaxHighlighterComponent } from '../../../shared/syntax-highlighter/syntax-highlighter.component';
+import { encodeUtf8Base64 } from '../../../../services/utf8-encoding.lib';
 
 @Component({
   selector: 'app-fhir-tab',
@@ -209,7 +210,7 @@ export class FhirTabComponent {
     if (activeLibrary.cqlContent && activeLibrary.cqlContent.trim()) {
       libraryCopy['content'] = [{
         contentType: 'text/cql',
-        data: btoa(activeLibrary.cqlContent)
+        data: encodeUtf8Base64(activeLibrary.cqlContent)
       }];
     } else {
       libraryCopy['content'] = [];

@@ -8,6 +8,7 @@ import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../services/settings.service';
 import { Library } from 'fhir/r4';
+import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
 import {
   FHIR_BUNDLE_EXAMPLE_PATHS,
   FHIR_CQL_EXAMPLE_PATHS
@@ -293,7 +294,7 @@ export class FhirUploaderComponent implements AfterViewInit {
       content: [
         {
           contentType: 'text/cql',
-          data: btoa(cqlContent)
+          data: encodeUtf8Base64(cqlContent)
         }
       ],
     };

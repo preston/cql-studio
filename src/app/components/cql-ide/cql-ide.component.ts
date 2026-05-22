@@ -14,6 +14,7 @@ import { AiService } from '../../services/ai.service';
 import { CqlValidationService } from '../../services/cql-validation.service';
 import { ToastService } from '../../services/toast.service';
 import { Library } from 'fhir/r4';
+import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
 import { KeyboardShortcut } from './shared/ide-types';
 
 // Import all the new components
@@ -768,12 +769,10 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       this.toastService.showWarning('No CQL content to validate.', 'Validate CQL');
       return;
     }
-    const structuredErrors = this.cqlValidationService.getStructuredErrors(cql);
-    const structuredWarnings = this.cqlValidationService.getStructuredWarnings(cql);
-    const syntaxErrors = [
-      ...structuredErrors.map(e => `Error: ${e.formattedMessage}`),
-      ...structuredWarnings.map(w => `Warning: ${w.formattedMessage}`)
-    ];
+    const full = this.cqlValidationService.runFullValidation(cql);
+    const structuredErrors = full.structuredErrors;
+    const structuredWarnings = full.structuredWarnings;
+    const syntaxErrors = this.cqlValidationService.formatProblemsPanelMessages(full);
     this.ideStateService.updateEditorState({
       syntaxErrors,
       isValidSyntax: structuredErrors.length === 0
@@ -817,11 +816,11 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       content: [
         {
           contentType: 'text/cql',
-          data: btoa(cqlContent)
+          data: encodeUtf8Base64(cqlContent)
         },
         {
           contentType: 'application/elm+xml',
-          data: btoa(elmXml)
+          data: encodeUtf8Base64(elmXml)
         }
       ]
     };
@@ -904,11 +903,11 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       content: [
         {
           contentType: 'text/cql',
-          data: btoa(cqlContent)
+          data: encodeUtf8Base64(cqlContent)
         },
         {
           contentType: 'application/elm+xml',
-          data: btoa(elmXml)
+          data: encodeUtf8Base64(elmXml)
         }
       ],
       description: libraryResource.description || `Library ${libraryResource.name || libraryResource.id}`

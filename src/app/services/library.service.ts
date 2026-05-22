@@ -3,6 +3,7 @@
 import { Injectable, inject } from '@angular/core';
 import { BaseService } from './base.service';
 import { Library, Parameters, Bundle } from 'fhir/r4';
+import { decodeUtf8Base64 } from './utf8-encoding.lib';
 import { Observable, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -87,7 +88,7 @@ export class LibraryService extends BaseService {
 		}
 		if (content.data) {
 			try {
-				const cqlContent = atob(content.data);
+				const cqlContent = decodeUtf8Base64(content.data);
 				return of({ cqlContent, fromUrl: false });
 			} catch {
 				return of({ cqlContent: '', fromUrl: false });

@@ -17,6 +17,7 @@ import { GuidelineValidationService } from '../../services/guideline-validation.
 import { TranslationService } from '../../services/translation.service';
 import { CqlGenerationService } from '../../services/cql-generation.service';
 import { Library } from 'fhir/r4';
+import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
 
 @Component({
   selector: 'app-guidelines',
@@ -220,11 +221,11 @@ export class GuidelinesComponent implements OnInit, OnDestroy {
       content: [
         {
           contentType: 'text/cql',
-          data: btoa(cqlContent)
+          data: encodeUtf8Base64(cqlContent)
         },
         {
           contentType: 'application/elm+xml',
-          data: btoa(elmXml)
+          data: encodeUtf8Base64(elmXml)
         }
       ],
       description: libraryData.description || `Guideline: ${libraryData.title || libraryData.name}`,
