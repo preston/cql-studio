@@ -1,0 +1,26 @@
+@if (tree()) {
+<div class="border rounded mt-3">
+  <div class="px-3 py-2 border-bottom bg-body-tertiary">
+    <span class="fw-medium">Dependency Tree</span>
+    <span class="small text-muted ms-2">{{ importableCount() }} importable</span>
+  </div>
+  <div class="list-group list-group-flush">
+    @for (row of rows(); track row.node.key + '-' + $index) {
+    <div class="list-group-item py-2">
+      <div class="d-flex align-items-start gap-2" [style.padding-left.px]="row.depth * 16">
+        <i [class]="statusIconClass(row.node.status)" aria-hidden="true"
+          [attr.title]="statusLabel(row.node.status) + ': ' + row.node.statusHint"></i>
+        <div class="flex-grow-1">
+          <div class="small fw-medium">{{ nodeLabel(row.node) }}</div>
+          <div class="small text-muted text-break">
+            {{ nodeMeta(row.node) }}
+            <span class="ms-1">({{ row.node.relation }})</span>
+          </div>
+          <div class="small text-muted">{{ row.node.statusHint }}</div>
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+</div>
+}

@@ -219,6 +219,41 @@ export class ValueSetsTabComponent implements OnInit {
     await this.expandValueSet();
   }
 
+  async deleteSelectedValueSet(): Promise<void> {
+    const selected = this.selectedValueSet();
+    if (!selected) {
+      return;
+    }
+
+    const selectedId = selected.id?.trim();
+    if (!selectedId) {
+      this.toastService.showWarning('This ValueSet cannot be deleted because it does not have a server resource id.', 'Delete Not Available');
+      return;
+    }
+
+    this.valuesetError.set(null);
+
+    try {
+      await firstValueFrom(this.terminologyService.deleteValueSet(selectedId));
+
+      this.selectedValueSet.set(null);
+      this.expandedValueSet.set(null);
+      this.expandedCodes.set([]);
+      this.expandedRows.set(new Set());
+      this.expandedCodeDetails.set(new Map());
+      this.loadingDetails.set(new Set());
+      this.currentPage.set(1);
+
+      await this.searchValueSets();
+      this.toastService.showSuccess('ValueSet deleted successfully.', 'Delete Complete');
+    } catch (error) {
+      const errorMessage = this.getErrorMessage(error);
+      this.valuesetError.set(errorMessage);
+      this.toastService.showError(errorMessage, 'ValueSet Delete Failed');
+      throw error;
+    }
+  }
+
   onAddValueSetToClipboard(valueset: ValueSet): void {
     try {
       this.clipboardService.addResource(valueset);

@@ -24,6 +24,7 @@ export class ValueSetDetailsPaneComponent {
   loadingDetails = input<Set<string>>(new Set());
   availablePageSizes = input<number[]>([25, 50, 100, 200]);
   onRowToggle = input<(code: any) => void>();
+  onDeleteValueSet = input<() => Promise<void> | void>();
   
   // Services
   private toastService = inject(ToastService);
@@ -32,6 +33,8 @@ export class ValueSetDetailsPaneComponent {
   // Internal pagination state
   protected readonly currentPage = signal<number>(1);
   protected readonly pageSize = signal<number>(50);
+  protected readonly showDeleteConfirmationModal = signal<boolean>(false);
+  protected readonly deleteInProgress = signal<boolean>(false);
 
   constructor() {
     // Reset to first page when expanded codes change
@@ -199,6 +202,34 @@ export class ValueSetDetailsPaneComponent {
     } catch (error) {
       console.error('Failed to add Coding to clipboard:', error);
       this.toastService.showError('Failed to add Coding to clipboard.', 'Clipboard Error');
+    }
+  }
+
+  openDeleteConfirmationModal(): void {
+    this.showDeleteConfirmationModal.set(true);
+  }
+
+  closeDeleteConfirmationModal(): void {
+    if (this.deleteInProgress()) {
+      return;
+    }
+    this.showDeleteConfirmationModal.set(false);
+  }
+
+  async confirmDeleteValueSet(): Promise<void> {
+    const handler = this.onDeleteValueSet();
+    if (!handler) {
+      return;
+    }
+
+    this.deleteInProgress.set(true);
+    try {
+      await handler();
+      this.showDeleteConfirmationModal.set(false);
+    } catch {
+      // Keep modal open so the user can retry or cancel after an error.
+    } finally {
+      this.deleteInProgress.set(false);
     }
   }
 }
