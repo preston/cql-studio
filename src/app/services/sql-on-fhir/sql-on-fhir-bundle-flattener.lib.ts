@@ -18,6 +18,7 @@ import type {
   Period,
   Reference,
 } from 'fhir/r4';
+import { resourceTypeOf } from '../fhir-resource-type.lib';
 
 /** A single flat row keyed by column name. Values are JSON-safe primitives. */
 export type FlatRow = Record<string, string | number | boolean | null>;
@@ -49,24 +50,24 @@ export function flattenBundle(bundle: Bundle): FlatTables {
   for (const entry of bundle.entry ?? []) {
     const r = entry.resource;
     if (!r) continue;
-    switch (r.resourceType) {
+    switch (resourceTypeOf(r)) {
       case 'Patient':
-        out.patient_view.push(flattenPatient(r));
+        out.patient_view.push(flattenPatient(r as Patient));
         break;
       case 'Encounter':
-        out.encounter_view.push(flattenEncounter(r));
+        out.encounter_view.push(flattenEncounter(r as Encounter));
         break;
       case 'Observation':
-        out.observation_view.push(flattenObservation(r));
+        out.observation_view.push(flattenObservation(r as Observation));
         break;
       case 'Procedure':
-        out.procedure_view.push(flattenProcedure(r));
+        out.procedure_view.push(flattenProcedure(r as Procedure));
         break;
       case 'Condition':
-        out.condition_view.push(flattenCondition(r));
+        out.condition_view.push(flattenCondition(r as Condition));
         break;
       case 'ValueSet':
-        out.value_set_expansion.push(...flattenValueSetExpansion(r));
+        out.value_set_expansion.push(...flattenValueSetExpansion(r as ValueSet));
         break;
     }
   }

@@ -8,6 +8,7 @@ import { Patient, Parameters, Bundle, Library } from 'fhir/r4';
 import { PatientService } from '../../../services/patient.service';
 import { LibraryService } from '../../../services/library.service';
 import { SettingsService } from '../../../services/settings.service';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -56,10 +57,12 @@ export class GuidelineTestingComponent implements OnInit {
     this.isLoadingPatients.set(true);
     // Load all patients from FHIR server
     this.patientService.search('').subscribe({
-      next: (bundle: Bundle<Patient>) => {
+      next: (bundle: Bundle) => {
         this.isLoadingPatients.set(false);
         const loadedPatients = bundle.entry 
-          ? bundle.entry.map(entry => entry.resource!).filter((r): r is Patient => r !== undefined)
+          ? bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
           : [];
         this.patients.set(loadedPatients);
         this.currentPage.set(1); // Reset to first page when loading new patients
@@ -76,10 +79,12 @@ export class GuidelineTestingComponent implements OnInit {
     if (this.searchTerm().trim()) {
       this.isLoadingPatients.set(true);
       this.patientService.search(this.searchTerm()).subscribe({
-        next: (bundle: Bundle<Patient>) => {
+        next: (bundle: Bundle) => {
           this.isLoadingPatients.set(false);
           const loadedPatients = bundle.entry 
-            ? bundle.entry.map(entry => entry.resource!).filter((r): r is Patient => r !== undefined)
+            ? bundle.entry
+                .map(entry => entry.resource)
+                .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
             : [];
           this.patients.set(loadedPatients);
           this.currentPage.set(1); // Reset to first page when searching
@@ -335,4 +340,3 @@ export class GuidelineTestingComponent implements OnInit {
     this.currentPage.set(1); // Reset to first page when page size changes
   }
 }
-

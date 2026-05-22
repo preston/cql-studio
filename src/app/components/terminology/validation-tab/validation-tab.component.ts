@@ -9,6 +9,7 @@ import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ValueSet, CodeSystem, Parameters } from 'fhir/r4';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 interface ValidationResult {
   valid: boolean;
@@ -181,7 +182,9 @@ export class ValidationTabComponent implements OnDestroy {
 
     return firstValueFrom(this.terminologyService.searchValueSets(params))
       .then(result => {
-        const valuesets = result?.entry?.map(e => e.resource!).filter(vs => vs !== null) || [];
+        const valuesets = result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is ValueSet => isResourceType(resource, 'ValueSet')) || [];
         this.valuesetSearchResults.set(valuesets);
         this.showValuesetDropdown.set(valuesets.length > 0);
         return valuesets;
@@ -327,7 +330,9 @@ export class ValidationTabComponent implements OnDestroy {
 
     return firstValueFrom(this.terminologyService.searchCodeSystems(params))
       .then(result => {
-        const codesystems = result?.entry?.map(e => e.resource!).filter(cs => cs !== null) || [];
+        const codesystems = result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is CodeSystem => isResourceType(resource, 'CodeSystem')) || [];
         this.codesystemSearchResults.set(codesystems);
         this.showCodesystemDropdown.set(codesystems.length > 0);
         return codesystems;

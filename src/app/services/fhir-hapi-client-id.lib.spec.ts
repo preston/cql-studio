@@ -43,7 +43,7 @@ describe('fhir-hapi-client-id.lib', () => {
     const p: Patient = {
       resourceType: 'Patient',
       id: '5',
-      contained: [{ resourceType: 'Observation', id: '8', status: 'final', code: { text: 'x' } }]
+      contained: [{ resourceType: 'Observation', id: '8', status: 'final', code: { text: 'x' } } as Resource]
     };
     mangleNumericOnlyIdsForHapi(p);
     expect(p.id).toBe('n5');

@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { Library, Bundle } from 'fhir/r4';
 import { LibraryService } from '../../../services/library.service';
 import { SettingsService } from '../../../services/settings.service';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-guidelines-browser',
@@ -40,9 +41,13 @@ export class GuidelinesBrowserComponent implements OnInit {
   public loadLibraries(): void {
     this.isLoading = true;
     this.libraryService.getAll(this.currentPage, this.pageSize, this.sortBy, this.sortOrder).subscribe({
-      next: (bundle: Bundle<Library>) => {
+      next: (bundle: Bundle) => {
         this.isLoading = false;
-        this.libraries = bundle.entry ? bundle.entry.map(entry => entry.resource!).filter((r): r is Library => r !== undefined) : [];
+        this.libraries = bundle.entry
+          ? bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+          : [];
         
         if (bundle.total && bundle.total > 0) {
           this.totalLibraries = bundle.total;
@@ -72,9 +77,13 @@ export class GuidelinesBrowserComponent implements OnInit {
     if (this.searchTerm.trim()) {
       this.isLoading = true;
       this.libraryService.search(this.searchTerm).subscribe({
-        next: (bundle: Bundle<Library>) => {
+        next: (bundle: Bundle) => {
           this.isLoading = false;
-          this.libraries = bundle.entry ? bundle.entry.map(entry => entry.resource!).filter((r): r is Library => r !== undefined) : [];
+          this.libraries = bundle.entry
+            ? bundle.entry
+                .map(entry => entry.resource)
+                .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+            : [];
           this.totalLibraries = this.libraries.length;
           this.totalPages = 1;
           this.currentPage = 1;
@@ -135,4 +144,3 @@ export class GuidelinesBrowserComponent implements OnInit {
 
   protected readonly Math = Math;
 }
-

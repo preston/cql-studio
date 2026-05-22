@@ -14,6 +14,7 @@ import { SettingsService } from '../../services/settings.service';
 import { TerminologyService } from '../../services/terminology.service';
 import { ToastService } from '../../services/toast.service';
 import { ClipboardService } from '../../services/clipboard.service';
+import { isResourceType } from '../../services/fhir-resource-type.lib';
 import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
 import { ValueSetDependencyTreeComponent } from './value-set-dependency-tree.component';
 import { Bundle, CapabilityStatement, Coding, Parameters, ValueSet, Resource } from 'fhir/r4';
@@ -66,7 +67,7 @@ export class VsacBrowserComponent {
   protected readonly searchSortOrder = signal<'asc' | 'desc'>('asc');
   protected readonly searchResults = signal<ValueSet[]>([]);
   /** Last FHIR searchset bundle (for total + pagination links). */
-  protected readonly searchBundle = signal<Bundle<ValueSet> | null>(null);
+  protected readonly searchBundle = signal<Bundle | null>(null);
 
   protected readonly valueSetSearchSupportsSort = computed(() =>
     capabilityStatementSupportsValueSetSort(this.capability())
@@ -264,8 +265,10 @@ export class VsacBrowserComponent {
     return this.searchSortOrder() === 'desc' ? `-${raw}` : raw;
   }
 
-  private applySearchBundle(bundle: Bundle<ValueSet>): void {
-    const list = bundle.entry?.map((e) => e.resource as ValueSet).filter((r) => r?.resourceType === 'ValueSet') ?? [];
+  private applySearchBundle(bundle: Bundle): void {
+    const list = bundle.entry
+      ?.map((entry) => entry.resource)
+      .filter((resource): resource is ValueSet => isResourceType(resource, 'ValueSet')) ?? [];
     this.searchResults.set(list);
     this.searchBundle.set(bundle);
   }
@@ -766,7 +769,7 @@ export class VsacBrowserComponent {
   }
 
   private async postValueSetToTerminologyServerNoToast(toSend: ValueSet): Promise<void> {
-    const collection: Bundle<Resource> = {
+    const collection: Bundle = {
       resourceType: 'Bundle',
       type: 'collection',
       entry: [{ resource: toSend as Resource }]

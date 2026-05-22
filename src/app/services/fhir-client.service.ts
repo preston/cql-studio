@@ -54,7 +54,7 @@ export class FhirClientService extends BaseService {
    * `Bundle.type` `collection` is normalized to `transaction` with `entry.request`
    * so HAPI and similar servers accept the request (`normalizeBundleForBasePost`).
    */
-  postBundle(bundle: Bundle<Resource>): Observable<Bundle<Resource>> {
+  postBundle(bundle: Bundle): Observable<Bundle> {
     const baseUrl = normalizeFhirBaseUrlForBundlePost(this.getBaseUrl());
     if (!baseUrl) {
       return new Observable((subscriber) => {
@@ -62,7 +62,7 @@ export class FhirClientService extends BaseService {
       });
     }
     const payload = normalizeBundleForBasePost(bundle);
-    return this.http.post<Bundle<Resource>>(baseUrl, payload, {
+    return this.http.post<Bundle>(baseUrl, payload, {
       headers: this.fhirJsonHeaders()
     });
   }

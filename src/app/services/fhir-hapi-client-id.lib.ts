@@ -1,6 +1,7 @@
 // Author: Preston Lee
 
 import { Resource } from 'fhir/r4';
+import { resourceTypeOf } from './fhir-resource-type.lib';
 
 /**
  * HAPI (HAPI-0960) rejects client-assigned logical ids that contain only digits.
@@ -17,7 +18,7 @@ function visitResourcesDepthFirst(root: Resource, visit: (r: Resource) => void):
     const contained = (r as { contained?: Resource[] }).contained;
     if (Array.isArray(contained)) {
       for (const c of contained) {
-        if (c?.resourceType) {
+        if (resourceTypeOf(c)) {
           stack.push(c);
         }
       }
@@ -79,10 +80,14 @@ export function applyHapiNumericIdRulesToTransactionRoots(roots: Resource[]): vo
   for (const root of roots) {
     visitResourcesDepthFirst(root, (res) => {
       const id = typeof (res as { id?: string }).id === 'string' ? (res as { id: string }).id.trim() : '';
+      const resourceType = resourceTypeOf(res);
       if (!id || !NUMERIC_ONLY_ID.test(id)) {
         return;
       }
-      remap.set(`${res.resourceType}/${id}`, `${res.resourceType}/n${id}`);
+      if (!resourceType) {
+        return;
+      }
+      remap.set(`${resourceType}/${id}`, `${resourceType}/n${id}`);
     });
   }
   if (remap.size === 0) {

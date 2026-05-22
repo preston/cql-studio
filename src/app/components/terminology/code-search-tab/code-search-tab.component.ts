@@ -9,6 +9,7 @@ import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ValueSet } from 'fhir/r4';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { CodeSearchDetailsPaneComponent } from '../code-search-details-pane/code-search-details-pane.component';
 
 @Component({
@@ -91,7 +92,9 @@ export class CodeSearchTabComponent implements OnDestroy {
     const params: any = { name: searchTerm.trim(), _count: 10 };
     return firstValueFrom(this.terminologyService.searchValueSets(params))
       .then(result => {
-        const valuesets = result?.entry?.map(e => e.resource!).filter(vs => vs !== null) || [];
+        const valuesets = result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is ValueSet => isResourceType(resource, 'ValueSet')) || [];
         this.valueSetSearchResults.set(valuesets);
         this.showValueSetDropdown.set(valuesets.length > 0);
         return valuesets;

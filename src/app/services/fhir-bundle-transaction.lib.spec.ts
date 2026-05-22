@@ -6,7 +6,7 @@ import { collectionBundleToTransaction, normalizeBundleForBasePost } from './fhi
 describe('fhir-bundle-transaction.lib', () => {
   it('collectionBundleToTransaction adds PUT request when resource has id', () => {
     const patient: Patient = { resourceType: 'Patient', id: 'p1' };
-    const bundle: Bundle<Resource> = {
+    const bundle: Bundle = {
       resourceType: 'Bundle',
       type: 'collection',
       entry: [{ resource: patient }]
@@ -19,7 +19,7 @@ describe('fhir-bundle-transaction.lib', () => {
 
   it('collectionBundleToTransaction adds POST request when resource has no id', () => {
     const patient: Patient = { resourceType: 'Patient' };
-    const bundle: Bundle<Resource> = {
+    const bundle: Bundle = {
       resourceType: 'Bundle',
       type: 'collection',
       entry: [{ resource: patient }]
@@ -30,7 +30,7 @@ describe('fhir-bundle-transaction.lib', () => {
   });
 
   it('normalizeBundleForBasePost leaves transaction bundles unchanged', () => {
-    const bundle: Bundle<Resource> = {
+    const bundle: Bundle = {
       resourceType: 'Bundle',
       type: 'transaction',
       entry: []
@@ -39,7 +39,7 @@ describe('fhir-bundle-transaction.lib', () => {
   });
 
   it('collectionBundleToTransaction maps multiple resources with ids to PUT entries', () => {
-    const bundle: Bundle<Resource> = {
+    const bundle: Bundle = {
       resourceType: 'Bundle',
       type: 'collection',
       entry: [

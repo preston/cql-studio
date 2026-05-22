@@ -42,7 +42,7 @@ export class MeasureService extends BaseService {
     status?: string;
     _count?: number;
     _offset?: number;
-  } = {}): Observable<Bundle<Measure>> {
+  } = {}): Observable<Bundle> {
     const queryParams = new URLSearchParams();
     if (params.name) queryParams.append('name', params.name);
     if (params.title) queryParams.append('title', params.title);
@@ -51,7 +51,7 @@ export class MeasureService extends BaseService {
     if (params._count != null) queryParams.append('_count', String(params._count));
     if (params._offset != null) queryParams.append('_offset', String(params._offset));
     const url = `${this.measurePath()}?${queryParams.toString()}`;
-    return this.http.get<Bundle<Measure>>(url, { headers: this.headers() });
+    return this.http.get<Bundle>(url, { headers: this.headers() });
   }
 
   getMeasure(id: string): Observable<Measure> {
@@ -120,7 +120,7 @@ export class MeasureService extends BaseService {
     status?: string;
     _count?: number;
     _offset?: number;
-  } = {}): Observable<Bundle<MeasureReport>> {
+  } = {}): Observable<Bundle> {
     const queryParams = new URLSearchParams();
     if (params.measure) queryParams.append('measure', params.measure);
     if (params.subject) queryParams.append('subject', params.subject);
@@ -128,7 +128,7 @@ export class MeasureService extends BaseService {
     if (params._count != null) queryParams.append('_count', String(params._count));
     if (params._offset != null) queryParams.append('_offset', String(params._offset));
     const url = `${this.measureReportPath()}?${queryParams.toString()}`;
-    return this.http.get<Bundle<MeasureReport>>(url, { headers: this.headers() });
+    return this.http.get<Bundle>(url, { headers: this.headers() });
   }
 
   getMeasureReport(id: string): Observable<MeasureReport> {

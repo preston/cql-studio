@@ -2,9 +2,10 @@
 
 import { Coding, Resource } from 'fhir/r4';
 import { BaseBrowserTool } from './base-browser-tool';
+import { resourceTypeOf } from '../fhir-resource-type.lib';
 
 function isResource(obj: unknown): obj is Resource {
-  return typeof obj === 'object' && obj != null && 'resourceType' in obj && typeof (obj as Resource).resourceType === 'string';
+  return typeof obj === 'object' && obj != null && resourceTypeOf(obj as Resource) != null;
 }
 
 function isCoding(obj: unknown): obj is Coding {
@@ -38,7 +39,7 @@ export class AddToClipboardTool extends BaseBrowserTool {
       return {
         message: 'Resource added to clipboard',
         kind: 'resource',
-        resourceType: payload.resourceType
+        resourceType: resourceTypeOf(payload)
       };
     }
     if (isCoding(payload)) {

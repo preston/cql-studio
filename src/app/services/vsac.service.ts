@@ -6,6 +6,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { SettingsService } from './settings.service';
 import { Bundle, CapabilityStatement, Parameters, ValueSet } from 'fhir/r4';
+import { isResourceType } from './fhir-resource-type.lib';
 
 const FHIR_JSON = 'application/fhir+json';
 const VSAC_FHIR_BASE_HEADER = 'X-VSAC-FHIR-Base-URL';
@@ -153,12 +154,12 @@ export class VsacService {
   }
 
   /** GET a searchset page using a Bundle.link URL from a prior ValueSet search response. */
-  getValueSetSearchByBundleLink(linkUrl: string): Observable<Bundle<ValueSet>> {
+  getValueSetSearchByBundleLink(linkUrl: string): Observable<Bundle> {
     const pq = this.fhirPathAndQueryFromBundleLink(linkUrl);
     if (!pq) {
       throw new Error('Pagination link does not match the configured VSAC FHIR base URL host.');
     }
-    return this.http.get<Bundle<ValueSet>>(this.fhirUrl(pq), {
+    return this.http.get<Bundle>(this.fhirUrl(pq), {
       headers: this.fhirHeaders()
     });
   }
@@ -170,7 +171,7 @@ export class VsacService {
     });
   }
 
-  searchValueSets(params: ValueSetSearchParams): Observable<Bundle<ValueSet>> {
+  searchValueSets(params: ValueSetSearchParams): Observable<Bundle> {
     const q = new URLSearchParams();
     const t = (s: string | undefined) => (s == null ? '' : String(s).trim());
     const set = (key: string, value: string | undefined) => {
@@ -206,7 +207,7 @@ export class VsacService {
     const count = params._count ?? 50;
     q.set('_count', String(Math.min(200, Math.max(1, count))));
     const qs = q.toString();
-    return this.http.get<Bundle<ValueSet>>(this.fhirUrl(`/ValueSet?${qs}`), {
+    return this.http.get<Bundle>(this.fhirUrl(`/ValueSet?${qs}`), {
       headers: this.fhirHeaders()
     });
   }
@@ -230,7 +231,7 @@ export class VsacService {
       return this.searchValueSets({ url: trimmed, _count: 1 }).pipe(
         map((bundle) => {
           const first = bundle.entry?.[0]?.resource;
-          if (first?.resourceType === 'ValueSet') {
+          if (isResourceType(first, 'ValueSet')) {
             return first as ValueSet;
           }
           throw new Error('No ValueSet found for this canonical URL');

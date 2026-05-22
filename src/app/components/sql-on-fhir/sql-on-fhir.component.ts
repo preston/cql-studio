@@ -10,6 +10,7 @@ import { LibraryService } from '../../services/library.service';
 import { SqlOnFhirPipelineService } from '../../services/sql-on-fhir/sql-on-fhir-pipeline.service';
 import { SqlOnFhirDemoService, decodeLibraryCql, type DemoMeasureContent } from '../../services/sql-on-fhir/sql-on-fhir-demo.service';
 import { TranslationService } from '../../services/translation.service';
+import { isResourceType } from '../../services/fhir-resource-type.lib';
 import { formatElmXml } from './format-elm-xml';
 import { SqlPipelineCqlStepComponent } from './pipeline-steps/sql-pipeline-cql-step.component';
 import { SqlPipelineElmStepComponent } from './pipeline-steps/sql-pipeline-elm-step.component';
@@ -220,10 +221,14 @@ export class SqlOnFhirComponent implements OnInit {
     this.libraryService
       .getAll(this.currentPage(), this.pageSize(), this.librarySortBy(), this.librarySortOrder())
       .subscribe({
-        next: (bundle: Bundle<Library>) => {
+        next: (bundle: Bundle) => {
           this.isLoadingLibraries.set(false);
           this.paginatedLibraries.set(
-            bundle.entry ? bundle.entry.map(e => e.resource!).filter(Boolean) : []
+            bundle.entry
+              ? bundle.entry
+                  .map(e => e.resource)
+                  .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+              : []
           );
           this.applyBundlePagination(bundle);
         },
@@ -238,7 +243,7 @@ export class SqlOnFhirComponent implements OnInit {
       });
   }
 
-  private applyBundlePagination(bundle: Bundle<Library>): void {
+  private applyBundlePagination(bundle: Bundle): void {
     const entries = bundle.entry?.length ?? 0;
     const hasNextPage = bundle.link?.some(l => l.relation === 'next');
     if (bundle.total != null && bundle.total > 0) {
@@ -273,10 +278,14 @@ export class SqlOnFhirComponent implements OnInit {
         this.librarySortOrder()
       )
       .subscribe({
-        next: (bundle: Bundle<Library>) => {
+        next: (bundle: Bundle) => {
           this.isLoadingLibraries.set(false);
           this.paginatedLibraries.set(
-            bundle.entry ? bundle.entry.map(e => e.resource!).filter(Boolean) : []
+            bundle.entry
+              ? bundle.entry
+                  .map(e => e.resource)
+                  .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+              : []
           );
           this.applyBundlePagination(bundle);
         },

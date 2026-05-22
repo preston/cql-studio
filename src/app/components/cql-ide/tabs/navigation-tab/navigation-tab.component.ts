@@ -8,6 +8,7 @@ import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
 import { IdeStateService, TabDataScope } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
+import { isResourceType } from '../../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-navigation-tab',
@@ -86,9 +87,13 @@ export class NavigationTabComponent implements OnInit {
   public loadPaginatedLibraries(): void {
     this.isLoadingLibraries = true;
     this.libraryService.getAll(this.currentPage, this.pageSize, this.librarySortBy, this.librarySortOrder).subscribe({
-      next: (bundle: Bundle<Library>) => {
+      next: (bundle: Bundle) => {
         this.isLoadingLibraries = false;
-        this.paginatedLibraries = bundle.entry ? bundle.entry.map(entry => entry.resource!) : [];
+        this.paginatedLibraries = bundle.entry
+          ? bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+          : [];
         
         // Check for next page using FHIR bundle links
         const hasNextPage = bundle.link?.some(link => link.relation === 'next');
@@ -355,9 +360,13 @@ export class NavigationTabComponent implements OnInit {
       this.librarySortBy,
       this.librarySortOrder
     ).subscribe({
-      next: (bundle: Bundle<Library>) => {
+      next: (bundle: Bundle) => {
         this.isLoadingLibraries = false;
-        this.paginatedLibraries = bundle.entry ? bundle.entry.map(entry => entry.resource!) : [];
+        this.paginatedLibraries = bundle.entry
+          ? bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+          : [];
         
         // Check for next page using FHIR bundle links
         const hasNextPage = bundle.link?.some(link => link.relation === 'next');
@@ -451,10 +460,12 @@ export class NavigationTabComponent implements OnInit {
     if (searchTerm.trim()) {
       this.isSearchingPatients = true;
       this.patientService.search(searchTerm).subscribe({
-        next: (bundle: Bundle<Patient>) => {
+        next: (bundle: Bundle) => {
           this.isSearchingPatients = false;
           if (bundle.entry && bundle.entry.length > 0) {
-            this.patientSearchResults = bundle.entry.map(entry => entry.resource!);
+            this.patientSearchResults = bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Patient => isResourceType(resource, 'Patient'));
             this.showPatientSearchResults = true;
           } else {
             this.patientSearchResults = [];
