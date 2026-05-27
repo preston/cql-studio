@@ -40,6 +40,9 @@ testem.log
 test-results/
 .playwright-mcp/
 /sql-on-fhir-*.png
+/cms125-*.png
+/sql-pipeline-*.png
+/.claude/
 
 # System files
 .DS_Store

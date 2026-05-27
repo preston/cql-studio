@@ -28,6 +28,7 @@ import { ClipboardManagerComponent } from './components/clipboard-manager/clipbo
 import { VsacBrowserComponent } from './components/vsac-browser/vsac-browser.component';
 import { FhirRegistryImporterComponent } from './components/fhir-registry-importer/fhir-registry-importer.component';
 import { SqlOnFhirComponent } from './components/sql-on-fhir/sql-on-fhir.component';
+import { sqlOnFhirGuard } from './components/sql-on-fhir/sql-on-fhir.guard';
 
 export const routes: Routes = [
   // Normal app routes
@@ -69,7 +70,7 @@ export const routes: Routes = [
   { path: 'guidelines', component: GuidelinesComponent },
   { path: 'guidelines/:id/testing', component: GuidelinesComponent },
   { path: 'guidelines/:id', component: GuidelinesComponent },
-  { path: 'sql', component: SqlOnFhirComponent },
+  { path: 'sql', component: SqlOnFhirComponent, canActivate: [sqlOnFhirGuard] },
   { path: 'about', component: AboutComponent },
   { path: 'clipboard', component: ClipboardManagerComponent },
 
