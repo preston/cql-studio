@@ -314,8 +314,37 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
             '.cm-placeholder': {
               color: '#6c757d',
               fontStyle: 'italic'
+            },
+            '.cm-tooltip': {
+              backgroundColor: '#141414',
+              border: '1px solid #3a3a3a',
+              borderRadius: '4px',
+              color: '#f5f5f5',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)'
+            },
+            '.cm-tooltip-lint': {
+              fontFamily: "'Courier New', Courier, monospace",
+              fontSize: '0.85rem',
+              lineHeight: '1.4'
+            },
+            '.cm-diagnostic': {
+              backgroundColor: '#141414',
+              color: '#f5f5f5',
+              padding: '6px 8px'
+            },
+            '.cm-diagnostic-error': {
+              borderLeftColor: '#ef4444'
+            },
+            '.cm-diagnostic-warning': {
+              borderLeftColor: '#f59e0b'
+            },
+            '.cm-diagnosticText': {
+              color: '#f5f5f5'
+            },
+            '.cm-diagnosticSource': {
+              color: '#cfcfcf'
             }
-          }),
+          }, { dark: true }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               const newValue = update.state.doc.toString();

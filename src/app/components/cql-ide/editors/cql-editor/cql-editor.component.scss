@@ -47,6 +47,44 @@
   font-style: italic;
 }
 
+:host ::ng-deep .cql-editor {
+  .cm-tooltip {
+    background-color: #141414;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    color: #f5f5f5;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .cm-tooltip-lint {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+
+  .cm-diagnostic {
+    background-color: #141414;
+    color: #f5f5f5;
+    padding: 6px 8px;
+  }
+
+  .cm-diagnostic-error {
+    border-left-color: #ef4444;
+  }
+
+  .cm-diagnostic-warning {
+    border-left-color: #f59e0b;
+  }
+
+  .cm-diagnosticText {
+    color: #f5f5f5;
+  }
+
+  .cm-diagnosticSource {
+    color: #cfcfcf;
+  }
+}
+
 .cql-editor .cm-editor {
   border: none;
   border-radius: 0.375rem;
