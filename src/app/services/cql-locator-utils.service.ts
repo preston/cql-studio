@@ -28,6 +28,19 @@ export class CqlLocatorUtilsService {
     }
     
     const locatorAny = locator as any;
+
+    // Kotlin/JS currently emits TrackBack(startLine, startChar, endLine, endChar)
+    // as x8z_1, y8z_1, z8z_1, a90_1. Prefer those fields when present; the
+    // previous numeric-value heuristic could mistake endChar for the line.
+    const knownStartLine = locatorAny.x8z_1;
+    const knownStartChar = locatorAny.y8z_1;
+    if (typeof knownStartLine === 'number') {
+      return {
+        line: this.normalizeLineNumber(knownStartLine),
+        column: typeof knownStartChar === 'number' ? Math.max(0, knownStartChar) : null
+      };
+    }
+
     const locatorKeys = Object.keys(locator);
     const numericProps: Array<{key: string, value: number}> = [];
     
@@ -67,15 +80,7 @@ export class CqlLocatorUtilsService {
       lineNumber = numericProps[0].value;
     }
     
-    // Handle 0-based vs 1-based line numbers
-    // CQL compiler appears to use 1-based line numbers (matches CodeMirror)
-    if (lineNumber != null) {
-      if (lineNumber === 0) {
-        lineNumber = 1; // Convert 0-based to 1-based
-      } else if (lineNumber < 0) {
-        lineNumber = null; // Invalid line number
-      }
-    }
+    lineNumber = this.normalizeLineNumber(lineNumber);
     
     // Column numbers appear to be 0-based (matches CodeMirror's 0-based positions)
     // Keep as-is, but ensure it's not negative
@@ -87,6 +92,18 @@ export class CqlLocatorUtilsService {
       line: lineNumber,
       column: columnNumber
     };
+  }
+
+  private normalizeLineNumber(lineNumber: number | null): number | null {
+    if (lineNumber == null) {
+      return null;
+    }
+
+    if (lineNumber === 0) {
+      return 1;
+    }
+
+    return lineNumber > 0 ? lineNumber : null;
   }
   
   /**
