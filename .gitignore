@@ -40,6 +40,21 @@ testem.log
 test-results/
 .playwright-mcp/
 /sql-on-fhir-*.png
+/cms125-*.png
+/sql-pipeline-*.png
+
+# AI tooling configs / prompts / plans / memory — keep out of the repo (#36).
+# `.cursor` (directory) is already covered above. These cover the rest of the
+# common AI-assistant config file conventions.
+/.claude/
+/CLAUDE.md
+/GEMINI.md
+/AGENTS.md
+/.cursorrules
+/.github/copilot-instructions.md
+/.aider*
+/MEMORY.md
+/.windsurfrules
 
 # System files
 .DS_Store

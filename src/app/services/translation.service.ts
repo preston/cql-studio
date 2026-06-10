@@ -15,6 +15,18 @@ import {
 } from '@cqframework/cql/cql-to-elm';
 import { CqlLocatorUtilsService } from './cql-locator-utils.service';
 
+/**
+ * `CqlTranslator.toJson()` exists at runtime and in the package's
+ * `kotlin/cql-to-elm.d.ts`, but the `@cqframework/cql/cql-to-elm` subpath export
+ * ships only `.mjs` with no paired `types` entry, so the method isn't visible
+ * to consumers under bundler module resolution. Until that's fixed upstream
+ * (https://github.com/cqframework/clinical_quality_language/issues/1768) we
+ * narrow the translator through this minimal interface rather than a bare cast.
+ */
+interface ElmJsonEmitter {
+  toJson(): string;
+}
+
 export interface TranslationResult {
   elmXml: string | null;
   elmJson: string | null;
@@ -207,9 +219,8 @@ export class TranslationService {
 
       let elmJson: string | null = null;
       try {
-        // `toJson` exists at runtime per kotlin/cql-to-elm.d.ts but isn't picked
-        // up by the @cqframework/cql/cql-to-elm subpath resolution — cast through unknown.
-        elmJson = (translator as unknown as { toJson: () => string }).toJson();
+        // See ElmJsonEmitter above re: upstream type-export gap (#1768).
+        elmJson = (translator as unknown as ElmJsonEmitter).toJson();
       } catch (e) {
         console.warn('Failed to generate ELM JSON:', e);
       }
@@ -273,9 +284,8 @@ export class TranslationService {
 
       let elmJson: string | null = null;
       try {
-        // `toJson` exists at runtime per kotlin/cql-to-elm.d.ts but isn't picked
-        // up by the @cqframework/cql/cql-to-elm subpath resolution — cast through unknown.
-        elmJson = (translator as unknown as { toJson: () => string }).toJson();
+        // See ElmJsonEmitter above re: upstream type-export gap (#1768).
+        elmJson = (translator as unknown as ElmJsonEmitter).toJson();
       } catch (e) {
         console.warn('Failed to generate ELM JSON:', e);
       }
