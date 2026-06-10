@@ -39,7 +39,7 @@
                 </div>
                 <div class="col-6 col-md-auto text-end">
                   <small class="d-block text-white-50">Run Date</small>
-                  <small class="text-white">{{ testResults()?.testsRunDateTime | date:'short' }}</small>
+                  <small class="text-white">{{ $safeNavigationMigration(testResults()?.testsRunDateTime) | date:'short' }}</small>
                 </div>
                 @if (testResults()?.cqlengine?.cqlVersion) {
                   <div class="col-6 col-md-auto text-end">
@@ -140,7 +140,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container">
-              <canvas baseChart [data]="pieChartData" [options]="pieChartOptions" type="pie">
+              <canvas baseChart [data]="pieChartData()" [options]="pieChartOptions" type="pie">
               </canvas>
             </div>
           </div>
@@ -156,7 +156,7 @@
           </div>
           <div class="card-body">
             <div class="chart-container">
-              <canvas baseChart [data]="barChartData" [options]="barChartOptions" type="bar">
+              <canvas baseChart [data]="barChartData()" [options]="barChartOptions" type="bar">
               </canvas>
             </div>
           </div>

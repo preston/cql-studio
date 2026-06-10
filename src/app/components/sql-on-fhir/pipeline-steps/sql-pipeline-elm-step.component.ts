@@ -1,15 +1,14 @@
 // Author: Preston Lee
 
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { SyntaxHighlighterComponent } from '../../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-sql-pipeline-elm-step',
-  standalone: true,
   imports: [SyntaxHighlighterComponent],
   templateUrl: './sql-pipeline-elm-step.component.html',
   styleUrl: './sql-pipeline-elm-step.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+
 })
 export class SqlPipelineElmStepComponent {
   readonly elmTranslationErrors = input<string[]>([]);

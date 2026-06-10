@@ -1,14 +1,13 @@
 // Author: Preston Lee
 
 import { Component, input, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { MeasureReport } from 'fhir/r4';
 
 @Component({
   selector: 'app-measure-report-view',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './measure-report-view.component.html',
+
   styleUrl: './measure-report-view.component.scss'
 })
 export class MeasureReportViewComponent {

@@ -209,7 +209,7 @@
               }
               @if (selectedCodeSystem()?.date) {
               <div class="mb-1">
-                <strong>Date:</strong> {{ formatDate(selectedCodeSystem()?.date) }}
+                <strong>Date:</strong> {{ formatDate($safeNavigationMigration(selectedCodeSystem()?.date)) }}
               </div>
               }
               @if (selectedCodeSystem()?.version) {
@@ -250,7 +250,7 @@
           <div class="col-md-6">
             <h6 class="small mb-2">Additional Information</h6>
             <div class="small">
-              @if (selectedCodeSystem()?.experimental !== undefined) {
+              @if ($safeNavigationMigration(selectedCodeSystem()?.experimental) !== undefined) {
               <div class="mb-1">
                 <strong>Experimental:</strong>
                 <span class="badge ms-1" [class.bg-warning]="selectedCodeSystem()?.experimental"
@@ -259,7 +259,7 @@
                 </span>
               </div>
               }
-              @if (selectedCodeSystem()?.caseSensitive !== undefined) {
+              @if ($safeNavigationMigration(selectedCodeSystem()?.caseSensitive) !== undefined) {
               <div class="mb-1">
                 <strong>Case Sensitive:</strong>
                 <span class="badge ms-1" [class.bg-info]="selectedCodeSystem()?.caseSensitive"

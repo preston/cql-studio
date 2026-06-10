@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
@@ -14,9 +13,9 @@ import { ClipboardService } from '../../../services/clipboard.service';
 
 @Component({
   selector: 'app-valuesets-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ValueSetDetailsPaneComponent],
+  imports: [FormsModule, ValueSetDetailsPaneComponent],
   templateUrl: './valuesets-tab.component.html',
+
   styleUrl: './valuesets-tab.component.scss'
 })
 export class ValueSetsTabComponent implements OnInit {

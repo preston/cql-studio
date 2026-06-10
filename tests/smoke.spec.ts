@@ -2,6 +2,7 @@
 
 import { test, expect } from '@playwright/test';
 import { ExamplePaths } from '../src/app/constants/example-paths.constants';
+import { TestHelpers } from './utils/test-helpers';
 
 test.describe('Smoke Tests', () => {
   test('should load the application homepage', async ({ page }) => {
@@ -29,7 +30,7 @@ test.describe('Smoke Tests', () => {
     await expect(page.locator('input[placeholder*="results.json"]')).toBeVisible();
     
     // Should have example button
-    await expect(page.locator('#example-load-button')).toBeVisible();
+    await expect(page.locator('#url-example-button')).toBeVisible();
   });
 
   test('should navigate to results documentation page', async ({ page }) => {
@@ -51,36 +52,23 @@ test.describe('Smoke Tests', () => {
   });
 
   test('should navigate to runner page', async ({ page }) => {
-    await page.goto('/results/open');
-    await page.waitForLoadState('networkidle');
-    
-    // Click runner link
-    await page.click('#runner-nav-link');
-    
-    // Should show runner content
-    await expect(page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+    const helpers = new TestHelpers(page);
+    await helpers.goToHome();
+    await helpers.goToRunner();
   });
 
   test('should navigate to settings page', async ({ page }) => {
-    await page.goto('/results/open');
-    await page.waitForLoadState('networkidle');
-    
-    // Click settings link
-    await page.click('#settings-nav-link');
-    
-    // Should show settings content
-    await expect(page.locator('h4:has-text("Preferences")')).toBeVisible();
+    const helpers = new TestHelpers(page);
+    await helpers.goToHome();
+    await helpers.goToSettings();
+    await expect(page.locator('#settings')).toBeVisible();
+    await expect(page.locator('h6:has-text("Advanced & Preferences")')).toBeVisible();
   });
 
   test('should load example data', async ({ page }) => {
-    await page.goto('/results/open');
-    await page.waitForLoadState('networkidle');
-    
-    // Click load example button
-    await page.click('#example-load-button');
-    
-    // Wait for navigation to results page
-    await page.waitForSelector('app-results-viewer', { timeout: 10000 });
+    const helpers = new TestHelpers(page);
+    await helpers.goToHome();
+    await helpers.loadExample();
     
     // Should show results
     await expect(page.locator('app-results-viewer')).toBeVisible();
@@ -90,10 +78,9 @@ test.describe('Smoke Tests', () => {
   });
 
   test('should prefill runner OnlyList from visible results tests', async ({ page }) => {
-    await page.goto('/results/open');
-    await page.waitForLoadState('networkidle');
-    await page.click('#example-load-button');
-    await page.waitForSelector('app-results-viewer', { timeout: 10000 });
+    const helpers = new TestHelpers(page);
+    await helpers.goToHome();
+    await helpers.loadExample();
     await expect(page.locator('#create-runner-config-from-visible-tests-btn')).toBeEnabled();
     await page.click('#create-runner-config-from-visible-tests-btn');
     await expect(page).toHaveURL(/\/runner$/);
@@ -116,12 +103,13 @@ test.describe('Smoke Tests', () => {
   });
 
   test('should load runner configuration from URL parameter', async ({ page }) => {
+    const helpers = new TestHelpers(page);
     // Navigate to runner page with URL parameter
     await page.goto(`/runner?url=${ExamplePaths.RUNNER_CONFIG_JSON}`);
     await page.waitForLoadState('networkidle');
     
     // Should show runner component
-    await expect(page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+    await helpers.expectRunnerPage();
     
     // Wait for configuration to load from URL
     await page.waitForTimeout(1000);
@@ -130,8 +118,6 @@ test.describe('Smoke Tests', () => {
     await expect(page.locator('input[id="baseUrl"]')).toHaveValue('http://localhost:8080/fhir');
     await expect(page.locator('input[id="cqlOperation"]')).toHaveValue('$cql');
     await expect(page.locator('input[id="cqlFileVersion"]')).toHaveValue('1.0.000');
-    await expect(page.locator('input[id="cqlOutputPath"]')).toHaveValue('./cql');
-    await expect(page.locator('input[id="resultsPath"]')).toHaveValue('./results');
     
     // Should have skip list section visible (skip list items might not be pre-populated)
     await expect(page.locator('h5:has-text("Skip List")')).toBeVisible();

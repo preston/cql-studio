@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
-import { Component, Input, Output, EventEmitter, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, output, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Library, Patient } from 'fhir/r4';
@@ -14,22 +13,20 @@ import { encodeUtf8Base64 } from '../../../../services/utf8-encoding.lib';
 
 @Component({
   selector: 'app-fhir-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, SyntaxHighlighterComponent],
+  imports: [FormsModule, SyntaxHighlighterComponent],
   templateUrl: './fhir-tab.component.html',
+
   styleUrls: ['./fhir-tab.component.scss']
 })
 export class FhirTabComponent {
-  @Output() saveLibrary = new EventEmitter<void>();
-  @Output() deleteLibrary = new EventEmitter<void>();
+  saveLibrary = output<void>();
+  deleteLibrary = output<void>();
 
-  constructor(
-    public libraryService: LibraryService,
-    public patientService: PatientService,
-    public ideStateService: IdeStateService,
-    public settingsService: SettingsService,
-    public router: Router
-  ) {}
+  readonly libraryService = inject(LibraryService);
+  readonly patientService = inject(PatientService);
+  readonly ideStateService = inject(IdeStateService);
+  readonly settingsService = inject(SettingsService);
+  readonly router = inject(Router);
 
   public activeLibrary = computed(() => this.ideStateService.getActiveLibraryResource());
   public hasSelectedLibrary = computed(() => !!this.activeLibrary());

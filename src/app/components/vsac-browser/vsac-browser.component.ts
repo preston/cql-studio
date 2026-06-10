@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { Component, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom, Observable } from 'rxjs';
@@ -22,9 +22,9 @@ import { ValueSetDependencyNode, ValueSetDependencyRef, ValueSetDependencyStatus
 
 @Component({
   selector: 'app-vsac-browser',
-  standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, SyntaxHighlighterComponent, ValueSetDependencyTreeComponent],
+  imports: [NgTemplateOutlet, FormsModule, RouterLink, SyntaxHighlighterComponent, ValueSetDependencyTreeComponent],
   templateUrl: './vsac-browser.component.html',
+
   styleUrl: './vsac-browser.component.scss'
 })
 export class VsacBrowserComponent {
@@ -193,19 +193,6 @@ export class VsacBrowserComponent {
     if (value == null || !String(value).trim()) return '—';
     const t = String(value).trim();
     return t.length >= 10 ? t.slice(0, 10) : t;
-  }
-
-  vsacStatusBadgeClass(status: string | undefined): string {
-    switch (status) {
-      case 'active':
-        return 'text-bg-success';
-      case 'draft':
-        return 'text-bg-secondary';
-      case 'retired':
-        return 'text-bg-dark';
-      default:
-        return 'text-bg-warning';
-    }
   }
 
   truncateVsDescription(desc: string | undefined, max = 96): string {

@@ -1,16 +1,15 @@
 // Author: Preston Lee
 
 import { Component, input, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ConjunctionGroup, BaseElement } from '../../../../services/guidelines-state.service';
 import { ElementSelectComponent } from '../element-select/element-select.component';
 import { ArtifactElementComponent } from '../base-elements/artifact-element/artifact-element.component';
 
 @Component({
   selector: 'app-conjunction-group',
-  standalone: true,
-  imports: [CommonModule, ElementSelectComponent, ArtifactElementComponent],
+  imports: [ElementSelectComponent, ArtifactElementComponent],
   templateUrl: './conjunction-group.component.html',
+
   styleUrl: './conjunction-group.component.scss'
 })
 export class ConjunctionGroupComponent {

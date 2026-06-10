@@ -369,7 +369,6 @@ export class ElmToSqlTranspiler {
       case 'Except':          return this.setOpToSql('EXCEPT', (expr as { operand: ElmExpression[] }).operand, context);
       case 'Distinct':        return `SELECT DISTINCT * FROM (${this.exprToSqlInline((expr as unknown as ElmUnaryOp).operand, context)}) _d`;
       case 'Flatten':         return this.exprToSql((expr as unknown as ElmUnaryOp).operand, context);
-      case 'As':              return this.exprToSql((expr as { operand: ElmExpression }).operand, context);
       case 'ToList':          return this.exprToSql((expr as ElmUnaryOp).operand, context);
       case 'SingletonFrom':   return `SELECT * FROM (${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}) _s LIMIT 1`;
       case 'First':           return `SELECT * FROM (${this.exprToSqlInline((expr as { source: ElmExpression }).source, context)}) _f LIMIT 1`;

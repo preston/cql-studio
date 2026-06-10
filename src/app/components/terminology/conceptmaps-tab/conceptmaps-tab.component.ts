@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
@@ -13,9 +12,9 @@ import { ConceptMapDetailsPaneComponent } from '../conceptmap-details-pane/conce
 
 @Component({
   selector: 'app-conceptmaps-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ConceptMapDetailsPaneComponent],
+  imports: [FormsModule, ConceptMapDetailsPaneComponent],
   templateUrl: './conceptmaps-tab.component.html',
+
   styleUrl: './conceptmaps-tab.component.scss'
 })
 export class ConceptMapsTabComponent implements OnInit {

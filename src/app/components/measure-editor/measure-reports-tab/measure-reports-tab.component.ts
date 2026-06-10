@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Measure, MeasureReport } from 'fhir/r4';
 import { firstValueFrom } from 'rxjs';
 import { MeasureService } from '../../../services/measure.service';
@@ -12,9 +11,9 @@ import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-measure-reports-tab',
-  standalone: true,
-  imports: [CommonModule, MeasureReportViewComponent],
+  imports: [MeasureReportViewComponent],
   templateUrl: './measure-reports-tab.component.html',
+
   styleUrl: './measure-reports-tab.component.scss'
 })
 export class MeasureReportsTabComponent {

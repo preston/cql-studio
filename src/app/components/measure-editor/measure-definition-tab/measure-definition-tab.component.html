@@ -165,9 +165,9 @@
     <div class="col-md-6">
       <div class="d-flex align-items-center gap-1 flex-wrap">
         <input type="date" class="form-control form-control-sm" id="measure-def-effectivePeriod-start" placeholder="Start"
-          [ngModel]="m.effectivePeriod?.start" (ngModelChange)="setEffectivePeriod({ ...(m.effectivePeriod ?? {}), start: $event })" style="max-width: 10rem;">
+          [ngModel]="$safeNavigationMigration(m.effectivePeriod?.start)" (ngModelChange)="setEffectivePeriod({ ...(m.effectivePeriod ?? {}), start: $event })" style="max-width: 10rem;">
         <input type="date" class="form-control form-control-sm" id="measure-def-effectivePeriod-end" placeholder="End"
-          [ngModel]="m.effectivePeriod?.end" (ngModelChange)="setEffectivePeriod({ ...(m.effectivePeriod ?? {}), end: $event })" style="max-width: 10rem;">
+          [ngModel]="$safeNavigationMigration(m.effectivePeriod?.end)" (ngModelChange)="setEffectivePeriod({ ...(m.effectivePeriod ?? {}), end: $event })" style="max-width: 10rem;">
         @if (m.effectivePeriod) {
         <button type="button" class="btn btn-outline-danger btn-sm" title="Clear effective period" (click)="clearEffectivePeriod()">
           <i class="bi bi-x-lg"></i>

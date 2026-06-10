@@ -2,7 +2,6 @@
 // Demo wiring contributions: Eugene Vestel
 
 import { Component, OnInit, inject, signal, computed, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Bundle, Library, MeasureReport, ValueSet } from 'fhir/r4';
 import type { PopulationCounts } from './elm-to-sql';
@@ -24,9 +23,7 @@ const SQL_WORKFLOW_ORDER: SqlWorkflowStep[] = ['library', 'cql', 'elm', 'sqlGen'
 
 @Component({
   selector: 'app-sql-on-fhir',
-  standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     SqlPipelineLibraryStepComponent,
     SqlPipelineCqlStepComponent,
@@ -35,6 +32,7 @@ const SQL_WORKFLOW_ORDER: SqlWorkflowStep[] = ['library', 'cql', 'elm', 'sqlGen'
     SqlPipelineExecuteStepComponent
   ],
   templateUrl: './sql-on-fhir.component.html',
+
   styleUrl: './sql-on-fhir.component.scss'
 })
 export class SqlOnFhirComponent implements OnInit {

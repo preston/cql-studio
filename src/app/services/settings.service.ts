@@ -26,11 +26,9 @@ export class SettingsService {
           if (matches) {
             this.theme_effective.set(ThemeType.DARK);
             this.saveSettings();
-            console.log("Changed to dark mode!")
           } else {
             this.theme_effective.set(ThemeType.LIGHT);
             this.saveSettings();
-            console.log("Changed to light mode!")
           }
         }
       })
@@ -40,14 +38,11 @@ export class SettingsService {
     if (this.settings().theme_preferred == ThemeType.AUTOMATIC) {
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         this.theme_effective.set(ThemeType.DARK);
-        console.log("Theme automatically set to dark mode!")
       } else {
         this.theme_effective.set(ThemeType.LIGHT);
-        console.log("Theme automatically set to light mode!")
       }
     } else {
       this.theme_effective.set(this.settings().theme_preferred);
-      console.log("Theme forced to", this.settings().theme_preferred, "mode!")
     }
   }
 
@@ -159,16 +154,11 @@ export class SettingsService {
         }
         if (shouldSave) {
           this.saveSettings();
-          console.log("Settings have been updated to include default field values.");
         } else {
-          console.log("Settings have been loaded from local browser storage on this device without modification.");
         }
         this.settings.set(parsedSettings);
-        console.log("Current settings:", this.settings());
 
       } catch (e) {
-        console.log("Settings could not be parsed and are likely not valid JSON. They will be ignored.");
-        console.log(e);
       }
     } else {
       this.settings.set(new Settings());
@@ -184,12 +174,10 @@ export class SettingsService {
     this.saveSettings();
     this.setEffectiveTheme();
     this.reload();
-    console.log("All application settings have been restored to their defaults.");
   }
 
   saveSettings() {
     localStorage.setItem(SettingsService.SETTINGS_KEY, JSON.stringify(this.settings()));
-    console.log("Your settings have been saved to local browser storage on this device. They will not be sync'd to any other system, even if your browser supports such features.");
   }
 
   getDefaultRunnerApiBaseUrl(): string {

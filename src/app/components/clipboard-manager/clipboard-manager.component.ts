@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, OnInit, inject, signal, computed, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -15,9 +14,9 @@ import { resourceTypeOf } from '../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-clipboard-manager',
-  standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink],
   templateUrl: './clipboard-manager.component.html',
+
   styleUrl: './clipboard-manager.component.scss'
 })
 export class ClipboardManagerComponent implements OnInit {

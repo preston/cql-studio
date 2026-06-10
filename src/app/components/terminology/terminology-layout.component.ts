@@ -1,8 +1,7 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../services/settings.service';
 import { TerminologyService } from '../../services/terminology.service';
@@ -10,9 +9,9 @@ import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-terminology-layout',
-  standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './terminology-layout.component.html',
+
   styleUrl: './terminology-layout.component.scss'
 })
 export class TerminologyLayoutComponent implements OnInit {

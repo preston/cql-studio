@@ -1,15 +1,14 @@
 // Author: Preston Lee
 
 import { Component, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GuidelinesStateService, ExternalCql } from '../../../../services/guidelines-state.service';
 
 @Component({
   selector: 'app-external-cql',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './external-cql.component.html',
+
   styleUrl: './external-cql.component.scss'
 })
 export class ExternalCqlComponent {

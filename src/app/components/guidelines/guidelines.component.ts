@@ -1,10 +1,9 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy, signal, viewChild, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, signal, viewChild, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { GuidelinesBrowserComponent } from './guidelines-browser/guidelines-browser.component';
 import { GuidelineEditorComponent } from './guideline-editor/guideline-editor.component';
 import { GuidelineTestingComponent } from './guideline-testing/guideline-testing.component';
@@ -21,9 +20,7 @@ import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
 
 @Component({
   selector: 'app-guidelines',
-  standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     GuidelinesBrowserComponent,
     GuidelineEditorComponent,
@@ -32,9 +29,10 @@ import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
     ConversionModalComponent
   ],
   templateUrl: './guidelines.component.html',
+
   styleUrl: './guidelines.component.scss'
 })
-export class GuidelinesComponent implements OnInit, OnDestroy {
+export class GuidelinesComponent implements OnInit {
   browserComponent = viewChild(GuidelinesBrowserComponent);
   
   protected readonly showBrowser = signal<boolean>(true);
@@ -44,9 +42,8 @@ export class GuidelinesComponent implements OnInit, OnDestroy {
   protected readonly showConversionModal = signal<boolean>(false);
   protected readonly currentLibrary = signal<Library | null>(null);
   protected readonly conversionIssues = signal<string[]>([]);
-  
-  private routeSubscription?: Subscription;
 
+  private readonly destroyRef = inject(DestroyRef);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   public libraryService = inject(LibraryService);
@@ -57,8 +54,7 @@ export class GuidelinesComponent implements OnInit, OnDestroy {
   private cqlGenerationService = inject(CqlGenerationService);
 
   ngOnInit(): void {
-    // Subscribe to route parameter changes to handle navigation between editor and testing
-    this.routeSubscription = this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
       const libraryId = params.get('id');
       const urlSegments = this.route.snapshot.url;
       const isTestingRoute = urlSegments.length > 2 && urlSegments[urlSegments.length - 1].path === 'testing';
@@ -89,12 +85,6 @@ export class GuidelinesComponent implements OnInit, OnDestroy {
         this.showTesting.set(false);
       }
     });
-  }
-
-  ngOnDestroy(): void {
-    if (this.routeSubscription) {
-      this.routeSubscription.unsubscribe();
-    }
   }
 
   onOpenLibrary(library: Library): void {

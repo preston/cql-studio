@@ -1,14 +1,13 @@
 // Author: Preston Lee
 
 import { Component, input, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Library } from 'fhir/r4';
 
 @Component({
   selector: 'app-conversion-modal',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './conversion-modal.component.html',
+
   styleUrl: './conversion-modal.component.scss'
 })
 export class ConversionModalComponent {
