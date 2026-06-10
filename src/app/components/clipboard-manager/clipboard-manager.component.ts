@@ -11,10 +11,11 @@ import { SettingsService } from '../../services/settings.service';
 import { ToastService } from '../../services/toast.service';
 import { Resource } from 'fhir/r4';
 import { resourceTypeOf } from '../../services/fhir-resource-type.lib';
+import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-clipboard-manager',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, SyntaxHighlighterComponent],
   templateUrl: './clipboard-manager.component.html',
 
   styleUrl: './clipboard-manager.component.scss'
