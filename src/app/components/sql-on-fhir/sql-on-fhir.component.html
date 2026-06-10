@@ -175,7 +175,8 @@
       }
       @case ('execute') {
       <app-sql-pipeline-execute-step [sqlText]="sqlText()" [sqlResultsRaw]="sqlResultsRaw()"
-        [measureReportJson]="measureReportJson()" [pipelineStatus]="pipelineStatus()"
+        [measureReportJson]="measureReportJson()" [sqlExecutionStatus]="sqlExecutionStatus()"
+        [measureReportStatus]="measureReportStatus()"
         [hasMeasureReport]="!!measureReport()" [isExecutingSql]="isExecutingSql()"
         [canSaveMeasureReport]="canSaveMeasureReport()" (executeSql)="executeSql()"
         (generateMeasureReport)="generateMeasureReport()" (saveMeasureReport)="saveMeasureReport()" />

@@ -9,6 +9,7 @@ import { LibraryService } from '../../services/library.service';
 import { SqlOnFhirPipelineService } from '../../services/sql-on-fhir/sql-on-fhir-pipeline.service';
 import { SqlOnFhirDemoService, decodeLibraryCql, type DemoMeasureContent } from '../../services/sql-on-fhir/sql-on-fhir-demo.service';
 import { TranslationService } from '../../services/translation.service';
+import { ToastService } from '../../services/toast.service';
 import { isResourceType } from '../../services/fhir-resource-type.lib';
 import { formatElmXml } from './format-elm-xml';
 import { SqlPipelineCqlStepComponent } from './pipeline-steps/sql-pipeline-cql-step.component';
@@ -40,6 +41,7 @@ export class SqlOnFhirComponent implements OnInit {
   private readonly pipeline = inject(SqlOnFhirPipelineService);
   private readonly translationService = inject(TranslationService);
   private readonly demoService = inject(SqlOnFhirDemoService);
+  private readonly toastService = inject(ToastService);
 
   /** Seed data attached when the user loaded a built-in demo measure. Cleared on manual library selection. */
   private demoContent: DemoMeasureContent | null = null;
@@ -86,7 +88,8 @@ export class SqlOnFhirComponent implements OnInit {
   /** Set true when stub executeSql subscribe errors; cleared on success and pipeline clear. */
   protected readonly sqlExecuteFailed = signal(false);
   protected readonly measureReport = signal<MeasureReport | null>(null);
-  protected readonly pipelineStatus = signal<string | null>(null);
+  protected readonly sqlExecutionStatus = signal<string | null>(null);
+  protected readonly measureReportStatus = signal<string | null>(null);
 
   protected readonly activeStep = signal<SqlWorkflowStep>('library');
   protected readonly workflowSteps = SQL_WORKFLOW_ORDER;
@@ -188,7 +191,7 @@ export class SqlOnFhirComponent implements OnInit {
           }
           this.sqlText.set('');
           const msg = err instanceof Error ? err.message : String(err);
-          this.pipelineStatus.set(`SQL generation failed: ${msg}`);
+          this.sqlExecutionStatus.set(`SQL generation failed: ${msg}`);
         }
       });
     });
@@ -362,7 +365,7 @@ export class SqlOnFhirComponent implements OnInit {
       return;
     }
 
-    this.pipelineStatus.set(null);
+    this.clearExecuteStepStatus();
     this.demoContent = null;
     const gen = ++this.libraryLoadGeneration;
 
@@ -396,7 +399,7 @@ export class SqlOnFhirComponent implements OnInit {
         if (gen !== this.libraryLoadGeneration) {
           return;
         }
-        this.pipelineStatus.set(this.errorMessage(err));
+        this.listError.set(this.errorMessage(err));
         this.selectedLibrary.set(null);
         this.selectedLibraryJson.set('');
       }
@@ -405,7 +408,7 @@ export class SqlOnFhirComponent implements OnInit {
 
   private clearLibrarySelection(): void {
     this.libraryLoadGeneration++;
-    this.pipelineStatus.set(null);
+    this.clearExecuteStepStatus();
     this.clearPipelineOutputs();
     this.selectedLibrary.set(null);
     this.selectedLibraryJson.set('');
@@ -427,15 +430,23 @@ export class SqlOnFhirComponent implements OnInit {
     this.measureReport.set(null);
     this.cqlPreview.set('');
     this.latestPopulationCounts = null;
+    this.clearExecuteStepStatus();
+  }
+
+  private clearExecuteStepStatus(): void {
+    this.sqlExecutionStatus.set(null);
+    this.measureReportStatus.set(null);
   }
 
   protected executeSql(): void {
     if (!this.demoContent) {
-      this.pipelineStatus.set('SQL execution requires the demo data set — click "Load CMS125 demo" to seed in-browser data.');
+      this.sqlExecutionStatus.set('SQL execution requires the demo data set — click "Load CMS125 demo" to seed in-browser data.');
       this.sqlExecuteFailed.set(true);
       return;
     }
-    this.pipelineStatus.set(null);
+    this.sqlExecutionStatus.set(null);
+    this.measureReportStatus.set(null);
+    this.measureReport.set(null);
     this.sqlExecuteFailed.set(false);
     this.isExecutingSql.set(true);
     this.pipeline.executeSql(this.sqlText(), {
@@ -448,13 +459,13 @@ export class SqlOnFhirComponent implements OnInit {
         this.sqlResultsRaw.set(result.raw);
         this.latestPopulationCounts = result.counts;
         this.sqlExecuteFailed.set(false);
-        this.pipelineStatus.set(`SQL executed in ${result.durationMs.toFixed(0)} ms.`);
+        this.toastService.showSuccess(`SQL executed in ${result.durationMs.toFixed(0)} ms.`, 'Execute SQL');
       },
       error: (err: unknown) => {
         this.isExecutingSql.set(false);
         this.sqlExecuteFailed.set(true);
         const msg = err instanceof Error ? err.message : String(err);
-        this.pipelineStatus.set(`SQL execution failed: ${msg}`);
+        this.sqlExecutionStatus.set(`SQL execution failed: ${msg}`);
       }
     });
   }
@@ -462,7 +473,7 @@ export class SqlOnFhirComponent implements OnInit {
   protected loadCms125Demo(): void {
     this.isLoadingDemo.set(true);
     this.demoLoadError.set(null);
-    this.pipelineStatus.set(null);
+    this.clearExecuteStepStatus();
     this.demoService.loadCms125().subscribe({
       next: (content: DemoMeasureContent) => {
         this.demoContent = content;
@@ -472,7 +483,6 @@ export class SqlOnFhirComponent implements OnInit {
         this.selectedLibraryJson.set(JSON.stringify(content.library, null, 2));
         this.cqlPreview.set(content.cqlSource || decodeLibraryCql(content.library));
         this.isLoadingDemo.set(false);
-        this.pipelineStatus.set('Loaded CMS125 demo measure with sample patient bundle.');
       },
       error: (err: unknown) => {
         this.isLoadingDemo.set(false);
@@ -626,18 +636,18 @@ export class SqlOnFhirComponent implements OnInit {
     const lib = this.selectedLibrary();
     const counts = this.latestPopulationCounts;
     if (!counts) {
-      this.pipelineStatus.set('Run "Execute SQL" first — no population counts available yet.');
+      this.measureReportStatus.set('Run "Execute SQL" first — no population counts available yet.');
       return;
     }
-    this.pipelineStatus.set(null);
+    this.measureReportStatus.set(null);
     this.pipeline.generateMeasureReport(counts, lib).subscribe({
       next: r => {
         this.measureReport.set(r);
-        this.pipelineStatus.set('MeasureReport generated.');
+        this.measureReportStatus.set('MeasureReport generated.');
       },
       error: (err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.pipelineStatus.set(`MeasureReport generation failed: ${msg}`);
+        this.measureReportStatus.set(`MeasureReport generation failed: ${msg}`);
       }
     });
   }
@@ -645,18 +655,18 @@ export class SqlOnFhirComponent implements OnInit {
   protected saveMeasureReport(): void {
     const r = this.measureReport();
     if (!r) {
-      this.pipelineStatus.set('Nothing to save.');
+      this.measureReportStatus.set('Nothing to save.');
       return;
     }
-    this.pipelineStatus.set(null);
+    this.measureReportStatus.set(null);
     this.pipeline.saveMeasureReport(r).subscribe({
       next: saved => {
         this.measureReport.set(saved);
-        this.pipelineStatus.set(`MeasureReport saved to FHIR server (id: ${saved.id ?? 'unknown'}).`);
+        this.measureReportStatus.set(`MeasureReport saved to FHIR server (id: ${saved.id ?? 'unknown'}).`);
       },
       error: (err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
-        this.pipelineStatus.set(`MeasureReport save failed: ${msg}`);
+        this.measureReportStatus.set(`MeasureReport save failed: ${msg}`);
       }
     });
   }

@@ -53,8 +53,9 @@ export class SyntaxHighlighterComponent implements AfterViewInit {
         const detectedLanguage = this.detectLanguage();
         const languageClass = `language-${detectedLanguage}`;
         
-        // Set the language class on the code element (required for prism-js-fold and line numbers)
+        // Set language on both elements so Prism theme and line-number gutter padding apply to <pre>
         codeElement.className = languageClass;
+        this.preElement()!.nativeElement.className = `syntax-highlighter ${languageClass}${this.showLineNumbers() ? ' line-numbers' : ''}`;
 
         // Defer heavy work (pretty JSON + Prism highlighting) until the browser is idle,
         // so the UI can remain responsive while the console card is being added.
@@ -99,6 +100,7 @@ export class SyntaxHighlighterComponent implements AfterViewInit {
         // Clear the element if there's no code
         codeElement.textContent = '';
         codeElement.className = '';
+        this.preElement()!.nativeElement.className = `syntax-highlighter${this.showLineNumbers() ? ' line-numbers' : ''}`;
       } else {
         if (this.prismRetryFrames < SyntaxHighlighterComponent.MAX_PRISM_RETRY_FRAMES) {
           this.prismRetryFrames++;

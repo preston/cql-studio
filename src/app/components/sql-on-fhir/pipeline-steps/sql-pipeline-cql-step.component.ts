@@ -1,11 +1,11 @@
 // Author: Preston Lee
 
 import { Component, input } from '@angular/core';
-import { CqlReadonlyPreviewComponent } from '../../shared/cql-readonly-preview/cql-readonly-preview.component';
+import { SyntaxHighlighterComponent } from '../../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-sql-pipeline-cql-step',
-  imports: [CqlReadonlyPreviewComponent],
+  imports: [SyntaxHighlighterComponent],
   templateUrl: './sql-pipeline-cql-step.component.html',
   styleUrl: './sql-pipeline-cql-step.component.scss'
 })
