@@ -234,7 +234,7 @@ export class SettingsService {
 
   getDefaultOllamaModel(): string {
     const envValue = (window as any)['CQL_STUDIO_OLLAMA_MODEL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'qwen3-coder:30b';
+    return envValue && envValue.trim() !== '' ? envValue : 'qwen3.6:35b-mlx';
   }
 
   getDefaultServerBaseUrl(): string {
