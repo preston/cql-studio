@@ -1,13 +1,12 @@
 // Author: Preston Lee
 
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-results-documentation',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './results-documentation.component.html',
+
   styleUrl: './results-documentation.component.scss'
 })
 export class ResultsDocumentationComponent {

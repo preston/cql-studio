@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
-import { Component, input, output, OnInit, AfterViewInit, AfterViewChecked, viewChild, ElementRef, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, output, viewChild, ElementRef, inject, afterNextRender, Injector } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { OutputSection, OutputType } from '../../shared/ide-types';
@@ -10,12 +10,12 @@ import { CustomOutputCardComponent } from './custom-output-card.component';
 
 @Component({
   selector: 'app-console-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, SyntaxHighlighterComponent, CustomOutputCardComponent],
+  imports: [FormsModule, DatePipe, SyntaxHighlighterComponent, CustomOutputCardComponent],
   templateUrl: './console-tab.component.html',
+
   styleUrls: ['./console-tab.component.scss']
 })
-export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChecked {
+export class ConsoleTabComponent {
   preserveLogs = input<boolean>(true);
   isEvaluating = input<boolean>(false);
   executionProgress = input<number>(0);
@@ -35,46 +35,36 @@ export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChec
     return this.ideStateService.outputSections;
   }
   private shouldAutoScroll = true;
-  private previousOutputCount = 0;
+  private mutationObserver: MutationObserver | null = null;
 
   public ideStateService = inject(IdeStateService);
+  private injector = inject(Injector);
 
-  ngOnInit(): void {
-    // Component initialization
-    this.previousOutputCount = this.outputSections().length;
-  }
-
-  ngAfterViewInit(): void {
-    // Initialize previous count after view is ready
-    this.previousOutputCount = this.outputSections().length;
-    
-    // Set up MutationObserver to watch for DOM changes
-    if (this.consoleContent()) {
-      const observer = new MutationObserver(() => {
-        if (this.shouldAutoScroll && this.autoscrollEnabled) {
-          setTimeout(() => {
-            this.scrollToBottom();
-          }, 0);
-        }
-      });
-      
-      observer.observe(this.consoleContent()!.nativeElement, {
-        childList: true,
-        subtree: true
-      });
-    }
-  }
-
-  ngAfterViewChecked(): void {
-    // Check if new content was added and scroll if needed
-    const currentCount = this.outputSections().length;
-    if (currentCount > this.previousOutputCount && this.shouldAutoScroll && this.autoscrollEnabled) {
-      this.previousOutputCount = currentCount;
-      // Use setTimeout to ensure DOM is fully rendered
-      setTimeout(() => {
+  constructor() {
+    afterNextRender(() => {
+      this.setupMutationObserver();
+      if (this.shouldAutoScroll && this.autoscrollEnabled) {
         this.scrollToBottom();
-      }, 0);
+      }
+    }, { injector: this.injector });
+  }
+
+  private setupMutationObserver(): void {
+    const element = this.consoleContent()?.nativeElement;
+    if (!element || this.mutationObserver) {
+      return;
     }
+
+    this.mutationObserver = new MutationObserver(() => {
+      if (this.shouldAutoScroll && this.autoscrollEnabled) {
+        this.scrollToBottom();
+      }
+    });
+
+    this.mutationObserver.observe(element, {
+      childList: true,
+      subtree: true
+    });
   }
 
   private scrollToBottom(): void {
@@ -154,9 +144,7 @@ export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChec
     
     // If autoscroll is enabled and user is at bottom, scroll to bottom
     if (value && this.shouldAutoScroll) {
-      setTimeout(() => {
-        this.scrollToBottom();
-      }, 0);
+      afterNextRender(() => this.scrollToBottom(), { injector: this.injector });
     }
   }
 
@@ -200,12 +188,5 @@ export class ConsoleTabComponent implements OnInit, AfterViewInit, AfterViewChec
       default:
         return 'bi-card-text';
     }
-  }
-
-  getOutputClass(section: OutputSection): string {
-    const baseClass = 'console-section';
-    const typeClass = `console-section-${section.type}`;
-    const statusClass = `console-section-${section.status}`;
-    return `${baseClass} ${typeClass} ${statusClass}`;
   }
 }

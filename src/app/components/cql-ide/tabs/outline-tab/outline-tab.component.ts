@@ -1,16 +1,15 @@
 // Author: Preston Lee
 
-import { Component, Input, Output, EventEmitter, computed, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, output, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { OutlineItem } from '../../shared/ide-types';
 
 @Component({
   selector: 'app-outline-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './outline-tab.component.html',
+
   styleUrls: ['./outline-tab.component.scss']
 })
 export class OutlineTabComponent {
@@ -18,9 +17,9 @@ export class OutlineTabComponent {
   public outlineSortBy = signal<'name' | 'type' | 'line'>('name');
   public outlineSortOrder = signal<'asc' | 'desc'>('asc');
 
-  @Output() navigateToLine = new EventEmitter<number>();
+  navigateToLine = output<number>();
 
-  constructor(public ideStateService: IdeStateService) {}
+  protected readonly ideStateService = inject(IdeStateService);
 
   // Computed properties for outline items
   public outlineItems = computed(() => {

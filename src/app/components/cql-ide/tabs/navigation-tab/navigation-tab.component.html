@@ -15,7 +15,7 @@
         <div class="mb-2 fw-semibold small text-white">Server Libraries</div>
         <div class="input-group input-group-sm mb-2">
           <input type="text" class="form-control form-control-sm" placeholder="Search libraries..."
-            [(ngModel)]="libraryListSearchTerm" (keydown.enter)="onLibraryListSearch()">
+            [ngModel]="libraryListSearchTerm()" (ngModelChange)="libraryListSearchTerm.set($event)" (keydown.enter)="onLibraryListSearch()">
           <button class="btn btn-outline-secondary" type="button" (click)="onLibraryListSearch()" title="Search">
             <i class="bi bi-search"></i>
           </button>
@@ -23,20 +23,20 @@
         <div class="library-controls gap-2">
           <!-- Sort Controls -->
           <div class="sort-controls d-flex align-items-center gap-1">
-            <select class="form-select form-select-sm" [(ngModel)]="librarySortBy"
-              (change)="changeSorting(librarySortBy)" title="Sort by" style="min-width: 80px;">
+            <select class="form-select form-select-sm" [ngModel]="librarySortBy()"
+              (ngModelChange)="changeSorting($event)" title="Sort by" style="min-width: 80px;">
               <option value="name">Name</option>
               <option value="version">Version</option>
               <option value="date">Date</option>
             </select>
-            <button class="btn btn-outline-secondary btn-sm" (click)="changeSorting(librarySortBy)"
-              [title]="'Sort ' + (librarySortOrder === 'asc' ? 'Descending' : 'Ascending')">
-              <i class="bi bi-{{ librarySortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }} me-1"></i>
-              <!-- {{ librarySortOrder === 'asc' ? 'Asc' : 'Desc' }} -->
+            <button class="btn btn-outline-secondary btn-sm" (click)="changeSorting(librarySortBy())"
+              [title]="'Sort ' + (librarySortOrder() === 'asc' ? 'Descending' : 'Ascending')">
+              <i class="bi bi-{{ librarySortOrder() === 'asc' ? 'arrow-up' : 'arrow-down' }} me-1"></i>
+              <!-- {{ librarySortOrder() === 'asc' ? 'Asc' : 'Desc' }} -->
             </button>
             
             <!-- Page Size Controls -->
-            <select class="form-select form-select-sm" [(ngModel)]="pageSize" (change)="changePageSize(pageSize)"
+            <select class="form-select form-select-sm" [ngModel]="pageSize()" (ngModelChange)="changePageSize(+$event)"
             title="Items per page">
             <option value="1">1</option>
             <option value="5">5</option>
@@ -49,7 +49,7 @@
       </div>
 
       <!-- Loading State -->
-      @if (isLoadingLibraries) {
+      @if (isLoadingLibraries()) {
       <div class="loading-state d-flex align-items-center justify-content-center py-4 text-muted">
         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
         <span>Loading libraries...</span>
@@ -57,9 +57,9 @@
       }
 
       <!-- Library List -->
-      @if (!isLoadingLibraries) {
+      @if (!isLoadingLibraries()) {
       <div class="border rounded mx-3">
-        @for (library of paginatedLibraries; track library.id) {
+        @for (library of paginatedLibraries(); track library.id) {
         <div class="d-flex align-items-center justify-content-between p-2 border-bottom library-item"
           (click)="addLibraryFromPaginatedList(library)">
           <div class="flex-fill library-item-content">
@@ -73,7 +73,7 @@
         }
 
         <!-- Empty State -->
-        @if (paginatedLibraries.length === 0) {
+        @if (paginatedLibraries().length === 0) {
         <div class="empty-state d-flex flex-column align-items-center justify-content-center py-4 text-muted">
           <i class="bi bi-collection fs-1 mb-2"></i>
           <span>No libraries found on server</span>
@@ -83,26 +83,26 @@
       }
 
       <!-- Pagination Controls -->
-      @if (!isLoadingLibraries && totalPages > 1) {
+      @if (!isLoadingLibraries() && totalPages() > 1) {
       <div class="pagination-controls pt-3 mt-1 mx-3">
 
 
         <div class="pagination-buttons d-flex align-items-center justify-content-center gap-1">
-          <button class="btn-pagination" (click)="previousPage()" [disabled]="currentPage === 1" title="Previous Page">
+          <button class="btn-pagination" (click)="previousPage()" [disabled]="currentPage() === 1" title="Previous Page">
             <i class="bi bi-chevron-left"></i>
           </button>
 
           <!-- Page Numbers -->
           <div class="page-numbers d-flex align-items-center gap-1">
             @for (page of getPageNumbers(); track page) {
-            <button class="btn-page" [class.active]="page === currentPage" [class.ellipsis]="page === '...'"
+            <button class="btn-page" [class.active]="page === currentPage()" [class.ellipsis]="page === '...'"
               (click)="onPageClick(page)" [disabled]="page === '...'" style="min-width: 28px;">
               {{ page }}
             </button>
             }
           </div>
 
-          <button class="btn-pagination" (click)="nextPage()" [disabled]="currentPage === totalPages" title="Next Page">
+          <button class="btn-pagination" (click)="nextPage()" [disabled]="currentPage() === totalPages()" title="Next Page">
             <i class="bi bi-chevron-right"></i>
           </button>
         </div>
@@ -118,10 +118,10 @@
     <!-- Patient Search -->
     <div class="px-3">
       <input type="text" class="form-control form-control-sm mb-2" placeholder="Search patients..."
-        [(ngModel)]="patientSearchTerm" (input)="onPatientSearchInput($event)">
-      @if (showPatientSearchResults) {
+        [ngModel]="patientSearchTerm()" (ngModelChange)="patientSearchTerm.set($event)" (input)="onPatientSearchInput($event)">
+      @if (showPatientSearchResults()) {
       <div class="border rounded bg-dark">
-        @for (patient of patientSearchResults; track patient.id) {
+        @for (patient of patientSearchResults(); track patient.id) {
         <button class="btn rounded-0 w-100 text-start d-flex justify-content-between align-items-center"
           (click)="selectPatient(patient)" [disabled]="patientService.hasPatient(patient.id!)">
           <div class="flex-fill">

@@ -68,8 +68,7 @@ export interface ValidationResponse {
 })
 export class RunnerService {
   private readonly settingsService = inject(SettingsService);
-
-  constructor(private http: HttpClient) {}
+  private readonly http = inject(HttpClient);
 
   private get baseUrl(): string {
     return this.settingsService.getEffectiveRunnerApiBaseUrl();

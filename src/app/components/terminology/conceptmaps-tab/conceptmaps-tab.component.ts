@@ -1,20 +1,20 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ConceptMap, Bundle } from 'fhir/r4';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { ConceptMapDetailsPaneComponent } from '../conceptmap-details-pane/conceptmap-details-pane.component';
 
 @Component({
   selector: 'app-conceptmaps-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ConceptMapDetailsPaneComponent],
+  imports: [FormsModule, ConceptMapDetailsPaneComponent],
   templateUrl: './conceptmaps-tab.component.html',
+
   styleUrl: './conceptmaps-tab.component.scss'
 })
 export class ConceptMapsTabComponent implements OnInit {
@@ -98,11 +98,11 @@ export class ConceptMapsTabComponent implements OnInit {
     this.conceptmapError.set(null);
 
     try {
-      let result: Bundle<ConceptMap>;
+      let result: Bundle;
       
       if (url) {
         // Use provided URL from Bundle link
-        result = await firstValueFrom(this.terminologyService.fetchFromUrl<Bundle<ConceptMap>>(url));
+        result = await firstValueFrom(this.terminologyService.fetchFromUrl<Bundle>(url));
       } else {
         // Initial search or search with new criteria
         const searchTerm = this.conceptmapSearchTerm().trim();
@@ -119,7 +119,11 @@ export class ConceptMapsTabComponent implements OnInit {
         this.conceptmapCurrentPage.set(1);
       }
 
-      this.conceptmapResults.set(result?.entry?.map(e => e.resource!) || []);
+      this.conceptmapResults.set(
+        result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is ConceptMap => isResourceType(resource, 'ConceptMap')) || []
+      );
 
       // Extract and store Bundle links
       const linksMap = new Map<string, string>();

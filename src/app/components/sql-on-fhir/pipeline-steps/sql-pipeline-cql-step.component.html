@@ -1,12 +1,16 @@
-<section aria-labelledby="sql-pipeline-cql-heading">
-  <header class="pb-2 mb-3 border-bottom">
+<section class="sql-pipeline-step d-flex flex-column h-100" aria-labelledby="sql-pipeline-cql-heading">
+  <header class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 pb-2 mb-3 border-bottom">
     <h2 id="sql-pipeline-cql-heading" class="h6 fw-semibold mb-0">Decoded CQL</h2>
   </header>
   @if (cqlPreview()) {
-  <div id="sql-cql-preview" class="p-1">
-    <app-cql-readonly-preview [content]="cqlPreview()" minHeight="12rem" />
+  <div id="sql-cql-preview" class="sql-pipeline-code-view">
+    <div class="sql-pipeline-code-inner p-3 rounded">
+      <app-syntax-highlighter [code]="cqlPreview()" language="sql" [showLineNumbers]="true" />
+    </div>
   </div>
   } @else {
-  <div id="sql-cql-preview" class="sql-monospace-block small p-3 text-muted mb-0 rounded bg-body-secondary">No embedded CQL content loaded for this library.</div>
+  <div id="sql-cql-preview" class="sql-pipeline-empty-state p-3 rounded bg-body-secondary text-muted small mb-0">
+    No embedded CQL content loaded for this library.
+  </div>
   }
 </section>

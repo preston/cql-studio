@@ -1,21 +1,21 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ValueSet, Bundle } from 'fhir/r4';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { ValueSetDetailsPaneComponent } from '../valueset-details-pane/valueset-details-pane.component';
 import { ClipboardService } from '../../../services/clipboard.service';
 
 @Component({
   selector: 'app-valuesets-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ValueSetDetailsPaneComponent],
+  imports: [FormsModule, ValueSetDetailsPaneComponent],
   templateUrl: './valuesets-tab.component.html',
+
   styleUrl: './valuesets-tab.component.scss'
 })
 export class ValueSetsTabComponent implements OnInit {
@@ -137,11 +137,11 @@ export class ValueSetsTabComponent implements OnInit {
     this.valuesetError.set(null);
 
     try {
-      let result: Bundle<ValueSet>;
+      let result: Bundle;
       
       if (url) {
         // Use provided URL from Bundle link
-        result = await firstValueFrom(this.terminologyService.fetchFromUrl<Bundle<ValueSet>>(url));
+        result = await firstValueFrom(this.terminologyService.fetchFromUrl<Bundle>(url));
       } else {
         // Initial search or search with new criteria
         const searchTerm = this.valuesetSearchTerm().trim();
@@ -158,7 +158,11 @@ export class ValueSetsTabComponent implements OnInit {
         this.valuesetCurrentPage.set(1);
       }
 
-      this.valuesetResults.set(result?.entry?.map(e => e.resource!) || []);
+      this.valuesetResults.set(
+        result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is ValueSet => isResourceType(resource, 'ValueSet')) || []
+      );
 
       // Extract and store Bundle links
       const linksMap = new Map<string, string>();

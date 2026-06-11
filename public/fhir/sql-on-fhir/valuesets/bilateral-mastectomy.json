@@ -1,0 +1,23 @@
+{
+  "resourceType": "ValueSet",
+  "id": "vs-bilateral-mastectomy",
+  "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.198.12.1005",
+  "version": "20230509",
+  "name": "BilateralMastectomy",
+  "title": "Bilateral Mastectomy (demo)",
+  "status": "active",
+  "experimental": true,
+  "description": "Locally-curated bilateral mastectomy codes for CQL Studio's SQL-on-FHIR demo.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://snomed.info/sct",
+        "concept": [
+          { "code": "173425001", "display": "Bilateral mastectomy" },
+          { "code": "76629009", "display": "Bilateral mastectomy without lymph node excision" },
+          { "code": "446931000124102", "display": "Bilateral simple mastectomy" }
+        ]
+      }
+    ]
+  }
+}

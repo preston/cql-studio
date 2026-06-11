@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { afterNextRender, Component, computed, inject, Injector, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../services/settings.service';
 import { FhirPackageRegistryService } from '../../services/fhir-package-registry.service';
@@ -41,8 +41,8 @@ const DOM_PACKAGE_DETAIL = 'fhir-registry-importer-package-detail-panel';
 
 @Component({
   selector: 'app-fhir-registry-importer',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [NgTemplateOutlet, FormsModule],
+
   templateUrl: './fhir-registry-importer.component.html'
 })
 export class FhirRegistryImporterComponent {

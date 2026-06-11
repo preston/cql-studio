@@ -2,6 +2,7 @@
 
 import { Injectable, computed, signal } from '@angular/core';
 import { Coding, Resource } from 'fhir/r4';
+import { resourceTypeOf } from './fhir-resource-type.lib';
 
 export type ClipboardPayload = Resource | Coding;
 
@@ -241,12 +242,13 @@ export class ClipboardService {
     }
 
     const id: string | undefined = typeof anyResource.id === 'string' ? anyResource.id.trim() : undefined;
+    const resourceType = resourceTypeOf(resource) ?? 'Resource';
     if (id && id.length > 0) {
-      return `${resource.resourceType}/${id}`;
+      return `${resourceType}/${id}`;
     }
 
     // Fallback to a hash based on resourceType and JSON
-    return `resource:${resource.resourceType}:${this.simpleHash(JSON.stringify(resource))}`;
+    return `resource:${resourceType}:${this.simpleHash(JSON.stringify(resource))}`;
   }
 
   private getKeyForCoding(coding: Coding): string {
@@ -262,7 +264,7 @@ export class ClipboardService {
     display?: string;
   } {
     const anyResource = resource as any;
-    const fhirType = resource.resourceType || 'Resource';
+    const fhirType = resourceTypeOf(resource) || 'Resource';
 
     const name: string | undefined =
       typeof anyResource.name === 'string'
@@ -315,6 +317,7 @@ export class ClipboardService {
         return (item.name || '').toLowerCase();
     }
   }
+
 
   private loadFromStorage(): void {
     if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
@@ -403,4 +406,3 @@ export class ClipboardService {
     return hash.toString(16);
   }
 }
-

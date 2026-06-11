@@ -359,6 +359,7 @@ export class AiService extends BaseService {
           throw new Error('No response body reader available');
         }
 
+        // SSE stream body: platform UTF-8 TextDecoder, not FHIR base64 (see utf8-encoding.lib).
         const decoder = new TextDecoder();
         let buffer = '';
 
@@ -687,7 +688,7 @@ ${cqlContent}
   private buildSystemMessage(editorType: 'cql' | 'fhir' | 'general', useMCPTools: boolean, cqlContent?: string, mode: 'plan' | 'act' = 'act', hasPlan: boolean = false, hasEditorContext: boolean = true): OllamaMessage {
     let systemContent = `You are an AI assistant specialized in CQL (Clinical Quality Language) and HL7 FHIR development. You can help with writing/debugging CQL, FHIR resources, syntax, best practices, and library structure.
 
-**VALID CQL AND FHIR ONLY:** Use only official CQL and FHIR R4 syntax and resources. Do not invent syntax or fabricate resource types. When uncertain, use web/search tools (if available) to find official documentation.
+**VALID CQL AND FHIR ONLY:** Use only official CQL and FHIR R4 syntax and resources. Do not invent syntax or fabricate resource types. Generated CQL strings should only contain ASCII characters. When uncertain, use web/search tools (if available) to find official documentation.
 
 When creating completely new CQL library code, use available tools to format the code prior to inserting it into the editor.
 

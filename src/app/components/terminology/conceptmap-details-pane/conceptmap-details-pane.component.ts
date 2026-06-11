@@ -1,15 +1,14 @@
 // Author: Preston Lee
 
 import { Component, input, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ConceptMap } from 'fhir/r4';
 import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-conceptmap-details-pane',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './conceptmap-details-pane.component.html',
+
   styleUrl: './conceptmap-details-pane.component.scss'
 })
 export class ConceptMapDetailsPaneComponent {

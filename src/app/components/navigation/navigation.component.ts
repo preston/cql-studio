@@ -12,6 +12,7 @@ import { SettingsService } from '../../services/settings.service';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './navigation.component.html',
+
   styleUrl: './navigation.component.scss'
 })
 export class NavigationComponent {

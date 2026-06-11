@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, output, viewChild, ElementRef, HostListener, inject, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { CdkDropList, CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { IdePanel, IdePanelTab } from './ide-panel-tab.interface';
 import { IdeStateService, TabDataScope } from '../../../services/ide-state.service';
@@ -27,9 +26,7 @@ import { ClipboardTabComponent } from '../tabs/clipboard-tab/clipboard-tab.compo
 
 @Component({
   selector: 'app-ide-panel',
-  standalone: true,
   imports: [
-    CommonModule,
     CdkDropList,
     CdkDrag,
     NavigationTabComponent,
@@ -42,6 +39,7 @@ import { ClipboardTabComponent } from '../tabs/clipboard-tab/clipboard-tab.compo
     ClipboardTabComponent
   ],
   templateUrl: './ide-panel.component.html',
+
   styleUrls: ['./ide-panel.component.scss']
 })
 export class IdePanelComponent {
@@ -167,7 +165,6 @@ export class IdePanelComponent {
         // Delete the library from the server
         this.libraryService.delete(activeLibrary.library).subscribe({
           next: () => {
-            console.log('Library deleted from server successfully');
             this.ideStateService.removeLibraryResource(activeLibraryId);
             this.ideStateService.selectLibraryResource('');
             this.ideStateService.invalidateTabData(TabDataScope.LibraryList);
@@ -342,7 +339,6 @@ export class IdePanelComponent {
           timestamp: new Date()
         });
       } else {
-        console.log('Translation successful');
         
         // Add success message to output section
         const warningText = translationResult.warnings.length > 0 
@@ -371,12 +367,10 @@ export class IdePanelComponent {
 
   // AI Tab event handlers
   onInsertCqlCode(code: string): void {
-    console.log('Insert CQL code:', code);
     this.insertCqlCode.emit(code);
   }
 
   onReplaceCqlCode(code: string): void {
-    console.log('Replace CQL code:', code);
     this.replaceCqlCode.emit(code);
   }
 }

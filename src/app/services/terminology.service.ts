@@ -8,6 +8,7 @@ import { map } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
 import { normalizeBundleForBasePost } from './fhir-bundle-transaction.lib';
+import { isResourceType, resourceTypeOf } from './fhir-resource-type.lib';
 import { normalizeFhirBaseUrlForBundlePost } from './fhir-server-base.lib';
 
 @Injectable({
@@ -30,12 +31,17 @@ export class TerminologyService extends BaseService {
     });
 
     if (username && username.trim() !== '' && password && password.trim() !== '') {
+      // HTTP Basic credentials (RFC 7617 Latin-1), not FHIR Library.content — do not use encodeUtf8Base64.
       const authString = btoa(`${username}:${password}`);
       headers = headers.set('Authorization', `Basic ${authString}`);
     }
     // If no credentials provided, requests will be made without authentication
 
     return headers;
+  }
+
+  private isCodeSystemResource(resource: Resource | undefined): resource is CodeSystem {
+    return isResourceType(resource, 'CodeSystem');
   }
 
   // ValueSet Operations
@@ -45,7 +51,7 @@ export class TerminologyService extends BaseService {
     url?: string;
     status?: string;
     _count?: number;
-  } = {}): Observable<Bundle<ValueSet>> {
+  } = {}): Observable<Bundle> {
     const queryParams = new URLSearchParams();
     
     if (params.name) queryParams.append('name', params.name);
@@ -55,7 +61,7 @@ export class TerminologyService extends BaseService {
     if (params._count) queryParams.append('_count', params._count.toString());
 
     const url = `${this.getTerminologyBaseUrl()}/ValueSet?${queryParams.toString()}`;
-    return this.http.get<Bundle<ValueSet>>(url, { headers: this.getAuthHeaders() });
+    return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() });
   }
 
   // Fetch from a URL (for pagination via Bundle links)
@@ -311,11 +317,12 @@ export class TerminologyService extends BaseService {
     const url = `${this.getTerminologyBaseUrl()}/CodeSystem?${queryParams.toString()}`;
     console.log('Getting CodeSystem by URL:', url);
     
-    return this.http.get<Bundle<CodeSystem>>(url, { headers: this.getAuthHeaders() })
+    return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() })
       .pipe(
         map(bundle => {
-          if (bundle.entry && bundle.entry.length > 0) {
-            return bundle.entry[0].resource!;
+          const firstResource = bundle.entry?.[0]?.resource;
+          if (this.isCodeSystemResource(firstResource)) {
+            return firstResource;
           }
           throw new Error('CodeSystem not found');
         })
@@ -399,7 +406,7 @@ export class TerminologyService extends BaseService {
     url?: string;
     status?: string;
     _count?: number;
-  } = {}): Observable<Bundle<ConceptMap>> {
+  } = {}): Observable<Bundle> {
     const queryParams = new URLSearchParams();
     
     if (params.name) queryParams.append('name', params.name);
@@ -409,7 +416,7 @@ export class TerminologyService extends BaseService {
     if (params._count) queryParams.append('_count', params._count.toString());
 
     const url = `${this.getTerminologyBaseUrl()}/ConceptMap?${queryParams.toString()}`;
-    return this.http.get<Bundle<ConceptMap>>(url, { headers: this.getAuthHeaders() });
+    return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() });
   }
 
   getConceptMap(id: string): Observable<ConceptMap> {
@@ -503,7 +510,7 @@ export class TerminologyService extends BaseService {
     status?: string;
     _count?: number;
     _offset?: number;
-  } = {}): Observable<Bundle<CodeSystem>> {
+  } = {}): Observable<Bundle> {
     const queryParams = new URLSearchParams();
     
     if (params.name) queryParams.append('name', params.name);
@@ -514,7 +521,7 @@ export class TerminologyService extends BaseService {
     if (params._offset) queryParams.append('_offset', params._offset.toString());
 
     const url = `${this.getTerminologyBaseUrl()}/CodeSystem?${queryParams.toString()}`;
-    return this.http.get<Bundle<CodeSystem>>(url, { headers: this.getAuthHeaders() });
+    return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() });
   }
 
   // Search for codes using $lookup operation
@@ -522,12 +529,12 @@ export class TerminologyService extends BaseService {
     text?: string;
     system?: string;
     code?: string;
-  } = {}): Observable<Bundle<any>> {
+  } = {}): Observable<Bundle> {
     // If no text provided, get available CodeSystems first
     if (!params.text && !params.code) {
       const url = `${this.getTerminologyBaseUrl()}/CodeSystem`;
       console.log('Getting all CodeSystems with URL:', url);
-      return this.http.get<Bundle<any>>(url, { headers: this.getAuthHeaders() });
+      return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() });
     }
 
     // For text search, find CodeSystems that might contain the text
@@ -547,7 +554,7 @@ export class TerminologyService extends BaseService {
     console.log('Searching CodeSystems with URL:', url);
     console.log('Search parameters:', params);
     
-    return this.http.get<Bundle<any>>(url, { headers: this.getAuthHeaders() });
+    return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() });
   }
 
 
@@ -574,11 +581,11 @@ export class TerminologyService extends BaseService {
    * POST a Bundle to the terminology server root.
    * `Bundle.type` `collection` is normalized via `normalizeBundleForBasePost` (same as FHIR data client).
    */
-  postBundle(bundle: Bundle<Resource> | string): Observable<Bundle<Resource>> {
+  postBundle(bundle: Bundle | string): Observable<Bundle> {
     const url = normalizeFhirBaseUrlForBundlePost(this.getTerminologyBaseUrl());
     const payload: object | string =
       typeof bundle === 'string' ? bundle : normalizeBundleForBasePost(bundle);
-    return this.http.post<Bundle<Resource>>(url, payload, {
+    return this.http.post<Bundle>(url, payload, {
       headers: this.getAuthHeaders().set('Content-Type', 'application/fhir+json')
     });
   }
@@ -587,7 +594,10 @@ export class TerminologyService extends BaseService {
    * POST a single resource (e.g. ValueSet) to the terminology server.
    */
   postResource<T extends Resource>(resource: T): Observable<T> {
-    const rt = resource.resourceType;
+    const rt = resourceTypeOf(resource);
+    if (!rt) {
+      throw new Error('resourceType is required for POST');
+    }
     const url = `${this.getTerminologyBaseUrl()}/${rt}`;
     return this.http.post<T>(url, resource, {
       headers: this.getAuthHeaders().set('Content-Type', 'application/fhir+json')

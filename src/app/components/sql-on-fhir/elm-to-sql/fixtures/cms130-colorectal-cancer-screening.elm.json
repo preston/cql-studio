@@ -1,0 +1,302 @@
+{
+  "library": {
+    "identifier": { "id": "ColorectalCancerScreening", "version": "9.1.000" },
+    "schemaIdentifier": { "id": "urn:hl7-org:elm", "version": "r1" },
+    "usings": {
+      "def": [
+        { "localIdentifier": "System", "uri": "urn:hl7-org:elm-types:r1" },
+        { "localIdentifier": "FHIR", "uri": "http://hl7.org/fhir", "version": "4.0.1" }
+      ]
+    },
+    "parameters": {
+      "def": [
+        {
+          "name": "Measurement Period",
+          "parameterTypeSpecifier": {
+            "type": "IntervalTypeSpecifier",
+            "pointType": { "type": "NamedTypeSpecifier", "name": "{urn:hl7-org:elm-types:r1}DateTime" }
+          }
+        }
+      ]
+    },
+    "valueSets": {
+      "def": [
+        { "name": "Annual Wellness Visit",          "id": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.526.3.1240" },
+        { "name": "Colonoscopy",                    "id": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.108.12.1020" },
+        { "name": "Fecal Occult Blood Test (FOBT)", "id": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.198.12.1011" },
+        { "name": "Flexible Sigmoidoscopy",         "id": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.198.12.1010" },
+        { "name": "Malignant Neoplasm of Colon",    "id": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.108.12.1001" },
+        { "name": "Total Colectomy",                "id": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.198.12.1019" },
+        { "name": "Office Visit",                   "id": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.101.12.1001" }
+      ]
+    },
+    "statements": {
+      "def": [
+        {
+          "name": "Patient",
+          "context": "Patient",
+          "expression": {
+            "type": "SingletonFrom",
+            "operand": { "type": "Retrieve", "dataType": "{http://hl7.org/fhir}Patient" }
+          }
+        },
+        {
+          "name": "Qualifying Encounters",
+          "context": "Patient",
+          "accessLevel": "Public",
+          "expression": {
+            "type": "Query",
+            "source": [{
+              "alias": "E",
+              "expression": {
+                "type": "Retrieve",
+                "dataType": "{http://hl7.org/fhir}Encounter",
+                "codes": { "type": "ValueSetRef", "name": "Office Visit" }
+              }
+            }],
+            "where": {
+              "type": "And",
+              "operand": [
+                {
+                  "type": "During",
+                  "operand": [
+                    { "type": "Property", "path": "period_start", "scope": "E" },
+                    { "type": "ParameterRef", "name": "Measurement Period" }
+                  ]
+                },
+                {
+                  "type": "Equal",
+                  "operand": [
+                    { "type": "Property", "path": "status", "scope": "E" },
+                    { "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}String", "value": "finished" }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Initial Population",
+          "context": "Patient",
+          "accessLevel": "Public",
+          "expression": {
+            "type": "Query",
+            "source": [{
+              "alias": "p",
+              "expression": { "type": "Retrieve", "dataType": "{http://hl7.org/fhir}Patient" }
+            }],
+            "where": {
+              "type": "And",
+              "operand": [
+                {
+                  "type": "GreaterOrEqual",
+                  "operand": [
+                    {
+                      "type": "FunctionRef",
+                      "name": "AgeInYearsAt",
+                      "operand": [{ "type": "ParameterRef", "name": "Measurement Period" }]
+                    },
+                    { "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}Integer", "value": "45" }
+                  ]
+                },
+                {
+                  "type": "Less",
+                  "operand": [
+                    {
+                      "type": "FunctionRef",
+                      "name": "AgeInYearsAt",
+                      "operand": [{ "type": "ParameterRef", "name": "Measurement Period" }]
+                    },
+                    { "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}Integer", "value": "76" }
+                  ]
+                },
+                {
+                  "type": "Exists",
+                  "operand": { "type": "ExpressionRef", "name": "Qualifying Encounters" }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Denominator",
+          "context": "Patient",
+          "accessLevel": "Public",
+          "expression": { "type": "ExpressionRef", "name": "Initial Population" }
+        },
+        {
+          "name": "Denominator Exclusion",
+          "context": "Patient",
+          "accessLevel": "Public",
+          "expression": {
+            "type": "Union",
+            "operand": [
+              {
+                "type": "Query",
+                "source": [{
+                  "alias": "cond",
+                  "expression": {
+                    "type": "Retrieve",
+                    "dataType": "{http://hl7.org/fhir}Condition",
+                    "codes": { "type": "ValueSetRef", "name": "Malignant Neoplasm of Colon" }
+                  }
+                }],
+                "where": {
+                  "type": "Equal",
+                  "operand": [
+                    { "type": "Property", "path": "clinical_status", "scope": "cond" },
+                    { "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}String", "value": "active" }
+                  ]
+                }
+              },
+              {
+                "type": "Query",
+                "source": [{
+                  "alias": "proc",
+                  "expression": {
+                    "type": "Retrieve",
+                    "dataType": "{http://hl7.org/fhir}Procedure",
+                    "codes": { "type": "ValueSetRef", "name": "Total Colectomy" }
+                  }
+                }],
+                "where": {
+                  "type": "Equal",
+                  "operand": [
+                    { "type": "Property", "path": "status", "scope": "proc" },
+                    { "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}String", "value": "completed" }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Colonoscopy Within 10 Years",
+          "context": "Patient",
+          "accessLevel": "Public",
+          "expression": {
+            "type": "Query",
+            "source": [{
+              "alias": "proc",
+              "expression": {
+                "type": "Retrieve",
+                "dataType": "{http://hl7.org/fhir}Procedure",
+                "codes": { "type": "ValueSetRef", "name": "Colonoscopy" }
+              }
+            }],
+            "where": {
+              "type": "And",
+              "operand": [
+                {
+                  "type": "Equal",
+                  "operand": [
+                    { "type": "Property", "path": "status", "scope": "proc" },
+                    { "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}String", "value": "completed" }
+                  ]
+                },
+                {
+                  "type": "GreaterOrEqual",
+                  "operand": [
+                    { "type": "Property", "path": "performed_datetime", "scope": "proc" },
+                    {
+                      "type": "FunctionRef",
+                      "name": "ToDateTime",
+                      "operand": [{ "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}String", "value": "2015-01-01" }]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "FOBT Within 1 Year",
+          "context": "Patient",
+          "accessLevel": "Public",
+          "expression": {
+            "type": "Query",
+            "source": [{
+              "alias": "obs",
+              "expression": {
+                "type": "Retrieve",
+                "dataType": "{http://hl7.org/fhir}Observation",
+                "codes": { "type": "ValueSetRef", "name": "Fecal Occult Blood Test (FOBT)" }
+              }
+            }],
+            "where": {
+              "type": "And",
+              "operand": [
+                {
+                  "type": "During",
+                  "operand": [
+                    { "type": "Property", "path": "effective_datetime", "scope": "obs" },
+                    { "type": "ParameterRef", "name": "Measurement Period" }
+                  ]
+                },
+                {
+                  "type": "Equal",
+                  "operand": [
+                    { "type": "Property", "path": "status", "scope": "obs" },
+                    { "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}String", "value": "final" }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Flexible Sigmoidoscopy Within 5 Years",
+          "context": "Patient",
+          "accessLevel": "Public",
+          "expression": {
+            "type": "Query",
+            "source": [{
+              "alias": "proc",
+              "expression": {
+                "type": "Retrieve",
+                "dataType": "{http://hl7.org/fhir}Procedure",
+                "codes": { "type": "ValueSetRef", "name": "Flexible Sigmoidoscopy" }
+              }
+            }],
+            "where": {
+              "type": "And",
+              "operand": [
+                {
+                  "type": "Equal",
+                  "operand": [
+                    { "type": "Property", "path": "status", "scope": "proc" },
+                    { "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}String", "value": "completed" }
+                  ]
+                },
+                {
+                  "type": "GreaterOrEqual",
+                  "operand": [
+                    { "type": "Property", "path": "performed_datetime", "scope": "proc" },
+                    {
+                      "type": "FunctionRef",
+                      "name": "ToDateTime",
+                      "operand": [{ "type": "Literal", "valueType": "{urn:hl7-org:elm-types:r1}String", "value": "2020-01-01" }]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Numerator",
+          "context": "Patient",
+          "accessLevel": "Public",
+          "expression": {
+            "type": "Union",
+            "operand": [
+              { "type": "ExpressionRef", "name": "Colonoscopy Within 10 Years" },
+              { "type": "ExpressionRef", "name": "FOBT Within 1 Year" },
+              { "type": "ExpressionRef", "name": "Flexible Sigmoidoscopy Within 5 Years" }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

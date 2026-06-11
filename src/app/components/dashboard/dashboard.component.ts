@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
@@ -40,9 +40,9 @@ interface ComparisonTest {
 
 @Component({
   selector: 'app-dashboard',
-  standalone: true,
-  imports: [CommonModule, FormsModule, BaseChartDirective],
+  imports: [FormsModule, DatePipe, BaseChartDirective],
   templateUrl: './dashboard.component.html',
+
   styleUrl: './dashboard.component.scss'
 })
 export class DashboardComponent implements OnInit {

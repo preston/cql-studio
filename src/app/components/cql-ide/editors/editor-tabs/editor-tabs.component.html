@@ -2,7 +2,7 @@
   <!-- Drop zone at the beginning -->
   <div 
     class="drop-zone"
-    [class.drag-over]="isDragOver"
+    [class.drag-over]="isDragOver()"
     (dragover)="onTabDragOver($event)"
     (dragenter)="onTabDragEnter($event)"
     (dragleave)="onTabDragLeave($event)"
@@ -32,7 +32,7 @@
   <!-- Drop zone at the end -->
   <div 
     class="drop-zone"
-    [class.drag-over]="isDragOver"
+    [class.drag-over]="isDragOver()"
     (dragover)="onTabDragOver($event)"
     (dragenter)="onTabDragEnter($event)"
     (dragleave)="onTabDragLeave($event)"

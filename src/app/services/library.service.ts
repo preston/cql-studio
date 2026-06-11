@@ -3,6 +3,7 @@
 import { Injectable, inject } from '@angular/core';
 import { BaseService } from './base.service';
 import { Library, Parameters, Bundle } from 'fhir/r4';
+import { decodeUtf8Base64 } from './utf8-encoding.lib';
 import { Observable, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -28,13 +29,13 @@ export class LibraryService extends BaseService {
 		return baseUrl + LibraryService.LIBRARY_PATH;
 	}
 
-	search(searchTerm: string): Observable<Bundle<Library>> {
-		return this.http.get<Bundle<Library>>(this.url() + "?title:contains=" + searchTerm, { headers: this.headers() });
+	search(searchTerm: string): Observable<Bundle> {
+		return this.http.get<Bundle>(this.url() + "?title:contains=" + searchTerm, { headers: this.headers() });
 	}
 
 	// Search libraries with pagination and sorting
 	// Uses title:contains for searching (searches the human-friendly title field)
-	searchPaginated(searchTerm: string, page: number = 1, pageSize: number = 10, sortBy: string = 'name', order: 'asc' | 'desc' = 'asc'): Observable<Bundle<Library>> {
+	searchPaginated(searchTerm: string, page: number = 1, pageSize: number = 10, sortBy: string = 'name', order: 'asc' | 'desc' = 'asc'): Observable<Bundle> {
 		const offset = (page - 1) * pageSize;
 		let url = this.url() + `?_count=${pageSize}&_offset=${offset}`;
 		
@@ -51,11 +52,11 @@ export class LibraryService extends BaseService {
 			url += `&_sort=${order === 'asc' ? 'date' : '-date'}`;
 		}
 		
-		return this.http.get<Bundle<Library>>(url, { headers: this.headers() });
+		return this.http.get<Bundle>(url, { headers: this.headers() });
 	}
 
 	// Get paginated list of all libraries
-	getAll(page: number = 1, pageSize: number = 10, sortBy: string = 'name', order: 'asc' | 'desc' = 'asc'): Observable<Bundle<Library>> {
+	getAll(page: number = 1, pageSize: number = 10, sortBy: string = 'name', order: 'asc' | 'desc' = 'asc'): Observable<Bundle> {
 		const offset = (page - 1) * pageSize;
 		let url = this.url() + `?_count=${pageSize}&_offset=${offset}`;
 		
@@ -68,7 +69,7 @@ export class LibraryService extends BaseService {
 			url += `&_sort=${order === 'asc' ? 'date' : '-date'}`;
 		}
 		
-		return this.http.get<Bundle<Library>>(url, { headers: this.headers() });
+		return this.http.get<Bundle>(url, { headers: this.headers() });
 	}
 
 	urlFor(id: string) {
@@ -87,7 +88,7 @@ export class LibraryService extends BaseService {
 		}
 		if (content.data) {
 			try {
-				const cqlContent = atob(content.data);
+				const cqlContent = decodeUtf8Base64(content.data);
 				return of({ cqlContent, fromUrl: false });
 			} catch {
 				return of({ cqlContent: '', fromUrl: false });

@@ -71,6 +71,13 @@ The application supports runtime configuration through environment variables. Th
 - **CQL_STUDIO_FHIR_BASE_URL**: Specifies the base URL for the FHIR server. This URL is used for FHIR resource operations and data retrieval. Defaults to `http://localhost:8080/fhir`.
 
 
+## SQL on FHIR
+
+CQL Studio includes an experimental **CQL → SQL → MeasureReport** pipeline that runs entirely in the browser via PGlite (Postgres in WebAssembly). Open `/sql` and click **Load CMS125 demo** to see it in action — no FHIR server or backend required.
+
+See [doc/sql-on-fhir/](doc/sql-on-fhir/) for the vision behind the feature (originally presented at the December 2025 SQL-on-FHIR Analytics Conference), the architecture, the roadmap, and the demo walkthrough.
+
+
 ## Attribution & License
 
 Copyright © 2025+ Preston Lee. All rights reserved. Provided under the Apache 2.0 license.

@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, signal, computed, inject, OnDestroy, afterNextRender, Injector } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
@@ -9,13 +8,14 @@ import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ValueSet } from 'fhir/r4';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { CodeSearchDetailsPaneComponent } from '../code-search-details-pane/code-search-details-pane.component';
 
 @Component({
   selector: 'app-code-search-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, CodeSearchDetailsPaneComponent],
+  imports: [FormsModule, CodeSearchDetailsPaneComponent],
   templateUrl: './code-search-tab.component.html',
+
   styleUrl: './code-search-tab.component.scss'
 })
 export class CodeSearchTabComponent implements OnDestroy {
@@ -55,6 +55,7 @@ export class CodeSearchTabComponent implements OnDestroy {
   private settingsService = inject(SettingsService);
   private terminologyService = inject(TerminologyService);
   private toastService = inject(ToastService);
+  private injector = inject(Injector);
 
   constructor() {
     this.valueSetSearchSubject.pipe(
@@ -91,7 +92,9 @@ export class CodeSearchTabComponent implements OnDestroy {
     const params: any = { name: searchTerm.trim(), _count: 10 };
     return firstValueFrom(this.terminologyService.searchValueSets(params))
       .then(result => {
-        const valuesets = result?.entry?.map(e => e.resource!).filter(vs => vs !== null) || [];
+        const valuesets = result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is ValueSet => isResourceType(resource, 'ValueSet')) || [];
         this.valueSetSearchResults.set(valuesets);
         this.showValueSetDropdown.set(valuesets.length > 0);
         return valuesets;
@@ -127,10 +130,8 @@ export class CodeSearchTabComponent implements OnDestroy {
   }
 
   onValueSetInputBlur(): void {
-    setTimeout(() => {
-      this.showValueSetDropdown.set(false);
-      this.valueSetHighlightedIndex.set(-1);
-    }, 200);
+    this.showValueSetDropdown.set(false);
+    this.valueSetHighlightedIndex.set(-1);
   }
 
   onValueSetInputKeyDown(event: KeyboardEvent): void {
@@ -172,10 +173,10 @@ export class CodeSearchTabComponent implements OnDestroy {
   }
 
   private scrollValueSetIntoView(index: number): void {
-    setTimeout(() => {
-      const el = document.getElementById(`code-search-valueset-item-${index}`);
-      if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }, 0);
+    afterNextRender(() => {
+      document.getElementById(`code-search-valueset-item-${index}`)
+        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, { injector: this.injector });
   }
 
   selectValueSetFromSearch(valueset: ValueSet): void {

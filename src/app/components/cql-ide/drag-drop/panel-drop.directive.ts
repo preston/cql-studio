@@ -1,24 +1,24 @@
 // Author: Preston Lee
 
-import { Directive, ElementRef, HostListener, Input, Output, EventEmitter } from '@angular/core';
+import { Directive, ElementRef, HostListener, inject, input, output } from '@angular/core';
 
 @Directive({
   selector: '[appPanelDrop]'
 })
 export class PanelDropDirective {
-  @Input() panelId: string = '';
-  @Input() dropEnabled: boolean = true;
-  @Input() acceptedTabTypes: string[] = [];
-  
-  @Output() tabDrop = new EventEmitter<{ tabData: any; panelId: string }>();
-  @Output() dragOver = new EventEmitter<{ panelId: string; event: DragEvent }>();
-  @Output() dragLeave = new EventEmitter<{ panelId: string; event: DragEvent }>();
+  panelId = input<string>('');
+  dropEnabled = input<boolean>(true);
+  acceptedTabTypes = input<string[]>([]);
 
-  constructor(private elementRef: ElementRef) {}
+  tabDrop = output<{ tabData: any; panelId: string }>();
+  dragOver = output<{ panelId: string; event: DragEvent }>();
+  dragLeave = output<{ panelId: string; event: DragEvent }>();
+
+  private readonly elementRef = inject(ElementRef);
 
   @HostListener('dragover', ['$event'])
   onDragOver(event: DragEvent): void {
-    if (!this.dropEnabled) return;
+    if (!this.dropEnabled()) return;
     
     event.preventDefault();
     event.stopPropagation();
@@ -30,12 +30,12 @@ export class PanelDropDirective {
     // Add visual feedback
     this.elementRef.nativeElement.classList.add('drag-over');
     
-    this.dragOver.emit({ panelId: this.panelId, event });
+    this.dragOver.emit({ panelId: this.panelId(), event });
   }
 
   @HostListener('dragleave', ['$event'])
   onDragLeave(event: DragEvent): void {
-    if (!this.dropEnabled) return;
+    if (!this.dropEnabled()) return;
     
     // Only remove visual feedback if we're actually leaving the element
     const rect = this.elementRef.nativeElement.getBoundingClientRect();
@@ -44,13 +44,13 @@ export class PanelDropDirective {
     
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
       this.elementRef.nativeElement.classList.remove('drag-over');
-      this.dragLeave.emit({ panelId: this.panelId, event });
+      this.dragLeave.emit({ panelId: this.panelId(), event });
     }
   }
 
   @HostListener('drop', ['$event'])
   onDrop(event: DragEvent): void {
-    if (!this.dropEnabled) return;
+    if (!this.dropEnabled()) return;
     
     event.preventDefault();
     event.stopPropagation();
@@ -60,14 +60,15 @@ export class PanelDropDirective {
     
     try {
       const tabData = JSON.parse(event.dataTransfer?.getData('text/plain') || '{}');
+      const acceptedTypes = this.acceptedTabTypes();
       
       // Validate tab type if restrictions are set
-      if (this.acceptedTabTypes.length > 0 && !this.acceptedTabTypes.includes(tabData.type)) {
-        console.warn(`Tab type '${tabData.type}' not accepted by panel '${this.panelId}'`);
+      if (acceptedTypes.length > 0 && !acceptedTypes.includes(tabData.type)) {
+        console.warn(`Tab type '${tabData.type}' not accepted by panel '${this.panelId()}'`);
         return;
       }
       
-      this.tabDrop.emit({ tabData, panelId: this.panelId });
+      this.tabDrop.emit({ tabData, panelId: this.panelId() });
     } catch (error) {
       console.error('Error handling tab drop:', error);
     }
@@ -75,7 +76,7 @@ export class PanelDropDirective {
 
   @HostListener('dragenter', ['$event'])
   onDragEnter(event: DragEvent): void {
-    if (!this.dropEnabled) return;
+    if (!this.dropEnabled()) return;
     
     event.preventDefault();
     event.stopPropagation();

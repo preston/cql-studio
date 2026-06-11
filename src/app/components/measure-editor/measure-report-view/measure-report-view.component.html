@@ -1,30 +1,48 @@
-<div class="measure-report-view py-2">
+<div class="measure-report-view">
   @if (report(); as r) {
+  @if (!hideHeader()) {
   <div class="small mb-3">
-    <div class="d-flex flex-wrap gap-2 mb-1">
+    <div class="d-flex flex-wrap gap-2 mb-2">
+      @if (r.id) {
+      <span class="text-muted">Id: {{ r.id }}</span>
+      }
       <span class="badge" [class.bg-success]="r.status === 'complete'" [class.bg-warning]="r.status === 'pending'" [class.bg-danger]="r.status === 'error'">
         {{ r.status }}
       </span>
       <span class="text-muted">Type: {{ r.type }}</span>
-      @if (r.period) {
-      <span class="text-muted">Period: {{ r.period.start }} – {{ r.period.end }}</span>
+      @if (r.date) {
+      <span class="text-muted">Generated: {{ r.date }}</span>
       }
     </div>
     @if (r.measure) {
-    <div class="text-muted">Measure: {{ r.measure }}</div>
+    <div class="text-muted mb-1">Measure: {{ r.measure }}</div>
+    }
+    @if (r.period) {
+    <div class="text-muted mb-1">Period: {{ r.period.start }} – {{ r.period.end }}</div>
+    }
+    @if (r.subject) {
+    <div class="text-muted mb-1">Subject: {{ formatReference(r.subject) }}</div>
+    }
+    @if (r.reporter) {
+    <div class="text-muted mb-1">Reporter: {{ formatReference(r.reporter) }}</div>
     }
   </div>
-  @if (groups().length) {
+  }
+
+  @if (groups().length === 0) {
+  <p class="small text-muted mb-0">No population groups in this report.</p>
+  } @else {
   <div class="mb-2">
     <h6 class="small fw-semibold mb-2">Groups</h6>
-    @for (group of groups(); track group.code?.text ?? $index) {
+    @for (group of groups(); track group.id ?? $index) {
     <div class="card card-body py-2 mb-2 small">
-      <div class="fw-medium mb-2">{{ group.code?.text ?? ('Group ' + ($index + 1)) }}</div>
+      <div class="fw-medium mb-2">{{ group.code?.text ?? group.code?.coding?.[0]?.display ?? ('Group ' + ($index + 1)) }}</div>
       @if (group.measureScore != null) {
-      <div class="mb-2">Score: {{ displayQuantity(group.measureScore) }}</div>
+      <div class="mb-2">Score: {{ formatMeasureScoreQuantity(group.measureScore) }}</div>
       }
       @if (group.population?.length) {
-      <table class="table table-sm table-bordered mb-0">
+      <div class="table-responsive">
+      <table class="table table-sm table-striped table-hover align-middle mb-0">
         <thead>
           <tr>
             <th class="small">Population</th>
@@ -32,45 +50,77 @@
           </tr>
         </thead>
         <tbody>
-          @for (pop of group.population; track $index) {
+          @for (pop of group.population; track pop.id ?? $index) {
           <tr>
-            <td class="small">{{ getPopulationCode(pop) }}</td>
-            <td class="small">{{ getPopulationCount(pop) }}</td>
+            <td class="small">{{ getPopulationLabel(pop.code) }}</td>
+            <td class="small">{{ pop.count ?? '—' }}</td>
           </tr>
           }
         </tbody>
       </table>
+      </div>
+      } @else {
+      <p class="small text-muted mb-0">No populations in this group.</p>
       }
+
       @if (group.stratifier?.length) {
-      <div class="mt-2 small fw-medium">Stratifiers</div>
-      @for (strat of group.stratifier; track $index) {
-      <table class="table table-sm table-bordered mt-1 small">
-        <thead>
-          <tr>
-            <th class="small">Stratum</th>
-            <th class="small">Population</th>
-            <th class="small">Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (stratum of strat.stratum ?? []; track $index) {
-          <tr>
-            <td class="small">{{ stratum.value?.text ?? stratum.value?.coding?.[0]?.display ?? stratum.value?.coding?.[0]?.code ?? '—' }}</td>
-            <td class="small">—</td>
-            <td class="small">—</td>
-          </tr>
-          @for (pop of stratum.population ?? []; track $index) {
-          <tr>
-            <td class="small"></td>
-            <td class="small">{{ getPopulationCode(pop) }}</td>
-            <td class="small">{{ getPopulationCount(pop) }}</td>
-          </tr>
-          }
-          }
-        </tbody>
-      </table>
+      <div class="mt-3 small fw-medium">Stratifiers</div>
+      @for (strat of group.stratifier; track strat.id ?? $index) {
+      @for (stratum of strat.stratum ?? []; track $index) {
+      <div class="border rounded p-2 mt-2">
+        <div class="fw-medium mb-1">{{ getPopulationLabel(stratum.value) }}</div>
+        @if (stratum.measureScore != null) {
+        <div class="mb-1">Score: {{ formatMeasureScoreQuantity(stratum.measureScore) }}</div>
+        }
+        @if (stratum.population?.length) {
+        <div class="table-responsive">
+        <table class="table table-sm table-striped table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th class="small">Population</th>
+              <th class="small">Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pop of stratum.population; track pop.id ?? $index) {
+            <tr>
+              <td class="small">{{ getPopulationLabel(pop.code) }}</td>
+              <td class="small">{{ pop.count ?? '—' }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+        </div>
+        } @else {
+        <p class="small text-muted mb-0">No populations in this stratum.</p>
+        }
+      </div>
       }
       }
+      }
+    </div>
+    }
+  </div>
+  }
+
+  @if (!hasPopulations() && groups().length > 0) {
+  <p class="small text-muted mb-2">Groups present but no population counts were recorded.</p>
+  }
+
+  @if (showRawJson()) {
+  <div class="mt-3">
+    <button
+      id="measure-report-view-toggle-json"
+      type="button"
+      class="btn btn-sm btn-outline-secondary mb-2"
+      (click)="toggleJsonPanel()"
+      [attr.aria-expanded]="showJsonPanel()"
+    >
+      {{ showJsonPanel() ? 'Hide' : 'Show' }} raw JSON
+    </button>
+    @if (showJsonPanel()) {
+    <div class="p-3 rounded border">
+      <app-syntax-highlighter [code]="rawJson()" language="json" [showLineNumbers]="true" />
     </div>
     }
   </div>

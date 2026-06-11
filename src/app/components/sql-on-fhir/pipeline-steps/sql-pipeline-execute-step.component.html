@@ -1,55 +1,320 @@
-<section class="d-flex flex-column gap-4" aria-labelledby="sql-pipeline-execute-heading">
-  <h2 id="sql-pipeline-execute-heading" class="h6 fw-semibold pb-2 mb-0 border-bottom">Execute SQL</h2>
+<section class="sql-pipeline-step d-flex flex-column h-100" aria-labelledby="sql-pipeline-execute-heading">
+  <header class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 pb-2 mb-3 border-bottom">
+    <h2 id="sql-pipeline-execute-heading" class="h6 fw-semibold mb-0">Execute SQL</h2>
+  </header>
 
-  <div>
-    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-      <button
-        id="btn-sql-execute"
-        type="button"
-        class="btn btn-sm btn-primary"
-        [disabled]="!sqlText().trim()"
-        (click)="executeSql.emit()"
-      >
-        Execute SQL
-      </button>
-      <p class="small text-muted mb-0">Stub execution; no server call yet.</p>
+  <div class="sql-pipeline-step-body d-flex flex-column flex-grow-1 gap-4">
+    <div class="sql-pipeline-subsection">
+      <h3 class="h6 fw-semibold mb-2">Measure compatibility</h3>
+      @if (blockingIssues().length) {
+      <div id="sql-measure-compatibility-blocking" class="alert alert-danger py-2 small mb-2" role="alert">
+        <ul class="mb-0 ps-3">
+          @for (issue of blockingIssues(); track issue.code + issue.message) {
+          <li><span class="badge text-bg-danger me-1">Blocking</span>{{ issue.message }}</li>
+          }
+        </ul>
+      </div>
+      }
+      @if (compatibilityReady()) {
+      <div id="sql-measure-compatibility-ready" class="alert alert-success py-2 small mb-2" role="status">
+        This library meets the requirements for in-browser measure execution.
+      </div>
+      }
+      @if (warningIssues().length) {
+      <div id="sql-measure-compatibility-warnings" class="alert alert-warning py-2 small mb-0" role="status">
+        <ul class="mb-0 ps-3">
+          @for (issue of warningIssues(); track issue.code + issue.message) {
+          <li><span class="badge text-bg-secondary me-1">Warning</span>{{ issue.message }}</li>
+          }
+        </ul>
+      </div>
+      }
+      @if (!blockingIssues().length && !compatibilityReady() && !warningIssues().length) {
+      <p class="small text-muted mb-0">Complete ELM translation and SQL generation to assess measure compatibility.</p>
+      }
     </div>
-    <h3 id="sql-pipeline-sql-results-heading" class="h6 text-muted fw-normal mb-2">Raw SQL Results</h3>
-    <pre
-      id="sql-results-raw"
-      class="sql-monospace-block small mb-0 p-3 rounded bg-body-secondary"
-      aria-labelledby="sql-pipeline-sql-results-heading"
-    >{{ sqlResultsRaw() || '(no results yet)' }}</pre>
-  </div>
 
-  <div>
-    <h3 id="sql-pipeline-measurereport-heading" class="h6 fw-semibold pb-2 mb-3 border-bottom">MeasureReport</h3>
-    <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-      <button id="btn-sql-generate-measurereport" type="button" class="btn btn-sm btn-outline-secondary" (click)="generateMeasureReport.emit()">
-        Generate FHIR MeasureReport
-      </button>
-      <button
-        id="btn-sql-save-measurereport"
-        type="button"
-        class="btn btn-sm btn-success"
-        [disabled]="!hasMeasureReport()"
-        (click)="saveMeasureReport.emit()"
-      >
-        Save MeasureReport
-      </button>
+    <div class="sql-pipeline-subsection">
+      <h3 class="h6 fw-semibold mb-2">Clinical data</h3>
+      <p class="small text-muted mb-2">
+        Select patients from the configured FHIR server, or load the CMS125 preset for bundled test data.
+        @if (showResourceTypeSelection()) {
+        Only the resource types you select below are fetched from the FHIR server for each patient.
+        }
+      </p>
+      <div class="input-group input-group-sm mb-2">
+        <span class="input-group-text" id="sql-patient-search-addon">
+          <i class="bi bi-search" aria-hidden="true"></i>
+        </span>
+        <input
+          id="sql-patient-search"
+          type="search"
+          class="form-control"
+          placeholder="Search patients by name"
+          aria-labelledby="sql-patient-search-addon"
+          autocomplete="off"
+          [ngModel]="patientSearchTerm()"
+          (ngModelChange)="patientSearchTermChange.emit($event)"
+          (keydown.enter)="patientSearchNow.emit()"
+        />
+        @if (isLoadingPatients()) {
+        <span class="input-group-text">
+          <span class="spinner-border spinner-border-sm" role="status" aria-label="Searching patients"></span>
+        </span>
+        }
+      </div>
+      @if (patientSearchError()) {
+      <div class="alert alert-danger py-2 small mb-2" role="alert">{{ patientSearchError() }}</div>
+      }
+      @if (selectedPatients().length) {
+      <p id="sql-patient-selection-count" class="small text-muted mb-2">
+        {{ selectedPatients().length }} patient{{ selectedPatients().length === 1 ? '' : 's' }} selected
+      </p>
+      <div class="d-flex flex-wrap gap-1 mb-2">
+        @for (patient of selectedPatients(); track patient.id) {
+        <span class="badge text-bg-primary d-inline-flex align-items-center gap-1">
+          {{ getPatientDisplayName(patient) }}
+          <button
+            type="button"
+            class="btn-close btn-close-white btn-sm"
+            [attr.aria-label]="'Remove ' + getPatientDisplayName(patient)"
+            (click)="removePatient.emit(patient.id!)"
+          ></button>
+        </span>
+        }
+      </div>
+      }
+      @if (patientSearchResults().length) {
+      <div class="list-group list-group-flush small mb-2 border rounded">
+        @for (patient of patientSearchResults(); track patient.id) {
+        <button
+          type="button"
+          class="list-group-item list-group-item-action py-2 text-start"
+          [class.active]="selectedPatients().some(p => p.id === patient.id)"
+          (click)="togglePatient.emit(patient)"
+        >
+          {{ getPatientDisplayName(patient) }}
+          @if (patient.id) {
+          <span class="text-muted ms-1">({{ patient.id }})</span>
+          }
+        </button>
+        }
+      </div>
+      }
+      @if (showResourceTypeSelection() && derivedResourceTypes().length) {
+      <div id="sql-resource-type-selection" class="mb-3">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <span class="small fw-semibold">Resource types</span>
+          @if (isLoadingPatientData()) {
+          <span class="spinner-border spinner-border-sm" role="status" aria-label="Loading patient data"></span>
+          <span class="small text-muted">Fetching clinical data…</span>
+          }
+        </div>
+        @if (unsupportedResourceTypes().length) {
+        <div id="sql-unsupported-resource-types" class="alert alert-warning py-2 small mb-2" role="status">
+          @for (type of unsupportedResourceTypes(); track type) {
+          <div>{{ type }} is referenced but not yet supported in in-browser SQL tables.</div>
+          }
+        </div>
+        }
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          <button
+            id="sql-resource-types-select-all"
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            [disabled]="isLoadingPatientData()"
+            (click)="selectAllExecutionResourceTypes.emit(true)"
+          >
+            Select all
+          </button>
+          <button
+            id="sql-resource-types-select-none"
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+            [disabled]="isLoadingPatientData()"
+            (click)="selectAllExecutionResourceTypes.emit(false)"
+          >
+            Patient only
+          </button>
+        </div>
+        <div class="d-flex flex-column gap-1">
+          @for (type of derivedResourceTypes(); track type) {
+          <div class="form-check">
+            <input
+              [id]="'sql-resource-type-' + type"
+              type="checkbox"
+              class="form-check-input"
+              [checked]="executionResourceTypes().includes(type)"
+              [disabled]="type === 'Patient' || isLoadingPatientData()"
+              (change)="toggleExecutionResourceType.emit({ type, checked: $any($event.target).checked })"
+            />
+            <label class="form-check-label small" [for]="'sql-resource-type-' + type">{{ type }}</label>
+          </div>
+          }
+        </div>
+      </div>
+      }
+      @if (hasExecutionBundle()) {
+      <p id="sql-execution-data-ready" class="small text-success mb-1">Clinical data is ready for execution.</p>
+      @if (usingCms125Preset()) {
+      <p id="sql-execution-cms125-preset" class="small text-muted mb-1">
+        CMS125 demo bundle loaded from <code>public/fhir/sql-on-fhir/cms125-bundle.json</code>
+        and imported to the configured FHIR server.
+      </p>
+      }
+      @if (importedResourceSummary()) {
+      <p id="sql-execution-bundle-summary" class="small text-muted mb-0">
+        Imported: {{ importedResourceSummary() }}.
+      </p>
+      @for (warning of importDataWarnings(); track warning) {
+      <p id="sql-execution-bundle-import-warning" class="small text-warning mb-0 mt-1">{{ warning }}</p>
+      }
+      }
+      } @else {
+      <p id="sql-execution-data-missing" class="small text-muted mb-0">No clinical data selected yet.</p>
+      }
     </div>
-    <textarea
-      id="sql-measurereport-json"
-      class="form-control form-control-sm font-monospace sql-monospace-block border rounded"
-      readonly
-      [value]="measureReportJson()"
-      rows="12"
-      placeholder="(no MeasureReport yet)"
-      aria-labelledby="sql-pipeline-measurereport-heading"
-    ></textarea>
-  </div>
 
-  @if (pipelineStatus()) {
-  <div id="sql-pipeline-status" class="alert alert-info py-2 mb-0 small" role="status">{{ pipelineStatus() }}</div>
-  }
+    @if (parameterSpecs().length) {
+    <div class="sql-pipeline-subsection">
+      <h3 class="h6 fw-semibold mb-2">Measure parameters</h3>
+      <div class="row g-3">
+        @for (spec of parameterSpecs(); track spec.name) {
+        <div class="col-12">
+          <label class="form-label small fw-semibold mb-1" [for]="'sql-param-' + spec.name">{{ spec.name }}</label>
+          @if (spec.valueKind === 'period') {
+          <div class="row g-2">
+            <div class="col-md-6">
+              <input
+                [id]="'sql-param-' + spec.name + '-start'"
+                type="datetime-local"
+                class="form-control form-control-sm"
+                [value]="periodStart(spec.name)"
+                (change)="periodFieldChange.emit({ name: spec.name, field: 'start', value: $any($event.target).value })"
+              />
+            </div>
+            <div class="col-md-6">
+              <input
+                [id]="'sql-param-' + spec.name + '-end'"
+                type="datetime-local"
+                class="form-control form-control-sm"
+                [value]="periodEnd(spec.name)"
+                (change)="periodFieldChange.emit({ name: spec.name, field: 'end', value: $any($event.target).value })"
+              />
+            </div>
+          </div>
+          } @else if (spec.valueKind === 'dateTime') {
+          <input
+            [id]="'sql-param-' + spec.name"
+            type="datetime-local"
+            class="form-control form-control-sm"
+            [value]="dateTimeParameterValue(spec.name)"
+            (change)="scalarParameterChange.emit({ name: spec.name, kind: 'dateTime', value: $any($event.target).value })"
+          />
+          } @else if (spec.valueKind === 'boolean') {
+          <div class="form-check">
+            <input
+              [id]="'sql-param-' + spec.name"
+              type="checkbox"
+              class="form-check-input"
+              [checked]="booleanParameterChecked(spec.name)"
+              (change)="scalarParameterChange.emit({ name: spec.name, kind: 'boolean', value: $any($event.target).checked })"
+            />
+          </div>
+          } @else if (spec.valueKind === 'integer' || spec.valueKind === 'decimal') {
+          <input
+            [id]="'sql-param-' + spec.name"
+            type="number"
+            class="form-control form-control-sm"
+            [step]="spec.valueKind === 'integer' ? 1 : 'any'"
+            [value]="numberParameterValue(spec.name, spec.valueKind)"
+            (change)="scalarParameterChange.emit({ name: spec.name, kind: spec.valueKind, value: $any($event.target).value })"
+          />
+          } @else if (spec.valueKind === 'string') {
+          <input
+            [id]="'sql-param-' + spec.name"
+            type="text"
+            class="form-control form-control-sm"
+            [value]="stringParameterValue(spec.name)"
+            (change)="scalarParameterChange.emit({ name: spec.name, kind: 'string', value: $any($event.target).value })"
+          />
+          } @else {
+          <span class="badge text-bg-secondary">Unsupported type</span>
+          }
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    <div class="sql-pipeline-subsection">
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        <button
+          id="btn-sql-execute"
+          type="button"
+          class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2"
+          [disabled]="!canExecuteSql()"
+          (click)="executeSql.emit()"
+        >
+          @if (isExecutingSql()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span>Executing…</span>
+          } @else {
+            <span>Execute In-Browser SQL</span>
+          }
+        </button>
+      </div>
+      @if (sqlExecutionStatus()) {
+      <div id="sql-execution-status" class="alert alert-info py-2 mb-3 small" role="status">{{ sqlExecutionStatus() }}</div>
+      }
+      @if (sqlResultsRaw().trim()) {
+      <h3 id="sql-pipeline-sql-results-heading" class="h6 text-muted fw-normal mb-2">Raw SQL Results</h3>
+      <div id="sql-results-raw" class="sql-pipeline-code-view" aria-labelledby="sql-pipeline-sql-results-heading">
+        <div class="sql-pipeline-code-inner p-3 rounded">
+          <app-syntax-highlighter [code]="sqlResultsRaw()" language="json" [showLineNumbers]="true" />
+        </div>
+      </div>
+      }
+    </div>
+
+    @if (sqlResultsRaw().trim()) {
+    <div class="sql-pipeline-subsection">
+      <h3 id="sql-pipeline-measurereport-heading" class="h6 fw-semibold pb-2 mb-3 border-bottom">Measure Report</h3>
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        <button id="btn-sql-generate-measurereport" type="button" class="btn btn-sm btn-outline-secondary" (click)="generateMeasureReport.emit()">
+          Regenerate FHIR MeasureReport
+        </button>
+        <button
+          id="btn-sql-save-measurereport"
+          type="button"
+          class="btn btn-sm btn-success"
+          [disabled]="!hasMeasureReport()"
+          (click)="saveMeasureReport.emit()"
+          title="Save this MeasureReport to the FHIR server"
+        >
+          Save to FHIR server
+        </button>
+        @if (persistedMeasureReportId()) {
+        <a
+          id="btn-sql-open-measurereport-viewer"
+          class="btn btn-sm btn-outline-primary"
+          [routerLink]="['/measure-reports', persistedMeasureReportId()]"
+        >
+          Open in Measure Report Viewer
+        </a>
+        }
+      </div>
+      @if (measureReportStatus()) {
+      <div id="sql-measurereport-status" class="alert alert-info py-2 mb-3 small" role="status">{{ measureReportStatus() }}</div>
+      }
+      @if (measureReportJson().trim()) {
+      <div id="sql-measurereport-json" class="sql-pipeline-code-view" aria-labelledby="sql-pipeline-measurereport-heading">
+        <div class="sql-pipeline-code-inner p-3 rounded">
+          <app-syntax-highlighter [code]="measureReportJson()" language="json" [showLineNumbers]="true" />
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </div>
 </section>

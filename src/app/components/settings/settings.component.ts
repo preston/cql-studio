@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, viewChild, ElementRef, inject } from '@angular/core';
 import { SettingsService } from '../../services/settings.service';
 import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,22 +12,19 @@ import { SettingsActionsComponent } from './settings-actions/settings-actions.co
 
 @Component({
   selector: 'app-settings',
-  standalone: true,
   imports: [FormsModule, SettingsActionsComponent],
   templateUrl: './settings.component.html',
+
   styleUrl: './settings.component.scss'
 })
 export class SettingsComponent implements OnInit {
-  @ViewChild('importFileInput') importFileInput!: ElementRef<HTMLInputElement>;
+  importFileInput = viewChild.required<ElementRef<HTMLInputElement>>('importFileInput');
 
-  constructor(
-    protected settingsService: SettingsService,
-    public location: Location,
-    protected router: Router,
-    protected toastService: ToastService,
-    private clipboardService: ClipboardService
-  ) {
-  }
+  protected readonly settingsService = inject(SettingsService);
+  readonly location = inject(Location);
+  protected readonly router = inject(Router);
+  protected readonly toastService = inject(ToastService);
+  private readonly clipboardService = inject(ClipboardService);
 
   ngOnInit() {
     this.reload();
@@ -78,7 +75,7 @@ export class SettingsComponent implements OnInit {
   }
 
   onImportSettings(): void {
-    this.importFileInput.nativeElement.click();
+    this.importFileInput().nativeElement.click();
   }
 
   onImportFile(event: Event): void {
