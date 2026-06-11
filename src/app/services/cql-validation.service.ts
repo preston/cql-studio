@@ -114,7 +114,7 @@ export class CqlValidationService {
     severity: 'error' | 'warning' | 'info',
     doc?: CqlValidationDoc
   ): ValidationError[] {
-    return exceptions.map(exception => {
+    const validationErrors = exceptions.map(exception => {
       const message = exception.message || 'Unknown error';
       
       // Extract line/column using shared utility
@@ -162,6 +162,48 @@ export class CqlValidationService {
         line: lineNumber,
         column: columnNumber
       };
+    });
+
+    return this.dedupeValidationErrors(validationErrors);
+  }
+
+  private dedupeValidationErrors(validationErrors: ValidationError[]): ValidationError[] {
+    const seen = new Set<string>();
+    return validationErrors.filter(error => {
+      const key = [
+        error.severity,
+        error.message,
+        error.line ?? '',
+        error.column ?? '',
+        error.from,
+        error.to
+      ].join('|');
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+  }
+
+  private dedupeStructuredErrors(structuredErrors: StructuredError[]): StructuredError[] {
+    const seen = new Set<string>();
+    return structuredErrors.filter(error => {
+      const key = [
+        error.severity,
+        error.message,
+        error.line ?? '',
+        error.column ?? ''
+      ].join('|');
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
     });
   }
 
