@@ -1,29 +1,30 @@
 // Author: Preston Lee
 
-import { Directive, ElementRef, HostListener, Input, Output, EventEmitter } from '@angular/core';
+import { Directive, ElementRef, HostListener, inject, input, output } from '@angular/core';
 
 @Directive({
   selector: '[appTabDrag]'
 })
 export class TabDragDirective {
-  @Input() tabData: any;
-  @Input() dragEnabled: boolean = true;
-  
-  @Output() dragStart = new EventEmitter<any>();
-  @Output() dragEnd = new EventEmitter<any>();
+  tabData = input<any>();
+  dragEnabled = input<boolean>(true);
 
-  constructor(private elementRef: ElementRef) {}
+  dragStart = output<any>();
+  dragEnd = output<any>();
+
+  private readonly elementRef = inject(ElementRef);
+  private dragImageElement?: HTMLElement;
 
   @HostListener('dragstart', ['$event'])
   onDragStart(event: DragEvent): void {
-    if (!this.dragEnabled) {
+    if (!this.dragEnabled()) {
       event.preventDefault();
       return;
     }
 
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', JSON.stringify(this.tabData));
+      event.dataTransfer.setData('text/plain', JSON.stringify(this.tabData()));
       
       // Add visual feedback
       this.elementRef.nativeElement.classList.add('dragging');
@@ -32,16 +33,22 @@ export class TabDragDirective {
       const dragImage = this.createDragImage();
       event.dataTransfer.setDragImage(dragImage, 0, 0);
       
-      this.dragStart.emit(this.tabData);
+      this.dragStart.emit(this.tabData());
     }
   }
 
   @HostListener('dragend', ['$event'])
   onDragEnd(event: DragEvent): void {
-    // Remove visual feedback
     this.elementRef.nativeElement.classList.remove('dragging');
-    
-    this.dragEnd.emit(this.tabData);
+    this.removeDragImage();
+    this.dragEnd.emit(this.tabData());
+  }
+
+  private removeDragImage(): void {
+    if (this.dragImageElement && document.body.contains(this.dragImageElement)) {
+      document.body.removeChild(this.dragImageElement);
+    }
+    this.dragImageElement = undefined;
   }
 
   private createDragImage(): HTMLElement {
@@ -59,17 +66,11 @@ export class TabDragDirective {
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
       z-index: 1000;
     `;
-    dragImage.textContent = this.tabData?.title || 'Tab';
-    
+    dragImage.textContent = this.tabData()?.title || 'Tab';
+
     document.body.appendChild(dragImage);
-    
-    // Clean up after a short delay
-    setTimeout(() => {
-      if (document.body.contains(dragImage)) {
-        document.body.removeChild(dragImage);
-      }
-    }, 100);
-    
+    this.dragImageElement = dragImage;
+
     return dragImage;
   }
 }

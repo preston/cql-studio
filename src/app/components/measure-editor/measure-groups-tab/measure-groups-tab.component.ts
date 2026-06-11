@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, output, inject, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Measure, CodeableConcept, Coding, MeasureGroup, MeasureGroupPopulation, MeasureGroupStratifier, MeasureSupplementalData, Expression } from 'fhir/r4';
 import { ClipboardService } from '../../../services/clipboard.service';
@@ -9,9 +8,9 @@ import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-measure-groups-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './measure-groups-tab.component.html',
+
   styleUrl: './measure-groups-tab.component.scss'
 })
 export class MeasureGroupsTabComponent {

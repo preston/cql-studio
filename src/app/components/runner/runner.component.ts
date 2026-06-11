@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
-import { Component, OnInit, signal, AfterViewInit, ElementRef, viewChild, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, signal, computed, AfterViewInit, ElementRef, viewChild, OnDestroy, inject, afterNextRender, Injector } from '@angular/core';
+import { DatePipe, TitleCasePipe, JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { RunnerService, CQLTestConfiguration, CqlTestTargetRef, JobResponse, JobStatus } from '../../services/runner.service';
@@ -20,9 +20,9 @@ import { json } from '@codemirror/lang-json';
 
 @Component({
   selector: 'app-runner',
-  standalone: true,
-  imports: [CommonModule, FormsModule, SyntaxHighlighterComponent],
+  imports: [DatePipe, TitleCasePipe, JsonPipe, FormsModule, SyntaxHighlighterComponent],
   templateUrl: './runner.component.html',
+
   styleUrl: './runner.component.scss'
 })
 export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -67,10 +67,33 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   protected readonly apiUnavailable = signal(false);
   protected readonly lastApiCheck = signal<Date | null>(null);
   protected readonly connectionError = signal<string | null>(null);
-  
+
+  /** Bumps every second while job timer is active so elapsed time updates under zoneless CD. */
+  private readonly clockTick = signal(0);
+
+  protected readonly elapsedTimeDisplay = computed(() => {
+    this.clockTick();
+    const job = this.currentJob();
+    if (!job) {
+      return '';
+    }
+
+    const elapsed = Math.floor((Date.now() - new Date(job.createdAt).getTime()) / 1000);
+    if (elapsed < 60) {
+      return `${elapsed} seconds`;
+    }
+    if (elapsed < 3600) {
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      return `${minutes}m ${seconds}s`;
+    }
+    const hours = Math.floor(elapsed / 3600);
+    const minutes = Math.floor((elapsed % 3600) / 60);
+    return `${hours}h ${minutes}m`;
+  });
+
   private pollingSubscription?: Subscription;
   private timerSubscription?: Subscription;
-  private apiCheckTimerSubscription?: Subscription;
   private codeMirrorEditor?: EditorView;
 
   jsonEditorContainer = viewChild<ElementRef<HTMLDivElement>>('jsonEditorContainer');
@@ -81,6 +104,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   private fileLoader = inject(FileLoaderService);
   private settingsService = inject(SettingsService);
   private toastService = inject(ToastService);
+  private injector = inject(Injector);
 
   ngOnInit(): void {
     const params = this.route.snapshot.queryParams;
@@ -91,10 +115,6 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     } else if (!this.tryApplyRunnerOnlyListPrefill()) {
       this.applyDefaultFhirBaseUrlPatch();
       this.updateJsonConfig();
-    }
-
-    if (this.lastApiCheck()) {
-      this.startApiCheckTimer();
     }
 
     this.checkApiHealth();
@@ -204,14 +224,13 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     // Initialize CodeMirror when view is ready
     if (this.showJsonEditor()) {
-      setTimeout(() => this.initializeCodeMirror(), 100);
+      afterNextRender(() => this.initializeCodeMirror(), { injector: this.injector });
     }
   }
 
   ngOnDestroy(): void {
     this.stopPolling();
     this.stopTimer();
-    this.stopApiCheckTimer();
     this.destroyCodeMirror();
   }
 
@@ -328,34 +347,16 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private startTimer(): void {
-    this.stopTimer(); // Stop any existing timer
-    this.timerSubscription = interval(1000) // Update every second
-      .subscribe(() => {
-        // Trigger change detection for elapsed time
-        // The getElapsedTime() method will be called by the template
-      });
+    this.stopTimer();
+    this.timerSubscription = interval(1000).subscribe(() => {
+      this.clockTick.update(n => n + 1);
+    });
   }
 
   private stopTimer(): void {
     if (this.timerSubscription) {
       this.timerSubscription.unsubscribe();
       this.timerSubscription = undefined;
-    }
-  }
-
-  private startApiCheckTimer(): void {
-    this.stopApiCheckTimer(); // Stop any existing timer
-    this.apiCheckTimerSubscription = interval(1000) // Update every second
-      .subscribe(() => {
-        // Trigger change detection for API check time
-        // The getTimeSinceLastCheck() method will be called by the template
-      });
-  }
-
-  private stopApiCheckTimer(): void {
-    if (this.apiCheckTimerSubscription) {
-      this.apiCheckTimerSubscription.unsubscribe();
-      this.apiCheckTimerSubscription = undefined;
     }
   }
 
@@ -370,7 +371,6 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.lastApiCheck.set(null);
     this.stopPolling();
     this.stopTimer();
-    this.stopApiCheckTimer();
     this.isPolling.set(false);
     
     // Clear any previous results from sessionStorage
@@ -386,7 +386,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.showJsonEditor()) {
       this.updateJsonConfig();
       // Initialize CodeMirror when switching to JSON editor
-      setTimeout(() => this.initializeCodeMirror(), 200);
+      afterNextRender(() => this.initializeCodeMirror(), { injector: this.injector });
     } else {
       this.destroyCodeMirror();
     }
@@ -808,37 +808,13 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     return status ? status.status === 'failed' : false;
   }
 
-  protected getElapsedTime(): string {
-    const job = this.currentJob();
-    if (!job) return '';
-
-    const now = new Date();
-    const created = new Date(job.createdAt);
-    const elapsed = Math.floor((now.getTime() - created.getTime()) / 1000);
-
-    if (elapsed < 60) {
-      return `${elapsed} seconds`;
-    } else if (elapsed < 3600) {
-      const minutes = Math.floor(elapsed / 60);
-      const seconds = elapsed % 60;
-      return `${minutes}m ${seconds}s`;
-    } else {
-      const hours = Math.floor(elapsed / 3600);
-      const minutes = Math.floor((elapsed % 3600) / 60);
-      return `${hours}h ${minutes}m`;
-    }
-  }
-
   protected async checkApiHealth(): Promise<void> {
     this.isCheckingHealth.set(true);
     this.error.set(null);
     this.connectionError.set(null);
     this.healthStatus.set(null);
     this.lastApiCheck.set(new Date());
-    
-    // Start the API check timer to update the "last checked" time
-    this.startApiCheckTimer();
-    
+
     try {
       const health = await firstValueFrom(this.runnerService.checkHealth());
       if (health) {
@@ -1049,19 +1025,6 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   protected getApiBaseUrl(): string {
     return this.runnerService['baseUrl'] || 'Not configured';
-  }
-
-
-  protected getTimeSinceLastCheck(): string {
-    const lastCheck = this.lastApiCheck();
-    if (!lastCheck) return '';
-    
-    const now = new Date();
-    const diff = Math.floor((now.getTime() - lastCheck.getTime()) / 1000);
-    
-    if (diff < 60) return `${diff} seconds ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
-    return `${Math.floor(diff / 3600)} hours ago`;
   }
 }
 

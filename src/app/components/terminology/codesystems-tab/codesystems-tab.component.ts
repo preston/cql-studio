@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
@@ -9,12 +8,13 @@ import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { CodeSystem } from 'fhir/r4';
 import { ClipboardService } from '../../../services/clipboard.service';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-codesystems-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './codesystems-tab.component.html',
+
   styleUrl: './codesystems-tab.component.scss'
 })
 export class CodeSystemsTabComponent implements OnInit {
@@ -69,7 +69,9 @@ export class CodeSystemsTabComponent implements OnInit {
     try {
       // Request a large count to get all code systems for client-side pagination
       const result = await firstValueFrom(this.terminologyService.searchCodeSystems({ _count: 1000 }));
-      const codeSystems = result?.entry?.map(e => e.resource).filter(r => r !== undefined) || [];
+      const codeSystems = result?.entry
+        ?.map(e => e.resource)
+        .filter((resource): resource is CodeSystem => isResourceType(resource, 'CodeSystem')) || [];
       this.codeSystemsResults.set(codeSystems);
       
       // Reset to first page when loading new data

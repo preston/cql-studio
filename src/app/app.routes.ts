@@ -24,10 +24,12 @@ import { MeasureEditorComponent } from './components/measure-editor/measure-edit
 import { MeasureLibraryComponent } from './components/measure-editor/measure-library/measure-library.component';
 import { MeasureWorkspaceComponent } from './components/measure-editor/measure-workspace/measure-workspace.component';
 import { MeasureReportsListComponent } from './components/measure-editor/measure-reports-list/measure-reports-list.component';
+import { MeasureReportViewerComponent } from './components/measure-editor/measure-report-viewer/measure-report-viewer.component';
 import { ClipboardManagerComponent } from './components/clipboard-manager/clipboard-manager.component';
 import { VsacBrowserComponent } from './components/vsac-browser/vsac-browser.component';
 import { FhirRegistryImporterComponent } from './components/fhir-registry-importer/fhir-registry-importer.component';
 import { SqlOnFhirComponent } from './components/sql-on-fhir/sql-on-fhir.component';
+import { sqlOnFhirGuard } from './components/sql-on-fhir/sql-on-fhir.guard';
 
 export const routes: Routes = [
   // Normal app routes
@@ -53,12 +55,15 @@ export const routes: Routes = [
       { path: 'search', component: CodeSearchTabComponent }
     ]
   },
+  { path: 'measure-reports', component: MeasureReportsListComponent },
+  { path: 'measure-reports/:reportId', component: MeasureReportViewerComponent },
+  { path: 'measures/reports/:reportId', redirectTo: 'measure-reports/:reportId' },
+  { path: 'measures/reports', redirectTo: 'measure-reports', pathMatch: 'full' },
   {
     path: 'measures',
     component: MeasureEditorComponent,
     children: [
       { path: '', component: MeasureLibraryComponent },
-      { path: 'reports', component: MeasureReportsListComponent },
       { path: 'new', component: MeasureWorkspaceComponent },
       { path: ':id', component: MeasureWorkspaceComponent }
     ]
@@ -69,7 +74,7 @@ export const routes: Routes = [
   { path: 'guidelines', component: GuidelinesComponent },
   { path: 'guidelines/:id/testing', component: GuidelinesComponent },
   { path: 'guidelines/:id', component: GuidelinesComponent },
-  { path: 'sql', component: SqlOnFhirComponent },
+  { path: 'sql', component: SqlOnFhirComponent, canActivate: [sqlOnFhirGuard] },
   { path: 'about', component: AboutComponent },
   { path: 'clipboard', component: ClipboardManagerComponent },
 

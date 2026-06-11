@@ -202,7 +202,7 @@
               @if (m.scoring) { <dt>Scoring</dt>
               <dd class="mb-1">{{ displayCodeableConcept(m.scoring) }}</dd> }
               @if (m.type?.length) { <dt>Type</dt>
-              <dd class="mb-1">{{ displayCodeableConcept(m.type?.[0]) }}</dd> }
+              <dd class="mb-1">{{ displayCodeableConcept($safeNavigationMigration(m.type?.[0])) }}</dd> }
               @if (m.identifier?.length) { <dt>Identifier</dt>
               <dd class="mb-1">{{ displayIdentifiers(m.identifier) }}</dd> }
               @if (m.library?.length) { <dt>Library</dt>

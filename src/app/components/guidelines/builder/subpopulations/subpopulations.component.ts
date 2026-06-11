@@ -1,16 +1,15 @@
 // Author: Preston Lee
 
 import { Component, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GuidelinesStateService, Subpopulation } from '../../../../services/guidelines-state.service';
 import { ConjunctionGroupComponent } from '../conjunction-group/conjunction-group.component';
 
 @Component({
   selector: 'app-subpopulations',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ConjunctionGroupComponent],
+  imports: [FormsModule, ConjunctionGroupComponent],
   templateUrl: './subpopulations.component.html',
+
   styleUrl: './subpopulations.component.scss'
 })
 export class SubpopulationsComponent {

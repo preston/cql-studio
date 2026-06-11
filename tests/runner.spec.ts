@@ -14,22 +14,12 @@ test.describe('Runner Tests', () => {
   test.describe('Runner Navigation', () => {
     test('should navigate to runner from home page', async () => {
       await helpers.goToHome();
-      
-      // Click runner link
-      await helpers.page.click('#runner-nav-link');
-      
-      // Should show runner component
-      await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+      await helpers.goToRunner();
     });
 
     test('should navigate to runner from navigation', async () => {
       await helpers.goToHome();
-      
-      // Click runner link in navigation
-      await helpers.page.click('#runner-nav-link');
-      
-      // Should show runner component
-      await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+      await helpers.goToRunner();
     });
   });
 
@@ -51,10 +41,8 @@ test.describe('Runner Tests', () => {
       // Should show Build configuration
       await expect(helpers.page.locator('label[for="cqlFileVersion"]')).toBeVisible();
       await expect(helpers.page.locator('input[id="cqlFileVersion"]')).toBeVisible();
-      
-      // Should show Tests configuration
-      await expect(helpers.page.locator('label[for="resultsPath"]')).toBeVisible();
-      await expect(helpers.page.locator('input[id="resultsPath"]')).toBeVisible();
+      await expect(helpers.page.locator('label[for="cqlVersion"]')).toBeVisible();
+      await expect(helpers.page.locator('input[id="cqlVersion"]')).toBeVisible();
     });
 
     test('should load configuration from URL parameter', async () => {
@@ -63,7 +51,7 @@ test.describe('Runner Tests', () => {
       await helpers.waitForAppLoad();
       
       // Should show runner component
-      await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+      await helpers.expectRunnerPage();
       
       // Wait for configuration to load from URL
       await helpers.page.waitForTimeout(1000);
@@ -72,8 +60,6 @@ test.describe('Runner Tests', () => {
       await expect(helpers.page.locator('input[id="baseUrl"]')).toHaveValue('http://localhost:8080/fhir');
       await expect(helpers.page.locator('input[id="cqlOperation"]')).toHaveValue('$cql');
       await expect(helpers.page.locator('input[id="cqlFileVersion"]')).toHaveValue('1.0.000');
-      await expect(helpers.page.locator('input[id="cqlOutputPath"]')).toHaveValue('./cql');
-      await expect(helpers.page.locator('input[id="resultsPath"]')).toHaveValue('./results');
     });
 
     test('should display skip list configuration', async () => {
@@ -165,7 +151,7 @@ test.describe('Runner Tests', () => {
       await helpers.waitForAppLoad();
       
       // Should still show runner component
-      await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+      await helpers.expectRunnerPage();
       
       // Should show error message or use defaults
       const hasError = await helpers.hasErrorMessage();
@@ -190,7 +176,7 @@ test.describe('Runner Tests', () => {
       
       // Should show error message or stay on runner page or have any content
       const hasError = await helpers.hasErrorMessage();
-      const isOnRunner = await helpers.page.locator('h1:has-text("CQL Test Runner")').isVisible();
+      const isOnRunner = await helpers.page.locator('app-runner').isVisible();
       const hasAnyContent = await helpers.page.locator('body').textContent();
       
       // At least one should be true - the page should either show an error, be on runner page, or have content
@@ -205,7 +191,7 @@ test.describe('Runner Tests', () => {
       await helpers.page.waitForLoadState('networkidle');
       
       // Should show runner documentation
-      await expect(helpers.page.locator('h1:has-text("CQL Test Runner")')).toBeVisible();
+      await helpers.expectRunnerPage();
     });
   });
 });

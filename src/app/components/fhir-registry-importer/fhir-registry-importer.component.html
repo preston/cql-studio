@@ -627,7 +627,8 @@ Select None              </button>
 
       <ng-template #importWorkspaceActions let-idSuffix="idSuffix" let-edgeClass="edgeClass">
         <div [attr.id]="'fhir-registry-importer-import-actions' + idSuffix" class="bg-body px-3 py-3"
-          [ngClass]="edgeClass">
+          [class.border-bottom]="edgeClass === 'border-bottom'"
+          [class.border-top]="edgeClass === 'border-top'">
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2 small text-muted">
             <span>Included packages:
               <strong>{{ includedPlanCount() }}</strong> /

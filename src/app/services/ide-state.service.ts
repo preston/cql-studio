@@ -526,7 +526,7 @@ export class IdeStateService {
   triggerReload(libraryId: string): void {
     this._reloadTrigger.set({ libraryId, timestamp: Date.now() });
     // Clear the trigger after a brief moment to allow it to be triggered again
-    setTimeout(() => this._reloadTrigger.set(null), 100);
+    queueMicrotask(() => this._reloadTrigger.set(null));
   }
 
   reorderLibraryResources(fromIndex: number, toIndex: number): void {
@@ -581,12 +581,12 @@ export class IdeStateService {
   requestNavigateToLine(lineNumber: number): void {
     this._navigateToLineRequest.set(lineNumber);
     // Clear after a tick to allow component to react
-    setTimeout(() => this._navigateToLineRequest.set(null), 0);
+    queueMicrotask(() => this._navigateToLineRequest.set(null));
   }
 
   requestFormatCode(): void {
     this._formatCodeRequest.set(true);
     // Clear after a tick to allow component to react
-    setTimeout(() => this._formatCodeRequest.set(false), 0);
+    queueMicrotask(() => this._formatCodeRequest.set(false));
   }
 }

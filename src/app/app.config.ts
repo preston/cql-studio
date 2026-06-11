@@ -1,10 +1,11 @@
 // Author: Preston Lee
 
-import { ApplicationConfig, Injectable, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { ApplicationConfig, Injectable, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideMarkdown } from 'ngx-markdown';
 import { provideTimeago, TimeagoIntl, TimeagoFormatter, TimeagoCustomFormatter } from 'ngx-timeago';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 import { routes } from './app.routes';
 
@@ -35,9 +36,11 @@ class TimeagoShortIntl extends TimeagoIntl {
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideZonelessChangeDetection(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(),
+    provideCharts(withDefaultRegisterables()),
     provideMarkdown(),
     provideTimeago({
       intl: { provide: TimeagoIntl, useClass: TimeagoShortIntl },

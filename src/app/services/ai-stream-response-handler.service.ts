@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { AiService } from './ai.service';
 import { ToolCallParserService, ParsedToolCall } from './tool-call-parser.service';
 import { ConversationManagerService, Conversation } from './conversation-manager.service';
@@ -36,14 +36,12 @@ export type ProcessStreamResult =
   providedIn: 'root'
 })
 export class AiStreamResponseHandlerService {
-  constructor(
-    private aiService: AiService,
-    private toolCallParser: ToolCallParserService,
-    private conversationManager: ConversationManagerService,
-    private conversationState: AiConversationStateService,
-    private toolExecutionManager: AiToolExecutionManagerService,
-    private ideStateService: IdeStateService
-  ) { }
+  private readonly aiService = inject(AiService);
+  private readonly toolCallParser = inject(ToolCallParserService);
+  private readonly conversationManager = inject(ConversationManagerService);
+  private readonly conversationState = inject(AiConversationStateService);
+  private readonly toolExecutionManager = inject(AiToolExecutionManagerService);
+  private readonly ideStateService = inject(IdeStateService);
 
   private hashString(str: string): string {
     let hash = 0;

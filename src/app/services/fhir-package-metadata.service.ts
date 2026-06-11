@@ -12,6 +12,7 @@ import {
   SuggestedImportTarget
 } from '../models/fhir-package-view.model';
 import { resolvePackageArchiveKey } from './fhir-package-archive-path.lib';
+import { decodeUtf8Bytes } from './utf8-encoding.lib';
 import {
   archivePathPrefixesForExampleDirectories,
   filenameIsUnderExamplePrefixes
@@ -103,7 +104,7 @@ export class FhirPackageMetadataService {
       return false;
     }
     try {
-      const text = new TextDecoder('utf-8', { fatal: false }).decode(raw);
+      const text = decodeUtf8Bytes(raw, { fatal: false });
       if (!text.trimStart().startsWith('{')) {
         return false;
       }
@@ -123,7 +124,7 @@ export class FhirPackageMetadataService {
       return 'Unknown';
     }
     try {
-      const text = new TextDecoder('utf-8', { fatal: false }).decode(raw);
+      const text = decodeUtf8Bytes(raw, { fatal: false });
       const t = text.trimStart();
       if (!t.startsWith('{')) {
         return 'Unknown';
@@ -184,7 +185,7 @@ export class FhirPackageMetadataService {
       return undefined;
     }
     try {
-      const text = new TextDecoder('utf-8', { fatal: false }).decode(raw);
+      const text = decodeUtf8Bytes(raw, { fatal: false });
       if (!text.trimStart().startsWith('{')) {
         return undefined;
       }

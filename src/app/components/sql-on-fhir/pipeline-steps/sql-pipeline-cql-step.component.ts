@@ -1,15 +1,13 @@
 // Author: Preston Lee
 
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { CqlReadonlyPreviewComponent } from '../../shared/cql-readonly-preview/cql-readonly-preview.component';
+import { Component, input } from '@angular/core';
+import { SyntaxHighlighterComponent } from '../../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-sql-pipeline-cql-step',
-  standalone: true,
-  imports: [CqlReadonlyPreviewComponent],
+  imports: [SyntaxHighlighterComponent],
   templateUrl: './sql-pipeline-cql-step.component.html',
-  styleUrl: './sql-pipeline-cql-step.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  styleUrl: './sql-pipeline-cql-step.component.scss'
 })
 export class SqlPipelineCqlStepComponent {
   readonly cqlPreview = input('');

@@ -366,7 +366,11 @@
                 </td>
                 <td>
                   <div class="d-flex flex-wrap align-items-center gap-1">
-                    <span class="badge" [ngClass]="vsacStatusBadgeClass(vs.status)">{{ vs.status || 'unknown' }}</span>
+                    <span class="badge"
+                      [class.text-bg-success]="vs.status === 'active'"
+                      [class.text-bg-secondary]="vs.status === 'draft'"
+                      [class.text-bg-dark]="vs.status === 'retired'"
+                      [class.text-bg-warning]="!vs.status || (vs.status !== 'active' && vs.status !== 'draft' && vs.status !== 'retired')">{{ vs.status || 'unknown' }}</span>
                     @if (vs.experimental) {
                     <span class="badge text-bg-info">Experimental</span>
                     }
@@ -375,7 +379,7 @@
                 <td class="small">{{ vs.version || '—' }}</td>
                 <td class="small text-break">{{ vs.publisher || '—' }}</td>
                 <td class="small text-nowrap">{{ formatVsacDate(vs.date) }}</td>
-                <td class="small text-nowrap">{{ formatVsacDate(vs.meta?.lastUpdated) }}</td>
+                <td class="small text-nowrap">{{ formatVsacDate($safeNavigationMigration(vs.meta?.lastUpdated)) }}</td>
                 <td class="small text-end text-nowrap">{{ vs.expansion?.total ?? '—' }}</td>
                 <td class="small text-nowrap">{{ vs.immutable ? 'Yes' : '—' }}</td>
                 <td class="small text-break"><code class="small">{{ vs.url || '—' }}</code></td>

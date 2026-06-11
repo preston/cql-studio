@@ -1,20 +1,20 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Measure } from 'fhir/r4';
 import { MeasureService } from '../../../services/measure.service';
 import { SettingsService } from '../../../services/settings.service';
 import { ToastService } from '../../../services/toast.service';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-measure-library',
-  standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './measure-library.component.html',
+
   styleUrl: './measure-library.component.scss'
 })
 export class MeasureLibraryComponent implements OnInit {
@@ -83,7 +83,7 @@ export class MeasureLibraryComponent implements OnInit {
       if (term) params.name = term;
       const bundle = await firstValueFrom(this.measureService.searchMeasures(params));
       const entries = bundle?.entry ?? [];
-      this.results.set(entries.map(e => e.resource!).filter((r): r is Measure => r?.resourceType === 'Measure'));
+      this.results.set(entries.map(e => e.resource!).filter((r): r is Measure => isResourceType(r, 'Measure')));
       this.totalCount.set(bundle?.total ?? this.results().length);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Search failed.';

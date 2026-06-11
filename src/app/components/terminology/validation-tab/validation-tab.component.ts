@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, signal, computed, inject, OnDestroy, afterNextRender, Injector } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
 import { takeUntil, catchError } from 'rxjs/operators';
@@ -9,6 +8,7 @@ import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ValueSet, CodeSystem, Parameters } from 'fhir/r4';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 interface ValidationResult {
   valid: boolean;
@@ -19,9 +19,9 @@ interface ValidationResult {
 
 @Component({
   selector: 'app-validation-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './validation-tab.component.html',
+
   styleUrl: './validation-tab.component.scss'
 })
 export class ValidationTabComponent implements OnDestroy {
@@ -63,6 +63,7 @@ export class ValidationTabComponent implements OnDestroy {
   protected settingsService = inject(SettingsService);
   private terminologyService = inject(TerminologyService);
   private toastService = inject(ToastService);
+  private injector = inject(Injector);
 
   constructor() {
     // Set up debounced ValueSet search
@@ -181,7 +182,9 @@ export class ValidationTabComponent implements OnDestroy {
 
     return firstValueFrom(this.terminologyService.searchValueSets(params))
       .then(result => {
-        const valuesets = result?.entry?.map(e => e.resource!).filter(vs => vs !== null) || [];
+        const valuesets = result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is ValueSet => isResourceType(resource, 'ValueSet')) || [];
         this.valuesetSearchResults.set(valuesets);
         this.showValuesetDropdown.set(valuesets.length > 0);
         return valuesets;
@@ -228,11 +231,8 @@ export class ValidationTabComponent implements OnDestroy {
   }
 
   onValueSetInputBlur(): void {
-    // Delay hiding dropdown to allow click on results
-    setTimeout(() => {
-      this.showValuesetDropdown.set(false);
-      this.valuesetHighlightedIndex.set(-1);
-    }, 200);
+    this.showValuesetDropdown.set(false);
+    this.valuesetHighlightedIndex.set(-1);
   }
 
   onValueSetInputKeyDown(event: KeyboardEvent): void {
@@ -277,12 +277,10 @@ export class ValidationTabComponent implements OnDestroy {
   }
 
   private scrollValueSetIntoView(index: number): void {
-    setTimeout(() => {
-      const element = document.getElementById(`valueset-item-${index}`);
-      if (element) {
-        element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }, 0);
+    afterNextRender(() => {
+      document.getElementById(`valueset-item-${index}`)
+        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, { injector: this.injector });
   }
 
   selectValueSetFromSearch(valueset: ValueSet): void {
@@ -327,7 +325,9 @@ export class ValidationTabComponent implements OnDestroy {
 
     return firstValueFrom(this.terminologyService.searchCodeSystems(params))
       .then(result => {
-        const codesystems = result?.entry?.map(e => e.resource!).filter(cs => cs !== null) || [];
+        const codesystems = result?.entry
+          ?.map(e => e.resource)
+          .filter((resource): resource is CodeSystem => isResourceType(resource, 'CodeSystem')) || [];
         this.codesystemSearchResults.set(codesystems);
         this.showCodesystemDropdown.set(codesystems.length > 0);
         return codesystems;
@@ -374,11 +374,8 @@ export class ValidationTabComponent implements OnDestroy {
   }
 
   onCodeSystemInputBlur(): void {
-    // Delay hiding dropdown to allow click on results
-    setTimeout(() => {
-      this.showCodesystemDropdown.set(false);
-      this.codesystemHighlightedIndex.set(-1);
-    }, 200);
+    this.showCodesystemDropdown.set(false);
+    this.codesystemHighlightedIndex.set(-1);
   }
 
   onCodeSystemInputKeyDown(event: KeyboardEvent): void {
@@ -428,12 +425,10 @@ export class ValidationTabComponent implements OnDestroy {
   }
 
   private scrollCodeSystemIntoView(index: number): void {
-    setTimeout(() => {
-      const element = document.getElementById(`codesystem-item-${index}`);
-      if (element) {
-        element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }, 0);
+    afterNextRender(() => {
+      document.getElementById(`codesystem-item-${index}`)
+        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, { injector: this.injector });
   }
 
   selectCodeSystemFromSearch(codesystem: CodeSystem): void {

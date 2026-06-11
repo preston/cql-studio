@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, output, OnDestroy, signal, computed, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SummaryComponent } from '../builder/summary/summary.component';
@@ -21,12 +20,11 @@ import { TranslationService } from '../../../services/translation.service';
 import { CqlGenerationService } from '../../../services/cql-generation.service';
 import { CqlParsingService } from '../../../services/cql-parsing.service';
 import { Library } from 'fhir/r4';
+import { decodeUtf8Base64, encodeUtf8Base64 } from '../../../services/utf8-encoding.lib';
 
 @Component({
   selector: 'app-guideline-editor',
-  standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     SummaryComponent,
     FunctionsComponent,
@@ -40,6 +38,7 @@ import { Library } from 'fhir/r4';
     ExternalCqlComponent
   ],
   templateUrl: './guideline-editor.component.html',
+
   styleUrl: './guideline-editor.component.scss'
 })
 export class GuidelineEditorComponent implements OnInit, OnDestroy {
@@ -86,7 +85,7 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
       for (const content of this.library().content!) {
         if (content.contentType === 'text/cql' && content.data) {
           try {
-            cqlContent = atob(content.data);
+            cqlContent = decodeUtf8Base64(content.data);
             break;
           } catch (e) {
             console.error('Error decoding CQL content:', e);
@@ -230,11 +229,11 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
       content: [
         {
           contentType: 'text/cql',
-          data: btoa(cqlContent)
+          data: encodeUtf8Base64(cqlContent)
         },
         {
           contentType: 'application/elm+xml',
-          data: btoa(elmXml)
+          data: encodeUtf8Base64(elmXml)
         }
       ],
       extension: [
@@ -259,7 +258,7 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
         this.guidelinesStateService.clearDirty();
         this.guidelinesStateService.setSaving(false);
         this.statusMessage.set('Guideline saved successfully');
-        setTimeout(() => this.statusMessage.set(''), 3000);
+        this.runAfterDelay(3000, () => this.statusMessage.set(''));
       },
       error: (error) => {
         const errorMessage = this.getErrorMessage(error);
@@ -297,6 +296,18 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
     if (this.library()?.id) {
       this.router.navigate(['/guidelines', this.library().id, 'testing']);
     }
+  }
+
+  private runAfterDelay(delayMs: number, callback: () => void): void {
+    const deadline = performance.now() + delayMs;
+    const tick = (): void => {
+      if (performance.now() >= deadline) {
+        callback();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
   }
 }
 

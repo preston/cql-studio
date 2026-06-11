@@ -1,0 +1,25 @@
+{
+  "resourceType": "ValueSet",
+  "id": "vs-mammography",
+  "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.108.12.1018",
+  "version": "20230509",
+  "name": "Mammography",
+  "title": "Mammography (demo)",
+  "status": "active",
+  "experimental": true,
+  "description": "Locally-curated mammography codes for CQL Studio's SQL-on-FHIR demo. Not the full VSAC expansion.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://loinc.org",
+        "concept": [
+          { "code": "24604-1", "display": "MG Breast Diagnostic" },
+          { "code": "24605-8", "display": "MG Breast Screening" },
+          { "code": "26346-7", "display": "MG Breast Diagnostic Limited" },
+          { "code": "26347-5", "display": "MG Breast Screening Limited" },
+          { "code": "36625-2", "display": "MG Breast Screening - bilateral" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "resourceType": "Library",
+  "id": "cms125-breast-cancer-screening",
+  "url": "http://cqlstudio.com/Library/BreastCancerScreening",
+  "version": "11.1.000",
+  "name": "BreastCancerScreening",
+  "title": "CMS125 — Breast Cancer Screening (demo)",
+  "status": "active",
+  "experimental": true,
+  "description": "Demo CQL library used by CQL Studio's SQL-on-FHIR pipeline (Issue #15). Simplified encoding of CMS125 v11; not for production reporting.",
+  "type": {
+    "coding": [
+      { "system": "http://terminology.hl7.org/CodeSystem/library-type", "code": "logic-library" }
+    ]
+  },
+  "parameter": [
+    {
+      "name": "Measurement Period",
+      "use": "in",
+      "min": 1, "max": "1",
+      "type": "Period"
+    }
+  ],
+  "dataRequirement": [
+    { "type": "Patient", "profile": ["http://hl7.org/fhir/StructureDefinition/Patient"] },
+    { "type": "Encounter", "profile": ["http://hl7.org/fhir/StructureDefinition/Encounter"], "codeFilter": [{ "path": "type", "valueSet": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.101.12.1001" }] },
+    { "type": "Observation", "profile": ["http://hl7.org/fhir/StructureDefinition/Observation"], "codeFilter": [{ "path": "code", "valueSet": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.108.12.1018" }] },
+    { "type": "Procedure", "profile": ["http://hl7.org/fhir/StructureDefinition/Procedure"], "codeFilter": [{ "path": "code", "valueSet": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.198.12.1005" }] }
+  ],
+  "content": [
+    { "contentType": "text/cql", "data": "Ly8gQXV0aG9yOiBFdWdlbmUgVmVzdGVsCi8vIENNUzEyNTogQnJlYXN0IENhbmNlciBTY3JlZW5pbmcg4oCUIGRlbW8gQ1FMIHVzZWQgYnkgQ1FMIFN0dWRpbydzIFNRTC1vbi1GSElSIHBpcGVsaW5lLgovLwovLyBUaGlzIGlzIGEgc2ltcGxpZmllZCwgZGVtby1ncmFkZSBlbmNvZGluZyBvZiBDTVMxMjUgZm9yIGVuZC10by1lbmQgcGlwZWxpbmUgdmVyaWZpY2F0aW9uLgovLyBSZWFsIENNUzEyNSBwcm9kdWN0aW9uIGxvZ2ljIGlzIGluIGVDUUk6IGh0dHBzOi8vZWNxaS5oZWFsdGhpdC5nb3YvZWNxbS9lYy8yMDI0L2NtczEyNXYxMgoKbGlicmFyeSBCcmVhc3RDYW5jZXJTY3JlZW5pbmcgdmVyc2lvbiAnMTEuMS4wMDAnCgp1c2luZyBGSElSIHZlcnNpb24gJzQuMC4xJwoKaW5jbHVkZSBGSElSSGVscGVycyB2ZXJzaW9uICc0LjAuMScKCnZhbHVlc2V0ICJNYW1tb2dyYXBoeSI6ICdodHRwOi8vY3RzLm5sbS5uaWguZ292L2ZoaXIvVmFsdWVTZXQvMi4xNi44NDAuMS4xMTM4ODMuMy40NjQuMTAwMy4xMDguMTIuMTAxOCcKdmFsdWVzZXQgIkJpbGF0ZXJhbCBNYXN0ZWN0b215IjogJ2h0dHA6Ly9jdHMubmxtLm5paC5nb3YvZmhpci9WYWx1ZVNldC8yLjE2Ljg0MC4xLjExMzg4My4zLjQ2NC4xMDAzLjE5OC4xMi4xMDA1Jwp2YWx1ZXNldCAiT2ZmaWNlIFZpc2l0IjogJ2h0dHA6Ly9jdHMubmxtLm5paC5nb3YvZmhpci9WYWx1ZVNldC8yLjE2Ljg0MC4xLjExMzg4My4zLjQ2NC4xMDAzLjEwMS4xMi4xMDAxJwoKcGFyYW1ldGVyICJNZWFzdXJlbWVudCBQZXJpb2QiIEludGVydmFsPERhdGVUaW1lPgoKY29udGV4dCBQYXRpZW50CgpkZWZpbmUgIlF1YWxpZnlpbmcgRW5jb3VudGVycyI6CiAgW0VuY291bnRlcjogIk9mZmljZSBWaXNpdCJdIEUKICAgIHdoZXJlIEUucGVyaW9kIGR1cmluZyAiTWVhc3VyZW1lbnQgUGVyaW9kIgoKZGVmaW5lICJJbml0aWFsIFBvcHVsYXRpb24iOgogIFBhdGllbnQuZ2VuZGVyID0gJ2ZlbWFsZScKICAgIGFuZCBBZ2VJblllYXJzQXQoc3RhcnQgb2YgIk1lYXN1cmVtZW50IFBlcmlvZCIpID49IDUxCiAgICBhbmQgQWdlSW5ZZWFyc0F0KHN0YXJ0IG9mICJNZWFzdXJlbWVudCBQZXJpb2QiKSA8PSA3NAogICAgYW5kIGV4aXN0cyAiUXVhbGlmeWluZyBFbmNvdW50ZXJzIgoKZGVmaW5lICJEZW5vbWluYXRvciI6CiAgIkluaXRpYWwgUG9wdWxhdGlvbiIKCmRlZmluZSAiRGVub21pbmF0b3IgRXhjbHVzaW9uIjoKICBleGlzdHMgW1Byb2NlZHVyZTogIkJpbGF0ZXJhbCBNYXN0ZWN0b215Il0KCmRlZmluZSAiTnVtZXJhdG9yIjoKICBleGlzdHMgKFtPYnNlcnZhdGlvbjogIk1hbW1vZ3JhcGh5Il0gTwogICAgd2hlcmUgTy5lZmZlY3RpdmUgZHVyaW5nICJNZWFzdXJlbWVudCBQZXJpb2QiKQo=" }
+  ]
+}

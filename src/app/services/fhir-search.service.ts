@@ -21,7 +21,7 @@ export class FhirSearchService extends BaseService {
     resourceType: string,
     params: Record<string, string>,
     options?: { count?: number; offset?: number }
-  ): Observable<Bundle<Resource>> {
+  ): Observable<Bundle> {
     const baseUrl = this.getBaseUrl();
     if (!baseUrl) {
       return new Observable((subscriber) => {
@@ -47,10 +47,10 @@ export class FhirSearchService extends BaseService {
       ? `${baseUrl}/${resourceType}?${queryString}`
       : `${baseUrl}/${resourceType}`;
 
-    return this.http.get<Bundle<Resource>>(url, { headers: this.headers() });
+    return this.http.get<Bundle>(url, { headers: this.headers() });
   }
 
-  fetchFromUrl(url: string): Observable<Bundle<Resource>> {
+  fetchFromUrl(url: string): Observable<Bundle> {
     const baseUrl = this.getBaseUrl();
     let resolvedUrl: string;
     if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -60,6 +60,6 @@ export class FhirSearchService extends BaseService {
       const cleanRelative = url.startsWith('/') ? url : '/' + url;
       resolvedUrl = cleanBase + cleanRelative;
     }
-    return this.http.get<Bundle<Resource>>(resolvedUrl, { headers: this.headers() });
+    return this.http.get<Bundle>(resolvedUrl, { headers: this.headers() });
   }
 }

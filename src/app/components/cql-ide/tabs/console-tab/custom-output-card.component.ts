@@ -1,25 +1,21 @@
 // Author: Preston Lee
 
-import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { OutputSection } from '../../shared/ide-types';
 
 @Component({
   selector: 'app-custom-output-card',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [DatePipe],
   templateUrl: './custom-output-card.component.html',
+
   styleUrls: ['./custom-output-card.component.scss']
 })
 export class CustomOutputCardComponent {
-  @Input() section!: OutputSection;
-
-  getCardClass(): string {
-    return `custom-card-${this.section.type}`;
-  }
+  section = input.required<OutputSection>();
 
   getCardIcon(): string {
-    switch (this.section.type) {
+    switch (this.section().type) {
       case 'cql-execution':
         return 'bi-play-circle-fill';
       case 'cql-translation':
@@ -32,7 +28,7 @@ export class CustomOutputCardComponent {
   }
 
   getStatusBadgeClass(): string {
-    switch (this.section.status) {
+    switch (this.section().status) {
       case 'success':
         return 'bg-success';
       case 'error':
@@ -45,12 +41,12 @@ export class CustomOutputCardComponent {
   }
 
   getCardType(): string {
-    // Determine card type based on metadata or title patterns
-    if (this.section.metadata?.['libraryName'] && this.section.metadata?.['patientName']) {
+    const section = this.section();
+    if (section.metadata?.['libraryName'] && section.metadata?.['patientName']) {
       return 'cql-execution';
-    } else if (this.section.metadata?.['cqlVersion'] && this.section.metadata?.['contentType'] === 'elm') {
+    } else if (section.metadata?.['cqlVersion'] && section.metadata?.['contentType'] === 'elm') {
       return 'cql-translation';
-    } else if (this.section.metadata?.['validationType'] === 'cql') {
+    } else if (section.metadata?.['validationType'] === 'cql') {
       return 'cql-validation';
     }
     return 'default';

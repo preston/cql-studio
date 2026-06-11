@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, effect, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, output, effect, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../../services/settings.service';
 import { TranslationService } from '../../../../services/translation.service';
@@ -10,9 +9,9 @@ import { SyntaxHighlighterComponent } from '../../../shared/syntax-highlighter/s
 
 @Component({
   selector: 'app-elm-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, SyntaxHighlighterComponent],
+  imports: [FormsModule, SyntaxHighlighterComponent],
   templateUrl: './elm-tab.component.html',
+
   styleUrls: ['./elm-tab.component.scss']
 })
 export class ElmTabComponent {
@@ -39,11 +38,11 @@ export class ElmTabComponent {
     return this.formatXml(xml);
   });
 
-  constructor(
-    public settingsService: SettingsService,
-    public translationService: TranslationService,
-    public ideStateService: IdeStateService
-  ) {
+  readonly settingsService = inject(SettingsService);
+  readonly translationService = inject(TranslationService);
+  readonly ideStateService = inject(IdeStateService);
+
+  constructor() {
     // Watch for active editor/library changes and reset translation data
     effect(() => {
       const currentLibraryId = this.ideStateService.activeLibraryId();

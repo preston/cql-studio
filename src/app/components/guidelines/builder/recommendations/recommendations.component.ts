@@ -1,15 +1,14 @@
 // Author: Preston Lee
 
 import { Component, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GuidelinesStateService, Recommendation } from '../../../../services/guidelines-state.service';
 
 @Component({
   selector: 'app-recommendations',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './recommendations.component.html',
+
   styleUrl: './recommendations.component.scss'
 })
 export class RecommendationsComponent {

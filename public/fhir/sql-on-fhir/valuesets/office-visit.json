@@ -1,0 +1,26 @@
+{
+  "resourceType": "ValueSet",
+  "id": "vs-office-visit",
+  "url": "http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113883.3.464.1003.101.12.1001",
+  "version": "20230509",
+  "name": "OfficeVisit",
+  "title": "Office Visit (demo)",
+  "status": "active",
+  "experimental": true,
+  "description": "Locally-curated office visit codes (CPT E&M) for CQL Studio's SQL-on-FHIR demo.",
+  "compose": {
+    "include": [
+      {
+        "system": "http://www.ama-assn.org/go/cpt",
+        "concept": [
+          { "code": "99202", "display": "Office or other outpatient visit, new patient, low complexity" },
+          { "code": "99203", "display": "Office or other outpatient visit, new patient, moderate complexity" },
+          { "code": "99204", "display": "Office or other outpatient visit, new patient, high complexity" },
+          { "code": "99213", "display": "Office or other outpatient visit, established patient, low complexity" },
+          { "code": "99214", "display": "Office or other outpatient visit, established patient, moderate complexity" },
+          { "code": "99215", "display": "Office or other outpatient visit, established patient, high complexity" }
+        ]
+      }
+    ]
+  }
+}

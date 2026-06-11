@@ -1,0 +1,154 @@
+<div class="container-lg py-4">
+  <nav aria-label="Measure report breadcrumb">
+    <ol class="breadcrumb small mb-4">
+      <li class="breadcrumb-item">
+        <a id="measure-report-viewer-breadcrumb-measures" routerLink="/measures">Measures</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a id="measure-report-viewer-breadcrumb-reports" routerLink="/measure-reports">Measure Reports</a>
+      </li>
+      @if (reportId()) {
+      <li class="breadcrumb-item active" aria-current="page">{{ reportId() }}</li>
+      }
+    </ol>
+  </nav>
+
+  @if (loading()) {
+  <div id="measure-report-viewer-loading" class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+      <p class="text-muted mb-0">Loading measure report…</p>
+    </div>
+  </div>
+  } @else if (notFound()) {
+  <div id="measure-report-viewer-not-found" class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-search text-muted display-6 d-block mb-3" aria-hidden="true"></i>
+      <h5 class="mb-2">Measure report not found</h5>
+      <p class="text-muted small mb-4">
+        @if (reportId()) {
+        No MeasureReport exists with id <code>{{ reportId() }}</code>.
+        } @else {
+        No report id was provided.
+        }
+      </p>
+      <a id="measure-report-viewer-back-reports" class="btn btn-primary btn-sm" routerLink="/measure-reports">
+        Browse all reports
+      </a>
+    </div>
+  </div>
+  } @else if (invalidResource()) {
+  <div id="measure-report-viewer-invalid" class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-exclamation-octagon text-danger display-6 d-block mb-3" aria-hidden="true"></i>
+      <h5 class="mb-2">Invalid resource</h5>
+      <p class="text-muted small mb-0">The server returned a resource that is not a MeasureReport.</p>
+    </div>
+  </div>
+  } @else if (error()) {
+  <div id="measure-report-viewer-error" class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-wifi-off text-danger display-6 d-block mb-3" aria-hidden="true"></i>
+      <h5 class="mb-2">Could not load report</h5>
+      <p class="text-muted small mb-4">{{ error() }}</p>
+      <button id="measure-report-viewer-retry" type="button" class="btn btn-outline-danger btn-sm" (click)="retryLoad()">
+        <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Retry
+      </button>
+    </div>
+  </div>
+  } @else if (report(); as r) {
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <h4 id="measure-report-viewer-heading" class="mb-1 d-flex align-items-center gap-2">
+        <i class="bi bi-file-earmark-bar-graph text-primary" aria-hidden="true"></i>
+        Measure Report
+      </h4>
+      <p class="text-muted small mb-0">
+        Resource id: <code>{{ reportId() }}</code>
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a id="measure-report-viewer-back-reports" class="btn btn-sm btn-outline-secondary" routerLink="/measure-reports">
+        <i class="bi bi-list-ul me-1" aria-hidden="true"></i>All reports
+      </a>
+      <a id="measure-report-viewer-back-measures" class="btn btn-sm btn-outline-secondary" routerLink="/measures">
+        <i class="bi bi-bar-chart me-1" aria-hidden="true"></i>Measure library
+      </a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-body-secondary border-0 py-3">
+      <h6 class="mb-0 fw-semibold">Summary</h6>
+    </div>
+    <div class="card-body">
+      <div class="row g-4">
+        <div class="col-sm-6 col-lg-3">
+          <div class="text-muted text-uppercase small fw-semibold mb-1">Status</div>
+          @if (r.status) {
+          <span class="badge rounded-pill" [class]="statusBadgeClass(r.status)">{{ r.status }}</span>
+          } @else {
+          <span class="text-muted">—</span>
+          }
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="text-muted text-uppercase small fw-semibold mb-1">Type</div>
+          <div class="fw-medium">{{ r.type ?? '—' }}</div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="text-muted text-uppercase small fw-semibold mb-1">Generated</div>
+          <div class="fw-medium">
+            @if (r.date) {
+            {{ r.date | date: 'medium' }}
+            } @else {
+            —
+            }
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="text-muted text-uppercase small fw-semibold mb-1">Period</div>
+          <div class="fw-medium small">
+            @if (r.period?.start && r.period?.end) {
+            {{ r.period.start | date: 'mediumDate' }} – {{ r.period.end | date: 'mediumDate' }}
+            } @else {
+            —
+            }
+          </div>
+        </div>
+        @if (r.measure) {
+        <div class="col-12">
+          <div class="text-muted text-uppercase small fw-semibold mb-1">Measure</div>
+          <div class="d-flex flex-wrap align-items-baseline gap-2">
+            <span class="badge text-bg-light border">{{ measureDisplayName(r.measure) }}</span>
+            <span class="text-muted small text-break">{{ r.measure }}</span>
+          </div>
+        </div>
+        }
+        @if (r.subject) {
+        <div class="col-md-6">
+          <div class="text-muted text-uppercase small fw-semibold mb-1">Subject</div>
+          <div class="small text-break">{{ r.subject.display ?? r.subject.reference ?? '—' }}</div>
+        </div>
+        }
+        @if (r.reporter) {
+        <div class="col-md-6">
+          <div class="text-muted text-uppercase small fw-semibold mb-1">Reporter</div>
+          <div class="small text-break">{{ r.reporter.display ?? r.reporter.reference ?? '—' }}</div>
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-body-secondary border-0 py-3">
+      <h6 class="mb-0 fw-semibold">Population results</h6>
+    </div>
+    <div class="card-body p-0">
+      <div class="p-3 p-md-4">
+        <app-measure-report-view [report]="r" [showRawJson]="true" [hideHeader]="true" />
+      </div>
+    </div>
+  </div>
+  }
+</div>
