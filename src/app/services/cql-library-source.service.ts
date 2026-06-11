@@ -21,6 +21,7 @@ export class CqlLibrarySourceService {
   private readonly libraryService = inject(LibraryService);
   private readonly elmIncludeParser = inject(ElmIncludeParser);
   private readonly cqlCache = new Map<string, string>();
+  private readonly elmCache = new Map<string, string>();
 
   getCachedCql(path: string, system: string | null | undefined, version: string | null | undefined): string | null {
     const key = this.elmIncludeParser.cacheKey(path, system, version);
@@ -43,12 +44,32 @@ export class CqlLibrarySourceService {
     this.cqlCache.set(this.elmIncludeParser.cacheKey(path, system ?? null, version ?? null), cqlContent);
   }
 
+  getCachedElm(path: string, system: string | null | undefined, version: string | null | undefined): string | null {
+    const key = this.elmIncludeParser.cacheKey(path, system, version);
+    return this.elmCache.get(key) ?? null;
+  }
+
+  setCachedElm(
+    path: string,
+    system: string | null | undefined,
+    version: string | null | undefined,
+    elmXml: string
+  ): void {
+    if (!elmXml.trim()) {
+      return;
+    }
+    this.elmCache.set(this.elmIncludeParser.cacheKey(path, system ?? null, version ?? null), elmXml);
+  }
+
   invalidate(path?: string, version?: string | null, system?: string | null): void {
     if (!path) {
       this.cqlCache.clear();
+      this.elmCache.clear();
       return;
     }
-    this.cqlCache.delete(this.elmIncludeParser.cacheKey(path, system ?? null, version ?? null));
+    const key = this.elmIncludeParser.cacheKey(path, system ?? null, version ?? null);
+    this.cqlCache.delete(key);
+    this.elmCache.delete(key);
   }
 
   /**
@@ -117,6 +138,7 @@ export class CqlLibrarySourceService {
 
     const elmXml = await firstValueFrom(this.libraryService.getElmXml(library));
     if (elmXml.trim()) {
+      this.elmCache.set(key, elmXml);
       await this.prefetchIncludesFromElmXml(elmXml, visiting);
     }
 

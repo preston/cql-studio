@@ -104,6 +104,11 @@ export class IdeStateService {
   // Editor action requests (for tool orchestrator)
   private _navigateToLineRequest = signal<number | null>(null);
   private _formatCodeRequest = signal<boolean>(false);
+  private _pendingEditorNavigation = signal<{
+    libraryId: string;
+    line: number;
+    column: number;
+  } | null>(null);
 
   /** Per-scope invalidation counts. Tabs use effect(() => this.tabDataInvalidation()[scope]) and refresh when their scope's count increases. */
   private _tabDataInvalidation = signal<Record<string, number>>({});
@@ -135,6 +140,7 @@ export class IdeStateService {
   public dragOverPanel = computed(() => this._dragOverPanel());
   public navigateToLineRequest = computed(() => this._navigateToLineRequest());
   public formatCodeRequest = computed(() => this._formatCodeRequest());
+  public pendingEditorNavigation = computed(() => this._pendingEditorNavigation());
   /** Per-scope invalidation counts. Tabs subscribe in an effect and refresh when their scope's count increases (see invalidateTabData). */
   public tabDataInvalidation = computed(() => this._tabDataInvalidation());
   public activeLibraryIsReadOnly = computed(() => this.getActiveLibraryResource()?.isReadOnly ?? false);
@@ -582,6 +588,47 @@ export class IdeStateService {
     this._navigateToLineRequest.set(lineNumber);
     // Clear after a tick to allow component to react
     queueMicrotask(() => this._navigateToLineRequest.set(null));
+  }
+
+  requestNavigateToDefinition(request: {
+    libraryId: string;
+    line: number;
+    column?: number;
+  }): void {
+    this._pendingEditorNavigation.set({
+      libraryId: request.libraryId,
+      line: request.line,
+      column: request.column ?? 0
+    });
+
+    if (this._activeLibraryId() !== request.libraryId) {
+      this.selectLibraryResource(request.libraryId);
+    }
+  }
+
+  consumePendingEditorNavigation(): {
+    libraryId: string;
+    line: number;
+    column: number;
+  } | null {
+    const pending = this._pendingEditorNavigation();
+    if (!pending) {
+      return null;
+    }
+    this._pendingEditorNavigation.set(null);
+    return pending;
+  }
+
+  peekPendingEditorNavigation(): {
+    libraryId: string;
+    line: number;
+    column: number;
+  } | null {
+    return this._pendingEditorNavigation();
+  }
+
+  clearPendingEditorNavigation(): void {
+    this._pendingEditorNavigation.set(null);
   }
 
   requestFormatCode(): void {

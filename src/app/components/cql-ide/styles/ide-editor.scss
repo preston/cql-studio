@@ -21,9 +21,10 @@
   min-height: 100%;
 }
 
-:host ::ng-deep .cm-placeholder {
-  color: #9ca3af;
-  font-style: italic;
+:host ::ng-deep .cm-cql-definition-link {
+  text-decoration: underline;
+  cursor: pointer;
+  color: inherit;
 }
 
 /* Override the global color for CodeMirror content to allow syntax highlighting */
