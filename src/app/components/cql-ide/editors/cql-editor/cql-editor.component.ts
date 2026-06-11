@@ -13,7 +13,15 @@ import { IdeEditor, EditorState as IdeEditorState } from '../base-editor.interfa
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { CqlFormatterService } from '../../../../services/cql-formatter.service';
 import { CqlValidationService, FullValidationResult, ValidationResult } from '../../../../services/cql-validation.service';
+import { LibraryTranslationContextBuilder } from '../../../../services/library-translation-context.lib';
 import { DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../../../services/cql-execution.service';
+import { CqlDefinitionIndexService, elmColumnToCodeMirror } from '../../../../services/cql-definition-index.service';
+import { CqlDefinitionIndex, CqlReferenceMatch, isReferenceResolvableSync } from '../../../../services/elm-locator.lib';
+import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
+import {
+  createGoToDefinitionExtension,
+  reconfigureDefinitionIndex
+} from '../../../../services/cql-codemirror-go-to-definition.lib';
 
 @Component({
   selector: 'app-cql-editor',
@@ -74,10 +82,16 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private ideStateService = inject(IdeStateService);
   private cqlFormatterService = inject(CqlFormatterService);
   private cqlValidationService = inject(CqlValidationService);
+  private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
+  private definitionIndexService = inject(CqlDefinitionIndexService);
+  private libraryOpenerService = inject(CqlIdeLibraryOpenerService);
+
+  private definitionIndex: CqlDefinitionIndex | null = null;
 
   // Debouncing for validation
   private validationDebounceFrame?: number;
   private readonly VALIDATION_DEBOUNCE_MS = 250;
+  private validationGeneration = 0;
   private currentValidationErrors: string[] = [];
   private pendingLintResolvers: Array<(diagnostics: Diagnostic[]) => void> = [];
   
@@ -109,10 +123,19 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       if (!loading && !loadError && this.editorContainer()?.nativeElement && !this.editor && !this.isInitializing) {
         this.initializeEditor();
         this.setupResizeObserver();
+        this.tryConsumePendingNavigation();
       }
     });
     
     // Watch for reload trigger signal
+    effect(() => {
+      const pending = this.ideStateService.pendingEditorNavigation();
+      const libraryId = this.libraryId();
+      if (pending?.libraryId === libraryId && this.editor && !this.contentLoading()) {
+        this.tryConsumePendingNavigation();
+      }
+    });
+
     effect(() => {
       const reloadTrigger = this.ideStateService.reloadTrigger();
       const libraryId = this.libraryId();
@@ -222,6 +245,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         extensions: [
           ...createCqlEditorBaseExtensions(),
           ...this.grammarManager.createExtensions(),
+          ...createGoToDefinitionExtension(this.createGoToDefinitionHandlers()),
           lintGutter(),
           linter(this.createLintSource()),
           keymap.of([
@@ -374,6 +398,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       
       this.isInitializing = false;
       this.initializationRetries = 0; // Reset retry counter on success
+      this.tryConsumePendingNavigation();
       
       // Update form validity signal after initialization
       this._isFormValidSignal.set(initialContent.trim().length > 0);
@@ -594,20 +619,115 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       return;
     }
 
-    // Clear debounce and validate immediately
     this.cancelValidationDebounce();
+    void this.runImmediateValidation(code);
+  }
 
-    const diagnostics = this.collectLintDiagnostics(code, this.editor.state.doc);
+  private async runImmediateValidation(code: string): Promise<void> {
+    if (!this.editor) {
+      return;
+    }
+
+    const generation = ++this.validationGeneration;
+    const diagnostics = await this.collectLintDiagnosticsAsync(code, this.editor.state.doc);
+    if (generation !== this.validationGeneration) {
+      return;
+    }
+
     this.emitValidationUi(diagnostics.compilerResult);
+    this.updateDefinitionIndex(diagnostics.compilerResult);
     this.editor.dispatch({ effects: [] });
   }
 
-  private collectLintDiagnostics(
+  private updateDefinitionIndex(full: FullValidationResult): void {
+    this.definitionIndex = this.definitionIndexService.buildIndex(full.raw.elmXml);
+    if (this.editor) {
+      reconfigureDefinitionIndex(this.editor, this.definitionIndex);
+    }
+  }
+
+  private createGoToDefinitionHandlers() {
+    return {
+      findReferenceAt: (line: number, column: number): CqlReferenceMatch | null => {
+        if (!this.definitionIndex) {
+          return null;
+        }
+        return this.definitionIndexService.findReferenceAt(this.definitionIndex, line, column);
+      },
+      isResolvableSync: (match: CqlReferenceMatch): boolean => {
+        if (!this.definitionIndex) {
+          return false;
+        }
+        return isReferenceResolvableSync(match, this.definitionIndex);
+      },
+      goToDefinitionAt: async (line: number, column: number): Promise<void> => {
+        await this.handleGoToDefinition(line, column);
+      }
+    };
+  }
+
+  private async handleGoToDefinition(line: number, column: number): Promise<void> {
+    if (!this.definitionIndex || !this.editor) {
+      return;
+    }
+
+    const match = this.definitionIndexService.findReferenceAt(this.definitionIndex, line, column);
+    if (!match) {
+      return;
+    }
+
+    const target = await this.definitionIndexService.resolveDefinitionTargetAsync(match, this.definitionIndex);
+    if (!target) {
+      return;
+    }
+
+    if (target.crossLibrary && target.includeRef) {
+      const libraryId = await this.libraryOpenerService.openIncludedLibrary(target.includeRef);
+      if (!libraryId) {
+        return;
+      }
+      this.ideStateService.requestNavigateToDefinition({
+        libraryId,
+        line: target.span.startLine,
+        column: elmColumnToCodeMirror(target.span.startColumn)
+      });
+      return;
+    }
+
+    this.navigateToPosition(
+      target.span.startLine,
+      elmColumnToCodeMirror(target.span.startColumn)
+    );
+  }
+
+  private tryConsumePendingNavigation(): void {
+    const pending = this.ideStateService.peekPendingEditorNavigation();
+    if (!pending || pending.libraryId !== this.libraryId() || !this.editor) {
+      return;
+    }
+
+    const resource = this.ideStateService.libraryResources().find(lib => lib.id === pending.libraryId);
+    if (resource?.contentLoading || resource?.contentLoadError) {
+      return;
+    }
+
+    const navigation = this.ideStateService.consumePendingEditorNavigation();
+    if (navigation) {
+      this.navigateToPosition(navigation.line, navigation.column);
+    }
+  }
+
+  private getLibraryTranslationContext() {
+    const library = this.ideStateService.libraryResources().find(lib => lib.id === this.libraryId());
+    return this.libraryTranslationContextBuilder.fromLibraryResource(library);
+  }
+
+  private async collectLintDiagnosticsAsync(
     code: string,
     doc: { line: (lineNumber: number) => { from: number; to: number }; lineAt: (pos: number) => { number: number } }
-  ): { all: Diagnostic[]; compilerResult: FullValidationResult } {
+  ): Promise<{ all: Diagnostic[]; compilerResult: FullValidationResult }> {
     const charDiagnostics = scanInvalidCqlCharacters(code, doc);
-    const full = this.cqlValidationService.runFullValidation(code, doc);
+    const full = await this.cqlValidationService.runFullValidationAsync(code, doc, this.getLibraryTranslationContext());
     const compilerDiagnostics = this.compilerValidationToDiagnostics(full.validation);
     return {
       all: [...charDiagnostics, ...compilerDiagnostics],
@@ -654,6 +774,11 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   private runDebouncedValidation(fallbackCode: string): void {
+    void this.runDebouncedValidationAsync(fallbackCode);
+  }
+
+  private async runDebouncedValidationAsync(fallbackCode: string): Promise<void> {
+    const generation = ++this.validationGeneration;
     try {
       const latestCode = this.editor?.state.doc.toString() || fallbackCode;
       const latestDoc = this.editor?.state.doc;
@@ -665,8 +790,16 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         return;
       }
 
-      const diagnostics = this.collectLintDiagnostics(latestCode, latestDoc);
+      const diagnostics = await this.collectLintDiagnosticsAsync(latestCode, latestDoc);
+      if (generation !== this.validationGeneration) {
+        const resolvers = this.pendingLintResolvers;
+        this.pendingLintResolvers = [];
+        resolvers.forEach(r => r([]));
+        return;
+      }
+
       this.emitValidationUi(diagnostics.compilerResult);
+      this.updateDefinitionIndex(diagnostics.compilerResult);
 
       const resolvers = this.pendingLintResolvers;
       this.pendingLintResolvers = [];
@@ -693,6 +826,10 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   navigateToLine(lineNumber: number): void {
+    this.navigateToPosition(lineNumber, 0);
+  }
+
+  navigateToPosition(lineNumber: number, column = 0): void {
     if (!this.editor) {
       console.warn('Editor not available for navigation');
       return;
@@ -700,13 +837,14 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
     try {
       const line = this.editor.state.doc.line(lineNumber);
-      const position = line.from;
-      
+      const columnOffset = Math.max(0, Math.min(column, line.length));
+      const position = line.from + columnOffset;
+
       this.editor.dispatch({
         selection: { anchor: position, head: position },
         scrollIntoView: true
       });
-      
+
       this.editor.focus();
     } catch (error) {
       console.error(`Failed to navigate to line ${lineNumber}:`, error);

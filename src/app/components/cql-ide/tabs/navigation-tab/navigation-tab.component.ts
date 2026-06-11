@@ -6,6 +6,7 @@ import { Library, Patient, Bundle } from 'fhir/r4';
 import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
 import { IdeStateService, TabDataScope } from '../../../../services/ide-state.service';
+import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
 import { SettingsService } from '../../../../services/settings.service';
 import { isResourceType } from '../../../../services/fhir-resource-type.lib';
 
@@ -20,6 +21,7 @@ export class NavigationTabComponent implements OnInit {
   private readonly libraryService = inject(LibraryService);
   protected readonly patientService = inject(PatientService);
   private readonly ideStateService = inject(IdeStateService);
+  private readonly libraryOpenerService = inject(CqlIdeLibraryOpenerService);
   private readonly settingsService = inject(SettingsService);
 
   protected readonly paginatedLibraries = signal<Library[]>([]);
@@ -170,168 +172,8 @@ export class NavigationTabComponent implements OnInit {
 
   addLibraryFromPaginatedList(library: Library): void {
     if (library.id) {
-      const existingLibrary = this.ideStateService.libraryResources().find(lib => lib.id === library.id);
-      
-      if (existingLibrary) {
-        this.ideStateService.selectLibraryResource(library.id);
-        return;
-      }
-
-      this.libraryService.get(library.id).subscribe({
-        next: (freshLibrary) => {
-          if (!freshLibrary.id) return;
-          const cqlAttachment = freshLibrary.content?.find(c => c.contentType === 'text/cql');
-          const fromUrl = !!(cqlAttachment?.url && !cqlAttachment?.data);
-
-          if (fromUrl) {
-            const libraryResource = {
-              id: freshLibrary.id,
-              name: freshLibrary.name || freshLibrary.id,
-              title: freshLibrary.title || freshLibrary.name || freshLibrary.id,
-              version: freshLibrary.version || '1.0.0',
-              description: freshLibrary.description || `Library ${freshLibrary.name || freshLibrary.id}`,
-              url: freshLibrary.url || this.libraryService.urlFor(freshLibrary.id),
-              cqlContent: '',
-              originalContent: '',
-              isActive: false,
-              isDirty: false,
-              library: freshLibrary,
-              contentLoading: true,
-              isReadOnly: true
-            };
-            this.ideStateService.addLibraryResource(libraryResource);
-            this.ideStateService.selectLibraryResource(freshLibrary.id);
-          }
-
-          this.libraryService.getCqlContent(freshLibrary).subscribe({
-            next: ({ cqlContent }) => {
-              if (fromUrl) {
-                this.ideStateService.updateLibraryResource(freshLibrary.id!, {
-                  cqlContent,
-                  originalContent: cqlContent,
-                  contentLoading: false,
-                  contentLoadError: undefined
-                });
-                this.ideStateService.triggerReload(freshLibrary.id!);
-              } else {
-                const libraryResource = {
-                  id: freshLibrary.id!,
-                  name: freshLibrary.name || freshLibrary.id!,
-                  title: freshLibrary.title || freshLibrary.name || freshLibrary.id!,
-                  version: freshLibrary.version || '1.0.0',
-                  description: freshLibrary.description || `Library ${freshLibrary.name || freshLibrary.id}`,
-                  url: freshLibrary.url || this.libraryService.urlFor(freshLibrary.id!),
-                  cqlContent,
-                  originalContent: cqlContent,
-                  isActive: false,
-                  isDirty: false,
-                  library: freshLibrary,
-                  contentLoading: false,
-                  isReadOnly: false
-                };
-                this.ideStateService.addLibraryResource(libraryResource);
-                this.ideStateService.selectLibraryResource(freshLibrary.id!);
-              }
-            },
-            error: (err) => {
-              const message = err?.message ?? String(err);
-              if (fromUrl) {
-                const errorMessage = `Could not load CQL from URL for library "${freshLibrary.name || freshLibrary.id}". ${message}`;
-                this.ideStateService.updateLibraryResource(freshLibrary.id!, {
-                  contentLoading: false,
-                  contentLoadError: errorMessage
-                });
-                this.ideStateService.addTextOutput(
-                  'Library Load Failed',
-                  errorMessage,
-                  'error'
-                );
-              } else {
-                this.addLibraryFromCachedData(library);
-              }
-            }
-          });
-        },
-        error: (error) => {
-          console.error('Error fetching library from server:', error);
-          this.addLibraryFromCachedData(library);
-        }
-      });
+      void this.libraryOpenerService.openLibraryFromServer(library);
     }
-  }
-  
-  private addLibraryFromCachedData(library: Library): void {
-    const id = library.id;
-    if (!id) return;
-    const cqlAttachment = library.content?.find(c => c.contentType === 'text/cql');
-    const fromUrl = !!(cqlAttachment?.url && !cqlAttachment?.data);
-
-    if (fromUrl) {
-      const libraryResource = {
-        id,
-        name: library.name || id,
-        title: library.title || library.name || id,
-        version: library.version || '1.0.0',
-        description: library.description || `Library ${library.name || id}`,
-        url: library.url || this.libraryService.urlFor(id),
-        cqlContent: '',
-        originalContent: '',
-        isActive: false,
-        isDirty: false,
-        library,
-        contentLoading: true,
-        isReadOnly: true
-      };
-      this.ideStateService.addLibraryResource(libraryResource);
-      this.ideStateService.selectLibraryResource(id);
-    }
-
-    this.libraryService.getCqlContent(library).subscribe({
-      next: ({ cqlContent }) => {
-        if (fromUrl) {
-          this.ideStateService.updateLibraryResource(id, {
-            cqlContent,
-            originalContent: cqlContent,
-            contentLoading: false,
-            contentLoadError: undefined
-          });
-          this.ideStateService.triggerReload(id);
-        } else {
-          const libraryResource = {
-            id,
-            name: library.name || id,
-            title: library.title || library.name || id,
-            version: library.version || '1.0.0',
-            description: library.description || `Library ${library.name || id}`,
-            url: library.url || this.libraryService.urlFor(id),
-            cqlContent,
-            originalContent: cqlContent,
-            isActive: false,
-            isDirty: false,
-            library,
-            contentLoading: false,
-            isReadOnly: false
-          };
-          this.ideStateService.addLibraryResource(libraryResource);
-          this.ideStateService.selectLibraryResource(id);
-        }
-      },
-      error: (err) => {
-        const message = err?.message ?? String(err);
-        if (fromUrl) {
-          const errorMessage = `Could not load CQL from URL for library "${library.name || id}". ${message}`;
-          this.ideStateService.updateLibraryResource(id, {
-            contentLoading: false,
-            contentLoadError: errorMessage
-          });
-          this.ideStateService.addTextOutput(
-            'Library Load Failed',
-            errorMessage,
-            'error'
-          );
-        }
-      }
-    });
   }
 
   onLibraryListSearch(): void {

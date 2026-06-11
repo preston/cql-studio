@@ -7,9 +7,25 @@ declare module '@cqframework/cql/cql-to-elm' {
     modelInfoLoader: any;
   }
   
+  export interface VersionedIdentifierKey {
+    c8i_1: string;
+    d8i_1: string | null;
+    e8i_1: string | null;
+  }
+
+  export interface KotlinJsMapView<K, V> {
+    delete(key: K): boolean;
+    clear(): void;
+    keys(): IterableIterator<K>;
+  }
+
   export class LibraryManager {
     constructor(modelManager: ModelManager, cqlCompilerOptions?: any, libraryCache?: any, lazyUcumService?: any, elmLibraryReaderProvider?: any);
     librarySourceLoader: any;
+    compiledLibraries: {
+      asJsMapView(): KotlinJsMapView<VersionedIdentifierKey, unknown>;
+      asJsReadonlyMapView(): KotlinJsMapView<VersionedIdentifierKey, unknown>;
+    };
   }
   
   export class CqlTranslator {

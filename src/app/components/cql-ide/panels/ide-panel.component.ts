@@ -11,6 +11,7 @@ export interface PanelTabListData {
 }
 import { LibraryService } from '../../../services/library.service';
 import { TranslationService } from '../../../services/translation.service';
+import { LibraryTranslationContextBuilder } from '../../../services/library-translation-context.lib';
 import { SettingsService } from '../../../services/settings.service';
 import { ToastService } from '../../../services/toast.service';
 
@@ -74,6 +75,7 @@ export class IdePanelComponent {
   );
   private libraryService = inject(LibraryService);
   private translationService = inject(TranslationService);
+  private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
   private settingsService = inject(SettingsService);
   private toastService = inject(ToastService);
 
@@ -309,12 +311,11 @@ export class IdePanelComponent {
     const cqlContent = this.getActiveLibraryCqlContent();
     if (cqlContent) {
       this.ideStateService.setTranslating(true);
-      
-      // Ensure translation assets are ready before translating
-      await this.translationService.ensureTranslationAssetsLoaded();
 
-      // Translate CQL to ELM with the current editor content
-      const translationResult = this.translationService.translateCqlToElm(cqlContent);
+      const translationResult = await this.translationService.translateCqlToElmAsync(
+        cqlContent,
+        this.libraryTranslationContextBuilder.fromLibraryResource(this.ideStateService.getActiveLibraryResource())
+      );
       
       // Update translation state with errors/warnings
       this.ideStateService.setTranslationErrors(translationResult.errors);
