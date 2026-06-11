@@ -38,6 +38,12 @@ import type {
   ElmTypeSpecifier,
 } from '../types/elm';
 import { stripFhirNamespace, toSqlIdentifier } from '../types/elm';
+import { MEASURE_POPULATION_NAMES } from '../../measure-population.lib';
+import {
+  measurementPeriodFromValues,
+  parameterValueToSqlLiteral,
+  type LibraryParameterValues,
+} from '../../library-parameters.lib';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -53,6 +59,8 @@ export interface TranspilerOptions {
    * If omitted, the transpiler auto-detects common measure population names.
    */
   populationDefines?: string[];
+  /** User-supplied measure parameter values keyed by CQL parameter name. */
+  parameterValues?: LibraryParameterValues;
 }
 
 export interface TranspileResult {
@@ -64,20 +72,8 @@ export interface TranspileResult {
   warnings: string[];
 }
 
-// ─── Well-known population define names (eCQM convention) ────────────────────
-
-const POPULATION_NAMES = [
-  'Initial Population',
-  'Denominator',
-  'Denominator Exclusion',
-  'Denominator Exception',
-  'Numerator',
-  'Numerator Exclusion',
-  'Measure Population',
-  'Measure Population Exclusion',
-  'Measure Observation',
-  'Stratification',
-];
+// Re-export for consumers
+export { MEASURE_POPULATION_NAMES } from '../../measure-population.lib';
 
 // ─── FHIR resource → SQL view name map ───────────────────────────────────────
 
@@ -194,20 +190,27 @@ const RESOURCE_VIEW_MAP: Record<string, string> = {
 // ─── Transpiler ──────────────────────────────────────────────────────────────
 
 export class ElmToSqlTranspiler {
-  private opts: Required<TranspilerOptions>;
+  private opts: Required<Omit<TranspilerOptions, 'parameterValues'>> & {
+    parameterValues: LibraryParameterValues;
+  };
   private warnings: string[] = [];
   private defines = new Map<string, ElmExpressionDef>();
   private valueSets = new Map<string, string>(); // name → OID/URL
   private codeSystems = new Map<string, string>(); // name → URI
+  /** Patient alias in the innermost active CQL query (e.g. `p` in `from p` Patient). */
+  private patientAlias: string | null = null;
 
   constructor(options: TranspilerOptions = {}) {
     const now = new Date();
     const year = now.getFullYear();
+    const parameterValues = options.parameterValues ?? {};
+    const period = measurementPeriodFromValues(parameterValues);
     this.opts = {
-      measurementPeriodStart: options.measurementPeriodStart ?? `${year}-01-01T00:00:00Z`,
-      measurementPeriodEnd: options.measurementPeriodEnd ?? `${year}-12-31T23:59:59Z`,
+      measurementPeriodStart: options.measurementPeriodStart ?? period.start ?? `${year}-01-01T00:00:00Z`,
+      measurementPeriodEnd: options.measurementPeriodEnd ?? period.end ?? `${year}-12-31T23:59:59Z`,
       includeComments: options.includeComments ?? true,
       populationDefines: options.populationDefines ?? [],
+      parameterValues,
     };
   }
 
@@ -218,6 +221,7 @@ export class ElmToSqlTranspiler {
     this.defines.clear();
     this.valueSets.clear();
     this.codeSystems.clear();
+    this.patientAlias = null;
 
     const lib: ElmLibrary = 'library' in input ? input.library : input;
 
@@ -279,7 +283,11 @@ export class ElmToSqlTranspiler {
     let body: string;
 
     try {
-      body = this.exprToSql(def.expression, def.context ?? 'Patient');
+      if (this.isPatientResourcePopulationQuery(def)) {
+        body = this.patientPopulationQueryToSql(def.expression as ElmQuery, def.context ?? 'Patient');
+      } else {
+        body = this.exprToSql(def.expression, def.context ?? 'Patient');
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       this.warn(`Could not transpile define "${def.name}": ${msg}`);
@@ -464,6 +472,11 @@ export class ElmToSqlTranspiler {
     const alias = primarySource.alias;
     const fromSql = this.exprToSqlInline(primarySource.expression, context);
 
+    const savedPatientAlias = this.patientAlias;
+    if (this.isPatientRetrieve(primarySource.expression)) {
+      this.patientAlias = alias;
+    }
+
     const parts: string[] = [];
 
     // Build SELECT clause
@@ -510,6 +523,7 @@ export class ElmToSqlTranspiler {
       if (orderParts.length > 0) parts.push(`ORDER BY ${orderParts.join(', ')}`);
     }
 
+    this.patientAlias = savedPatientAlias;
     return parts.join('\n');
   }
 
@@ -542,15 +556,18 @@ export class ElmToSqlTranspiler {
       case 'CalculateAgeInYearsAt':
       case 'CalculateAgeAt': {
         const dateArg = asPointInTime(ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE');
-        return `DATE_PART('year', AGE(${dateArg}::date, Patient.birthdate))::int`;
+        const birthdate = `${this.patientBirthdateRef()}.birthdate`;
+        return `DATE_PART('year', AGE(${dateArg}::date, ${birthdate}))::int`;
       }
       case 'AgeInMonthsAt': {
         const dateArg = asPointInTime(ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE');
-        return `(DATE_PART('year', AGE(${dateArg}::date, Patient.birthdate)) * 12 + DATE_PART('month', AGE(${dateArg}::date, Patient.birthdate)))::int`;
+        const birthdate = `${this.patientBirthdateRef()}.birthdate`;
+        return `(DATE_PART('year', AGE(${dateArg}::date, ${birthdate})) * 12 + DATE_PART('month', AGE(${dateArg}::date, ${birthdate})))::int`;
       }
       case 'AgeInDaysAt': {
         const dateArg = asPointInTime(ops[0] ? this.exprToSqlInline(ops[0], context) : 'CURRENT_DATE');
-        return `((${dateArg})::date - Patient.birthdate::date)::int`;
+        const birthdate = `${this.patientBirthdateRef()}.birthdate`;
+        return `((${dateArg})::date - ${birthdate}::date)::int`;
       }
       case 'ToDate':
       case 'date': {
@@ -617,8 +634,11 @@ export class ElmToSqlTranspiler {
   // ─── Parameter references ──────────────────────────────────────────────────
 
   private parameterRefToSql(expr: ElmParameterRef): string {
+    const literal = parameterValueToSqlLiteral(expr.name, this.opts.parameterValues[expr.name]);
+    if (literal) {
+      return literal;
+    }
     if (expr.name === 'Measurement Period') {
-      // Return as an interval literal for use in comparisons
       return `tstzrange('${this.opts.measurementPeriodStart}', '${this.opts.measurementPeriodEnd}', '[)')`;
     }
     this.warn(`Unresolved ParameterRef: ${expr.name}`);
@@ -715,11 +735,15 @@ export class ElmToSqlTranspiler {
   // ─── Boolean operators ────────────────────────────────────────────────────
 
   private booleanOpToSql(expr: ElmBinaryOp, context: string): string {
-    const [left, right] = expr.operand;
-    const l = this.exprToSqlInline(left, context);
-    const r = this.exprToSqlInline(right, context);
-    const op = expr.type === 'And' ? 'AND' : expr.type === 'Or' ? 'OR' : 'OR'; // XOR not standard SQL
-    return `(${l} ${op} ${r})`;
+    const operands = expr.operand ?? [];
+    if (operands.length === 0) {
+      return expr.type === 'And' ? 'TRUE' : 'FALSE';
+    }
+    if (operands.length === 1) {
+      return this.exprToSqlInline(operands[0], context);
+    }
+    const op = expr.type === 'And' ? 'AND' : expr.type === 'Or' ? 'OR' : 'OR';
+    return operands.map(o => `(${this.exprToSqlInline(o, context)})`).join(` ${op} `);
   }
 
   // ─── Comparisons ─────────────────────────────────────────────────────────
@@ -783,6 +807,10 @@ export class ElmToSqlTranspiler {
   // ─── Exists ───────────────────────────────────────────────────────────────
 
   private existsToSql(operand: ElmExpression, context: string): string {
+    if (operand.type === 'ExpressionRef' && this.patientAlias && this.expressionRefHasSubjectId(operand)) {
+      const cte = toSqlIdentifier(operand.name);
+      return `EXISTS (SELECT 1 FROM ${cte} AS _cor WHERE _cor.subject_id = ${this.patientAlias}.id)`;
+    }
     const inner = this.exprToSqlInline(operand, context);
     if (/^\s*SELECT\b/i.test(inner)) return `EXISTS (${inner})`;
     return `EXISTS (SELECT 1 FROM (${inner}) _e)`;
@@ -907,7 +935,106 @@ export class ElmToSqlTranspiler {
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   private isPopulation(name: string): boolean {
-    return POPULATION_NAMES.some(p => p.toLowerCase() === name.toLowerCase());
+    return MEASURE_POPULATION_NAMES.some(p => p.toLowerCase() === name.toLowerCase());
+  }
+
+  private patientBirthdateRef(): string {
+    return this.patientAlias ?? 'Patient';
+  }
+
+  private isPatientRetrieve(expr: ElmExpression): boolean {
+    if (expr.type !== 'Retrieve') {
+      return false;
+    }
+    return stripFhirNamespace((expr as ElmRetrieve).dataType) === 'Patient';
+  }
+
+  private isResourceRetrieveExpression(expr: ElmExpression): boolean {
+    if (expr.type !== 'Retrieve') {
+      return false;
+    }
+    return stripFhirNamespace((expr as ElmRetrieve).dataType) !== 'Patient';
+  }
+
+  private isPatientResourcePopulationQuery(def: ElmExpressionDef): boolean {
+    if ((def.context ?? 'Patient') !== 'Patient' || !this.isPopulation(def.name)) {
+      return false;
+    }
+    if (def.expression.type !== 'Query' || def.expression.source.length === 0) {
+      return false;
+    }
+    return this.isResourceRetrieveExpression(def.expression.source[0].expression);
+  }
+
+  private patientPopulationQueryToSql(expr: ElmQuery, context: string): string {
+    const [primarySource, ...additionalSources] = expr.source;
+    const alias = primarySource.alias;
+    const resourceFrom = this.exprToSqlInline(primarySource.expression, context);
+    const conditions: string[] = [`${alias}.subject_id = Patient.id`];
+
+    for (const src of additionalSources) {
+      const srcSql = this.exprToSqlInline(src.expression, context);
+      conditions.push(
+        `EXISTS (SELECT 1 FROM ${srcSql} AS ${src.alias} WHERE ${src.alias}.subject_id = Patient.id)`,
+      );
+    }
+
+    for (const rel of expr.relationship ?? []) {
+      const relView = this.exprToSqlInline(rel.expression, context);
+      const suchThat = rel.suchThat
+        ? `AND ${this.exprToSqlInline(rel.suchThat, context)}`
+        : '';
+      const keyword = rel.type === 'With' ? 'EXISTS' : 'NOT EXISTS';
+      conditions.push(
+        `${keyword} (SELECT 1 FROM ${relView} AS ${rel.alias} WHERE ${rel.alias}.subject_id = ${alias}.id ${suchThat})`,
+      );
+    }
+
+    if (expr.where) {
+      conditions.push(`(${this.exprToSqlInline(expr.where, context)})`);
+    }
+
+    return `SELECT Patient.*
+FROM Patient
+WHERE EXISTS (
+  SELECT 1
+  FROM ${resourceFrom} AS ${alias}
+  WHERE ${conditions.join('\n    AND ')}
+)`;
+  }
+
+  private expressionRefHasSubjectId(expr: ElmExpressionRef): boolean {
+    if (expr.name === 'Patient') {
+      return false;
+    }
+    const def = this.defines.get(expr.name);
+    if (!def) {
+      return true;
+    }
+    return this.expressionUsesNonPatientResource(def.expression);
+  }
+
+  private expressionUsesNonPatientResource(expr: ElmExpression): boolean {
+    switch (expr.type) {
+      case 'Retrieve':
+        return stripFhirNamespace((expr as ElmRetrieve).dataType) !== 'Patient';
+      case 'Query':
+        return (expr as ElmQuery).source.some(s =>
+          this.expressionUsesNonPatientResource(s.expression),
+        );
+      case 'ExpressionRef': {
+        const def = this.defines.get((expr as ElmExpressionRef).name);
+        return def ? this.expressionUsesNonPatientResource(def.expression) : false;
+      }
+      case 'Union':
+      case 'Except':
+      case 'Intersect':
+        return ((expr as { operand?: ElmExpression[] }).operand ?? []).some(o =>
+          this.expressionUsesNonPatientResource(o),
+        );
+      default:
+        return false;
+    }
   }
 
   private inferPopulations(defs: ElmExpressionDef[]): string[] {

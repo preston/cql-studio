@@ -81,14 +81,34 @@ export function flattenValueSets(valueSets: ValueSet[]): FlatRow[] {
 export function flattenValueSetExpansion(vs: ValueSet): FlatRow[] {
   const url = vs.url ?? null;
   const contains = vs.expansion?.contains ?? [];
-  return contains
-    .filter(c => !!c.code)
-    .map(c => ({
-      value_set_id: url,
-      code: c.code ?? null,
-      system: c.system ?? null,
-      display: c.display ?? null,
-    }));
+  if (contains.length > 0) {
+    return contains
+      .filter(c => !!c.code)
+      .map(c => ({
+        value_set_id: url,
+        code: c.code ?? null,
+        system: c.system ?? null,
+        display: c.display ?? null,
+        version: c.version ?? null,
+      }));
+  }
+  const rows: FlatRow[] = [];
+  for (const include of vs.compose?.include ?? []) {
+    const system = include.system ?? null;
+    for (const concept of include.concept ?? []) {
+      if (!concept.code) {
+        continue;
+      }
+      rows.push({
+        value_set_id: url,
+        code: concept.code,
+        system,
+        display: concept.display ?? null,
+        version: null,
+      });
+    }
+  }
+  return rows;
 }
 
 export function flattenPatient(p: Patient): FlatRow {

@@ -2,8 +2,7 @@
   <div class="alert alert-warning py-2 mb-3" role="status">
     <span class="small">
       <i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>
-      This experimental SQL on FHIR workspace runs in your browser and is under active development and certain features are mocked with fake
-      data. Track progress:
+      This experimental SQL on FHIR workspace runs CQL translation, ELM-to-SQL transpilation, and in-browser Postgres execution in your browser. Track progress:
       <a id="sql-on-fhir-epic-link" href="https://github.com/cqframework/cql-studio/issues/15" target="_blank"
         rel="noopener noreferrer">issue #15</a>.
       Specification:
@@ -174,12 +173,45 @@
       <app-sql-pipeline-sql-gen-step [sqlText]="sqlText()" />
       }
       @case ('execute') {
-      <app-sql-pipeline-execute-step [sqlText]="sqlText()" [sqlResultsRaw]="sqlResultsRaw()"
-        [measureReportJson]="measureReportJson()" [sqlExecutionStatus]="sqlExecutionStatus()"
+      <app-sql-pipeline-execute-step
+        [sqlText]="sqlText()"
+        [sqlResultsRaw]="sqlResultsRaw()"
+        [measureReportJson]="measureReportJson()"
+        [sqlExecutionStatus]="sqlExecutionStatus()"
         [measureReportStatus]="measureReportStatus()"
-        [hasMeasureReport]="!!measureReport()" [isExecutingSql]="isExecutingSql()"
-        [canSaveMeasureReport]="canSaveMeasureReport()" (executeSql)="executeSql()"
-        (generateMeasureReport)="generateMeasureReport()" (saveMeasureReport)="saveMeasureReport()" />
+        [hasMeasureReport]="!!measureReport()"
+        [persistedMeasureReportId]="persistedMeasureReportId()"
+        [isExecutingSql]="isExecutingSql()"
+        [canExecuteSql]="canExecuteSql()"
+        [compatibilityIssues]="compatibilityIssues()"
+        [compatibilityReady]="compatibilityReady()"
+        [parameterSpecs]="parameterSpecs()"
+        [parameterValues]="executionParameters()"
+        [selectedPatients]="selectedPatients()"
+        [patientSearchTerm]="patientSearchTerm()"
+        [patientSearchResults]="patientSearchResults()"
+        [isLoadingPatients]="isLoadingPatients()"
+        [patientSearchError]="patientSearchError()"
+        [hasExecutionBundle]="bundleHasClinicalResources(executionBundle())"
+        [showResourceTypeSelection]="showResourceTypeSelection()"
+        [derivedResourceTypes]="derivedResourceTypes()"
+        [unsupportedResourceTypes]="unsupportedResourceTypes()"
+        [executionResourceTypes]="executionResourceTypes()"
+        [isLoadingPatientData]="isLoadingPatientData()"
+        [usingCms125Preset]="usingCms125Preset()"
+        [executionBundleSummary]="executionBundleSummary()"
+        (executeSql)="executeSql()"
+        (generateMeasureReport)="generateMeasureReport()"
+        (saveMeasureReport)="saveMeasureReport()"
+        (patientSearchTermChange)="onPatientSearchTermChange($event)"
+        (patientSearchNow)="onPatientSearchNow()"
+        (togglePatient)="togglePatient($event)"
+        (removePatient)="removeSelectedPatient($event)"
+        (toggleExecutionResourceType)="toggleExecutionResourceType($event.type, $event.checked)"
+        (selectAllExecutionResourceTypes)="setAllNonPatientResourceTypes($event)"
+        (periodFieldChange)="setPeriodField($event.name, $event.field, $event.value)"
+        (scalarParameterChange)="setScalarParameter($event.name, $event.kind, $event.value)"
+      />
       }
       }
       }

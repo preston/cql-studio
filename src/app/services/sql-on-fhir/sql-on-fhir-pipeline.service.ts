@@ -1,32 +1,29 @@
-// Author: Eugene Vestel
-//
-// Orchestrates the SQL-on-FHIR pipeline:
-//   ELM JSON  ──▶  ElmToSqlTranspiler  ──▶  SQL (Postgres)
-//   SQL       ──▶  SqlOnFhirPgliteService (in-browser Postgres)  ──▶  rows
-//   rows      ──▶  generateMeasureReport  ──▶  FHIR R4 MeasureReport
-//
-// Replaces the previous stub. Resolves Issue #16's wiring half: the elm-to-sql
-// library is no longer dead code in the production bundle.
+// Author: Preston Lee
 
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, defer, from, of, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable, defer, of, throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import type { Bundle, Library, MeasureReport } from 'fhir/r4';
 import {
   ElmToSqlTranspiler,
   generateMeasureReport as buildMeasureReport,
+  inferMeasureUrlFromLibrary,
+  normalizeMeasureReportForServer,
   sqlRowToPopulationCounts,
   type PopulationCounts,
 } from '../../components/sql-on-fhir/elm-to-sql';
 import {
   flattenBundle,
-  flattenValueSets,
+  type FlatRow,
   type FlatTables,
 } from './sql-on-fhir-bundle-flattener.lib';
 import { SqlOnFhirPgliteService } from './sql-on-fhir-pglite.service';
-import type { ValueSet } from 'fhir/r4';
-import { SettingsService } from '../settings.service';
+import { MeasureService } from '../measure.service';
+import {
+  measurementPeriodFromValues,
+  type LibraryParameterValues,
+} from '../../components/sql-on-fhir/library-parameters.lib';
+import type { ExecutionSeedData } from './sql-on-fhir-execution-data.service';
 
 export interface GenerateSqlResult {
   sql: string;
@@ -35,35 +32,32 @@ export interface GenerateSqlResult {
 }
 
 export interface ExecuteSqlResult {
-  /** Raw JSON of the first row (population counts), formatted for the UI. */
   raw: string;
-  /** Parsed population counts ready to feed to MeasureReport generation. */
   counts: PopulationCounts;
-  /** Wall-clock execution time. */
   durationMs: number;
 }
 
 @Injectable({ providedIn: 'root' })
 export class SqlOnFhirPipelineService {
-  private readonly http = inject(HttpClient);
   private readonly pg = inject(SqlOnFhirPgliteService);
-  private readonly settings = inject(SettingsService);
+  private readonly measureService = inject(MeasureService);
 
-  /**
-   * Transpile ELM JSON to SQL. Returns the SQL plus the populations the library
-   * detected — useful for the UI to label CTE results.
-   */
-  generateSql(elmJson: string, library: Library | null): Observable<GenerateSqlResult> {
+  generateSql(
+    elmJson: string,
+    _library: Library | null,
+    parameterValues: LibraryParameterValues = {},
+  ): Observable<GenerateSqlResult> {
     return defer(() => {
       if (!elmJson || !elmJson.trim()) {
         return throwError(() => new Error('ELM JSON is empty — translation did not produce output.'));
       }
       try {
         const elm = JSON.parse(elmJson);
-        const period = inferMeasurementPeriod(library);
+        const period = measurementPeriodFromValues(parameterValues);
         const transpiler = new ElmToSqlTranspiler({
           measurementPeriodStart: period.start,
           measurementPeriodEnd: period.end,
+          parameterValues,
         });
         const { sql, populations, warnings } = transpiler.transpile(elm);
         return of<GenerateSqlResult>({ sql, populations, warnings: warnings ?? [] });
@@ -74,18 +68,10 @@ export class SqlOnFhirPipelineService {
     });
   }
 
-  /**
-   * Seed pglite with the provided data set (bundle + value sets), then run the SQL.
-   * Returns the first row's column values as parsed PopulationCounts plus the JSON
-   * the UI displays.
-   */
-  executeSql(
-    sql: string,
-    seedData: { dataKey: string; bundle: Bundle; valueSets: ValueSet[] },
-  ): Observable<ExecuteSqlResult> {
+  executeSql(sql: string, seedData: ExecutionSeedData): Observable<ExecuteSqlResult> {
     return defer(async () => {
       const tables = mergeFlatTables(flattenBundle(seedData.bundle), {
-        value_set_expansion: flattenValueSets(seedData.valueSets),
+        value_set_expansion: seedData.valueSetRows,
       });
       await this.pg.seed(seedData.dataKey, tables);
       const { rows, durationMs } = await this.pg.execute(sql);
@@ -99,55 +85,35 @@ export class SqlOnFhirPipelineService {
     }).pipe(catchError(err => throwError(() => mapPgliteError(err))));
   }
 
-  /**
-   * Generate a FHIR R4 MeasureReport from population counts. No network calls.
-   */
-  generateMeasureReport(counts: PopulationCounts, library: Library | null): Observable<MeasureReport> {
+  generateMeasureReport(
+    counts: PopulationCounts,
+    library: Library | null,
+    parameterValues: LibraryParameterValues = {},
+  ): Observable<MeasureReport> {
     return defer(() => {
-      const period = inferMeasurementPeriod(library);
-      const measureUrl =
-        library?.url ??
-        (library?.id ? `Library/${library.id}` : 'http://cqlstudio.com/Library/unknown');
+      const period = measurementPeriodFromValues(parameterValues);
       const report = buildMeasureReport(counts, {
-        measureUrl,
+        measureUrl: inferMeasureUrlFromLibrary(library),
         periodStart: isoDate(period.start),
         periodEnd: isoDate(period.end),
         type: 'summary',
-      }) as unknown as MeasureReport;
+      });
       return of(report);
     });
   }
 
-  /**
-   * POST the MeasureReport to the configured FHIR server. The server is the one
-   * set in user settings (CQL_STUDIO_FHIR_BASE_URL). Returns the persisted resource
-   * (server-assigned id / meta).
-   */
-  saveMeasureReport(report: MeasureReport): Observable<MeasureReport> {
-    const baseUrl = this.settings.settings().fhirBaseUrl?.trim();
-    if (!baseUrl) {
-      return throwError(() => new Error('No FHIR base URL configured — set one in Settings to save.'));
+  saveMeasureReport(
+    report: MeasureReport,
+    persistedId?: string | null,
+    persistedMeta?: MeasureReport['meta'] | null,
+  ): Observable<MeasureReport> {
+    const mode = persistedId?.trim() ? 'update' : 'create';
+    const payload = normalizeMeasureReportForServer(report, mode, persistedId, persistedMeta);
+    if (mode === 'update') {
+      return this.measureService.putMeasureReport(payload);
     }
-    return this.http.post<MeasureReport>(
-      `${baseUrl.replace(/\/$/, '')}/MeasureReport`,
-      report,
-      { headers: { 'Content-Type': 'application/fhir+json', Accept: 'application/fhir+json' } },
-    );
+    return this.measureService.createMeasureReport(payload);
   }
-
-  /** True when a FHIR base URL is configured; drives Save button visibility. */
-  canSaveMeasureReport(): boolean {
-    return !!this.settings.settings().fhirBaseUrl?.trim();
-  }
-}
-
-function inferMeasurementPeriod(library: Library | null): { start: string; end: string } {
-  const periodParam = library?.parameter?.find(p => p.name === 'Measurement Period');
-  const fromExt = periodParam?.extension?.find(e => e.url?.endsWith('cqf-defaultValue'))?.valuePeriod;
-  if (fromExt?.start && fromExt?.end) {
-    return { start: fromExt.start, end: fromExt.end };
-  }
-  return { start: '2024-01-01T00:00:00Z', end: '2024-12-31T23:59:59Z' };
 }
 
 function isoDate(s: string): string {
@@ -166,6 +132,8 @@ function mergeFlatTables(a: FlatTables, b: Partial<FlatTables>): FlatTables {
 }
 
 function mapPgliteError(err: unknown): Error {
-  if (err instanceof Error) return err;
+  if (err instanceof Error) {
+    return err;
+  }
   return new Error(String(err));
 }

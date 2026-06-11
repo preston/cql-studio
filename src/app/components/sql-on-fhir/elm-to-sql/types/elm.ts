@@ -320,7 +320,7 @@ export type ElmBinaryOpType =
 
 export interface ElmBinaryOp {
   type: ElmBinaryOpType;
-  operand: [ElmExpression, ElmExpression];
+  operand: ElmExpression[];
   resultTypeName?: string;
   precision?: string;
 }

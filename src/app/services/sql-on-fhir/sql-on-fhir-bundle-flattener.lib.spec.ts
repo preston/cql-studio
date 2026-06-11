@@ -216,6 +216,35 @@ describe('flattenBundle', () => {
     });
   });
 
+  it('flattens compose.include when expansion is absent', () => {
+    const vs: ValueSet = {
+      resourceType: 'ValueSet',
+      id: 'vs-compose',
+      url: 'http://example.org/ValueSet/compose-only',
+      status: 'active',
+      compose: {
+        include: [
+          {
+            system: 'http://loinc.org',
+            concept: [
+              { code: '24605-8', display: 'A' },
+              { code: '26346-7', display: 'B' },
+            ],
+          },
+        ],
+      },
+    };
+    const rows = flattenValueSetExpansion(vs);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual({
+      value_set_id: 'http://example.org/ValueSet/compose-only',
+      code: '24605-8',
+      system: 'http://loinc.org',
+      display: 'A',
+      version: null,
+    });
+  });
+
   it('expands a ValueSet to value_set_expansion rows keyed by canonical URL', () => {
     const vs: ValueSet = {
       resourceType: 'ValueSet',
@@ -238,6 +267,7 @@ describe('flattenBundle', () => {
       code: '24605-8',
       system: 'http://loinc.org',
       display: 'A',
+      version: null,
     });
   });
 

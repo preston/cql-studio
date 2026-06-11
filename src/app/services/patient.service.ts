@@ -37,6 +37,15 @@ export class PatientService extends BaseService {
 		return this.http.get<Patient>(this.urlFor(id), { headers: this.headers() });
 	}
 
+	getEverything(id: string, options?: { types?: string[] }): Observable<Bundle> {
+		let url = `${this.urlFor(id)}/$everything`;
+		const types = (options?.types ?? []).filter(t => t.trim() && t !== 'Patient');
+		if (types.length > 0) {
+			url += `?_type=${encodeURIComponent(types.join(','))}`;
+		}
+		return this.http.get<Bundle>(url, { headers: this.headers() });
+	}
+
 	post(patient: Patient) {
 		return this.http.post<Patient>(this.url(), JSON.stringify(patient), { headers: this.headers() });
 	}

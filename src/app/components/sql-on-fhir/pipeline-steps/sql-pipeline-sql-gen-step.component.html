@@ -1,6 +1,6 @@
 <section class="sql-pipeline-step d-flex flex-column h-100" aria-labelledby="sql-pipeline-sqlgen-heading">
   <header class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 pb-2 mb-3 border-bottom">
-    <h2 id="sql-pipeline-sqlgen-heading" class="h6 fw-semibold mb-0">Generated SQL (FAKE STUB DATA)</h2>
+    <h2 id="sql-pipeline-sqlgen-heading" class="h6 fw-semibold mb-0">Generated SQL</h2>
   </header>
   <div id="sql-generated-sql" class="sql-pipeline-code-view">
     @if (sqlText()) {
@@ -9,7 +9,7 @@
     </div>
     } @else {
     <div class="sql-pipeline-empty-state d-flex align-items-center justify-content-center p-3 rounded bg-body-secondary text-muted small mb-0">
-      No stub SQL yet (needs ELM XML).
+      <p class="small text-muted mb-0">Complete ELM translation to generate SQL from this library.</p>
     </div>
     }
   </div>
