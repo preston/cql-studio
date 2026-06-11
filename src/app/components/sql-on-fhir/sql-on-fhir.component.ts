@@ -251,12 +251,8 @@ export class SqlOnFhirComponent implements OnInit {
       this.elmTranslationMessages.set([]);
 
       void this.translationService
-        .ensureTranslationAssetsLoaded()
-        .then(() => {
-          if (runId !== this.elmRunId) {
-            return;
-          }
-          const result = this.translationService.translateCqlToElm(cql);
+        .translateCqlToElmAsync(cql)
+        .then(result => {
           if (runId !== this.elmRunId) {
             return;
           }

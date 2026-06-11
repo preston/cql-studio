@@ -195,8 +195,7 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
     const cqlContent = this.cqlGenerationService.generateCql(artifact);
 
     // Translate to ELM for validation (ensure translation assets are ready)
-    await this.translationService.ensureTranslationAssetsLoaded();
-    const translationResult = this.translationService.translateCqlToElm(cqlContent);
+    const translationResult = await this.translationService.translateCqlToElmAsync(cqlContent);
     
     if (translationResult.hasErrors) {
       const errorMessage = translationResult.errors.join('; ');
@@ -254,6 +253,14 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
 
     this.libraryService.put(updatedLibrary).subscribe({
       next: (library: Library) => {
+        if (library.name) {
+          this.translationService.invalidateIncludedLibraryCache(
+            library.name,
+            library.version ?? null,
+            null,
+            cqlContent
+          );
+        }
         this.guidelinesStateService.setLibrary(library);
         this.guidelinesStateService.clearDirty();
         this.guidelinesStateService.setSaving(false);

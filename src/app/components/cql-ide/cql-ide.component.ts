@@ -7,6 +7,7 @@ import { IdeTabRegistryService } from '../../services/ide-tab-registry.service';
 import { LibraryService } from '../../services/library.service';
 import { PatientService } from '../../services/patient.service';
 import { TranslationService } from '../../services/translation.service';
+import { LibraryTranslationContextBuilder } from '../../services/library-translation-context.lib';
 import { CqlExecutionService, DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../services/cql-execution.service';
 import { SettingsService } from '../../services/settings.service';
 import { AiService } from '../../services/ai.service';
@@ -59,6 +60,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   private libraryService = inject(LibraryService);
   private patientService = inject(PatientService);
   private translationService = inject(TranslationService);
+  private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
   private cqlExecutionService = inject(CqlExecutionService);
   public settingsService = inject(SettingsService);
   private aiService = inject(AiService);
@@ -340,8 +342,10 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.setTranslating(true);
 
     // Translate CQL to ELM using the translation service (as if triggered from ELM tab)
-    await this.translationService.ensureTranslationAssetsLoaded();
-    const translationResult = this.translationService.translateCqlToElm(currentContent);
+    const translationResult = await this.translationService.translateCqlToElmAsync(
+      currentContent,
+      this.libraryTranslationContextBuilder.fromLibraryResource(activeLibrary)
+    );
     
     // Update translation state with errors/warnings
     this.ideStateService.setTranslationErrors(translationResult.errors);
@@ -602,8 +606,10 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     const currentCqlContent = activeLibrary.cqlContent || '';
     
     // Translate CQL to ELM using the translation service (similar to Save)
-    await this.translationService.ensureTranslationAssetsLoaded();
-    const translationResult = this.translationService.translateCqlToElm(currentCqlContent);
+    const translationResult = await this.translationService.translateCqlToElmAsync(
+      currentCqlContent,
+      this.libraryTranslationContextBuilder.fromLibraryResource(activeLibrary)
+    );
     
     // Update translation state with errors/warnings
     this.ideStateService.setTranslationErrors(translationResult.errors);
@@ -688,6 +694,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
               contentLoading: false,
               contentLoadError: undefined
             });
+            this.invalidateLibrarySourceCache(library, cqlContent);
             this.ideStateService.triggerReload(activeLibraryId);
             const libraryName = libraryResource.name || libraryResource.id || 'Library';
             this.ideStateService.addTextOutput(
@@ -737,7 +744,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     // This method is called when the format button is clicked in the IDE toolbar
   }
 
-  onValidateCql(): void {
+  async onValidateCql(): Promise<void> {
     const editor = this.cqlEditor();
     if (!editor) {
       this.toastService.showWarning('Open a library to validate.', 'Validate CQL');
@@ -748,7 +755,12 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       this.toastService.showWarning('No CQL content to validate.', 'Validate CQL');
       return;
     }
-    const full = this.cqlValidationService.runFullValidation(cql);
+    const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    const full = await this.cqlValidationService.runFullValidationAsync(
+      cql,
+      undefined,
+      this.libraryTranslationContextBuilder.fromLibraryResource(activeLibrary)
+    );
     const structuredErrors = full.structuredErrors;
     const structuredWarnings = full.structuredWarnings;
     const syntaxErrors = this.cqlValidationService.formatProblemsPanelMessages(full);
@@ -756,7 +768,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       syntaxErrors,
       isValidSyntax: structuredErrors.length === 0
     });
-    const activeLibrary = this.ideStateService.getActiveLibraryResource();
     const libraryName = activeLibrary?.name ?? activeLibrary?.id ?? 'Library';
     this.ideStateService.addCqlValidationOutput(
       libraryName,
@@ -817,6 +828,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
           originalContent: cqlContent,
           isDirty: false
         });
+        this.invalidateLibrarySourceCache(savedLibrary, cqlContent);
         
         // Add success message to Console pane
         const libraryName = activeLibrary?.name || activeLibrary?.id || 'Library';
@@ -896,6 +908,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
           originalContent: cqlContent,
           isDirty: false
         });
+        this.invalidateLibrarySourceCache(savedLibrary, cqlContent);
 
         const libraryName = libraryResource.name || libraryResource.id || 'Library';
         this.ideStateService.addTextOutput(
@@ -1094,6 +1107,20 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       }
     };
     requestAnimationFrame(tick);
+  }
+
+  private invalidateLibrarySourceCache(
+    library: { name?: string; version?: string | null } | null | undefined,
+    cqlContent?: string | null
+  ): void {
+    if (library?.name) {
+      this.translationService.invalidateIncludedLibraryCache(
+        library.name,
+        library.version ?? null,
+        null,
+        cqlContent
+      );
+    }
   }
 
 }

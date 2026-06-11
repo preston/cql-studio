@@ -13,6 +13,7 @@ import { IdeEditor, EditorState as IdeEditorState } from '../base-editor.interfa
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { CqlFormatterService } from '../../../../services/cql-formatter.service';
 import { CqlValidationService, FullValidationResult, ValidationResult } from '../../../../services/cql-validation.service';
+import { LibraryTranslationContextBuilder } from '../../../../services/library-translation-context.lib';
 import { DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../../../services/cql-execution.service';
 
 @Component({
@@ -74,10 +75,12 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private ideStateService = inject(IdeStateService);
   private cqlFormatterService = inject(CqlFormatterService);
   private cqlValidationService = inject(CqlValidationService);
+  private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
 
   // Debouncing for validation
   private validationDebounceFrame?: number;
   private readonly VALIDATION_DEBOUNCE_MS = 250;
+  private validationGeneration = 0;
   private currentValidationErrors: string[] = [];
   private pendingLintResolvers: Array<(diagnostics: Diagnostic[]) => void> = [];
   
@@ -594,20 +597,36 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       return;
     }
 
-    // Clear debounce and validate immediately
     this.cancelValidationDebounce();
+    void this.runImmediateValidation(code);
+  }
 
-    const diagnostics = this.collectLintDiagnostics(code, this.editor.state.doc);
+  private async runImmediateValidation(code: string): Promise<void> {
+    if (!this.editor) {
+      return;
+    }
+
+    const generation = ++this.validationGeneration;
+    const diagnostics = await this.collectLintDiagnosticsAsync(code, this.editor.state.doc);
+    if (generation !== this.validationGeneration) {
+      return;
+    }
+
     this.emitValidationUi(diagnostics.compilerResult);
     this.editor.dispatch({ effects: [] });
   }
 
-  private collectLintDiagnostics(
+  private getLibraryTranslationContext() {
+    const library = this.ideStateService.libraryResources().find(lib => lib.id === this.libraryId());
+    return this.libraryTranslationContextBuilder.fromLibraryResource(library);
+  }
+
+  private async collectLintDiagnosticsAsync(
     code: string,
     doc: { line: (lineNumber: number) => { from: number; to: number }; lineAt: (pos: number) => { number: number } }
-  ): { all: Diagnostic[]; compilerResult: FullValidationResult } {
+  ): Promise<{ all: Diagnostic[]; compilerResult: FullValidationResult }> {
     const charDiagnostics = scanInvalidCqlCharacters(code, doc);
-    const full = this.cqlValidationService.runFullValidation(code, doc);
+    const full = await this.cqlValidationService.runFullValidationAsync(code, doc, this.getLibraryTranslationContext());
     const compilerDiagnostics = this.compilerValidationToDiagnostics(full.validation);
     return {
       all: [...charDiagnostics, ...compilerDiagnostics],
@@ -654,6 +673,11 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   private runDebouncedValidation(fallbackCode: string): void {
+    void this.runDebouncedValidationAsync(fallbackCode);
+  }
+
+  private async runDebouncedValidationAsync(fallbackCode: string): Promise<void> {
+    const generation = ++this.validationGeneration;
     try {
       const latestCode = this.editor?.state.doc.toString() || fallbackCode;
       const latestDoc = this.editor?.state.doc;
@@ -665,7 +689,14 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         return;
       }
 
-      const diagnostics = this.collectLintDiagnostics(latestCode, latestDoc);
+      const diagnostics = await this.collectLintDiagnosticsAsync(latestCode, latestDoc);
+      if (generation !== this.validationGeneration) {
+        const resolvers = this.pendingLintResolvers;
+        this.pendingLintResolvers = [];
+        resolvers.forEach(r => r([]));
+        return;
+      }
+
       this.emitValidationUi(diagnostics.compilerResult);
 
       const resolvers = this.pendingLintResolvers;

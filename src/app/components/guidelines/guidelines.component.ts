@@ -179,8 +179,7 @@ export class GuidelinesComponent implements OnInit {
     const cqlContent = this.cqlGenerationService.generateCql(artifact);
 
     // Translate to ELM (ensure translation assets are ready)
-    await this.translationService.ensureTranslationAssetsLoaded();
-    const translationResult = this.translationService.translateCqlToElm(cqlContent);
+    const translationResult = await this.translationService.translateCqlToElmAsync(cqlContent);
     
     if (translationResult.hasErrors) {
       console.error('Translation failed:', translationResult.errors);
