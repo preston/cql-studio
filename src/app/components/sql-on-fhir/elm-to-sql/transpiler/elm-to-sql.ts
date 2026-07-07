@@ -35,6 +35,7 @@ import type {
   ElmDurationBetween,
   ElmIs,
   ElmAs,
+  ElmQuantity,
   ElmTypeSpecifier,
 } from '../types/elm';
 import { stripFhirNamespace, toSqlIdentifier } from '../types/elm';
@@ -140,6 +141,26 @@ function asPointInTime(sql: string): string {
     return `lower(${s})`;
   }
   return s;
+}
+
+/**
+ * Map CQL / UCUM temporal units to Postgres INTERVAL unit names. Returns null
+ * for non-temporal units (mg, %, mm[Hg], …) — those are magnitudes, not
+ * durations.
+ */
+function normalizeTemporalUnit(unit: string | undefined): string | null {
+  if (!unit) return null;
+  const map: Record<string, string> = {
+    year: 'years', years: 'years', a: 'years',
+    month: 'months', months: 'months', mo: 'months',
+    week: 'weeks', weeks: 'weeks', wk: 'weeks',
+    day: 'days', days: 'days', d: 'days',
+    hour: 'hours', hours: 'hours', h: 'hours',
+    minute: 'minutes', minutes: 'minutes', min: 'minutes',
+    second: 'seconds', seconds: 'seconds', s: 'seconds',
+    millisecond: 'milliseconds', milliseconds: 'milliseconds', ms: 'milliseconds',
+  };
+  return map[unit] ?? null;
 }
 
 /**
@@ -360,10 +381,22 @@ export class ElmToSqlTranspiler {
       case 'IncludedIn':
       case 'During':          return this.inToSql(expr as ElmBinaryOp, context);
       case 'Contains':        return this.containsToSql(expr as ElmBinaryOp, context);
+      case 'Before':
+      case 'SameOrBefore':
+      case 'After':
+      case 'SameOrAfter':     return this.temporalCompareToSql(expr as ElmBinaryOp, (expr as { type: string }).type, context);
+      case 'Overlaps':        return this.overlapsToSql(expr as ElmBinaryOp, context);
+      case 'Quantity':        return this.quantityToSql(expr as ElmQuantity);
       case 'Add':             return this.arithmeticToSql(expr as ElmBinaryOp, '+', context);
       case 'Subtract':        return this.arithmeticToSql(expr as ElmBinaryOp, '-', context);
       case 'Multiply':        return this.arithmeticToSql(expr as ElmBinaryOp, '*', context);
       case 'Divide':          return this.arithmeticToSql(expr as ElmBinaryOp, '/', context);
+      case 'Greatest':        return `GREATEST(${((expr as { operand?: ElmExpression[] }).operand ?? []).map(o => this.exprToSqlInline(o, context)).join(', ')})`;
+      case 'Least':           return `LEAST(${((expr as { operand?: ElmExpression[] }).operand ?? []).map(o => this.exprToSqlInline(o, context)).join(', ')})`;
+      case 'Round':           return `ROUND(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)})`;
+      case 'Truncate':        return `TRUNC(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)})`;
+      case 'Abs':             return `ABS(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)})`;
+      case 'Negate':          return `(-(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}))`;
       case 'Union':           return this.setOpToSql('UNION ALL', (expr as { operand: ElmExpression[] }).operand, context);
       case 'Intersect':       return this.setOpToSql('INTERSECT', (expr as { operand: ElmExpression[] }).operand, context);
       case 'Except':          return this.setOpToSql('EXCEPT', (expr as { operand: ElmExpression[] }).operand, context);
@@ -779,6 +812,53 @@ export class ElmToSqlTranspiler {
     const l = this.exprToSqlInline(left, context);
     const r = this.exprToSqlInline(right, context);
     return `${l} @> ARRAY[${r}]`;
+  }
+
+  // ─── Temporal comparisons (Before / After / SameOrBefore / SameOrAfter) ───
+  //
+  // CQL's `before`/`after` compare points and/or intervals. When an operand
+  // renders as a Postgres range expression we reduce it to the relevant
+  // endpoint: `X before I` compares against lower(I); `I before X` compares
+  // upper(I). Point-vs-point falls through to a plain operator.
+
+  private temporalCompareToSql(expr: ElmBinaryOp, kind: string, context: string): string {
+    const [left, right] = expr.operand;
+    let l = this.exprToSqlInline(left, context);
+    let r = this.exprToSqlInline(right, context);
+    const op = kind === 'Before' ? '<' : kind === 'SameOrBefore' ? '<=' : kind === 'After' ? '>' : '>=';
+    const beforeish = op === '<' || op === '<=';
+
+    const lIsRange = /^ts(tz)?range\b/i.test(l.trim());
+    const rIsRange = /^ts(tz)?range\b/i.test(r.trim());
+    // `I before X` → the whole interval ends before X.
+    if (lIsRange) l = `${beforeish ? 'upper' : 'lower'}(${l})`;
+    // `X before I` → X is before the interval starts.
+    if (rIsRange) r = `${beforeish ? 'lower' : 'upper'}(${r})`;
+
+    return `${l} ${op} ${r}`;
+  }
+
+  private overlapsToSql(expr: ElmBinaryOp, context: string): string {
+    const [left, right] = expr.operand;
+    const l = this.exprToSqlInline(left, context);
+    const r = this.exprToSqlInline(right, context);
+    return `${l} && ${r}`;
+  }
+
+  // ─── Quantity literals ─────────────────────────────────────────────────────
+  //
+  // Temporal units render as Postgres INTERVAL literals so date arithmetic
+  // (`end of "Measurement Period" - 10 years`) becomes `upper(...) - INTERVAL
+  // '10 years'`. Non-temporal (UCUM) units render as the bare numeric value —
+  // the flat schema stores magnitudes without units, so `HbA1c > 9 '%'`
+  // compares value_quantity > 9.
+
+  private quantityToSql(expr: ElmQuantity): string {
+    const unit = normalizeTemporalUnit(expr.unit);
+    if (unit) {
+      return `INTERVAL '${expr.value} ${unit}'`;
+    }
+    return String(expr.value);
   }
 
   // ─── Exists ───────────────────────────────────────────────────────────────

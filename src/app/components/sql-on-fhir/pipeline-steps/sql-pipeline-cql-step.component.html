@@ -1,8 +1,32 @@
 <section aria-labelledby="sql-pipeline-cql-heading">
-  <header class="pb-2 mb-3 border-bottom">
+  <header class="pb-2 mb-3 border-bottom d-flex align-items-center justify-content-between">
     <h2 id="sql-pipeline-cql-heading" class="h6 fw-semibold mb-0">Decoded CQL</h2>
+    @if (cqlPreview() && !isEditing()) {
+    <button id="btn-sql-cql-edit" type="button" class="btn btn-sm btn-outline-primary"
+      (click)="startEditing()" title="Edit this CQL and re-run the pipeline with your changes">
+      <i class="bi bi-pencil me-1" aria-hidden="true"></i>Edit CQL
+    </button>
+    }
   </header>
-  @if (cqlPreview()) {
+
+  @if (isEditing()) {
+  <div class="d-flex flex-column gap-2">
+    <textarea id="sql-cql-editor" class="form-control font-monospace small" rows="22" spellcheck="false"
+      [ngModel]="draft()" (ngModelChange)="draft.set($event)"
+      aria-label="Editable CQL source"></textarea>
+    <div class="d-flex gap-2 align-items-center">
+      <button id="btn-sql-cql-apply" type="button" class="btn btn-sm btn-primary" (click)="apply()">
+        <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>Apply &amp; re-run pipeline
+      </button>
+      <button id="btn-sql-cql-revert" type="button" class="btn btn-sm btn-outline-secondary" (click)="revert()">
+        Revert
+      </button>
+      <span class="small text-muted">
+        Translation, SQL generation, and execution will re-run with your edited CQL.
+      </span>
+    </div>
+  </div>
+  } @else if (cqlPreview()) {
   <div id="sql-cql-preview" class="p-1">
     <app-cql-readonly-preview [content]="cqlPreview()" minHeight="12rem" />
   </div>

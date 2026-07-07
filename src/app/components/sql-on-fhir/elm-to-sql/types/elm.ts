@@ -155,6 +155,7 @@ export type ElmExpression =
   | ElmCase
   | ElmAs
   | ElmIs
+  | ElmQuantity
   | ElmConvert
   | ElmAggregate
   | ElmDate
@@ -349,9 +350,16 @@ export interface ElmUnaryOp {
 
 // N-ary operators
 export interface ElmNaryOp {
-  type: 'Coalesce' | 'Concatenate' | 'Combine';
+  type: 'Coalesce' | 'Concatenate' | 'Combine' | 'Greatest' | 'Least';
   operand: ElmExpression[];
   resultTypeName?: string;
+}
+
+// Quantity literal — e.g. `9 '%'` or `10 years` in CQL source.
+export interface ElmQuantity {
+  type: 'Quantity';
+  value: number;
+  unit?: string;
 }
 
 // Interval

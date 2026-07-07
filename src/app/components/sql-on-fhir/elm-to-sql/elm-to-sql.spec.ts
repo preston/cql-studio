@@ -860,3 +860,121 @@ describe('US Core 6.1 ViewDefinition column contracts', () => {
     }
   });
 });
+
+// ─── Authoring operators (Quantity, date arithmetic, Before/After, Overlaps) ──
+//
+// Added for user-authored basic measures (#35): quantity comparisons on
+// observation values, "N years before end of Measurement Period" lookbacks,
+// and interval overlap checks.
+
+describe('authoring operators', () => {
+  const wrap = (expression: unknown): ElmLibraryWrapper => ({
+    library: {
+      identifier: { id: 'AuthoringTest', version: '0.0.1' },
+      schemaIdentifier: { id: 'urn:hl7-org:elm', version: 'r1' },
+      statements: {
+        def: [
+          { name: 'Initial Population', context: 'Patient', expression },
+        ],
+      },
+    },
+  } as unknown as ElmLibraryWrapper);
+
+  const sqlFor = (expression: unknown): string => {
+    const t = new ElmToSqlTranspiler({
+      measurementPeriodStart: '2024-01-01T00:00:00Z',
+      measurementPeriodEnd: '2024-12-31T23:59:59Z',
+    });
+    return t.transpile(wrap(expression)).sql;
+  };
+
+  test('Quantity with UCUM unit renders as bare numeric (value comparison)', () => {
+    const sql = sqlFor({
+      type: 'Greater',
+      operand: [
+        { type: 'Property', path: 'value_quantity', scope: 'O' },
+        { type: 'Quantity', value: 9, unit: '%' },
+      ],
+    });
+    expect(sql).toContain('O.value_quantity > 9');
+    expect(sql).not.toContain("INTERVAL '9");
+  });
+
+  test('Quantity with temporal unit renders as INTERVAL', () => {
+    const sql = sqlFor({
+      type: 'Subtract',
+      operand: [
+        { type: 'End', operand: { type: 'ParameterRef', name: 'Measurement Period' } },
+        { type: 'Quantity', value: 10, unit: 'years' },
+      ],
+    });
+    expect(sql).toContain("INTERVAL '10 years'");
+    expect(sql).toContain('upper(tstzrange(');
+  });
+
+  test('UCUM temporal abbreviations map to Postgres units', () => {
+    const sql = sqlFor({
+      type: 'Subtract',
+      operand: [
+        { type: 'Property', path: 'effective_datetime', scope: 'O' },
+        { type: 'Quantity', value: 6, unit: 'mo' },
+      ],
+    });
+    expect(sql).toContain("INTERVAL '6 months'");
+  });
+
+  test('Before with interval RHS compares against lower()', () => {
+    const sql = sqlFor({
+      type: 'Before',
+      operand: [
+        { type: 'Property', path: 'performed_datetime', scope: 'P' },
+        { type: 'ParameterRef', name: 'Measurement Period' },
+      ],
+    });
+    expect(sql).toContain('P.performed_datetime < lower(tstzrange(');
+  });
+
+  test('After with interval RHS compares against upper()', () => {
+    const sql = sqlFor({
+      type: 'After',
+      operand: [
+        { type: 'Property', path: 'performed_datetime', scope: 'P' },
+        { type: 'ParameterRef', name: 'Measurement Period' },
+      ],
+    });
+    expect(sql).toContain('P.performed_datetime > upper(tstzrange(');
+  });
+
+  test('SameOrBefore point-vs-point renders <=', () => {
+    const sql = sqlFor({
+      type: 'SameOrBefore',
+      operand: [
+        { type: 'Property', path: 'period_start', scope: 'E' },
+        { type: 'Property', path: 'period_end', scope: 'E' },
+      ],
+    });
+    expect(sql).toContain('E.period_start <= E.period_end');
+  });
+
+  test('Overlaps renders the && range operator', () => {
+    const sql = sqlFor({
+      type: 'Overlaps',
+      operand: [
+        { type: 'ParameterRef', name: 'Measurement Period' },
+        { type: 'ParameterRef', name: 'Measurement Period' },
+      ],
+    });
+    expect(sql).toContain(') && tstzrange(');
+  });
+
+  test('Greatest/Least render GREATEST/LEAST', () => {
+    const sql = sqlFor({
+      type: 'Greatest',
+      operand: [
+        { type: 'Literal', valueType: '{urn:hl7-org:elm-types:r1}Integer', value: '1' },
+        { type: 'Literal', valueType: '{urn:hl7-org:elm-types:r1}Integer', value: '2' },
+      ],
+    });
+    expect(sql).toContain('GREATEST(1, 2)');
+  });
+});
