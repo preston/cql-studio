@@ -151,6 +151,60 @@
           }
         </div>
       </div>
+
+      <!-- Patient picker: pull execution data from the configured FHIR server -->
+      <div class="card mt-3">
+        <div class="card-header py-2">
+          <span class="fw-semibold">Patients</span>
+          <span class="small text-muted ms-1">(execution data)</span>
+        </div>
+        <div class="card-body d-flex flex-column">
+          <div class="input-group input-group-sm mb-2">
+            <input id="sql-patient-search" type="text" class="form-control" placeholder="Search patients by name..."
+              [ngModel]="patientSearchTerm()" (ngModelChange)="patientSearchTerm.set($event)"
+              (keydown.enter)="searchPatients()" />
+            <button id="sql-patient-search-btn" class="btn btn-outline-secondary" type="button"
+              (click)="searchPatients()" title="Search patients on the configured FHIR server">
+              @if (isSearchingPatients()) {
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              } @else {
+              <i class="bi bi-search" aria-hidden="true"></i>
+              }
+            </button>
+          </div>
+
+          @if (patientResults().length > 0) {
+          <div id="sql-patient-results" class="border rounded mb-2 sql-patient-results">
+            @for (p of patientResults(); track p.id) {
+            <label class="d-flex align-items-center gap-2 px-2 py-1 border-bottom small sql-patient-row">
+              <input type="checkbox" class="form-check-input mt-0" [checked]="isPatientSelected(p)"
+                (change)="togglePatient(p)" [attr.aria-label]="'Select ' + patientDisplayName(p)" />
+              <span class="text-truncate">{{ patientDisplayName(p) }}</span>
+              <span class="text-muted ms-auto">{{ p.id }}</span>
+            </label>
+            }
+          </div>
+          }
+
+          <button id="sql-load-patients-btn" type="button"
+            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center gap-2"
+            [disabled]="selectedPatients().length === 0 || isLoadingPatientData()"
+            (click)="loadSelectedPatients()"
+            title="Fetch these patients' clinical data and run the measure against it">
+            @if (isLoadingPatientData()) {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            <span>Loading data…</span>
+            } @else {
+            <i class="bi bi-people" aria-hidden="true"></i>
+            <span>Load {{ selectedPatients().length || '' }} selected patient{{ selectedPatients().length === 1 ? '' : 's' }}</span>
+            }
+          </button>
+
+          @if (patientDataStatus()) {
+          <div id="sql-patient-status" class="small text-muted mt-2">{{ patientDataStatus() }}</div>
+          }
+        </div>
+      </div>
     </div>
 
     <!-- Detail + pipeline (single step) -->

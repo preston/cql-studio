@@ -4,11 +4,13 @@
 import { Component, OnInit, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Bundle, Library, MeasureReport, ValueSet } from 'fhir/r4';
+import { Bundle, Library, MeasureReport, Patient, ValueSet } from 'fhir/r4';
 import type { PopulationCounts } from './elm-to-sql';
 import { LibraryService } from '../../services/library.service';
 import { SqlOnFhirPipelineService } from '../../services/sql-on-fhir/sql-on-fhir-pipeline.service';
 import { SqlOnFhirDemoService, decodeLibraryCql, type DemoMeasureContent } from '../../services/sql-on-fhir/sql-on-fhir-demo.service';
+import { SqlOnFhirPatientLoaderService } from '../../services/sql-on-fhir/sql-on-fhir-patient-loader.service';
+import { PatientService } from '../../services/patient.service';
 import { TranslationService } from '../../services/translation.service';
 import { isResourceType } from '../../services/fhir-resource-type.lib';
 import { formatElmXml } from './format-elm-xml';
@@ -42,9 +44,18 @@ export class SqlOnFhirComponent implements OnInit {
   private readonly pipeline = inject(SqlOnFhirPipelineService);
   private readonly translationService = inject(TranslationService);
   private readonly demoService = inject(SqlOnFhirDemoService);
+  private readonly patientService = inject(PatientService);
+  private readonly patientLoader = inject(SqlOnFhirPatientLoaderService);
 
   /** Seed data attached when the user loaded a built-in demo measure. Cleared on manual library selection. */
   private demoContent: DemoMeasureContent | null = null;
+  /**
+   * Data set the Execute step runs against: either the demo bundle or patient
+   * data loaded from the FHIR server via the sidebar picker. Value sets carry
+   * over from the demo when present (server-loaded patients still need
+   * expansions for the measure's value-set joins).
+   */
+  private seedData: { dataKey: string; bundle: Bundle; valueSets: ValueSet[] } | null = null;
   /** Parsed population counts from the most recent executeSql, fed into MeasureReport generation. */
   private latestPopulationCounts: PopulationCounts | null = null;
 
@@ -72,6 +83,14 @@ export class SqlOnFhirComponent implements OnInit {
   protected readonly isLoadingDemo = signal(false);
   protected readonly demoLoadError = signal<string | null>(null);
   protected readonly isExecutingSql = signal(false);
+
+  // Patient picker (execution data from the configured FHIR server)
+  protected readonly patientSearchTerm = signal('');
+  protected readonly patientResults = signal<Patient[]>([]);
+  protected readonly selectedPatients = signal<Patient[]>([]);
+  protected readonly isSearchingPatients = signal(false);
+  protected readonly isLoadingPatientData = signal(false);
+  protected readonly patientDataStatus = signal<string | null>(null);
   protected readonly isTranslatingElm = signal(false);
   protected readonly elmTranslationErrors = signal<string[]>([]);
   protected readonly elmTranslationWarnings = signal<string[]>([]);
@@ -432,8 +451,8 @@ export class SqlOnFhirComponent implements OnInit {
   }
 
   protected executeSql(): void {
-    if (!this.demoContent) {
-      this.pipelineStatus.set('SQL execution requires the demo data set — click "Load CMS125 demo" to seed in-browser data.');
+    if (!this.seedData) {
+      this.pipelineStatus.set('SQL execution needs data — click "Load CMS125 demo" or load patients from the sidebar.');
       this.sqlExecuteFailed.set(true);
       return;
     }
@@ -441,9 +460,9 @@ export class SqlOnFhirComponent implements OnInit {
     this.sqlExecuteFailed.set(false);
     this.isExecutingSql.set(true);
     this.pipeline.executeSql(this.sqlText(), {
-      dataKey: this.demoContent.dataKey,
-      bundle: this.demoContent.bundle,
-      valueSets: this.demoContent.valueSets,
+      dataKey: this.seedData.dataKey,
+      bundle: this.seedData.bundle,
+      valueSets: this.seedData.valueSets,
     }).subscribe({
       next: result => {
         this.isExecutingSql.set(false);
@@ -468,6 +487,7 @@ export class SqlOnFhirComponent implements OnInit {
     this.demoService.loadCms125().subscribe({
       next: (content: DemoMeasureContent) => {
         this.demoContent = content;
+        this.seedData = { dataKey: content.dataKey, bundle: content.bundle, valueSets: content.valueSets };
         this.libraryLoadGeneration++;
         this.clearPipelineOutputs();
         this.selectedLibrary.set(content.library);
@@ -486,6 +506,96 @@ export class SqlOnFhirComponent implements OnInit {
 
   protected canSaveMeasureReport(): boolean {
     return this.pipeline.canSaveMeasureReport();
+  }
+
+  // ── Patient picker: execution data from the configured FHIR server ─────────
+
+  protected searchPatients(): void {
+    const term = this.patientSearchTerm().trim();
+    if (!term) {
+      this.patientResults.set([]);
+      return;
+    }
+    this.isSearchingPatients.set(true);
+    this.patientDataStatus.set(null);
+    this.patientService.search(term).subscribe({
+      next: bundle => {
+        this.isSearchingPatients.set(false);
+        const patients = (bundle.entry ?? [])
+          .map(e => e.resource)
+          .filter((r): r is Patient => isResourceType(r, 'Patient'));
+        this.patientResults.set(patients);
+        if (patients.length === 0) {
+          this.patientDataStatus.set('No patients matched that name.');
+        }
+      },
+      error: (err: unknown) => {
+        this.isSearchingPatients.set(false);
+        const msg = err instanceof Error ? err.message : String(err);
+        this.patientDataStatus.set(`Patient search failed: ${msg}`);
+      },
+    });
+  }
+
+  protected togglePatient(p: Patient): void {
+    if (!p.id) return;
+    const current = this.selectedPatients();
+    this.selectedPatients.set(
+      current.some(sp => sp.id === p.id)
+        ? current.filter(sp => sp.id !== p.id)
+        : [...current, p],
+    );
+  }
+
+  protected isPatientSelected(p: Patient): boolean {
+    return this.selectedPatients().some(sp => sp.id === p.id);
+  }
+
+  protected patientDisplayName(p: Patient): string {
+    const name = p.name?.[0];
+    const given = name?.given?.join(' ') ?? '';
+    const family = name?.family ?? '';
+    return `${given} ${family}`.trim() || p.id || 'Unknown';
+  }
+
+  /**
+   * Pull the selected patients' clinical data from the FHIR server and make it
+   * the pipeline's execution data set. Value-set expansions carry over from the
+   * demo when loaded (server-loaded patients still need them for the measure's
+   * value-set joins); results are cleared so stale counts aren't shown.
+   */
+  protected loadSelectedPatients(): void {
+    const patients = this.selectedPatients();
+    if (patients.length === 0) {
+      this.patientDataStatus.set('Select at least one patient first.');
+      return;
+    }
+    this.isLoadingPatientData.set(true);
+    this.patientDataStatus.set(null);
+    this.patientLoader.loadPatients(patients).subscribe({
+      next: load => {
+        this.isLoadingPatientData.set(false);
+        this.seedData = {
+          dataKey: load.dataKey,
+          bundle: load.bundle,
+          valueSets: this.demoContent?.valueSets ?? [],
+        };
+        this.sqlResultsRaw.set('');
+        this.sqlExecuteFailed.set(false);
+        this.measureReport.set(null);
+        this.latestPopulationCounts = null;
+        const vsNote = this.demoContent ? '' : ' No value-set expansions loaded — measures using value sets may under-match.';
+        const errNote = load.errors.length ? ` ${load.errors.length} resource queries failed.` : '';
+        this.patientDataStatus.set(
+          `Loaded ${patients.length} patient(s), ${load.resourceCount} clinical resources. Execute SQL now runs against this data.${vsNote}${errNote}`,
+        );
+      },
+      error: (err: unknown) => {
+        this.isLoadingPatientData.set(false);
+        const msg = err instanceof Error ? err.message : String(err);
+        this.patientDataStatus.set(`Loading patient data failed: ${msg}`);
+      },
+    });
   }
 
   /**
