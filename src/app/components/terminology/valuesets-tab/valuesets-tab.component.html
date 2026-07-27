@@ -37,14 +37,14 @@
         }
       </h6>
       @if (valuesetResults().length > 0) {
-      <div class="d-flex align-items-center gap-2">
-        <label for="valuesetPageSizeSelect" class="small text-muted mb-0">Items per page:</label>
+      <div class="form-floating flex-shrink-0" style="min-width: 6.5rem;">
         <select class="form-select form-select-sm" id="valuesetPageSizeSelect" [ngModel]="valuesetPageSize()"
-          (ngModelChange)="setValueSetPageSize(+$event)" style="width: auto;">
+          (ngModelChange)="setValueSetPageSize(+$event)">
           @for (size of valuesetAvailablePageSizes; track size) {
           <option [value]="size">{{ size }}</option>
           }
         </select>
+        <label for="valuesetPageSizeSelect">Per page</label>
       </div>
       }
     </div>

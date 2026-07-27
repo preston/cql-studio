@@ -500,15 +500,14 @@
         <hr>
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h6 class="mb-0">Expanded Codes ({{ expandedCodes().length }})</h6>
-          <div class="d-flex align-items-center gap-2">
-            <label for="pageSizeSelect" class="small text-muted mb-0">Items per page:</label>
-            <select class="form-select form-select-sm" id="pageSizeSelect" 
-                    [(ngModel)]="currentPageSize"
-                    style="width: auto;">
+          <div class="form-floating flex-shrink-0" style="min-width: 6.5rem;">
+            <select class="form-select form-select-sm" id="pageSizeSelect"
+                    [(ngModel)]="currentPageSize">
               @for (size of availablePageSizes(); track size) {
                 <option [value]="size">{{ size }}</option>
               }
             </select>
+            <label for="pageSizeSelect">Per page</label>
           </div>
         </div>
         <div class="table-responsive">
