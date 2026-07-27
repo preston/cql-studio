@@ -41,7 +41,7 @@ export class SqlOnFhirPatientLoaderService {
    * resource type doesn't abort the whole load.
    */
   loadPatients(patients: Patient[]): Observable<PatientDataLoad> {
-    const baseUrl = this.settings.getEffectiveFhirBaseUrl().replace(/\/$/, '');
+    const baseUrl = this.settings.getEffectiveDataEndpointAddress().replace(/\/$/, '');
     const ids = patients.map(p => p.id).filter((id): id is string => !!id).sort();
 
     const queries: Observable<{ entries: BundleEntry[]; error?: string }>[] = [];

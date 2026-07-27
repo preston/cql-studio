@@ -7,6 +7,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
+import { buildHttpHeaders } from './endpoint-config.lib';
 import { normalizeBundleForBasePost } from './fhir-bundle-transaction.lib';
 import { isResourceType, resourceTypeOf } from './fhir-resource-type.lib';
 import { normalizeFhirBaseUrlForBundlePost } from './fhir-server-base.lib';
@@ -19,25 +20,18 @@ export class TerminologyService extends BaseService {
   protected settingsService = inject(SettingsService);
 
   private getTerminologyBaseUrl(): string {
-    return this.settingsService.getEffectiveTerminologyBaseUrl();
+    return this.settingsService.getEffectiveTerminologyEndpointAddress();
   }
 
   private getAuthHeaders(): HttpHeaders {
-    const username = this.settingsService.getEffectiveTerminologyBasicAuthUsername();
-    const password = this.settingsService.getEffectiveTerminologyBasicAuthPassword();
-    let headers = new HttpHeaders({
+    const ctx = this.settingsService.getEndpointHttpContext('terminology', {
       'Content-Type': 'application/fhir+json',
-      'Accept': 'application/fhir+json'
+      Accept: 'application/fhir+json'
     });
-
-    if (username && username.trim() !== '' && password && password.trim() !== '') {
-      // HTTP Basic credentials (RFC 7617 Latin-1), not FHIR Library.content — do not use encodeUtf8Base64.
-      const authString = btoa(`${username}:${password}`);
-      headers = headers.set('Authorization', `Basic ${authString}`);
-    }
-    // If no credentials provided, requests will be made without authentication
-
-    return headers;
+    return buildHttpHeaders(
+      { ...this.settingsService.getActiveEnvironment().terminologyEndpoint, address: ctx.address },
+      ctx.headers
+    );
   }
 
   private isCodeSystemResource(resource: Resource | undefined): resource is CodeSystem {

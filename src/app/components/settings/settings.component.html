@@ -1,259 +1,172 @@
-<div id="settings" class="container mt-5">
-    <input #importFileInput type="file" accept=".json" class="d-none" (change)="onImportFile($event)" />
+<div id="settings" class="container mt-4 mb-5">
+  <input #importFileInput type="file" accept=".json" class="d-none" (change)="onImportFile($event)" />
 
-    <div class="row">
-        <app-settings-actions (save)="save()" (resetClipboard)="onResetClipboard()" (restore)="restore()" (exportSettings)="onExportSettings()" (importSettings)="onImportSettings()" />
-        <div class="row p-4">
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0"><span class="bi bi-sliders me-2"></span>Advanced &amp; Preferences</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="form-check form-switch ms-1">
-                            <input id="experimental_switch" class="form-check-input" type="checkbox" name="experimental_switch"
-                                [(ngModel)]="settingsService.settings().experimental" />
-                            <label class="form-check-label" for="experimental_switch"><span class="bi bi-exclamation-diamond"></span> Experimental Features</label>
-                            <br />
-                            <small class="form-text text-muted d-block mt-1 small">This is used for testing upcoming features and may break existing functionality. You probably don't want to use this!</small>
-                        </div>
-                        <div class="form-check form-switch mt-3 ms-1">
-                            <input id="developer_switch" class="form-check-input" type="checkbox" name="developer_switch"
-                                [(ngModel)]="settingsService.settings().developer" />
-                            <label class="form-check-label" for="developer_switch"><span class="bi bi-code"></span> Developer Mode</label>
-                            <br />
-                            <small class="form-text text-muted d-block mt-1 small">Enable more advanced technical settings and messages. This is mostly for development.</small>
-                        </div>
-                        <div class="mb-3 mt-3">
-                            <label for="theme" class="form-label">Theme</label>
-                            <select class="form-select" name="theme" [(ngModel)]="settingsService.settings().theme_preferred"
-                                (ngModelChange)="themePreferenceChanged($event)">
-                                <option [value]="themeTypes().AUTOMATIC" [selected]="settingsService.settings().theme_preferred == themeTypes().AUTOMATIC">Automatic</option>
-                                <option [value]="themeTypes().LIGHT" [selected]="settingsService.settings().theme_preferred == themeTypes().LIGHT">Light</option>
-                                <option [value]="themeTypes().DARK" [selected]="settingsService.settings().theme_preferred == themeTypes().DARK">Dark</option>
-                            </select>
-                        </div>
-                        <div class="form-check form-switch mt-3 ms-1">
-                            <input id="validate_schema_switch" class="form-check-input" type="checkbox"
-                                name="validate_schema_switch" [(ngModel)]="settingsService.settings().validateSchema"
-                                (ngModelChange)="onValidateSchemaChange()" />
-                            <label class="form-check-label" for="validate_schema_switch"><span class="bi bi-check-circle"></span> Validate Against Schema</label>
-                            <br />
-                            <small class="form-text text-muted d-block mt-1 small">Enable validation of data files against the JSON schema prior to loading.</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0"><span class="bi bi-play-circle me-2"></span>CQL Tests Runner &amp; Results</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="runnerApiBaseUrl" class="form-label">Runner API Base URL</label>
-                            <input type="url" class="form-control" id="runnerApiBaseUrl" name="runnerApiBaseUrl"
-                                [(ngModel)]="settingsService.settings().runnerApiBaseUrl"
-                                [placeholder]="settingsService.getDefaultRunnerApiBaseUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Base URL for the CQL Tests Runner API.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="runnerFhirBaseUrl" class="form-label">Runner FHIR Base URL</label>
-                            <input type="url" class="form-control" id="runnerFhirBaseUrl" name="runnerFhirBaseUrl"
-                                [(ngModel)]="settingsService.settings().runnerFhirBaseUrl"
-                                [placeholder]="settingsService.getDefaultRunnerFhirBaseUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Base FHIR URL to pass to the CQL Tests Runner; must be network-accessible from the runner.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="defaultTestResultsIndexUrl" class="form-label">Default Test Results Index URL</label>
-                            <input type="url" class="form-control" id="defaultTestResultsIndexUrl"
-                                name="defaultTestResultsIndexUrl"
-                                [(ngModel)]="settingsService.settings().defaultTestResultsIndexUrl"
-                                [placeholder]="settingsService.getDefaultTestResultsIndexUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Default URL for loading test results index files.</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0"><span class="bi bi-server me-2"></span>FHIR Server</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="fhirBaseUrl" class="form-label">FHIR Base URL</label>
-                            <input type="url" class="form-control" id="fhirBaseUrl" name="fhirBaseUrl"
-                                [(ngModel)]="settingsService.settings().fhirBaseUrl"
-                                [placeholder]="settingsService.getDefaultFhirBaseUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Base URL for the FHIR server.</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0"><span class="bi bi-book me-2"></span>Terminology Services</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="terminologyBaseUrl" class="form-label">Terminology Base URL</label>
-                            <input type="url" class="form-control" id="terminologyBaseUrl" name="terminologyBaseUrl"
-                                [(ngModel)]="settingsService.settings().terminologyBaseUrl"
-                                [placeholder]="settingsService.getDefaultTerminologyBaseUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Base URL for terminology services.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="terminologyBasicAuthUsername" class="form-label">Basic Auth Username (Optional)</label>
-                            <input type="text" class="form-control" id="terminologyBasicAuthUsername"
-                                name="terminologyBasicAuthUsername"
-                                [(ngModel)]="settingsService.settings().terminologyBasicAuthUsername"
-                                [placeholder]="settingsService.getDefaultTerminologyBasicAuthUsername()">
-                            <small class="form-text text-muted d-block mt-1 small">Username for Basic Authentication.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="terminologyBasicAuthPassword" class="form-label">Basic Auth Password (Optional)</label>
-                            <input type="password" class="form-control" id="terminologyBasicAuthPassword"
-                                name="terminologyBasicAuthPassword"
-                                [(ngModel)]="settingsService.settings().terminologyBasicAuthPassword"
-                                [placeholder]="settingsService.getDefaultTerminologyBasicAuthPassword()">
-                            <small class="form-text text-muted d-block mt-1 small">Password for Basic Authentication.</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0"><span class="bi bi-box-seam me-2"></span>FHIR Package Registry</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="fhirPackageRegistryBaseUrl" class="form-label">Registry base URL</label>
-                            <input type="url" class="form-control" id="fhirPackageRegistryBaseUrl" name="fhirPackageRegistryBaseUrl"
-                                [(ngModel)]="settingsService.settings().fhirPackageRegistryBaseUrl"
-                                [placeholder]="settingsService.getDefaultFhirPackageRegistryBaseUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Base URL for the <a href="https://build.fhir.org/packages.html" target="_blank" rel="noopener noreferrer">FHIR NPM package registry</a> (default <code>https://packages.fhir.org</code>). The FHIR Registry Browser searches and downloads published implementation guides and specification packages. For browsing, see also <a href="https://registry.fhir.org/" target="_blank" rel="noopener noreferrer">registry.fhir.org</a>.</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0"><span class="bi bi-cloud-download me-2"></span>U.S. Value Set Authority Center (VSAC)</h6>
-                    </div>
-                    <div class="card-body">
-                        <p class="small text-muted">National Library of Medicine (NLM) Value Set Authority Center (VSAC) requests from this app are sent through your <strong>CQL Studio Server</strong> instance due to NLM not permitting direct browser calls. Requires a free <a href="https://uts.nlm.nih.gov/" target="_blank" rel="noopener noreferrer">UMLS</a> account and API key. See <a href="https://www.nlm.nih.gov/vsac/support/usingvsac/vsacfhirapi.html" target="_blank" rel="noopener noreferrer">FHIR Terminology Service for VSAC</a> and <a href="https://www.nlm.nih.gov/vsac/support/usingvsac/vsacsvsapiv2.html" target="_blank" rel="noopener noreferrer">VSAC API resources</a>. NLM requests ≤20 requests/s per IP and 12–24h caching where practical.</p>
-                        <div class="mb-3">
-                            <label for="vsacFhirBaseUrl" class="form-label">VSAC FHIR base URL</label>
-                            <input type="url" class="form-control" id="vsacFhirBaseUrl" name="vsacFhirBaseUrl"
-                                [(ngModel)]="settingsService.settings().vsacFhirBaseUrl"
-                                [placeholder]="settingsService.getDefaultVsacFhirBaseUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Leave blank for the default in the placeholder (or set <code>window.CQL_STUDIO_VSAC_FHIR_BASE_URL</code> before load). UAT: <code>https://uat-cts.nlm.nih.gov/fhir</code>.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="vsacApiUsername" class="form-label">VSAC Basic Auth Username</label>
-                            <input type="text" class="form-control" id="vsacApiUsername" name="vsacApiUsername"
-                                [(ngModel)]="settingsService.settings().vsacApiUsername"
-                                [placeholder]="settingsService.getDefaultVsacApiUsername()">
-                            <small class="form-text text-muted d-block mt-1 small">NLM recommends <code>apikey</code> (or blank) with the UMLS key as password. Leave blank to use the placeholder or <code>window.CQL_STUDIO_VSAC_BASIC_AUTH_USERNAME</code>.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="vsacApiPassword" class="form-label">UMLS API Key</label>
-                            <input type="password" class="form-control" id="vsacApiPassword" name="vsacApiPassword"
-                                [(ngModel)]="settingsService.settings().vsacApiPassword">
-                            <small class="form-text text-muted d-block mt-1 small">From UTS My Profile. Independent of Terminology Services Basic Auth. Leave blank to use <code>window.CQL_STUDIO_VSAC_BASIC_AUTH_PASSWORD</code> if set at deploy time; otherwise stored only in this browser when entered here.</small>
-                        </div>
-                        <p class="small text-muted mb-0"><span class="bi bi-info-circle me-1"></span>Per NLM: include this notice in products using NLM data: &quot;This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product.&quot;</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h6 class="card-title mb-0"><span class="bi bi-server me-2"></span>CQL Studio Server</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="serverBaseUrl" class="form-label">Server Base URL (Optional)</label>
-                            <input type="url" class="form-control" id="serverBaseUrl" name="serverBaseUrl"
-                                [(ngModel)]="settingsService.settings().serverBaseUrl"
-                                [placeholder]="settingsService.getDefaultServerBaseUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Base URL for the CQL Studio Server API.</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="searxngBaseUrl" class="form-label">SearXNG Base URL (Optional) - Not Yet Supported</label>
-                            <input type="url" class="form-control" id="searxngBaseUrl" name="searxngBaseUrl"
-                                [(ngModel)]="settingsService.settings().searxngBaseUrl"
-                                [placeholder]="settingsService.getDefaultSearxngBaseUrl()">
-                            <small class="form-text text-muted d-block mt-1 small">Base URL of a SearXNG instance for anonymous web search (e.g. https://search.example.org). See https://searx.space/ for public instances. Be cautious!</small>
-                        </div>
-                        <h6 class="mt-4 mb-2"><span class="bi bi-robot me-2"></span>AI Assistant</h6>
-                        <div class="form-check form-switch ms-1">
-                            <input id="enableAiAssistant" class="form-check-input" type="checkbox" name="enableAiAssistant"
-                                [(ngModel)]="settingsService.settings().enableAiAssistant" />
-                            <label class="form-check-label" for="enableAiAssistant"><span class="bi bi-robot"></span> Enable AI Assistant</label>
-                            <br />
-                            <small class="form-text text-muted d-block mt-1 small">Enable the AI assistant tab for CQL development help. Requests are proxied through CQL Studio Server.</small>
-                        </div>
-                        @if (settingsService.settings().enableAiAssistant) {
-                            <div class="form-check form-switch mt-3 ms-1">
-                                <input id="useMCPTools" class="form-check-input" type="checkbox" name="useMCPTools"
-                                    [(ngModel)]="settingsService.settings().useMCPTools" />
-                                <label class="form-check-label" for="useMCPTools"><span class="bi bi-tools"></span> Enable MCP Tools</label>
-                                <br />
-                                <small class="form-text text-muted d-block mt-1 small">Enable MCP (Model Context Protocol) tools for FHIR data access in AI conversations.</small>
-                            </div>
-                            <div class="form-check form-switch mt-3 ms-1">
-                                <input id="allowAiWriteOperations" class="form-check-input" type="checkbox" name="allowAiWriteOperations"
-                                    [(ngModel)]="settingsService.settings().allowAiWriteOperations" />
-                                <label class="form-check-label" for="allowAiWriteOperations"><span class="bi bi-pencil-square"></span> Allow AI write operations</label>
-                                <br />
-                                <small class="form-text text-muted d-block mt-1 small">When disabled, only read-only FHIR operations (GET) are allowed. When enabled, AI may also perform write operations (POST, PUT, PATCH, DELETE) against the configured FHIR server.</small>
-                            </div>
-                            <div class="mb-3">
-                                <label for="ollamaBaseUrl" class="form-label">Ollama Base URL</label>
-                                <input type="url" class="form-control" id="ollamaBaseUrl" name="ollamaBaseUrl"
-                                    [(ngModel)]="settingsService.settings().ollamaBaseUrl"
-                                    [placeholder]="settingsService.getDefaultOllamaBaseUrl()">
-                                <small class="form-text text-muted d-block mt-1 small">Base URL for the Ollama server (passed to CQL Studio Server on each request).</small>
-                            </div>
-                            <div class="mb-3">
-                                <label for="ollamaModel" class="form-label">Ollama Model</label>
-                                <input type="text" class="form-control" id="ollamaModel" name="ollamaModel"
-                                    [(ngModel)]="settingsService.settings().ollamaModel"
-                                    [placeholder]="settingsService.getDefaultOllamaModel()">
-                                <small class="form-text text-muted d-block mt-1 small">Model name to use with Ollama.</small>
-                            </div>
-                            <div class="form-check form-switch mt-3 ms-1">
-                                <input id="autoApplyCodeEdits" class="form-check-input" type="checkbox" name="autoApplyCodeEdits"
-                                    [(ngModel)]="settingsService.settings().autoApplyCodeEdits" />
-                                <label class="form-check-label" for="autoApplyCodeEdits"><span class="bi bi-lightning-charge"></span> Auto-Apply Code Edits</label>
-                                <br />
-                                <small class="form-text text-muted d-block mt-1 small">Automatically apply code edits suggested by AI without manual approval.</small>
-                            </div>
-                            <div class="form-check form-switch mt-3 ms-1">
-                                <input id="requireDiffPreview" class="form-check-input" type="checkbox" name="requireDiffPreview"
-                                    [(ngModel)]="settingsService.settings().requireDiffPreview" />
-                                <label class="form-check-label" for="requireDiffPreview"><span class="bi bi-eye"></span> Always Show Diff Preview</label>
-                                <br />
-                                <small class="form-text text-muted d-block mt-1 small">Always show a diff preview before applying code edits, even when auto-apply is enabled.</small>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row">
-            <app-settings-actions idSuffix="-bottom" (save)="save()" (resetClipboard)="onResetClipboard()" (restore)="restore()" (exportSettings)="onExportSettings()" (importSettings)="onImportSettings()" />
-        </div>
+  <div class="row g-4">
+    <div class="col-md-3 col-lg-2">
+      <app-settings-section-nav [activeSection]="activeSection()" (sectionChange)="onSectionChange($event)" />
+      <app-settings-actions variant="save" (save)="save()" />
     </div>
+    <div class="col-md-9 col-lg-10">
+      <div class="card">
+        <div class="card-body">
+          @switch (activeSection()) {
+            @case ('environments') {
+              <app-settings-environments />
+            }
+            @case ('advanced') {
+              <h6 class="card-title mb-3"><span class="bi bi-sliders me-2"></span>Advanced &amp; Preferences</h6>
+              <div class="form-check form-switch ms-1">
+                <input id="experimental_switch" class="form-check-input" type="checkbox" name="experimental_switch"
+                  [(ngModel)]="settingsService.settings().experimental" />
+                <label class="form-check-label" for="experimental_switch"><span class="bi bi-exclamation-diamond"></span> Experimental Features</label>
+                <br />
+                <small class="form-text text-muted d-block mt-1">This is used for testing upcoming features and may break existing functionality. You probably don't want to use this!</small>
+              </div>
+              <div class="form-check form-switch mt-3 ms-1">
+                <input id="developer_switch" class="form-check-input" type="checkbox" name="developer_switch"
+                  [(ngModel)]="settingsService.settings().developer" />
+                <label class="form-check-label" for="developer_switch"><span class="bi bi-code"></span> Developer Mode</label>
+                <br />
+                <small class="form-text text-muted d-block mt-1">Enable more advanced technical settings and messages. This is mostly for development.</small>
+              </div>
+              <div class="form-floating mb-3 mt-3">
+                <select class="form-select" id="theme" name="theme" [(ngModel)]="settingsService.settings().theme_preferred"
+                  (ngModelChange)="themePreferenceChanged()">
+                  <option [value]="themeTypes().AUTOMATIC">Automatic</option>
+                  <option [value]="themeTypes().LIGHT">Light</option>
+                  <option [value]="themeTypes().DARK">Dark</option>
+                </select>
+                <label for="theme">Theme</label>
+              </div>
+              <div class="form-check form-switch mt-3 ms-1">
+                <input id="validate_schema_switch" class="form-check-input" type="checkbox"
+                  name="validate_schema_switch" [(ngModel)]="settingsService.settings().validateSchema"
+                  (ngModelChange)="onValidateSchemaChange()" />
+                <label class="form-check-label" for="validate_schema_switch"><span class="bi bi-check-circle"></span> Validate Against Schema</label>
+                <br />
+                <small class="form-text text-muted d-block mt-1">Enable validation of data files against the JSON schema prior to loading.</small>
+              </div>
+
+              <hr class="my-4">
+              <h6 class="mb-3" id="settings-advanced-actions-heading">Import, export &amp; reset</h6>
+              <app-settings-actions variant="toolbar" (resetClipboard)="onResetClipboard()" (restore)="restore()"
+                (exportSettings)="onExportSettings()" (importSettings)="onImportSettings()" />
+            }
+            @case ('runner') {
+              <h6 class="card-title mb-3"><span class="bi bi-play-circle me-2"></span>CQL Tests Runner &amp; Results</h6>
+              <div class="form-floating mb-3">
+                <input type="url" class="form-control" id="runnerApiBaseUrl" name="runnerApiBaseUrl"
+                  [(ngModel)]="settingsService.settings().runnerApiBaseUrl"
+                  [placeholder]="settingsService.getDefaultRunnerApiBaseUrl()">
+                <label for="runnerApiBaseUrl">Runner API Base URL</label>
+              </div>
+              <small class="form-text text-muted d-block mb-3">Base URL for the CQL Tests Runner API.</small>
+              <div class="form-floating mb-3">
+                <input type="url" class="form-control" id="runnerFhirBaseUrl" name="runnerFhirBaseUrl"
+                  [(ngModel)]="settingsService.settings().runnerFhirBaseUrl"
+                  [placeholder]="settingsService.getEffectiveDataEndpointAddress()">
+                <label for="runnerFhirBaseUrl">Runner FHIR Base URL</label>
+              </div>
+              <small class="form-text text-muted d-block mb-3">Base FHIR URL to pass to the CQL Tests Runner; must be network-accessible from the runner. Defaults to the active environment data endpoint.</small>
+              <div class="form-floating mb-3">
+                <input type="url" class="form-control" id="defaultTestResultsIndexUrl"
+                  name="defaultTestResultsIndexUrl"
+                  [(ngModel)]="settingsService.settings().defaultTestResultsIndexUrl"
+                  [placeholder]="settingsService.getDefaultTestResultsIndexUrl()">
+                <label for="defaultTestResultsIndexUrl">Default Test Results Index URL</label>
+              </div>
+              <small class="form-text text-muted d-block mb-3">Default URL for loading test results index files.</small>
+            }
+            @case ('registry') {
+              <h6 class="card-title mb-3"><span class="bi bi-box-seam me-2"></span>FHIR Package Registry</h6>
+              <div class="form-floating mb-3">
+                <input type="url" class="form-control" id="fhirPackageRegistryBaseUrl" name="fhirPackageRegistryBaseUrl"
+                  [(ngModel)]="settingsService.settings().fhirPackageRegistryBaseUrl"
+                  [placeholder]="settingsService.getDefaultFhirPackageRegistryBaseUrl()">
+                <label for="fhirPackageRegistryBaseUrl">Registry base URL (Optional Override)</label>
+              </div>
+              <small class="form-text text-muted d-block mb-3">Base URL for the <a href="https://build.fhir.org/packages.html" target="_blank" rel="noopener noreferrer">FHIR NPM package registry</a> (default <code>https://packages.fhir.org</code>).</small>
+            }
+            @case ('vsac') {
+              <h6 class="card-title mb-3"><span class="bi bi-cloud-download me-2"></span>U.S. Value Set Authority Center (VSAC)</h6>
+              <p class="small text-muted">National Library of Medicine (NLM) Value Set Authority Center (VSAC) requests from this app are sent through your <strong>CQL Studio Server</strong> instance due to NLM not permitting direct browser calls. Requires a free <a href="https://uts.nlm.nih.gov/" target="_blank" rel="noopener noreferrer">UMLS</a> account and API key.</p>
+              <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="vsacApiPassword" name="vsacApiPassword"
+                  [(ngModel)]="settingsService.settings().vsacApiPassword" placeholder="UMLS API Key">
+                <label for="vsacApiPassword">UMLS API Key</label>
+              </div>
+              <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="vsacApiUsername" name="vsacApiUsername"
+                  [(ngModel)]="settingsService.settings().vsacApiUsername"
+                  [placeholder]="settingsService.getDefaultVsacApiUsername()">
+                <label for="vsacApiUsername">VSAC Basic Auth Username</label>
+              </div>
+              <div class="form-floating mb-3">
+                <input type="url" class="form-control" id="vsacFhirBaseUrl" name="vsacFhirBaseUrl"
+                  [(ngModel)]="settingsService.settings().vsacFhirBaseUrl"
+                  [placeholder]="settingsService.getDefaultVsacFhirBaseUrl()">
+                <label for="vsacFhirBaseUrl">VSAC FHIR base URL (optional override)</label>
+              </div>
+            }
+            @case ('server') {
+              <h6 class="card-title mb-3"><span class="bi bi-server me-2"></span>CQL Studio Server</h6>
+              <div class="form-floating mb-3">
+                <input type="url" class="form-control" id="serverBaseUrl" name="serverBaseUrl"
+                  [(ngModel)]="settingsService.settings().serverBaseUrl"
+                  [placeholder]="settingsService.getDefaultServerBaseUrl()">
+                <label for="serverBaseUrl">Server Base URL (Optional Override)</label>
+              </div>
+              <!-- <small class="form-text text-muted d-block mb-3">Base URL for the CQL Studio Server API.</small> -->
+              <div class="form-floating mb-3">
+                <input type="url" class="form-control" id="searxngBaseUrl" name="searxngBaseUrl"
+                  [(ngModel)]="settingsService.settings().searxngBaseUrl"
+                  [placeholder]="settingsService.getDefaultSearxngBaseUrl() || 'SearXNG Base URL (Optional)'">
+                <label for="searxngBaseUrl">SearXNG Base URL (Optional) - Not Yet Supported</label>
+              </div>
+              <h6 class="mt-4 mb-2"><span class="bi bi-robot me-2"></span>AI Assistant</h6>
+              <div class="form-check form-switch ms-1">
+                <input id="enableAiAssistant" class="form-check-input" type="checkbox" name="enableAiAssistant"
+                  [(ngModel)]="settingsService.settings().enableAiAssistant" />
+                <label class="form-check-label" for="enableAiAssistant"><span class="bi bi-robot"></span> Enable AI Assistant</label>
+              </div>
+              @if (settingsService.settings().enableAiAssistant) {
+                <div class="form-check form-switch mt-3 ms-1">
+                  <input id="useMCPTools" class="form-check-input" type="checkbox" name="useMCPTools"
+                    [(ngModel)]="settingsService.settings().useMCPTools" />
+                  <label class="form-check-label" for="useMCPTools"><span class="bi bi-tools"></span> Enable MCP Tools</label>
+                </div>
+                <div class="form-check form-switch mt-3 ms-1">
+                  <input id="allowAiWriteOperations" class="form-check-input" type="checkbox" name="allowAiWriteOperations"
+                    [(ngModel)]="settingsService.settings().allowAiWriteOperations" />
+                  <label class="form-check-label" for="allowAiWriteOperations"><span class="bi bi-pencil-square"></span> Allow AI write operations</label>
+                </div>
+                <div class="form-floating mb-3 mt-3">
+                  <input type="url" class="form-control" id="ollamaBaseUrl" name="ollamaBaseUrl"
+                    [(ngModel)]="settingsService.settings().ollamaBaseUrl"
+                    [placeholder]="settingsService.getDefaultOllamaBaseUrl()">
+                  <label for="ollamaBaseUrl">Ollama Base URL</label>
+                </div>
+                <div class="form-floating mb-3">
+                  <input type="text" class="form-control" id="ollamaModel" name="ollamaModel"
+                    [(ngModel)]="settingsService.settings().ollamaModel"
+                    [placeholder]="settingsService.getDefaultOllamaModel()">
+                  <label for="ollamaModel">Ollama Model</label>
+                </div>
+                <div class="form-check form-switch mt-3 ms-1">
+                  <input id="autoApplyCodeEdits" class="form-check-input" type="checkbox" name="autoApplyCodeEdits"
+                    [(ngModel)]="settingsService.settings().autoApplyCodeEdits" />
+                  <label class="form-check-label" for="autoApplyCodeEdits"><span class="bi bi-lightning-charge"></span> Auto-Apply Code Edits</label>
+                </div>
+                <div class="form-check form-switch mt-3 ms-1">
+                  <input id="requireDiffPreview" class="form-check-input" type="checkbox" name="requireDiffPreview"
+                    [(ngModel)]="settingsService.settings().requireDiffPreview" />
+                  <label class="form-check-label" for="requireDiffPreview"><span class="bi bi-eye"></span> Always Show Diff Preview</label>
+                </div>
+              }
+            }
+          }
+        </div>
+      </div>
+    </div>
+  </div>
 </div>

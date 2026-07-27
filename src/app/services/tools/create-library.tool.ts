@@ -41,7 +41,7 @@ export class CreateLibraryTool extends BaseBrowserTool {
     }
 
     const newId = `new-library-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const effectiveFhirBaseUrl = this.ctx.settingsService.getEffectiveFhirBaseUrl();
+    const effectiveFhirBaseUrl = this.ctx.settingsService.getEffectiveEvaluationServerUrl();
     const canonicalUrl = `${effectiveFhirBaseUrl}/Library/${newId}`;
 
     const libraryResource = {

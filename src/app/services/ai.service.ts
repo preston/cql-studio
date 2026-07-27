@@ -479,7 +479,7 @@ export class AiService extends BaseService {
 
     // Inject client-side config for tools that require it
     const params = { ...parameters };
-    if (toolName === 'searxng_search') {
+    if (toolName.startsWith('searxng_')) {
       const searxngBaseUrl = this.settingsService.getEffectiveSearxngBaseUrl();
       params['searxng_base_url'] = searxngBaseUrl || '';
     }
@@ -495,28 +495,6 @@ export class AiService extends BaseService {
     };
 
     return this.http.post<MCPResponse>(`${mcpUrl}/execute`, request, {
-      headers: this.getMCPHeaders()
-    }).pipe(
-      catchError(this.handleError)
-    );
-  }
-
-  /**
-   * Get FHIR data through MCP server
-   */
-  getFhirData(resourceType: string, id?: string, query?: any): Observable<any> {
-    const mcpUrl = this.settingsService.getEffectiveServerBaseUrl();
-    if (!mcpUrl) {
-      return throwError(() => new Error('MCP base URL not configured'));
-    }
-
-    const params = {
-      resourceType,
-      id,
-      query
-    };
-
-    return this.http.post<any>(`${mcpUrl}/fhir`, params, {
       headers: this.getMCPHeaders()
     }).pipe(
       catchError(this.handleError)
@@ -722,14 +700,18 @@ Use this context when helping improve, debug, or extend the code.`;
     }
 
     if (useMCPTools) {
+      const evaluationUrl = this.settingsService.getEffectiveEvaluationServerUrl();
+      const dataUrl = this.settingsService.getEffectiveDataEndpointAddress();
       systemContent += `
 
 ## FHIR Data Access
 
-- User references patient or medical data should be presumed to be accessible on the user-configured FHIR server via FHIR-related MCP tools, not embedded in any CQL library code.
+- The active environment has separate endpoints: evaluation server (${evaluationUrl || 'not configured'}) for library CRUD/$evaluate, and data endpoint (${dataUrl || 'falls back to evaluation server'}) for patient/clinical resource queries.
+- User references to patient or medical data should be presumed accessible via FHIR read/write tools against the **data** endpoint, not embedded in CQL library code.
+- Library authoring tools (${CreateLibraryTool.id}, ${ListLibrariesTool.id}, etc.) use the **evaluation** server.
 - Use FHIR R4 query syntax for all FHIR data access to medical, health, and billing data.
 - Minimize the number of FHIR queries you make, and only make queries that are necessary to answer the user's question.
-- Parse FHIR server as JSON objects and search the results to answer the user's question.
+- Parse FHIR server responses as JSON objects and search the results to answer the user's question.
 
 **CRITICAL - Use tools in your first response:** When the user asks about code, editing, or anything that requires context (current file, libraries, search), you MUST include a "tool_call" in your very first response. Do not reply with only a comment or explanation until you have called the appropriate tool (e.g. ${GetCodeTool.id}, ${SearchCodeTool.id}) and received results. Example first response: {"comment": "Reading the current code.", "next_action": "tool", "tool_call": {"tool": "${GetCodeTool.id}", "params": {}}}.
 

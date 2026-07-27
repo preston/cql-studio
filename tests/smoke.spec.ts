@@ -62,7 +62,8 @@ test.describe('Smoke Tests', () => {
     await helpers.goToHome();
     await helpers.goToSettings();
     await expect(page.locator('#settings')).toBeVisible();
-    await expect(page.locator('h6:has-text("Advanced & Preferences")')).toBeVisible();
+    await expect(page.locator('#settings-environments')).toBeVisible();
+    await expect(page.locator('#environment-switcher')).toBeVisible();
   });
 
   test('should load example data', async ({ page }) => {

@@ -152,7 +152,7 @@ export class RunnerService {
   getDefaultConfiguration(): CQLTestConfiguration {
     return {
       FhirServer: {
-        BaseUrl: this.settingsService.getEffectiveFhirBaseUrl(),
+        BaseUrl: this.settingsService.getEffectiveRunnerFhirBaseUrl(),
         CqlOperation: '$cql'
       },
       Build: {

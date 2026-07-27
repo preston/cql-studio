@@ -36,7 +36,7 @@ export class MeasureLibraryComponent implements OnInit {
 
   protected readonly hasValidConfiguration = computed(() => {
     this.settingsService.settings();
-    const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const baseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     return baseUrl.trim() !== '';
   });
 

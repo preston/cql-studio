@@ -8,6 +8,8 @@ import { Observable, of, throwError } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
+import { buildHttpHeaders } from './endpoint-config.lib';
+import { appendEvaluateEndpointParameters } from './cql-evaluate-parameters.lib';
 
 @Injectable({
 	providedIn: 'root'
@@ -20,17 +22,50 @@ export class LibraryService extends BaseService {
 
 	protected settingsService = inject(SettingsService);
 
+	private evaluationHeaders(): HttpHeaders {
+		const ctx = this.settingsService.getEndpointHttpContext('evaluation', {
+			'Content-Type': 'application/fhir+json',
+			Accept: 'application/fhir+json'
+		});
+		return buildHttpHeaders(
+			{ ...this.settingsService.getActiveEnvironment().evaluationServer, address: ctx.address },
+			ctx.headers
+		);
+	}
+
+	private contentHeaders(): HttpHeaders {
+		const ctx = this.settingsService.getEndpointHttpContext('content', {
+			'Content-Type': 'application/fhir+json',
+			Accept: 'application/fhir+json'
+		});
+		return buildHttpHeaders(
+			{ ...this.settingsService.getActiveEnvironment().contentEndpoint, address: ctx.address },
+			ctx.headers
+		);
+	}
+
+	private evaluationBaseUrl(): string {
+		return this.settingsService.getEffectiveEvaluationServerUrl();
+	}
+
+	private contentBaseUrl(): string {
+		return this.settingsService.getEffectiveContentEndpointAddress();
+	}
+
 	public order: 'asc' | 'desc' = 'asc';
 	public pageSize = 10;
 	public offset = 0;
 
 	url(): string {
-		const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
-		return baseUrl + LibraryService.LIBRARY_PATH;
+		return this.evaluationBaseUrl() + LibraryService.LIBRARY_PATH;
+	}
+
+	contentUrl(): string {
+		return this.contentBaseUrl() + LibraryService.LIBRARY_PATH;
 	}
 
 	search(searchTerm: string): Observable<Bundle> {
-		return this.http.get<Bundle>(this.url() + "?title:contains=" + searchTerm, { headers: this.headers() });
+		return this.http.get<Bundle>(this.url() + "?title:contains=" + searchTerm, { headers: this.evaluationHeaders() });
 	}
 
 	// Search libraries with pagination and sorting
@@ -52,7 +87,7 @@ export class LibraryService extends BaseService {
 			url += `&_sort=${order === 'asc' ? 'date' : '-date'}`;
 		}
 		
-		return this.http.get<Bundle>(url, { headers: this.headers() });
+		return this.http.get<Bundle>(url, { headers: this.evaluationHeaders() });
 	}
 
 	// Get paginated list of all libraries
@@ -69,24 +104,24 @@ export class LibraryService extends BaseService {
 			url += `&_sort=${order === 'asc' ? 'date' : '-date'}`;
 		}
 		
-		return this.http.get<Bundle>(url, { headers: this.headers() });
+		return this.http.get<Bundle>(url, { headers: this.evaluationHeaders() });
 	}
 
 	urlFor(id: string) {
-		const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
-		return baseUrl + '/Library/' + id;
+		return this.evaluationBaseUrl() + '/Library/' + id;
 	}
 
 	get(id: string) {
-		return this.http.get<Library>(this.urlFor(id), { headers: this.headers() });
+		return this.http.get<Library>(this.urlFor(id), { headers: this.evaluationHeaders() });
 	}
 
-	findByNameAndVersion(name: string, version?: string): Observable<Library | null> {
-		let url = this.url() + `?name=${encodeURIComponent(name)}&_count=1`;
+	findByNameAndVersion(name: string, version?: string, useContentEndpoint = false): Observable<Library | null> {
+		const base = useContentEndpoint ? this.contentUrl() : this.url();
+		let url = base + `?name=${encodeURIComponent(name)}&_count=1`;
 		if (version) {
 			url += `&version=${encodeURIComponent(version)}`;
 		}
-		return this.http.get<Bundle>(url, { headers: this.headers() }).pipe(
+		return this.http.get<Bundle>(url, { headers: useContentEndpoint ? this.contentHeaders() : this.evaluationHeaders() }).pipe(
 			map(bundle => {
 				const entry = bundle.entry?.[0]?.resource;
 				return entry?.resourceType === 'Library' ? entry as Library : null;
@@ -149,18 +184,23 @@ export class LibraryService extends BaseService {
 	}
 
 	post(Library: Library) {
-		return this.http.post<Library>(this.url(), JSON.stringify(Library), { headers: this.headers() });
+		return this.http.post<Library>(this.url(), JSON.stringify(Library), { headers: this.evaluationHeaders() });
 	}
 
 	put(Library: Library) {
-		return this.http.put<Library>(this.urlFor(Library.id!), JSON.stringify(Library), { headers: this.headers() });
+		return this.http.put<Library>(this.urlFor(Library.id!), JSON.stringify(Library), { headers: this.evaluationHeaders() });
 	}
 
 	delete(Library: Library) {
-		return this.http.delete<Library>(this.urlFor(Library.id!), { headers: this.headers() });
+		return this.http.delete<Library>(this.urlFor(Library.id!), { headers: this.evaluationHeaders() });
 	}
 
     evaluate(libraryId: string, parameters: Parameters) {
-        return this.http.post<Parameters>(this.urlFor(libraryId) + '/$evaluate', JSON.stringify(parameters), { headers: this.headers() });
+		appendEvaluateEndpointParameters(parameters, this.settingsService.getActiveEnvironment());
+        return this.http.post<Parameters>(
+			this.urlFor(libraryId) + '/$evaluate',
+			JSON.stringify(parameters),
+			{ headers: this.evaluationHeaders() }
+		);
     }
 }

@@ -13,7 +13,7 @@ export class FhirRequestToolRead extends BaseBrowserTool {
   static override statusMessage = 'Reading from FHIR server...';
 
   readonly name = FhirRequestToolRead.id;
-  readonly description = 'Perform read-only GET requests against the user-configured FHIR server. Path is relative to the FHIR base URL (e.g. Patient, Patient/123, Patient?name=foo). User references to patient records or requests for medical data should be presumed to be accessible via this tool.';
+  readonly description = 'Perform read-only GET requests against the active environment data endpoint. Path is relative to the data endpoint base URL (e.g. Patient, Patient/123, Patient?name=foo). User references to patient records or requests for medical data should be presumed to be accessible via this tool.';
   readonly parameters = {
     type: 'object',
     properties: {
@@ -36,7 +36,7 @@ export class FhirRequestToolWrite extends BaseBrowserTool {
   static override statusMessage = 'Sending write request to FHIR server...';
 
   readonly name = FhirRequestToolWrite.id;
-  readonly description = 'Performs FHIR write requests (via HTTPPOST, PUT, PATCH, DELETE) against the user-configured FHIR server.';
+  readonly description = 'Performs FHIR write requests (via HTTP POST, PUT, PATCH, DELETE) against the active environment data endpoint.';
   readonly parameters = {
     type: 'object',
     properties: {

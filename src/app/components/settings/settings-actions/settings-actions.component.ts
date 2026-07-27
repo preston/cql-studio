@@ -2,6 +2,8 @@
 
 import { Component, input, output } from '@angular/core';
 
+export type SettingsActionsVariant = 'all' | 'save' | 'toolbar';
+
 @Component({
   selector: 'app-settings-actions',
   imports: [],
@@ -11,6 +13,7 @@ import { Component, input, output } from '@angular/core';
 })
 export class SettingsActionsComponent {
   idSuffix = input<string>('');
+  variant = input<SettingsActionsVariant>('all');
 
   save = output<void>();
   resetClipboard = output<void>();

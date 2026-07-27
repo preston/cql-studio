@@ -14,7 +14,6 @@ import { IdeStateService } from '../../../../services/ide-state.service';
 import { CqlFormatterService } from '../../../../services/cql-formatter.service';
 import { CqlValidationService, FullValidationResult, ValidationResult } from '../../../../services/cql-validation.service';
 import { LibraryTranslationContextBuilder } from '../../../../services/library-translation-context.lib';
-import { DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../../../services/cql-execution.service';
 import { CqlDefinitionIndexService, elmColumnToCodeMirror } from '../../../../services/cql-definition-index.service';
 import { CqlDefinitionIndex, CqlReferenceMatch, isReferenceResolvableSync } from '../../../../services/elm-locator.lib';
 import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
@@ -51,10 +50,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   formatCql = output<void>();
   validateCql = output<void>();
   saveLibrary = output<void>();
-  sendTerminologyRoutingChange = output<boolean>();
-
-  /** Per-library value from parent (LibraryResource.sendTerminologyRouting ?? default). */
-  sendTerminologyRoutingInput = input<boolean>(DEFAULT_SEND_TERMINOLOGY_ROUTING);
 
   private editor?: EditorView;
   private grammarManager: CqlGrammarManager;
@@ -1003,10 +998,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
 
-
-  onSendTerminologyRoutingChange(value: boolean): void {
-    this.sendTerminologyRoutingChange.emit(value);
-  }
 
   onExecuteLibrary(): void {
     this.executeLibrary.emit();

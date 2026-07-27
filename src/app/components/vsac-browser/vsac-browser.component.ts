@@ -167,7 +167,7 @@ export class VsacBrowserComponent {
   protected readonly svsXmlResult = signal<string | null>(null);
 
   protected readonly terminologyImportWarning = computed(() => {
-    const u = this.settingsService.getEffectiveTerminologyBaseUrl().toLowerCase();
+    const u = this.settingsService.getEffectiveTerminologyEndpointAddress().toLowerCase();
     return u.includes('cts.nlm.nih.gov') || u.includes('nlm.nih.gov');
   });
 

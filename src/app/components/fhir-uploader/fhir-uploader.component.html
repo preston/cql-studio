@@ -11,8 +11,8 @@
       <div class="row mb-4">
         <div class="col-md-8">
           <div class="form-floating">
-            <input type="url" class="form-control" id="fhirBaseUrl" [value]="getEffectiveFhirBaseUrl()" readonly>
-            <label for="fhirBaseUrl">FHIR Base URL</label>
+            <input type="url" class="form-control" id="fhirBaseUrl" [value]="getEffectiveEvaluationServerUrl()" readonly>
+            <label for="fhirBaseUrl">Evaluation Server URL</label>
           </div>
           <div class="form-text">
             <a href="#" (click)="navigateToSettings($event)" class="text-decoration-none">

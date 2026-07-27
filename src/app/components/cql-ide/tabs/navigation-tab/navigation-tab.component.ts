@@ -60,7 +60,7 @@ export class NavigationTabComponent implements OnInit {
 
   createNewLibraryResource(): void {
     const newId = `new-library-${Date.now()}`;
-    const effectiveFhirBaseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     const canonicalUrl = `${effectiveFhirBaseUrl}/Library/${newId}`;
     
     const libraryResource = {

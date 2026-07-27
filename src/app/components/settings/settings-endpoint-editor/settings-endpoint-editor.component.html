@@ -1,0 +1,33 @@
+<div class="form-floating mb-3">
+  <input type="url" class="form-control" [id]="idPrefix() + '-address'" [name]="idPrefix() + '-address'"
+    [ngModel]="endpoint().address" (ngModelChange)="patchEndpoint({ address: $event })"
+    [placeholder]="placeholder() || label()">
+  <label [for]="idPrefix() + '-address'">{{ label() }}</label>
+</div>
+@if (description()) {
+  <small class="form-text text-muted d-block mb-3">{{ description() }}</small>
+}
+@if (showCustomHeaders()) {
+  <div class="mb-2">
+    <label class="form-label me-2">Custom headers</label>
+    @for (header of endpoint().headers ?? []; track $index) {
+      <div class="input-group mb-2">
+        <div class="form-floating flex-grow-1">
+          <input type="text" class="form-control" [id]="idPrefix() + '-header-' + $index"
+            [value]="header" (input)="updateHeader($index, $any($event.target).value)"
+            placeholder="Header-Name: value">
+          <label [for]="idPrefix() + '-header-' + $index">Header-Name: value</label>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" [id]="idPrefix() + '-remove-header-' + $index"
+          (click)="removeHeader($index)" aria-label="Remove header">
+          <span class="bi bi-trash"></span>
+        </button>
+      </div>
+    }
+    <button type="button" class="btn btn-sm btn-outline-secondary" [id]="idPrefix() + '-add-header'"
+      (click)="addHeader()">
+      <span class="bi bi-plus-lg me-1"></span>Add
+    </button>
+    <!-- <small class="form-text text-muted d-block mt-1">FHIR Endpoint.header format: <code>Name: value</code></small> -->
+  </div>
+}

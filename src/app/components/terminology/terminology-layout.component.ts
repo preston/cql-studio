@@ -28,7 +28,7 @@ export class TerminologyLayoutComponent implements OnInit {
 
   // Configuration status
   protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyBaseUrl();
+    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
     return baseUrl.trim() !== '';
   });
 
@@ -42,7 +42,7 @@ export class TerminologyLayoutComponent implements OnInit {
     }
     return {
       type: 'success',
-      message: `Connected to ${this.settingsService.getEffectiveTerminologyBaseUrl()}`,
+      message: `Connected to ${this.settingsService.getEffectiveTerminologyEndpointAddress()}`,
       showSettings: false
     };
   });
@@ -104,7 +104,7 @@ export class TerminologyLayoutComponent implements OnInit {
   }
 
   navigateToSettings(): void {
-    this.router.navigate(['/settings']);
+    this.router.navigate(['/settings'], { queryParams: { section: 'environments' } });
   }
 
   // Utility methods

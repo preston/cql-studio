@@ -32,7 +32,7 @@ export class FhirTabComponent {
   public hasSelectedLibrary = computed(() => !!this.activeLibrary());
   public hasSelectedPatients = computed(() => this.patientService.selectedPatients.length > 0);
   public selectedPatients = computed(() => this.patientService.selectedPatients);
-  public fhirServerUrl = computed(() => this.settingsService.getEffectiveFhirBaseUrl());
+  public fhirServerUrl = computed(() => this.settingsService.getEffectiveEvaluationServerUrl());
 
   onLibraryIdChange(value: string): void {
     const activeLibrary = this.activeLibrary();
@@ -161,7 +161,7 @@ export class FhirTabComponent {
   }
 
   onNavigateToSettings(): void {
-    this.router.navigate(['/settings']);
+    this.router.navigate(['/settings'], { queryParams: { section: 'environments' } });
   }
 
   libraryAsString(): string {

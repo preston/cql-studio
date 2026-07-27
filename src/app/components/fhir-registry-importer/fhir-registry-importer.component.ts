@@ -209,8 +209,8 @@ export class FhirRegistryImporterComponent {
         }
       }
     }
-    const tu = this.settingsService.getEffectiveTerminologyBaseUrl().replace(/\/+$/, '');
-    const fu = this.settingsService.getEffectiveFhirBaseUrl().replace(/\/+$/, '');
+    const tu = this.settingsService.getEffectiveTerminologyEndpointAddress().replace(/\/+$/, '');
+    const fu = this.settingsService.getEffectiveDataEndpointAddress().replace(/\/+$/, '');
     const merged = terminology > 0 && data > 0 && tu === fu;
     return { terminology, data, mergedSingleEndpoint: merged };
   });

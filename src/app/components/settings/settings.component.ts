@@ -1,33 +1,39 @@
 // Author: Preston Lee
 
-import { Component, OnInit, viewChild, ElementRef, inject } from '@angular/core';
+import { Component, OnInit, viewChild, ElementRef, inject, signal } from '@angular/core';
 import { SettingsService } from '../../services/settings.service';
-import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ThemeType } from '../../models/settings.model';
 import { ToastService } from '../../services/toast.service';
 import { ClipboardService } from '../../services/clipboard.service';
 import { SettingsActionsComponent } from './settings-actions/settings-actions.component';
+import { SettingsSectionNavComponent, SettingsSectionId } from './settings-section-nav/settings-section-nav.component';
+import { SettingsEnvironmentsComponent } from './settings-environments/settings-environments.component';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, SettingsActionsComponent],
+  imports: [FormsModule, SettingsActionsComponent, SettingsSectionNavComponent, SettingsEnvironmentsComponent],
   templateUrl: './settings.component.html',
-
   styleUrl: './settings.component.scss'
 })
 export class SettingsComponent implements OnInit {
   importFileInput = viewChild.required<ElementRef<HTMLInputElement>>('importFileInput');
 
   protected readonly settingsService = inject(SettingsService);
-  readonly location = inject(Location);
   protected readonly router = inject(Router);
+  protected readonly route = inject(ActivatedRoute);
   protected readonly toastService = inject(ToastService);
   private readonly clipboardService = inject(ClipboardService);
 
+  readonly activeSection = signal<SettingsSectionId>('environments');
+
   ngOnInit() {
     this.reload();
+    const section = this.route.snapshot.queryParamMap.get('section');
+    if (this.isValidSection(section)) {
+      this.activeSection.set(section);
+    }
   }
 
   reload() {
@@ -38,7 +44,7 @@ export class SettingsComponent implements OnInit {
     return ThemeType;
   }
 
-  themePreferenceChanged($event: any) {
+  themePreferenceChanged() {
     this.settingsService.setEffectiveTheme();
   }
 
@@ -46,15 +52,24 @@ export class SettingsComponent implements OnInit {
     this.settingsService.saveSettings();
   }
 
+  onSectionChange(section: SettingsSectionId): void {
+    this.activeSection.set(section);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { section },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
   save() {
     this.settingsService.saveSettings();
-    this.toastService.showSuccess("Settings are local to your browser only.", "Settings Saved");
-    this.location.back();
+    this.toastService.showSuccess('Settings are local to your browser only.', 'Settings Saved');
   }
 
   restore() {
     this.settingsService.forceResetToDefaults();
-    this.toastService.showSuccess("All settings have been restored to their defaults.", "Settings Restored");
+    this.toastService.showSuccess('All settings have been restored to their defaults.', 'Settings Restored');
   }
 
   onResetClipboard(): void {
@@ -97,8 +112,12 @@ export class SettingsComponent implements OnInit {
     reader.readAsText(file);
   }
 
-  back() {
-    this.location.back();
+  private isValidSection(section: string | null): section is SettingsSectionId {
+    return section === 'environments'
+      || section === 'advanced'
+      || section === 'runner'
+      || section === 'registry'
+      || section === 'vsac'
+      || section === 'server';
   }
 }
-

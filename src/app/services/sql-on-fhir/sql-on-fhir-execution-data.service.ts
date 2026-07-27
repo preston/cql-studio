@@ -8,6 +8,7 @@ import { PatientService } from '../patient.service';
 import { FhirSearchService } from '../fhir-search.service';
 import { FhirClientService } from '../fhir-client.service';
 import { SettingsService } from '../settings.service';
+import { buildHttpHeaders } from '../endpoint-config.lib';
 import { fetchAllBundlePages } from '../fhir-bundle-fetch.lib';
 import { loadValueSetExpansions } from '../../components/sql-on-fhir/elm-to-sql';
 import type { FlatRow } from './sql-on-fhir-bundle-flattener.lib';
@@ -199,16 +200,14 @@ export class SqlOnFhirExecutionDataService {
   }
 
   private terminologyHeaders(): HttpHeaders {
-    const username = this.settingsService.getEffectiveTerminologyBasicAuthUsername();
-    const password = this.settingsService.getEffectiveTerminologyBasicAuthPassword();
-    let headers = new HttpHeaders({
+    const ctx = this.settingsService.getEndpointHttpContext('terminology', {
       'Content-Type': 'application/fhir+json',
-      Accept: 'application/fhir+json',
+      Accept: 'application/fhir+json'
     });
-    if (username.trim() && password.trim()) {
-      headers = headers.set('Authorization', `Basic ${btoa(`${username}:${password}`)}`);
-    }
-    return headers;
+    return buildHttpHeaders(
+      { ...this.settingsService.getActiveEnvironment().terminologyEndpoint, address: ctx.address },
+      ctx.headers
+    );
   }
 
   private buildAuthenticatedFetch(): typeof fetch {
@@ -239,10 +238,10 @@ export class SqlOnFhirExecutionDataService {
   }
 
   private getTerminologyBaseUrl(): string {
-    const term = this.settingsService.getEffectiveTerminologyBaseUrl().trim().replace(/\/+$/, '');
+    const term = this.settingsService.getEffectiveTerminologyEndpointAddress().trim().replace(/\/+$/, '');
     if (term) {
       return term;
     }
-    return this.settingsService.getEffectiveFhirBaseUrl().trim().replace(/\/+$/, '');
+    return this.settingsService.getEffectiveDataEndpointAddress().trim().replace(/\/+$/, '');
   }
 }

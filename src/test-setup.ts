@@ -1,5 +1,7 @@
 // Author: Preston Lee
 
+import '@angular/compiler';
+
 // Setup browser APIs for tests
 // This ensures browser APIs are available in the test environment
 if (typeof window !== 'undefined') {

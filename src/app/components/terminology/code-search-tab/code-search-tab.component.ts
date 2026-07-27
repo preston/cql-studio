@@ -46,7 +46,7 @@ export class CodeSearchTabComponent implements OnDestroy {
   private readonly destroy$ = new Subject<void>();
 
   protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyBaseUrl();
+    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
     return baseUrl.trim() !== '';
   });
 

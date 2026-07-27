@@ -24,7 +24,7 @@ export class MeasureReportsTabComponent {
   protected readonly error = signal<string | null>(null);
   protected readonly selectedReport = signal<MeasureReport | null>(null);
 
-  protected readonly hasValidConfiguration = () => this.settingsService.getEffectiveFhirBaseUrl().trim() !== '';
+  protected readonly hasValidConfiguration = () => this.settingsService.getEffectiveEvaluationServerUrl().trim() !== '';
 
   private measureService = inject(MeasureService);
   private settingsService = inject(SettingsService);

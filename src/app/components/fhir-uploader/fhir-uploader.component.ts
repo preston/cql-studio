@@ -90,16 +90,16 @@ export class FhirUploaderComponent implements AfterViewInit {
 
   constructor() {
     // Initialize with the effective FHIR base URL from settings
-    this.fhirBaseUrl.set(this.settingsService.getEffectiveFhirBaseUrl());
+    this.fhirBaseUrl.set(this.settingsService.getEffectiveEvaluationServerUrl());
   }
 
-  getEffectiveFhirBaseUrl(): string {
-    return this.settingsService.getEffectiveFhirBaseUrl();
+  getEffectiveEvaluationServerUrl(): string {
+    return this.settingsService.getEffectiveEvaluationServerUrl();
   }
 
   navigateToSettings(event: Event): void {
     event.preventDefault();
-    this.router.navigate(['/settings']);
+    this.router.navigate(['/settings'], { queryParams: { section: 'environments' } });
   }
 
   ngAfterViewInit(): void {
@@ -279,7 +279,7 @@ export class FhirUploaderComponent implements AfterViewInit {
     
     // Create a canonical URL for the library using the effective FHIR server base URL from settings
     // const libraryId = libraryName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-    const effectiveFhirBaseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     const canonicalUrl = `${effectiveFhirBaseUrl}/Library/${libraryName}`;
     
     // Create FHIR Library resource
@@ -517,7 +517,7 @@ export class FhirUploaderComponent implements AfterViewInit {
       return;
     }
 
-    const effectiveFhirBaseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     if (!effectiveFhirBaseUrl.trim()) {
       alert('Please configure a FHIR Base URL in Application Settings.');
       return;
@@ -596,7 +596,7 @@ export class FhirUploaderComponent implements AfterViewInit {
     const text = await this.readFileAsText(bundleFile.file);
     const bundle = JSON.parse(text);
 
-    const effectiveFhirBaseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     const response = await fetch(effectiveFhirBaseUrl, {
       method: 'POST',
       headers: {
@@ -618,7 +618,7 @@ export class FhirUploaderComponent implements AfterViewInit {
       throw new Error('CQL file has not been processed into a FHIR Library resource');
     }
 
-    const effectiveFhirBaseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     const libraryId = cqlFile.fhirLibrary.id;
     const response = await fetch(`${effectiveFhirBaseUrl}/Library/${libraryId}`, {
       method: 'PUT',
@@ -724,7 +724,7 @@ export class FhirUploaderComponent implements AfterViewInit {
     this.isExpunging.set(true);
     try {
       // HAPI FHIR expunge operation
-      const effectiveFhirBaseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+      const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
       const response = await fetch(`${effectiveFhirBaseUrl}/$expunge`, {
         method: 'POST',
         headers: {
@@ -761,7 +761,7 @@ export class FhirUploaderComponent implements AfterViewInit {
     this.isPurging.set(true);
     try {
       // WildFHIR purge operation
-      const effectiveFhirBaseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+      const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
       const response = await fetch(`${effectiveFhirBaseUrl}/$purge`, {
         method: 'POST',
         headers: {

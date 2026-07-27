@@ -4,8 +4,8 @@ import { Injectable, inject } from '@angular/core';
 import { BaseService } from './base.service';
 import { Patient, Bundle, Parameters } from 'fhir/r4';
 import { Observable } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
 import { SettingsService } from './settings.service';
+import { buildHttpHeaders } from './endpoint-config.lib';
 
 @Injectable({
 	providedIn: 'root'
@@ -18,23 +18,34 @@ export class PatientService extends BaseService {
 
 	protected settingsService = inject(SettingsService);
 
+	private headersForDataEndpoint() {
+		const ctx = this.settingsService.getEndpointHttpContext('data', {
+			'Content-Type': 'application/fhir+json',
+			Accept: 'application/fhir+json'
+		});
+		return buildHttpHeaders(
+			{ ...this.settingsService.getActiveEnvironment().dataEndpoint, address: ctx.address },
+			ctx.headers
+		);
+	}
+
 	url(): string {
-		const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+		const baseUrl = this.settingsService.getEffectiveDataEndpointAddress();
 		return baseUrl + PatientService.PATIENT_PATH;
 	}
 
 	urlFor(id: string) {
-		const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+		const baseUrl = this.settingsService.getEffectiveDataEndpointAddress();
 		return baseUrl + '/Patient/' + id;
 	}
 
 	search(searchTerm: string): Observable<Bundle> {
 		const encoded = encodeURIComponent(searchTerm);
-		return this.http.get<Bundle>(this.url() + "?name:contains=" + encoded, { headers: this.headers() });
+		return this.http.get<Bundle>(this.url() + "?name:contains=" + encoded, { headers: this.headersForDataEndpoint() });
 	}
 
 	get(id: string) {
-		return this.http.get<Patient>(this.urlFor(id), { headers: this.headers() });
+		return this.http.get<Patient>(this.urlFor(id), { headers: this.headersForDataEndpoint() });
 	}
 
 	getEverything(id: string, options?: { types?: string[] }): Observable<Bundle> {
@@ -43,19 +54,19 @@ export class PatientService extends BaseService {
 		if (types.length > 0) {
 			url += `?_type=${encodeURIComponent(types.join(','))}`;
 		}
-		return this.http.get<Bundle>(url, { headers: this.headers() });
+		return this.http.get<Bundle>(url, { headers: this.headersForDataEndpoint() });
 	}
 
 	post(patient: Patient) {
-		return this.http.post<Patient>(this.url(), JSON.stringify(patient), { headers: this.headers() });
+		return this.http.post<Patient>(this.url(), JSON.stringify(patient), { headers: this.headersForDataEndpoint() });
 	}
 
 	put(patient: Patient) {
-		return this.http.put<Patient>(this.urlFor(patient.id!), JSON.stringify(patient), { headers: this.headers() });
+		return this.http.put<Patient>(this.urlFor(patient.id!), JSON.stringify(patient), { headers: this.headersForDataEndpoint() });
 	}
 
 	delete(patient: Patient) {
-		return this.http.delete<Patient>(this.urlFor(patient.id!), { headers: this.headers() });
+		return this.http.delete<Patient>(this.urlFor(patient.id!), { headers: this.headersForDataEndpoint() });
 	}
 
 	clearSelection() {

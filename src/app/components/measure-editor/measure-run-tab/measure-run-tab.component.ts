@@ -51,7 +51,7 @@ export class MeasureRunTabComponent {
   });
 
   protected readonly hasValidConfiguration = () => {
-    const base = this.settingsService.getEffectiveFhirBaseUrl();
+    const base = this.settingsService.getEffectiveEvaluationServerUrl();
     return base.trim() !== '';
   };
 

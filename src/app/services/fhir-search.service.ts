@@ -4,7 +4,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { BaseService } from './base.service';
 import { SettingsService } from './settings.service';
-import { Bundle, Resource } from 'fhir/r4';
+import { Bundle } from 'fhir/r4';
+import { buildHttpHeaders } from './endpoint-config.lib';
 
 @Injectable({
   providedIn: 'root'
@@ -13,8 +14,17 @@ export class FhirSearchService extends BaseService {
   private readonly settingsService = inject(SettingsService);
 
   private getBaseUrl(): string {
-    const url = this.settingsService.getEffectiveFhirBaseUrl();
-    return url?.trim()?.replace(/\/+$/, '') ?? '';
+    return this.settingsService.getEffectiveDataEndpointAddress();
+  }
+
+  private searchHeaders() {
+    const ctx = this.settingsService.getEndpointHttpContext('data', {
+      Accept: 'application/fhir+json'
+    });
+    return buildHttpHeaders(
+      { ...this.settingsService.getActiveEnvironment().dataEndpoint, address: ctx.address },
+      ctx.headers
+    );
   }
 
   search(
@@ -25,7 +35,7 @@ export class FhirSearchService extends BaseService {
     const baseUrl = this.getBaseUrl();
     if (!baseUrl) {
       return new Observable((subscriber) => {
-        subscriber.error(new Error('FHIR base URL is not configured'));
+        subscriber.error(new Error('FHIR data endpoint is not configured'));
       });
     }
 
@@ -47,19 +57,10 @@ export class FhirSearchService extends BaseService {
       ? `${baseUrl}/${resourceType}?${queryString}`
       : `${baseUrl}/${resourceType}`;
 
-    return this.http.get<Bundle>(url, { headers: this.headers() });
+    return this.http.get<Bundle>(url, { headers: this.searchHeaders() });
   }
 
   fetchFromUrl(url: string): Observable<Bundle> {
-    const baseUrl = this.getBaseUrl();
-    let resolvedUrl: string;
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      resolvedUrl = url;
-    } else {
-      const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      const cleanRelative = url.startsWith('/') ? url : '/' + url;
-      resolvedUrl = cleanBase + cleanRelative;
-    }
-    return this.http.get<Bundle>(resolvedUrl, { headers: this.headers() });
+    return this.http.get<Bundle>(url, { headers: this.searchHeaders() });
   }
 }

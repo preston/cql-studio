@@ -47,7 +47,7 @@ export class MeasureWorkspaceComponent {
   protected readonly isNewMeasure = computed(
     () => this.route.snapshot.paramMap.get('id') === 'new' || this.route.snapshot.routeConfig?.path === 'new'
   );
-  protected readonly hasValidConfiguration = () => this.settingsService.getEffectiveFhirBaseUrl().trim() !== '';
+  protected readonly hasValidConfiguration = () => this.settingsService.getEffectiveEvaluationServerUrl().trim() !== '';
   protected readonly saving = signal(false);
   protected readonly reloading = signal(false);
   protected readonly validating = signal(false);

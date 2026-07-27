@@ -108,7 +108,7 @@ export class ValueSetsTabComponent implements OnInit {
 
   // Configuration status
   protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyBaseUrl();
+    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
     return baseUrl.trim() !== '';
   });
 

@@ -1,11 +1,13 @@
 // Author: Preston Lee
 
-import { Component, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
 import { SettingsService } from '../../services/settings.service';
+import { EnvironmentService } from '../../services/environment.service';
+import { EnvironmentSwitchService } from '../../services/environment-switch.service';
 
 @Component({
   selector: 'app-navigation',
@@ -19,7 +21,14 @@ export class NavigationComponent {
   protected readonly title = signal('CQL Studio');
   protected readonly showFileMenu = signal(false);
 
-  constructor(private router: Router, protected settingsService: SettingsService) {
+  private readonly router = inject(Router);
+  protected readonly settingsService = inject(SettingsService);
+  protected readonly environmentService = inject(EnvironmentService);
+  private readonly environmentSwitchService = inject(EnvironmentSwitchService);
+
+  readonly activeEnvironmentName = computed(() => this.environmentService.activeEnvironment().name);
+
+  constructor() {
     // Listen to route changes to update the signal
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
@@ -78,5 +87,9 @@ export class NavigationComponent {
 
   hasIndexUrl(): boolean {
     return !!sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
+  }
+
+  activateEnvironment(id: string): void {
+    this.environmentSwitchService.activateEnvironment(id);
   }
 }

@@ -123,8 +123,8 @@ export class FhirPackageImportService {
     onProgress: (message: string) => void
   ): Promise<FhirPackageImportItemOutcome[]> {
     const outcomes: FhirPackageImportItemOutcome[] = [];
-    const tu = this.settingsService.getEffectiveTerminologyBaseUrl().replace(/\/+$/, '');
-    const fu = this.settingsService.getEffectiveFhirBaseUrl().replace(/\/+$/, '');
+    const tu = this.settingsService.getEffectiveTerminologyEndpointAddress().replace(/\/+$/, '');
+    const fu = this.settingsService.getEffectiveDataEndpointAddress().replace(/\/+$/, '');
     const merged = termRes.length > 0 && dataRes.length > 0 && tu === fu;
 
     if (merged) {

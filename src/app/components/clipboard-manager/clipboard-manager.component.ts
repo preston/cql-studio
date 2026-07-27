@@ -127,7 +127,7 @@ export class ClipboardManagerComponent implements OnInit {
   }
 
   async runSearch(url?: string): Promise<void> {
-    const baseUrl = this.settingsService.getEffectiveFhirBaseUrl()?.trim() ?? '';
+    const baseUrl = this.settingsService.getEffectiveDataEndpointAddress()?.trim() ?? '';
     if (!baseUrl) {
       this.searchError.set('FHIR base URL is not configured.');
       return;

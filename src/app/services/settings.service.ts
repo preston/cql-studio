@@ -1,18 +1,30 @@
 // Author: Preston Lee
 
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { Endpoint } from 'fhir/r4';
+import { BUILT_IN_ENVIRONMENT_ID, CqlEnvironment, EndpointHttpContext, EndpointRole } from '../models/environment.model';
 import { Settings, ThemeType } from '../models/settings.model';
 import { ExamplePaths } from '../constants/example-paths.constants';
+import { buildFhirEndpoint } from './endpoint-config.lib';
+import { EnvironmentService, LegacyEnvironmentFields } from './environment.service';
+
+interface LegacySettingsRecord extends Partial<Settings> {
+  fhirBaseUrl?: string;
+  terminologyBaseUrl?: string;
+  terminologyBasicAuthUsername?: string;
+  terminologyBasicAuthPassword?: string;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class SettingsService {
-  public static SETTINGS_KEY: string = "cql_tests_ui_settings";
-  public static FORCE_RESET_KEY: string = "cql_tests_ui_settings_force_reset";
+  public static SETTINGS_KEY: string = 'cql_tests_ui_settings';
+  public static FORCE_RESET_KEY: string = 'cql_tests_ui_settings_force_reset';
 
-  /** NLM production CTS FHIR when `window.CQL_STUDIO_VSAC_FHIR_BASE_URL` is unset. */
   private static readonly VSAC_FHIR_PRODUCTION_DEFAULT = 'https://cts.nlm.nih.gov/fhir';
+
+  private readonly environmentService = inject(EnvironmentService);
 
   public settings = signal<Settings>(new Settings());
   public force_reset = signal<boolean>(false);
@@ -31,7 +43,7 @@ export class SettingsService {
             this.saveSettings();
           }
         }
-      })
+      });
   }
 
   setEffectiveTheme() {
@@ -47,121 +59,31 @@ export class SettingsService {
   }
 
   reload() {
-    this.force_reset.set((localStorage.getItem(SettingsService.FORCE_RESET_KEY) == 'true' ? true : false));
+    this.force_reset.set(localStorage.getItem(SettingsService.FORCE_RESET_KEY) === 'true');
     if (this.force_reset()) {
       this.forceResetToDefaults();
+      return;
     }
-    let tmp = localStorage.getItem(SettingsService.SETTINGS_KEY);
+    const tmp = localStorage.getItem(SettingsService.SETTINGS_KEY);
     if (tmp) {
       try {
-        const parsedSettings = JSON.parse(tmp);
-        let shouldSave = false;
-        if (parsedSettings.experimental == null) {
-          parsedSettings.experimental = false;
-          shouldSave = true;
-        }
-        if (parsedSettings.developer == null) {
-          parsedSettings.developer = false;
-          shouldSave = true;
-        }
-        if (parsedSettings.theme_preferred == null) {
-          parsedSettings.theme_preferred = Settings.DEFAULT_THEME;
-          shouldSave = true;
-        }
-        if (parsedSettings.validateSchema == null) {
-          parsedSettings.validateSchema = false;
-          shouldSave = true;
-        }
-        if (parsedSettings.runnerApiBaseUrl == null) {
-          parsedSettings.runnerApiBaseUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.fhirBaseUrl == null) {
-          parsedSettings.fhirBaseUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.runnerFhirBaseUrl == null) {
-          parsedSettings.runnerFhirBaseUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.terminologyBaseUrl == null) {
-          parsedSettings.terminologyBaseUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.terminologyBasicAuthUsername == null) {
-          parsedSettings.terminologyBasicAuthUsername = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.terminologyBasicAuthPassword == null) {
-          parsedSettings.terminologyBasicAuthPassword = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.defaultTestResultsIndexUrl == null) {
-          parsedSettings.defaultTestResultsIndexUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.ollamaBaseUrl == null) {
-          parsedSettings.ollamaBaseUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.ollamaModel == null) {
-          parsedSettings.ollamaModel = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.serverBaseUrl == null) {
-          parsedSettings.serverBaseUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.searxngBaseUrl == null) {
-          parsedSettings.searxngBaseUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.enableAiAssistant == null) {
-          parsedSettings.enableAiAssistant = false;
-          shouldSave = true;
-        }
-        if (parsedSettings.useMCPTools == null) {
-          parsedSettings.useMCPTools = false;
-          shouldSave = true;
-        }
-        if (parsedSettings.allowAiWriteOperations == null) {
-          parsedSettings.allowAiWriteOperations = false;
-          shouldSave = true;
-        }
-        if (parsedSettings.autoApplyCodeEdits == null) {
-          parsedSettings.autoApplyCodeEdits = false;
-          shouldSave = true;
-        }
-        if (parsedSettings.requireDiffPreview == null) {
-          parsedSettings.requireDiffPreview = false;
-          shouldSave = true;
-        }
-        if (parsedSettings.vsacFhirBaseUrl == null) {
-          parsedSettings.vsacFhirBaseUrl = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.vsacApiUsername == null) {
-          parsedSettings.vsacApiUsername = 'apikey';
-          shouldSave = true;
-        }
-        if (parsedSettings.vsacApiPassword == null) {
-          parsedSettings.vsacApiPassword = '';
-          shouldSave = true;
-        }
-        if (parsedSettings.fhirPackageRegistryBaseUrl == null) {
-          parsedSettings.fhirPackageRegistryBaseUrl = '';
-          shouldSave = true;
-        }
-        if (shouldSave) {
+        const parsed = JSON.parse(tmp) as LegacySettingsRecord;
+        const { settings, migrated } = this.normalizeParsedSettings(parsed);
+        this.settings.set(settings);
+        this.syncEnvironmentFromSettings(settings);
+        if (migrated) {
           this.saveSettings();
-        } else {
         }
-        this.settings.set(parsedSettings);
-
-      } catch (e) {
+      } catch {
+        const defaults = this.createDefaultSettings();
+        this.settings.set(defaults);
+        this.syncEnvironmentFromSettings(defaults);
+        this.saveSettings();
       }
     } else {
-      this.settings.set(new Settings());
+      const defaults = this.createDefaultSettings();
+      this.settings.set(defaults);
+      this.syncEnvironmentFromSettings(defaults);
       this.saveSettings();
     }
     this.setEffectiveTheme();
@@ -169,156 +91,211 @@ export class SettingsService {
 
   forceResetToDefaults() {
     localStorage.clear();
-    this.settings.set(new Settings());
+    const defaults = this.createDefaultSettings();
+    this.settings.set(defaults);
     this.force_reset.set(false);
+    this.syncEnvironmentFromSettings(defaults);
     this.saveSettings();
     this.setEffectiveTheme();
-    this.reload();
   }
 
   saveSettings() {
+    this.persistEnvironmentToSettings();
     localStorage.setItem(SettingsService.SETTINGS_KEY, JSON.stringify(this.settings()));
   }
 
+  persistEnvironmentToSettings(): void {
+    this.settings.update(current => ({
+      ...current,
+      settingsVersion: 2,
+      environments: this.environmentService.getEnvironmentsSnapshot(),
+      activeEnvironmentId: this.environmentService.getActiveEnvironmentIdSnapshot()
+    }));
+  }
+
+  syncEnvironmentFromSettings(settings: Settings): void {
+    this.environmentService.syncFromSettings(
+      settings.environments ?? [],
+      settings.activeEnvironmentId ?? BUILT_IN_ENVIRONMENT_ID
+    );
+  }
+
+  getEffectiveEvaluationServerUrl(): string {
+    return this.environmentService.getEffectiveAddressForRole('evaluation');
+  }
+
+  getEffectiveDataEndpointAddress(): string {
+    return this.environmentService.getEffectiveAddressForRole('data');
+  }
+
+  getEffectiveTerminologyEndpointAddress(): string {
+    return this.environmentService.getEffectiveAddressForRole('terminology');
+  }
+
+  getEffectiveContentEndpointAddress(): string {
+    return this.environmentService.getEffectiveAddressForRole('content');
+  }
+
+  /** @deprecated Use getEffectiveEvaluationServerUrl() */
+  getEffectiveFhirBaseUrl(): string {
+    return this.getEffectiveEvaluationServerUrl();
+  }
+
+  /** @deprecated Use getEffectiveTerminologyEndpointAddress() */
+  getEffectiveTerminologyBaseUrl(): string {
+    return this.getEffectiveTerminologyEndpointAddress();
+  }
+
+  getEndpointHttpContext(role: EndpointRole, baseHeaders?: Record<string, string>): EndpointHttpContext {
+    return this.environmentService.getEndpointHttpContext(role, baseHeaders);
+  }
+
+  getEffectiveDataEndpoint(name?: string): Endpoint | null {
+    const config = this.environmentService.getEndpointConfiguration('data');
+    return buildFhirEndpoint(
+      { ...config, address: this.getEffectiveDataEndpointAddress() },
+      { name }
+    );
+  }
+
+  getEffectiveTerminologyEndpoint(name?: string): Endpoint | null {
+    const config = this.environmentService.getEndpointConfiguration('terminology');
+    return buildFhirEndpoint(
+      { ...config, address: this.getEffectiveTerminologyEndpointAddress() },
+      { name }
+    );
+  }
+
+  getEffectiveContentEndpoint(name?: string): Endpoint | null {
+    const config = this.environmentService.getEndpointConfiguration('content');
+    return buildFhirEndpoint(
+      { ...config, address: this.getEffectiveContentEndpointAddress() },
+      { name }
+    );
+  }
+
+  getActiveEnvironment(): CqlEnvironment {
+    return this.environmentService.activeEnvironment();
+  }
+
   getDefaultRunnerApiBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_RUNNER_BASE_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3000';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_RUNNER_BASE_URL'];
+    return envValue?.trim() ? envValue : 'http://localhost:3000';
   }
 
   getDefaultFhirBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_FHIR_BASE_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:8080/fhir';
+    const evalUrl = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_EVALUATION_SERVER_URL'];
+    if (evalUrl?.trim()) {
+      return evalUrl.trim().replace(/\/+$/, '');
+    }
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_FHIR_BASE_URL'];
+    return envValue?.trim() ? envValue : 'http://localhost:8080/fhir';
   }
 
   getDefaultRunnerFhirBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_RUNNER_FHIR_BASE_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:8080/fhir';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_RUNNER_FHIR_BASE_URL'];
+    return envValue?.trim() ? envValue : 'http://localhost:8080/fhir';
   }
 
   getDefaultTerminologyBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_TERMINOLOGY_BASE_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:8080/fhir';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_TERMINOLOGY_BASE_URL'];
+    return envValue?.trim() ? envValue : '';
   }
 
   getDefaultTerminologyBasicAuthUsername(): string {
-    const envValue = (window as any)['CQL_STUDIO_TERMINOLOGY_BASIC_AUTH_USERNAME'];
-    return envValue && envValue.trim() !== '' ? envValue : '';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_TERMINOLOGY_BASIC_AUTH_USERNAME'];
+    return envValue?.trim() ?? '';
   }
 
   getDefaultTerminologyBasicAuthPassword(): string {
-    const envValue = (window as any)['CQL_STUDIO_TERMINOLOGY_BASIC_AUTH_PASSWORD'];
-    return envValue && envValue.trim() !== '' ? envValue : '';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_TERMINOLOGY_BASIC_AUTH_PASSWORD'];
+    return envValue ?? '';
   }
 
   getDefaultTestResultsIndexUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_DEFAULT_TEST_RESULTS_INDEX_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : ExamplePaths.INDEX_JSON;
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_DEFAULT_TEST_RESULTS_INDEX_URL'];
+    return envValue?.trim() ? envValue : ExamplePaths.INDEX_JSON;
   }
 
   getDefaultOllamaBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_OLLAMA_BASE_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:11434';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_OLLAMA_BASE_URL'];
+    return envValue?.trim() ? envValue : 'http://localhost:11434';
   }
 
   getDefaultOllamaModel(): string {
-    const envValue = (window as any)['CQL_STUDIO_OLLAMA_MODEL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'qwen3.6:35b-mlx';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_OLLAMA_MODEL'];
+    return envValue?.trim() ? envValue : 'qwen3.6:35b-mlx';
   }
 
   getDefaultServerBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_SERVER_BASE_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : 'http://localhost:3003';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_SERVER_BASE_URL'];
+    return envValue?.trim() ? envValue : 'http://localhost:3003';
   }
 
   getDefaultSearxngBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_SEARXNG_BASE_URL'];
-    return envValue && envValue.trim() !== '' ? envValue : '';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_SEARXNG_BASE_URL'];
+    return envValue?.trim() ?? '';
   }
 
   getDefaultFhirPackageRegistryBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_FHIR_PACKAGE_REGISTRY_BASE_URL'];
-    return envValue && String(envValue).trim() !== '' ? String(envValue).trim() : 'https://packages.fhir.org';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_FHIR_PACKAGE_REGISTRY_BASE_URL'];
+    return envValue?.trim() ? envValue : 'https://packages.fhir.org';
   }
 
   getEffectiveFhirPackageRegistryBaseUrl(): string {
     const settingValue = this.settings().fhirPackageRegistryBaseUrl;
-    const base =
-      settingValue && settingValue.trim() !== '' ? settingValue.trim() : this.getDefaultFhirPackageRegistryBaseUrl();
+    const base = settingValue?.trim() ? settingValue.trim() : this.getDefaultFhirPackageRegistryBaseUrl();
     return base.replace(/\/+$/, '');
   }
 
   getEffectiveSearxngBaseUrl(): string {
     const settingValue = this.settings().searxngBaseUrl;
-    const url = settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultSearxngBaseUrl();
+    const url = settingValue?.trim() ? settingValue : this.getDefaultSearxngBaseUrl();
     return url ? url.replace(/\/+$/, '') : '';
   }
 
   getEffectiveRunnerApiBaseUrl(): string {
     const settingValue = this.settings().runnerApiBaseUrl;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultRunnerApiBaseUrl();
-  }
-
-  getEffectiveFhirBaseUrl(): string {
-    const settingValue = this.settings().fhirBaseUrl;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultFhirBaseUrl();
+    return settingValue?.trim() ? settingValue : this.getDefaultRunnerApiBaseUrl();
   }
 
   getEffectiveRunnerFhirBaseUrl(): string {
     const settingValue = this.settings().runnerFhirBaseUrl;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultRunnerFhirBaseUrl();
-  }
-
-  getEffectiveTerminologyBaseUrl(): string {
-    const settingValue = this.settings().terminologyBaseUrl;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTerminologyBaseUrl();
-  }
-
-  getEffectiveTerminologyBasicAuthUsername(): string {
-    const settingValue = this.settings().terminologyBasicAuthUsername;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTerminologyBasicAuthUsername();
-  }
-
-  getEffectiveTerminologyBasicAuthPassword(): string {
-    const settingValue = this.settings().terminologyBasicAuthPassword;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTerminologyBasicAuthPassword();
+    if (settingValue?.trim()) {
+      return settingValue.trim().replace(/\/+$/, '');
+    }
+    return this.getEffectiveDataEndpointAddress();
   }
 
   getEffectiveTestResultsIndexUrl(): string {
     const settingValue = this.settings().defaultTestResultsIndexUrl;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultTestResultsIndexUrl();
+    return settingValue?.trim() ? settingValue : this.getDefaultTestResultsIndexUrl();
   }
 
   getEffectiveOllamaBaseUrl(): string {
     const settingValue = this.settings().ollamaBaseUrl;
-    const baseUrl = settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultOllamaBaseUrl();
-    // Remove trailing slash to avoid double slashes when concatenating with API paths
+    const baseUrl = settingValue?.trim() ? settingValue : this.getDefaultOllamaBaseUrl();
     return baseUrl.replace(/\/+$/, '');
   }
 
   getEffectiveOllamaModel(): string {
     const settingValue = this.settings().ollamaModel;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultOllamaModel();
+    return settingValue?.trim() ? settingValue : this.getDefaultOllamaModel();
   }
 
   getEffectiveServerBaseUrl(): string {
     const settingValue = this.settings().serverBaseUrl;
-    return settingValue && settingValue.trim() !== '' ? settingValue : this.getDefaultServerBaseUrl();
+    return settingValue?.trim() ? settingValue : this.getDefaultServerBaseUrl();
   }
 
-  /**
-   * Default VSAC FHIR base: `window.CQL_STUDIO_VSAC_FHIR_BASE_URL` if set, else NLM production CTS.
-   */
   getDefaultVsacFhirBaseUrl(): string {
-    const envValue = (window as any)['CQL_STUDIO_VSAC_FHIR_BASE_URL'];
-    if (envValue != null && String(envValue).trim() !== '') {
-      return String(envValue).trim();
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_VSAC_FHIR_BASE_URL'];
+    if (envValue?.trim()) {
+      return envValue.trim();
     }
     return SettingsService.VSAC_FHIR_PRODUCTION_DEFAULT;
   }
 
-  /**
-   * Effective VSAC FHIR base: saved URL if non-empty, else getDefaultVsacFhirBaseUrl().
-   */
   getEffectiveVsacFhirBaseUrl(): string {
     const custom = this.settings().vsacFhirBaseUrl?.trim();
     const base = custom || this.getDefaultVsacFhirBaseUrl();
@@ -326,19 +303,13 @@ export class SettingsService {
   }
 
   getDefaultVsacApiUsername(): string {
-    const envValue = (window as any)['CQL_STUDIO_VSAC_BASIC_AUTH_USERNAME'];
-    if (envValue != null && String(envValue).trim() !== '') {
-      return String(envValue).trim();
-    }
-    return 'apikey';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_VSAC_BASIC_AUTH_USERNAME'];
+    return envValue?.trim() ? envValue : 'apikey';
   }
 
   getDefaultVsacApiPassword(): string {
-    const envValue = (window as any)['CQL_STUDIO_VSAC_BASIC_AUTH_PASSWORD'];
-    if (envValue != null && String(envValue).trim() !== '') {
-      return String(envValue).trim();
-    }
-    return '';
+    const envValue = (window as unknown as Record<string, string | undefined>)['CQL_STUDIO_VSAC_BASIC_AUTH_PASSWORD'];
+    return envValue?.trim() ?? '';
   }
 
   getEffectiveVsacApiUsername(): string {
@@ -346,7 +317,6 @@ export class SettingsService {
     return u || this.getDefaultVsacApiUsername();
   }
 
-  /** UMLS API key for VSAC (separate from terminology server credentials). */
   getEffectiveVsacApiPassword(): string {
     const p = this.settings().vsacApiPassword?.trim();
     return p || this.getDefaultVsacApiPassword();
@@ -358,33 +328,84 @@ export class SettingsService {
 
   updateSettings(updates: Partial<Settings>): void {
     this.settings.update(current => ({ ...current, ...updates }));
+    if (updates.environments || updates.activeEnvironmentId) {
+      this.syncEnvironmentFromSettings(this.settings());
+    }
     this.saveSettings();
   }
 
   static readonly EXPORT_FILENAME = 'settings.cql-studio.json';
 
   exportSettingsJson(): string {
+    this.persistEnvironmentToSettings();
     return JSON.stringify(this.settings(), null, 2);
   }
 
   importSettingsJson(json: string): boolean {
     try {
-      const parsed = JSON.parse(json) as Record<string, unknown>;
-      const defaults = new Settings();
-      const knownKeys = Object.keys(defaults) as (keyof Settings)[];
-      const filtered: Partial<Settings> = {};
-      for (const key of knownKeys) {
-        if (parsed[key] !== undefined) {
-          (filtered as Record<string, unknown>)[key] = parsed[key];
-        }
-      }
-      const merged = { ...defaults, ...this.settings(), ...filtered };
-      this.settings.set(merged as Settings);
+      const parsed = JSON.parse(json) as LegacySettingsRecord;
+      const { settings: merged } = this.normalizeParsedSettings(parsed);
+      this.settings.set(merged);
+      this.syncEnvironmentFromSettings(merged);
       this.saveSettings();
       this.setEffectiveTheme();
       return true;
     } catch {
       return false;
     }
+  }
+
+  private createDefaultSettings(): Settings {
+    const settings = new Settings();
+    const migrated = this.environmentService.migrateLegacySettings({});
+    settings.settingsVersion = 2;
+    settings.environments = migrated.environments;
+    settings.activeEnvironmentId = migrated.activeEnvironmentId;
+    return settings;
+  }
+
+  private normalizeParsedSettings(parsed: LegacySettingsRecord): { settings: Settings; migrated: boolean } {
+    const defaults = this.createDefaultSettings();
+    const knownKeys = Object.keys(defaults) as (keyof Settings)[];
+    const filtered: Partial<Settings> = {};
+    for (const key of knownKeys) {
+      if (parsed[key] !== undefined) {
+        (filtered as Record<string, unknown>)[key] = parsed[key];
+      }
+    }
+
+    let merged = { ...defaults, ...filtered } as Settings;
+    let migrated = false;
+
+    if (!parsed.settingsVersion || parsed.settingsVersion < 2 || !parsed.environments?.length) {
+      const legacy: LegacyEnvironmentFields = {
+        fhirBaseUrl: parsed.fhirBaseUrl,
+        terminologyBaseUrl: parsed.terminologyBaseUrl,
+        terminologyBasicAuthUsername: parsed.terminologyBasicAuthUsername,
+        terminologyBasicAuthPassword: parsed.terminologyBasicAuthPassword
+      };
+      const migratedEnv = this.environmentService.migrateLegacySettings(legacy);
+      merged = {
+        ...merged,
+        settingsVersion: 2,
+        environments: migratedEnv.environments,
+        activeEnvironmentId: this.environmentService.resolveActiveEnvironmentIdForImport(
+          parsed.activeEnvironmentId ?? migratedEnv.activeEnvironmentId,
+          migratedEnv.environments
+        )
+      };
+      migrated = true;
+    } else {
+      const resolvedId = this.environmentService.resolveActiveEnvironmentIdForImport(
+        merged.activeEnvironmentId,
+        merged.environments
+      );
+      if (resolvedId !== merged.activeEnvironmentId) {
+        migrated = true;
+      }
+      merged.activeEnvironmentId = resolvedId;
+    }
+
+    return { settings: merged, migrated };
   }
 }

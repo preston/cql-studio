@@ -14,6 +14,9 @@ import { SettingsService } from '../../services/settings.service';
 export class LandingComponent {
   private readonly settingsService = inject(SettingsService);
 
-  readonly fhirBaseUrl = computed(() => this.settingsService.getEffectiveFhirBaseUrl());
-  readonly terminologyBaseUrl = computed(() => this.settingsService.getEffectiveTerminologyBaseUrl());
+  readonly activeEnvironmentName = computed(() => this.settingsService.getActiveEnvironment().name);
+  readonly evaluationServerUrl = computed(() => this.settingsService.getEffectiveEvaluationServerUrl());
+  readonly dataEndpointUrl = computed(() => this.settingsService.getEffectiveDataEndpointAddress());
+  readonly terminologyEndpointUrl = computed(() => this.settingsService.getEffectiveTerminologyEndpointAddress());
+  readonly contentEndpointUrl = computed(() => this.settingsService.getEffectiveContentEndpointAddress());
 }

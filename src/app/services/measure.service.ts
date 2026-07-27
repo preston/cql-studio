@@ -5,6 +5,8 @@ import { BaseService } from './base.service';
 import { Measure, MeasureReport, Bundle, Parameters, OperationOutcome } from 'fhir/r4';
 import { Observable } from 'rxjs';
 import { SettingsService } from './settings.service';
+import { buildHttpHeaders } from './endpoint-config.lib';
+import { appendEvaluateEndpointParameters } from './cql-evaluate-parameters.lib';
 
 /** R4 $evaluate-measure reportType: subject | subject-list | population */
 export interface EvaluateMeasureParams {
@@ -23,8 +25,18 @@ export class MeasureService extends BaseService {
   protected settingsService = inject(SettingsService);
 
   private getBaseUrl(): string {
-    const url = this.settingsService.getEffectiveFhirBaseUrl();
-    return url.trim().replace(/\/+$/, '');
+    return this.settingsService.getEffectiveEvaluationServerUrl();
+  }
+
+  private evaluationHeaders() {
+    const ctx = this.settingsService.getEndpointHttpContext('evaluation', {
+      'Content-Type': 'application/fhir+json',
+      Accept: 'application/fhir+json'
+    });
+    return buildHttpHeaders(
+      { ...this.settingsService.getActiveEnvironment().evaluationServer, address: ctx.address },
+      ctx.headers
+    );
   }
 
   private measurePath(): string {
@@ -51,15 +63,15 @@ export class MeasureService extends BaseService {
     if (params._count != null) queryParams.append('_count', String(params._count));
     if (params._offset != null) queryParams.append('_offset', String(params._offset));
     const url = `${this.measurePath()}?${queryParams.toString()}`;
-    return this.http.get<Bundle>(url, { headers: this.headers() });
+    return this.http.get<Bundle>(url, { headers: this.evaluationHeaders() });
   }
 
   getMeasure(id: string): Observable<Measure> {
-    return this.http.get<Measure>(`${this.measurePath()}/${id}`, { headers: this.headers() });
+    return this.http.get<Measure>(`${this.measurePath()}/${id}`, { headers: this.evaluationHeaders() });
   }
 
   deleteMeasure(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.measurePath()}/${id}`, { headers: this.headers() });
+    return this.http.delete<void>(`${this.measurePath()}/${id}`, { headers: this.evaluationHeaders() });
   }
 
   /**
@@ -102,16 +114,16 @@ export class MeasureService extends BaseService {
 
   createMeasure(measure: Measure): Observable<Measure> {
     const normalized = this.normalizeMeasureForServer(measure);
-    return this.http.post<Measure>(this.measurePath(), normalized, { headers: this.headers() });
+    return this.http.post<Measure>(this.measurePath(), normalized, { headers: this.evaluationHeaders() });
   }
 
   putMeasure(measure: Measure): Observable<Measure> {
     const normalized = this.normalizeMeasureForServer(measure);
-    return this.http.put<Measure>(`${this.measurePath()}/${measure.id}`, normalized, { headers: this.headers() });
+    return this.http.put<Measure>(`${this.measurePath()}/${measure.id}`, normalized, { headers: this.evaluationHeaders() });
   }
 
   postTransactionBundle(bundle: Bundle): Observable<Bundle> {
-    return this.http.post<Bundle>(this.getBaseUrl(), bundle, { headers: this.headers() });
+    return this.http.post<Bundle>(this.getBaseUrl(), bundle, { headers: this.evaluationHeaders() });
   }
 
   searchMeasureReports(params: {
@@ -128,19 +140,19 @@ export class MeasureService extends BaseService {
     if (params._count != null) queryParams.append('_count', String(params._count));
     if (params._offset != null) queryParams.append('_offset', String(params._offset));
     const url = `${this.measureReportPath()}?${queryParams.toString()}`;
-    return this.http.get<Bundle>(url, { headers: this.headers() });
+    return this.http.get<Bundle>(url, { headers: this.evaluationHeaders() });
   }
 
   getMeasureReport(id: string): Observable<MeasureReport> {
-    return this.http.get<MeasureReport>(`${this.measureReportPath()}/${id}`, { headers: this.headers() });
+    return this.http.get<MeasureReport>(`${this.measureReportPath()}/${id}`, { headers: this.evaluationHeaders() });
   }
 
   deleteMeasureReport(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.measureReportPath()}/${id}`, { headers: this.headers() });
+    return this.http.delete<void>(`${this.measureReportPath()}/${id}`, { headers: this.evaluationHeaders() });
   }
 
   createMeasureReport(report: MeasureReport): Observable<MeasureReport> {
-    return this.http.post<MeasureReport>(this.measureReportPath(), report, { headers: this.headers() });
+    return this.http.post<MeasureReport>(this.measureReportPath(), report, { headers: this.evaluationHeaders() });
   }
 
   putMeasureReport(report: MeasureReport): Observable<MeasureReport> {
@@ -150,7 +162,7 @@ export class MeasureService extends BaseService {
     return this.http.put<MeasureReport>(
       `${this.measureReportPath()}/${report.id}`,
       report,
-      { headers: this.headers() },
+      { headers: this.evaluationHeaders() },
     );
   }
 
@@ -174,8 +186,9 @@ export class MeasureService extends BaseService {
     if (params.lastReceivedOn) {
       parameters.parameter!.push({ name: 'lastReceivedOn', valueDateTime: params.lastReceivedOn });
     }
+    appendEvaluateEndpointParameters(parameters, this.settingsService.getActiveEnvironment());
     const url = `${this.measurePath()}/${measureId}/$evaluate-measure`;
-    return this.http.post<MeasureReport>(url, parameters, { headers: this.headers() });
+    return this.http.post<MeasureReport>(url, parameters, { headers: this.evaluationHeaders() });
   }
 
   /**
@@ -191,7 +204,7 @@ export class MeasureService extends BaseService {
       parameters.parameter!.push({ name: 'mode', valueCode: mode });
     }
     const url = `${this.measurePath()}/$validate`;
-    return this.http.post<OperationOutcome>(url, parameters, { headers: this.headers() });
+    return this.http.post<OperationOutcome>(url, parameters, { headers: this.evaluationHeaders() });
   }
 
   evaluateMeasureByUrl(measureUrl: string, params: EvaluateMeasureParams): Observable<MeasureReport> {
@@ -215,7 +228,8 @@ export class MeasureService extends BaseService {
     if (params.lastReceivedOn) {
       parameters.parameter!.push({ name: 'lastReceivedOn', valueDateTime: params.lastReceivedOn });
     }
+    appendEvaluateEndpointParameters(parameters, this.settingsService.getActiveEnvironment());
     const url = `${this.measurePath()}/$evaluate-measure`;
-    return this.http.post<MeasureReport>(url, parameters, { headers: this.headers() });
+    return this.http.post<MeasureReport>(url, parameters, { headers: this.evaluationHeaders() });
   }
 }

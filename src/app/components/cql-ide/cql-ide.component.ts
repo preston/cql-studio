@@ -8,7 +8,7 @@ import { LibraryService } from '../../services/library.service';
 import { PatientService } from '../../services/patient.service';
 import { TranslationService } from '../../services/translation.service';
 import { LibraryTranslationContextBuilder } from '../../services/library-translation-context.lib';
-import { CqlExecutionService, DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../services/cql-execution.service';
+import { CqlExecutionService } from '../../services/cql-execution.service';
 import { SettingsService } from '../../services/settings.service';
 import { AiService } from '../../services/ai.service';
 import { CqlValidationService } from '../../services/cql-validation.service';
@@ -48,10 +48,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   activeLibraryId: string | null = null;
   libraryResources: any[] = [];
   selectedPatients: any[] = [];
-
-  get defaultSendTerminologyRouting(): boolean {
-    return DEFAULT_SEND_TERMINOLOGY_ROUTING;
-  }
 
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -578,9 +574,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   // Editor toolbar methods
-  onSendTerminologyRoutingChange(libraryId: string, value: boolean): void {
-    this.ideStateService.updateLibraryResource(libraryId, { sendTerminologyRouting: value });
-  }
 
   async onExecuteLibrary(): Promise<void> {
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
@@ -635,8 +628,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       {
         cqlContent: currentCqlContent,
         elmXml: translationResult.elmXml || undefined,
-        libraryResource: activeLibrary,
-        sendTerminologyRouting: activeLibrary.sendTerminologyRouting ?? DEFAULT_SEND_TERMINOLOGY_ROUTING
+        libraryResource: activeLibrary
       }
     ).subscribe({
       next: (result) => {

@@ -8,6 +8,7 @@ import { BaseService } from './base.service';
 import { SettingsService } from './settings.service';
 import { normalizeBundleForBasePost } from './fhir-bundle-transaction.lib';
 import { normalizeFhirBaseUrlForBundlePost } from './fhir-server-base.lib';
+import { buildHttpHeaders } from './endpoint-config.lib';
 
 export type FhirHttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -18,8 +19,18 @@ export class FhirClientService extends BaseService {
   private readonly settingsService = inject(SettingsService);
 
   getBaseUrl(): string {
-    const url = this.settingsService.getEffectiveFhirBaseUrl();
-    return url?.trim()?.replace(/\/+$/, '') ?? '';
+    return this.settingsService.getEffectiveDataEndpointAddress();
+  }
+
+  private fhirHeaders(): HttpHeaders {
+    const ctx = this.settingsService.getEndpointHttpContext('data', {
+      'Content-Type': 'application/fhir+json',
+      Accept: 'application/fhir+json'
+    });
+    return buildHttpHeaders(
+      { ...this.settingsService.getActiveEnvironment().dataEndpoint, address: ctx.address },
+      ctx.headers
+    );
   }
 
   request(method: FhirHttpMethod, path: string, body?: object): Observable<unknown> {
@@ -33,37 +44,25 @@ export class FhirClientService extends BaseService {
     }
     if (!url.startsWith('http')) {
       return new Observable((subscriber) => {
-        subscriber.error(new Error('FHIR base URL is not configured'));
+        subscriber.error(new Error('FHIR data endpoint is not configured'));
       });
     }
     return this.http.request<unknown>(method, url, {
       body: body ?? undefined,
-      headers: this.headers()
+      headers: this.fhirHeaders()
     });
   }
 
-  private fhirJsonHeaders(): HttpHeaders {
-    return new HttpHeaders({
-      'Content-Type': 'application/fhir+json',
-      Accept: 'application/fhir+json'
-    });
-  }
-
-  /**
-   * POST a Bundle to the FHIR server base URL.
-   * `Bundle.type` `collection` is normalized to `transaction` with `entry.request`
-   * so HAPI and similar servers accept the request (`normalizeBundleForBasePost`).
-   */
   postBundle(bundle: Bundle): Observable<Bundle> {
     const baseUrl = normalizeFhirBaseUrlForBundlePost(this.getBaseUrl());
     if (!baseUrl) {
       return new Observable((subscriber) => {
-        subscriber.error(new Error('FHIR base URL is not configured'));
+        subscriber.error(new Error('FHIR data endpoint is not configured'));
       });
     }
     const payload = normalizeBundleForBasePost(bundle);
     return this.http.post<Bundle>(baseUrl, payload, {
-      headers: this.fhirJsonHeaders()
+      headers: this.fhirHeaders()
     });
   }
 }

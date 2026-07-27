@@ -1,5 +1,7 @@
 // Author: Preston Lee
 
+import { CqlEnvironment } from './environment.model';
+
 export enum ThemeType {
     AUTOMATIC = 'automatic',
     LIGHT = 'light',
@@ -7,17 +9,16 @@ export enum ThemeType {
 }
 
 export class Settings {
+    public settingsVersion: number = 2;
     public experimental: boolean = false;
     public developer: boolean = false;
     public theme_preferred: ThemeType = ThemeType.AUTOMATIC;
     public validateSchema: boolean = false;
     public runnerApiBaseUrl: string = '';
-    public fhirBaseUrl: string = '';
     public runnerFhirBaseUrl: string = '';
     public defaultTestResultsIndexUrl: string = '';
-    public terminologyBaseUrl: string = '';
-    public terminologyBasicAuthUsername: string = '';
-    public terminologyBasicAuthPassword: string = '';
+    public environments: CqlEnvironment[] = [];
+    public activeEnvironmentId: string = 'default';
 
     /** FHIR NPM package registry (normative default https://packages.fhir.org). */
     public fhirPackageRegistryBaseUrl: string = '';

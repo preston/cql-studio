@@ -1,9 +1,10 @@
 // Author: Preston Lee
 
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
 import { BaseService } from './base.service';
+import { buildHttpHeaders } from './endpoint-config.lib';
 
 export interface CapabilitySearchParam {
   name: string;
@@ -46,14 +47,30 @@ export class FhirCapabilityService extends BaseService {
     computed(() => this._searchParamsByType().get(resourceType) ?? []);
 
   private getBaseUrl(): string {
-    const url = this.settingsService.getEffectiveFhirBaseUrl();
-    return url?.trim()?.replace(/\/+$/, '') ?? '';
+    return this.settingsService.getEffectiveDataEndpointAddress();
+  }
+
+  clearCache(): void {
+    this._loading.set(false);
+    this._error.set(null);
+    this._resourceTypes.set([]);
+    this._searchParamsByType.set(new Map());
+  }
+
+  private metadataHeaders(): HttpHeaders {
+    const ctx = this.settingsService.getEndpointHttpContext('data', {
+      Accept: 'application/fhir+json'
+    });
+    return buildHttpHeaders(
+      { ...this.settingsService.getActiveEnvironment().dataEndpoint, address: ctx.address },
+      ctx.headers
+    );
   }
 
   loadMetadata(): void {
     const baseUrl = this.getBaseUrl();
     if (!baseUrl) {
-      this._error.set('FHIR base URL is not configured. Go to Settings to set it.');
+      this._error.set('FHIR data endpoint is not configured. Go to Settings to configure environments.');
       this._resourceTypes.set([]);
       this._searchParamsByType.set(new Map());
       return;
@@ -63,7 +80,7 @@ export class FhirCapabilityService extends BaseService {
     this._error.set(null);
 
     const metadataUrl = `${baseUrl}/metadata`;
-    this.http.get<CapabilityMetadata>(metadataUrl, { headers: this.headers() }).subscribe({
+    this.http.get<CapabilityMetadata>(metadataUrl, { headers: this.metadataHeaders() }).subscribe({
       next: (body) => {
         this._loading.set(false);
         this.parseMetadata(body);

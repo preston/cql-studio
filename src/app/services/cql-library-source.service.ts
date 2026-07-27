@@ -121,7 +121,7 @@ export class CqlLibrarySourceService {
     visiting.add(key);
 
     const library = await firstValueFrom(
-      this.libraryService.findByNameAndVersion(ref.path, ref.version ?? undefined)
+      this.libraryService.findByNameAndVersion(ref.path, ref.version ?? undefined, true)
     );
     if (!library) {
       visiting.delete(key);

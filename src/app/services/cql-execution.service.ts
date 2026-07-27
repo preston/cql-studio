@@ -4,10 +4,12 @@ import { Injectable, inject } from '@angular/core';
 import { BaseService } from './base.service';
 import { Observable, forkJoin, of, defer } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
-import { Parameters, Endpoint, Library } from 'fhir/r4';
+import { Parameters, Library } from 'fhir/r4';
 import { LibraryResource } from '../components/cql-ide/shared/ide-types';
+import { buildHttpHeaders } from './endpoint-config.lib';
+import { appendEvaluateEndpointParameters } from './cql-evaluate-parameters.lib';
 
 export type CqlOperationType = '$evaluate' | '$cql';
 
@@ -28,20 +30,14 @@ export interface CqlExecutionOptions {
   cqlExpression?: string;
   cqlContent?: string;
   elmXml?: string;
-  libraryResource?: LibraryResource; // Current library resource from IDE (preferred)
-  // Legacy fields for backward compatibility - used only if libraryResource is not provided
+  libraryResource?: LibraryResource;
   libraryName?: string;
   libraryTitle?: string;
   libraryVersion?: string;
   libraryUrl?: string;
   libraryDescription?: string;
-  library?: Library; // Original Library resource to preserve all fields
-  /** When true, terminologyEndpoint parameter is included in the request. When false or omitted, it is omitted. */
-  sendTerminologyRouting?: boolean;
+  library?: Library;
 }
-
-/** Default for sendTerminologyRouting; opt-in only to avoid sending terminology endpoint unless requested. */
-export const DEFAULT_SEND_TERMINOLOGY_ROUTING = false;
 
 @Injectable({
   providedIn: 'root'
@@ -50,9 +46,6 @@ export class CqlExecutionService extends BaseService {
 
   protected settingsService = inject(SettingsService);
 
-  /**
-   * Execute a single library using the specified operation ($evaluate or $cql)
-   */
   executeLibrary(libraryId: string, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const operation = options?.operation || '$evaluate';
     
@@ -63,10 +56,6 @@ export class CqlExecutionService extends BaseService {
     }
   }
 
-  /**
-   * Execute library using $evaluate operation (instance-level /Library/[id]/$evaluate).
-   * Library must be saved on the server first.
-   */
   private executeLibraryWithEvaluateOperation(libraryId: string, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     if (!patientIds || patientIds.length === 0) {
       return this.executeLibraryWithoutPatient(libraryId, options);
@@ -75,9 +64,6 @@ export class CqlExecutionService extends BaseService {
     }
   }
 
-  /**
-   * Execute library using $cql operation
-   */
   private executeLibraryWithCqlOperation(libraryId: string, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     if (!patientIds || patientIds.length === 0) {
       return this.executeCqlWithoutPatient(libraryId, options);
@@ -86,11 +72,8 @@ export class CqlExecutionService extends BaseService {
     }
   }
 
-  /**
-   * Execute library without patient context using $evaluate
-   */
   private executeLibraryWithoutPatient(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    const parameters = this.createBaseParameters(options);
+    const parameters = this.createBaseParameters();
     return this.executeHttpRequest(
       this.getLibraryEvaluateUrl(libraryId),
       parameters,
@@ -100,14 +83,11 @@ export class CqlExecutionService extends BaseService {
     );
   }
 
-  /**
-   * Execute library for multiple patients using $evaluate
-   */
   private executeLibraryForPatients(libraryId: string, patientIds: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const executions = patientIds
-      .filter(patientId => patientId && patientId.trim().length > 0) // Filter out empty/invalid patient IDs
+      .filter(patientId => patientId && patientId.trim().length > 0)
       .map(patientId => {
-        const parameters = this.createBaseParameters(options);
+        const parameters = this.createBaseParameters();
         this.addSubjectParameter(parameters, patientId);
         return this.executeHttpRequest(
           this.getLibraryEvaluateUrl(libraryId),
@@ -119,11 +99,8 @@ export class CqlExecutionService extends BaseService {
     return forkJoin(executions);
   }
 
-  /**
-   * Execute CQL without patient context using $cql operation
-   */
   private executeCqlWithoutPatient(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    const parameters = this.createBaseParameters(options);
+    const parameters = this.createBaseParameters();
     this.addLibraryParameter(parameters, libraryId);
     this.addExpressionParameter(parameters, options);
     return this.executeHttpRequest(
@@ -135,12 +112,9 @@ export class CqlExecutionService extends BaseService {
     );
   }
 
-  /**
-   * Execute CQL for multiple patients using $cql operation
-   */
   private executeCqlForPatients(libraryId: string, patientIds: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const executions = patientIds.map(patientId => {
-      const parameters = this.createBaseParameters(options);
+      const parameters = this.createBaseParameters();
       this.addLibraryParameter(parameters, libraryId);
       this.addSubjectParameter(parameters, patientId);
       this.addExpressionParameter(parameters, options);
@@ -154,9 +128,6 @@ export class CqlExecutionService extends BaseService {
     return forkJoin(executions);
   }
 
-  /**
-   * Execute all libraries
-   */
   executeAllLibraries(libraries: Array<{id: string, name: string}>, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const executions = libraries.map(library => 
       this.executeLibrary(library.id, patientIds, options)
@@ -167,77 +138,36 @@ export class CqlExecutionService extends BaseService {
     );
   }
 
-  /**
-   * Get the evaluate URL for a library (instance-level /Library/[id]/$evaluate)
-   */
   private getLibraryEvaluateUrl(libraryId: string): string {
-    const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const baseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     return `${baseUrl}/Library/${libraryId}/$evaluate`;
   }
 
-  /**
-   * Get the $cql operation URL
-   */
   private getCqlOperationUrl(): string {
-    const baseUrl = this.settingsService.getEffectiveFhirBaseUrl();
+    const baseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     return `${baseUrl}/$cql`;
   }
 
-  /**
-   * Get the terminology endpoint parameter for CQL operations
-   */
-  private getTerminologyEndpoint(): Endpoint | null {
-    const terminologyBaseUrl = this.settingsService.getEffectiveTerminologyBaseUrl();
-    if (!terminologyBaseUrl || terminologyBaseUrl.trim() === '') {
-      return null;
-    }
-
-    return {
-      resourceType: 'Endpoint',
-      address: terminologyBaseUrl,
-      status: 'active',
-      connectionType: {
-        system: 'http://terminology.hl7.org/CodeSystem/endpoint-connection-type',
-        code: 'hl7-fhir-rest'
-      }
-    } as Endpoint;
+  private evaluationHeaders(): HttpHeaders {
+    const ctx = this.settingsService.getEndpointHttpContext('evaluation', {
+      'Content-Type': 'application/fhir+json',
+      Accept: 'application/fhir+json'
+    });
+    return buildHttpHeaders(
+      { ...this.settingsService.getActiveEnvironment().evaluationServer, address: ctx.address },
+      ctx.headers
+    );
   }
 
-  /** True only when options explicitly request terminology routing; undefined/false means no. */
-  private shouldIncludeTerminologyEndpoint(options?: CqlExecutionOptions): boolean {
-    return options?.sendTerminologyRouting === true;
-  }
-
-  /**
-   * Create base Parameters object with terminology endpoint if requested and available
-   */
-  private createBaseParameters(options?: CqlExecutionOptions): Parameters {
+  private createBaseParameters(): Parameters {
     const parameters: Parameters = {
       resourceType: 'Parameters',
       parameter: []
     };
-    if (this.shouldIncludeTerminologyEndpoint(options)) {
-      this.addTerminologyEndpoint(parameters);
-    }
+    appendEvaluateEndpointParameters(parameters, this.settingsService.getActiveEnvironment());
     return parameters;
   }
 
-  /**
-   * Add terminology endpoint to parameters if available
-   */
-  private addTerminologyEndpoint(parameters: Parameters): void {
-    const terminologyEndpoint = this.getTerminologyEndpoint();
-    if (terminologyEndpoint) {
-      parameters.parameter!.push({
-        name: 'terminologyEndpoint',
-        resource: terminologyEndpoint
-      });
-    }
-  }
-
-  /**
-   * Add subject parameter for patient context
-   */
   private addSubjectParameter(parameters: Parameters, patientId: string): void {
     parameters.parameter!.push({
       name: 'subject',
@@ -245,9 +175,6 @@ export class CqlExecutionService extends BaseService {
     });
   }
 
-  /**
-   * Add library parameter for $cql operation
-   */
   private addLibraryParameter(parameters: Parameters, libraryId: string): void {
     parameters.parameter!.push({
       name: 'library',
@@ -255,9 +182,6 @@ export class CqlExecutionService extends BaseService {
     });
   }
 
-  /**
-   * Add expression parameter (functionName or cqlExpression) if provided
-   */
   private addExpressionParameter(parameters: Parameters, options?: CqlExecutionOptions): void {
     if (options?.functionName) {
       parameters.parameter!.push({
@@ -272,12 +196,6 @@ export class CqlExecutionService extends BaseService {
     }
   }
 
-  /**
-   * Execute HTTP request and create CqlExecutionResult observable.
-   * Note: HAPI may return HAPI-0450/HAPI-1857 "Did not find any content to parse" when ValueSet
-   * resolution fails during CQL evaluation (e.g. CQL uses "code in ValueSetId"), not only when the
-   * request body is malformed. The server's terminology/ValueSet path is then the likely cause.
-   */
   private executeHttpRequest(
     url: string,
     parameters: Parameters,
@@ -288,17 +206,10 @@ export class CqlExecutionService extends BaseService {
       ...metadata
     };
 
-    // Use defer so each subscription has its own start time and can be cancelled.
     return defer(() => {
       const startTime = Date.now();
+      const fhirHeaders = this.evaluationHeaders();
 
-      // Use FHIR content type headers for FHIR operations
-      const fhirHeaders = new HttpHeaders({
-        'Content-Type': 'application/fhir+json',
-        'Accept': 'application/fhir+json'
-      });
-
-      // Pass the object directly - HttpClient will serialize it correctly
       return this.http.post<any>(url, parameters, { headers: fhirHeaders }).pipe(
         map((response: any) => {
           return {

@@ -36,7 +36,7 @@ export class MeasureReportsListComponent implements OnInit {
 
   protected readonly hasValidConfiguration = computed(() => {
     this.settingsService.settings();
-    return this.settingsService.getEffectiveFhirBaseUrl().trim() !== '';
+    return this.settingsService.getEffectiveEvaluationServerUrl().trim() !== '';
   });
 
   protected readonly totalPages = computed(() => {
