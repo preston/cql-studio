@@ -483,6 +483,11 @@ export class AiService extends BaseService {
       const searxngBaseUrl = this.settingsService.getEffectiveSearxngBaseUrl();
       params['searxng_base_url'] = searxngBaseUrl || '';
     }
+    if (toolName === 'vsac_search' || toolName === 'validate_vsac') {
+      params['vsac_fhir_base_url'] = this.settingsService.getEffectiveVsacFhirBaseUrl();
+      params['vsac_api_username'] = this.settingsService.getEffectiveVsacApiUsername();
+      params['vsac_api_password'] = this.settingsService.getEffectiveVsacApiPassword();
+    }
 
     const request: MCPRequest = {
       method: toolName,

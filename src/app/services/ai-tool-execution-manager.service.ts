@@ -15,6 +15,9 @@ import { SettingsService } from './settings.service';
 import { PlanStep } from '../models/plan.model';
 import { BrowserToolsRegistry } from './tools/browser-tools-registry';
 import { FhirRequestToolRead, FhirRequestToolWrite } from './tools/fhir-request.tool';
+import { GetCodeTool } from './tools/get-code.tool';
+import { InsertCodeTool } from './tools/insert-code.tool';
+import { ReplaceCodeTool } from './tools/replace-code.tool';
 
 export interface ToolExecutionEvent {
   type: 'started' | 'completed' | 'failed';
@@ -43,6 +46,8 @@ export class AiToolExecutionManagerService {
   public executionEvents = this.executionEvents$.asObservable();
   private readonly MAX_TOOL_RETRY_ATTEMPTS = 1;
   private readonly TOOL_RESULTS_SUMMARY_CHAR_LIMIT = 2000;
+  /** Authoritative VSAC references survive per-turn state resets and are isolated by conversation. */
+  private readonly authoritativeVsacUrlsByConversation = new Map<string, Set<string>>();
 
   private readonly toolOrchestrator = inject(ToolOrchestratorService);
   private readonly stateService = inject(AiConversationStateService);
@@ -136,7 +141,59 @@ export class AiToolExecutionManagerService {
       }
     }
 
+    if (toolCall.tool === InsertCodeTool.id || toolCall.tool === ReplaceCodeTool.id) {
+      const code = typeof toolCall.params?.['code'] === 'string' ? toolCall.params['code'] : '';
+      const vsacValidation = this.validateVsacReferencesInCode(code);
+      if (!vsacValidation.valid) {
+        return { valid: false, error: vsacValidation.error };
+      }
+    }
+
     return { valid: true };
+  }
+
+  private validateVsacReferencesInCode(code: string): { valid: boolean; error?: string } {
+    const proposedUrls = this.extractVsacCanonicalUrls(code);
+    if (proposedUrls.size === 0) {
+      return { valid: true };
+    }
+
+    const authoritativeUrls = new Set<string>();
+    const conversationId = this.conversationManager.activeConversation()?.id;
+    if (conversationId) {
+      this.authoritativeVsacUrlsByConversation.get(conversationId)?.forEach(url => authoritativeUrls.add(url));
+    }
+    for (const result of this.stateService.toolExecutionResults().values()) {
+      if (!result.success || ![
+        'vsac_search',
+        'validate_vsac',
+        GetCodeTool.id
+      ].includes(result.tool)) {
+        continue;
+      }
+      const serialized = typeof result.result === 'string'
+        ? result.result
+        : JSON.stringify(result.result ?? null);
+      this.extractVsacCanonicalUrls(serialized).forEach(url => authoritativeUrls.add(url));
+    }
+
+    const unsupported = [...proposedUrls].filter(url => !authoritativeUrls.has(url));
+    if (unsupported.length === 0) {
+      return { valid: true };
+    }
+
+    const allowedText = authoritativeUrls.size > 0
+      ? ` Authoritative URL(s) available in tool results: ${[...authoritativeUrls].join(', ')}.`
+      : ' Call vsac_search or validate_vsac first and use the exact canonicalUrl it returns.';
+    return {
+      valid: false,
+      error: `Blocked fabricated or unverified VSAC reference(s): ${unsupported.join(', ')}.${allowedText} Retry the code edit by copying an authoritative URL exactly; do not derive or alter its OID.`
+    };
+  }
+
+  private extractVsacCanonicalUrls(value: string): Set<string> {
+    const matches = value.match(/https?:\/\/(?:uat-)?cts\.nlm\.nih\.gov\/fhir\/ValueSet\/[A-Za-z0-9._~-]+/gi) ?? [];
+    return new Set(matches);
   }
   
   /**
@@ -187,6 +244,7 @@ export class AiToolExecutionManagerService {
     
     return this.toolOrchestrator.executeToolCall(toolCall.tool, toolCall.params).pipe(
       tap(result => {
+        this.rememberAuthoritativeVsacUrls(toolCall.tool, result);
         this.stateService.markToolCallCompleted(callKey, result);
         this.executionEvents$.next({ 
           type: result.success ? 'completed' : 'failed',
@@ -217,6 +275,26 @@ export class AiToolExecutionManagerService {
         return of(errorResult);
       })
     );
+  }
+
+  private rememberAuthoritativeVsacUrls(toolName: string, result: ToolResult): void {
+    if (!result.success || !['vsac_search', 'validate_vsac'].includes(toolName)) {
+      return;
+    }
+    const conversationId = this.conversationManager.activeConversation()?.id;
+    if (!conversationId) {
+      return;
+    }
+    const serialized = typeof result.result === 'string'
+      ? result.result
+      : JSON.stringify(result.result ?? null);
+    const urls = this.extractVsacCanonicalUrls(serialized);
+    if (urls.size === 0) {
+      return;
+    }
+    const remembered = new Set(this.authoritativeVsacUrlsByConversation.get(conversationId) ?? []);
+    urls.forEach(url => remembered.add(url));
+    this.authoritativeVsacUrlsByConversation.set(conversationId, remembered);
   }
   
   /**
@@ -489,6 +567,10 @@ export class AiToolExecutionManagerService {
         }
         
         if (result.success) {
+          const vsacSummary = this.formatVsacToolResultForContinuation(call.tool, result.result);
+          if (vsacSummary) {
+            return vsacSummary;
+          }
           const resultStr = JSON.stringify(result.result, null, 2);
           const truncatedResult = resultStr.length > this.TOOL_RESULTS_SUMMARY_CHAR_LIMIT
             ? resultStr.substring(0, this.TOOL_RESULTS_SUMMARY_CHAR_LIMIT) + '...'
@@ -501,5 +583,30 @@ export class AiToolExecutionManagerService {
       .filter(summary => summary !== null);
     
     return summaries.join('\n\n');
+  }
+
+  private formatVsacToolResultForContinuation(toolName: string, result: any): string | null {
+    if (toolName === 'vsac_search' && Array.isArray(result?.results)) {
+      const candidates = result.results.map((candidate: any, index: number) => ({
+        resultNumber: index + 1,
+        title: candidate?.title ?? candidate?.name ?? null,
+        id: candidate?.id ?? null,
+        canonicalUrl: candidate?.canonicalUrl ?? candidate?.url ?? null,
+        cqlDeclaration: candidate?.cqlDeclaration ?? candidate?.cqlSnippet ?? null
+      }));
+      return `Tool vsac_search executed successfully. AUTHORITATIVE VSAC RESULTS:\n${JSON.stringify(candidates, null, 2)}\nINSTRUCTION: These search results are already authoritative and do NOT need validate_vsac. Select the best matching candidate and proceed directly to the requested code edit, copying its canonicalUrl or cqlDeclaration EXACTLY. Do not invent, alter, normalize, or derive a URL/OID. If no candidate matches, call vsac_search again instead of writing a guessed reference.`;
+    }
+
+    if (toolName === 'validate_vsac' && result?.valid === true) {
+      const validated = {
+        title: result?.valueSet?.title ?? result?.valueSet?.name ?? null,
+        id: result?.valueSet?.id ?? null,
+        canonicalUrl: result?.canonicalUrl ?? result?.valueSet?.url ?? null,
+        cqlDeclaration: result?.cqlDeclaration ?? result?.cqlSnippet ?? null
+      };
+      return `Tool validate_vsac executed successfully. AUTHORITATIVE VALIDATED VSAC REFERENCE:\n${JSON.stringify(validated, null, 2)}\nINSTRUCTION: Copy canonicalUrl or cqlDeclaration EXACTLY into the code. Do not invent, alter, normalize, or derive a URL/OID.`;
+    }
+
+    return null;
   }
 }
