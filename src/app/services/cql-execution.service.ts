@@ -8,6 +8,7 @@ import { HttpHeaders } from '@angular/common/http';
 import { SettingsService } from './settings.service';
 import { Parameters, Library } from 'fhir/r4';
 import { LibraryResource } from '../components/cql-ide/shared/ide-types';
+import { IdeExecutionSubject } from '../models/ide-context.model';
 import { buildHttpHeaders } from './endpoint-config.lib';
 import { appendEvaluateEndpointParameters } from './cql-evaluate-parameters.lib';
 
@@ -19,7 +20,12 @@ export interface CqlExecutionResult {
   executionTime: number;
   libraryId?: string;
   libraryName: string;
+  subjectReference?: string;
+  subjectId?: string;
+  subjectDisplay?: string;
+  /** @deprecated use subjectId */
   patientId?: string;
+  /** @deprecated use subjectDisplay */
   patientName?: string;
   functionName?: string;
 }
@@ -46,33 +52,33 @@ export class CqlExecutionService extends BaseService {
 
   protected settingsService = inject(SettingsService);
 
-  executeLibrary(libraryId: string, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
+  executeLibrary(libraryId: string, subjects?: IdeExecutionSubject[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const operation = options?.operation || '$evaluate';
     
     if (operation === '$cql') {
-      return this.executeLibraryWithCqlOperation(libraryId, patientIds, options);
+      return this.executeLibraryWithCqlOperation(libraryId, subjects, options);
     } else {
-      return this.executeLibraryWithEvaluateOperation(libraryId, patientIds, options);
+      return this.executeLibraryWithEvaluateOperation(libraryId, subjects, options);
     }
   }
 
-  private executeLibraryWithEvaluateOperation(libraryId: string, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    if (!patientIds || patientIds.length === 0) {
-      return this.executeLibraryWithoutPatient(libraryId, options);
+  private executeLibraryWithEvaluateOperation(libraryId: string, subjects?: IdeExecutionSubject[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
+    if (!subjects || subjects.length === 0) {
+      return this.executeLibraryWithoutSubject(libraryId, options);
     } else {
-      return this.executeLibraryForPatients(libraryId, patientIds, options);
+      return this.executeLibraryForSubjects(libraryId, subjects, options);
     }
   }
 
-  private executeLibraryWithCqlOperation(libraryId: string, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    if (!patientIds || patientIds.length === 0) {
-      return this.executeCqlWithoutPatient(libraryId, options);
+  private executeLibraryWithCqlOperation(libraryId: string, subjects?: IdeExecutionSubject[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
+    if (!subjects || subjects.length === 0) {
+      return this.executeCqlWithoutSubject(libraryId, options);
     } else {
-      return this.executeCqlForPatients(libraryId, patientIds, options);
+      return this.executeCqlForSubjects(libraryId, subjects, options);
     }
   }
 
-  private executeLibraryWithoutPatient(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
+  private executeLibraryWithoutSubject(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const parameters = this.createBaseParameters();
     return this.executeHttpRequest(
       this.getLibraryEvaluateUrl(libraryId),
@@ -83,29 +89,23 @@ export class CqlExecutionService extends BaseService {
     );
   }
 
-  private executeLibraryForPatients(libraryId: string, patientIds: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    const executions = patientIds
-      .filter(patientId => patientId && String(patientId).trim().length > 0)
-      .map(patientId => {
-        const normalizedPatientId = String(patientId).trim();
+  private executeLibraryForSubjects(libraryId: string, subjects: IdeExecutionSubject[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
+    const executions = subjects
+      .filter(subject => subject.reference?.trim())
+      .map(subject => {
         const parameters = this.createBaseParameters();
-        this.addSubjectParameter(parameters, normalizedPatientId);
+        this.addSubjectParameter(parameters, subject.reference);
         return this.executeHttpRequest(
           this.getLibraryEvaluateUrl(libraryId),
           parameters,
-          {
-            libraryId,
-            libraryName: options?.libraryName || libraryId,
-            patientId: normalizedPatientId,
-            patientName: `Patient ${normalizedPatientId}`
-          }
+          this.subjectMetadata(subject, libraryId, options)
         );
       });
 
     return forkJoin(executions);
   }
 
-  private executeCqlWithoutPatient(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
+  private executeCqlWithoutSubject(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const parameters = this.createBaseParameters();
     this.addLibraryParameter(parameters, libraryId);
     this.addExpressionParameter(parameters, options);
@@ -118,23 +118,19 @@ export class CqlExecutionService extends BaseService {
     );
   }
 
-  private executeCqlForPatients(libraryId: string, patientIds: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    const executions = patientIds
-      .filter(patientId => patientId && String(patientId).trim().length > 0)
-      .map(patientId => {
-        const normalizedPatientId = String(patientId).trim();
+  private executeCqlForSubjects(libraryId: string, subjects: IdeExecutionSubject[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
+    const executions = subjects
+      .filter(subject => subject.reference?.trim())
+      .map(subject => {
         const parameters = this.createBaseParameters();
         this.addLibraryParameter(parameters, libraryId);
-        this.addSubjectParameter(parameters, normalizedPatientId);
+        this.addSubjectParameter(parameters, subject.reference);
         this.addExpressionParameter(parameters, options);
         return this.executeHttpRequest(
           this.getCqlOperationUrl(),
           parameters,
           {
-            libraryId,
-            libraryName: libraryId,
-            patientId: normalizedPatientId,
-            patientName: `Patient ${normalizedPatientId}`,
+            ...this.subjectMetadata(subject, libraryId, options),
             functionName: options?.functionName
           }
         );
@@ -143,14 +139,30 @@ export class CqlExecutionService extends BaseService {
     return forkJoin(executions);
   }
 
-  executeAllLibraries(libraries: Array<{id: string, name: string}>, patientIds?: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
+  executeAllLibraries(libraries: Array<{id: string, name: string}>, subjects?: IdeExecutionSubject[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const executions = libraries.map(library => 
-      this.executeLibrary(library.id, patientIds, options)
+      this.executeLibrary(library.id, subjects, options)
     );
 
     return forkJoin(executions).pipe(
       map(results => results.flat())
     );
+  }
+
+  private subjectMetadata(
+    subject: IdeExecutionSubject,
+    libraryId: string,
+    options?: CqlExecutionOptions
+  ): Partial<CqlExecutionResult> {
+    return {
+      libraryId,
+      libraryName: options?.libraryName || libraryId,
+      subjectReference: subject.reference,
+      subjectId: subject.id,
+      subjectDisplay: subject.display,
+      patientId: subject.id,
+      patientName: subject.display
+    };
   }
 
   private getLibraryEvaluateUrl(libraryId: string): string {
@@ -183,10 +195,10 @@ export class CqlExecutionService extends BaseService {
     return parameters;
   }
 
-  private addSubjectParameter(parameters: Parameters, patientId: string): void {
+  private addSubjectParameter(parameters: Parameters, subjectReference: string): void {
     parameters.parameter!.push({
       name: 'subject',
-      valueString: `Patient/${patientId}`
+      valueString: subjectReference
     });
   }
 

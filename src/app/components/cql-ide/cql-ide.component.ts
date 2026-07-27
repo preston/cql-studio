@@ -5,7 +5,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { IdeStateService } from '../../services/ide-state.service';
 import { IdeTabRegistryService } from '../../services/ide-tab-registry.service';
 import { LibraryService } from '../../services/library.service';
-import { PatientService } from '../../services/patient.service';
+import { IdeContextService } from '../../services/ide-context.service';
 import { TranslationService } from '../../services/translation.service';
 import { LibraryTranslationContextBuilder } from '../../services/library-translation-context.lib';
 import { CqlExecutionService } from '../../services/cql-execution.service';
@@ -13,7 +13,8 @@ import { SettingsService } from '../../services/settings.service';
 import { AiService } from '../../services/ai.service';
 import { CqlValidationService } from '../../services/cql-validation.service';
 import { ToastService } from '../../services/toast.service';
-import { Library, Patient } from 'fhir/r4';
+import { Library } from 'fhir/r4';
+import { IdeExecutionSubject } from '../../models/ide-context.model';
 import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
 import {
   buildSeparateExecutionOutputSections,
@@ -52,14 +53,13 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   bottomPanelVisible = true;
   activeLibraryId: string | null = null;
   libraryResources: any[] = [];
-  selectedPatients: any[] = [];
 
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   public ideStateService = inject(IdeStateService);
   public ideTabRegistryService = inject(IdeTabRegistryService);
   private libraryService = inject(LibraryService);
-  private patientService = inject(PatientService);
+  protected readonly ideContextService = inject(IdeContextService);
   private translationService = inject(TranslationService);
   private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
   private cqlExecutionService = inject(CqlExecutionService);
@@ -469,7 +469,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       return;
     }
     
-    const patientIds = this.getSelectedPatientIds();
+    const subjects = this.ideContextService.getSelectedSubjects();
     
     // Prepare libraries for execution
     const librariesToExecute = libraries.map(lib => ({
@@ -478,12 +478,12 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     }));
     
     // Execute all libraries using CQL execution service
-    this.cqlExecutionService.executeAllLibraries(librariesToExecute, patientIds).subscribe({
+    this.cqlExecutionService.executeAllLibraries(librariesToExecute, subjects).subscribe({
       next: (results) => {
         this.ideStateService.setExecuting(false);
         
         // Format and add results to output sections
-        this.formatAndAddExecutionResults(results, 'Execute All Libraries', patientIds);
+        this.formatAndAddExecutionResults(results, 'Execute All Libraries', subjects);
       },
       error: (error) => {
         console.error('All libraries execution failed:', error);
@@ -596,7 +596,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.setExecuting(true);
     this.ideStateService.setExecutionStatus('Translating CQL to ELM...');
     
-    const patientIds = this.getSelectedPatientIds();
+    const subjects = this.ideContextService.getSelectedSubjects();
     
     // Get current CQL content from memory (even if not saved)
     const currentCqlContent = activeLibrary.cqlContent || '';
@@ -627,7 +627,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     // Pass the entire activeLibrary resource with current CQL content and ELM
     this.cqlExecutionService.executeLibrary(
       activeLibrary.id, 
-      patientIds,
+      subjects,
       {
         cqlContent: currentCqlContent,
         elmXml: translationResult.elmXml || undefined,
@@ -642,7 +642,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         this.formatAndAddExecutionResults(
           result,
           `Library: ${activeLibrary.name || activeLibrary.id}`,
-          patientIds
+          subjects
         );
       },
       error: (error) => {
@@ -931,59 +931,15 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Helper methods for output formatting
-  private getSelectedPatientIds(): string[] {
-    return this.patientService.selectedPatients
-      .map(patient => patient.id)
-      .filter((id): id is string => id != null && String(id).trim().length > 0)
-      .map(id => String(id));
-  }
-
-  private getSelectedPatientNameById(): Map<string, string> {
-    const names = new Map<string, string>();
-    for (const patient of this.patientService.selectedPatients) {
-      if (!patient.id) {
-        continue;
-      }
-      names.set(String(patient.id), this.getPatientDisplayName(patient));
-    }
-    return names;
-  }
-
-  private getPatientDisplayName(patient: Patient): string {
-    if (patient.name && patient.name.length > 0) {
-      const name = patient.name[0];
-      const given = name.given ? name.given.join(' ') : '';
-      const family = name.family || '';
-      const result = `${given} ${family}`.trim();
-      if (result) {
-        return result;
-      }
-    }
-
-    if (patient.text?.div) {
-      const textMatch = patient.text.div.match(/<div[^>]*>([^<]+)<\/div>/);
-      if (textMatch?.[1]) {
-        return textMatch[1].trim();
-      }
-    }
-
-    if (patient.identifier && patient.identifier.length > 0 && patient.identifier[0].value) {
-      return patient.identifier[0].value;
-    }
-
-    return patient.id ? String(patient.id) : 'Unknown patient';
-  }
-
-  private formatAndAddExecutionResults(results: unknown, title: string, patientIds: string[] = []): void {
+  private formatAndAddExecutionResults(results: unknown, title: string, subjects: IdeExecutionSubject[] = []): void {
     const normalizedResults = normalizeExecutionResults(results);
 
-    if (shouldRenderExecutionResultsSeparately(normalizedResults, patientIds)) {
+    if (shouldRenderExecutionResultsSeparately(normalizedResults, subjects)) {
       const sections = buildSeparateExecutionOutputSections(
         normalizedResults,
         title,
-        patientIds,
-        this.getSelectedPatientNameById(),
+        subjects,
+        this.ideContextService.getSubjectDisplayById(),
         index => `output_${index}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
       );
       this.ideStateService.addOutputSections(sections);

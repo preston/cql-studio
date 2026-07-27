@@ -2,9 +2,12 @@
 
 import { Component, OnInit, inject, signal, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Library, Patient, Bundle } from 'fhir/r4';
+import { Library, Patient, Group, Bundle } from 'fhir/r4';
 import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
+import { GroupService } from '../../../../services/group.service';
+import { IdeContextService } from '../../../../services/ide-context.service';
+import { IdeContextType } from '../../../../models/ide-context.model';
 import { IdeStateService, TabDataScope } from '../../../../services/ide-state.service';
 import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
 import { SettingsService } from '../../../../services/settings.service';
@@ -20,6 +23,8 @@ import { isResourceType } from '../../../../services/fhir-resource-type.lib';
 export class NavigationTabComponent implements OnInit {
   private readonly libraryService = inject(LibraryService);
   protected readonly patientService = inject(PatientService);
+  protected readonly groupService = inject(GroupService);
+  protected readonly ideContextService = inject(IdeContextService);
   private readonly ideStateService = inject(IdeStateService);
   private readonly libraryOpenerService = inject(CqlIdeLibraryOpenerService);
   private readonly settingsService = inject(SettingsService);
@@ -38,6 +43,13 @@ export class NavigationTabComponent implements OnInit {
   protected readonly patientSearchResults = signal<Patient[]>([]);
   protected readonly isSearchingPatients = signal(false);
   protected readonly showPatientSearchResults = signal(false);
+
+  protected readonly groupSearchTerm = signal('');
+  protected readonly groupSearchResults = signal<Group[]>([]);
+  protected readonly isSearchingGroups = signal(false);
+  protected readonly showGroupSearchResults = signal(false);
+
+  protected readonly contextType = this.ideContextService.contextType;
 
   public Math = Math;
 
@@ -282,6 +294,12 @@ export class NavigationTabComponent implements OnInit {
     }
   }
 
+  setContextType(type: IdeContextType): void {
+    this.ideContextService.setContextType(type);
+    this.clearPatientSearch();
+    this.clearGroupSearch();
+  }
+
   onPatientSearchInput(event: Event): void {
     const searchTerm = (event.target as HTMLInputElement).value;
     this.patientSearchTerm.set(searchTerm);
@@ -318,6 +336,7 @@ export class NavigationTabComponent implements OnInit {
   selectPatient(patient: Patient): void {
     if (patient.id) {
       this.patientService.addPatient(patient);
+      this.ideContextService.notifySelectionChanged();
       this.showPatientSearchResults.set(false);
       this.patientSearchTerm.set('');
       this.patientSearchResults.set([]);
@@ -333,39 +352,82 @@ export class NavigationTabComponent implements OnInit {
 
   clearPatientSelection(): void {
     this.patientService.clearSelection();
+    this.ideContextService.notifySelectionChanged();
     this.clearPatientSearch();
   }
 
   removePatient(patientId: string): void {
     this.patientService.removePatient(patientId);
+    this.ideContextService.notifySelectionChanged();
   }
 
   getPatientDisplayName(patient: Patient): string {
-    if (patient.name && patient.name.length > 0) {
-      const name = patient.name[0];
-      const given = name.given ? name.given.join(' ') : '';
-      const family = name.family || '';
-      const result = `${given} ${family}`.trim();
-      if (result) {
-        return result;
-      }
+    return this.patientService.getDisplayName(patient);
+  }
+
+  onGroupSearchInput(event: Event): void {
+    const searchTerm = (event.target as HTMLInputElement).value;
+    this.groupSearchTerm.set(searchTerm);
+
+    if (searchTerm.trim()) {
+      this.isSearchingGroups.set(true);
+      this.groupService.search(searchTerm).subscribe({
+        next: (bundle: Bundle) => {
+          this.isSearchingGroups.set(false);
+          if (bundle.entry && bundle.entry.length > 0) {
+            this.groupSearchResults.set(
+              bundle.entry
+                .map(entry => entry.resource)
+                .filter((resource): resource is Group => isResourceType(resource, 'Group'))
+            );
+            this.showGroupSearchResults.set(true);
+          } else {
+            this.groupSearchResults.set([]);
+            this.showGroupSearchResults.set(true);
+          }
+        },
+        error: (error: unknown) => {
+          this.isSearchingGroups.set(false);
+          console.error('Error searching groups:', error);
+        }
+      });
+    } else {
+      this.isSearchingGroups.set(false);
+      this.showGroupSearchResults.set(false);
+      this.groupSearchResults.set([]);
     }
-    
-    if (patient.text && patient.text.div) {
-      const textMatch = patient.text.div.match(/<div[^>]*>([^<]+)<\/div>/);
-      if (textMatch && textMatch[1]) {
-        return textMatch[1].trim();
-      }
+  }
+
+  selectGroup(group: Group): void {
+    if (group.id) {
+      this.groupService.addGroup(group);
+      this.ideContextService.notifySelectionChanged();
+      this.showGroupSearchResults.set(false);
+      this.groupSearchTerm.set('');
+      this.groupSearchResults.set([]);
     }
-    
-    if (patient.identifier && patient.identifier.length > 0) {
-      const identifier = patient.identifier[0];
-      if (identifier.value) {
-        return identifier.value;
-      }
-    }
-    
-    return patient.id || 'Unknown';
+  }
+
+  clearGroupSearch(): void {
+    this.groupSearchTerm.set('');
+    this.groupSearchResults.set([]);
+    this.showGroupSearchResults.set(false);
+    this.isSearchingGroups.set(false);
+  }
+
+  clearGroupSelection(): void {
+    this.groupService.clearSelection();
+    this.ideContextService.notifySelectionChanged();
+    this.clearGroupSearch();
+  }
+
+  removeGroup(groupId: string): void {
+    this.groupService.removeGroup(groupId);
+    this.ideContextService.notifySelectionChanged();
+  }
+
+  getGroupDisplayName(group: Group): string {
+    return this.groupService.getDisplayName(group);
   }
 
   trackByLibraryId(index: number, library: Library): string {
@@ -374,5 +436,9 @@ export class NavigationTabComponent implements OnInit {
 
   trackByPatientId(index: number, patient: Patient): string {
     return patient.id || index.toString();
+  }
+
+  trackByGroupId(index: number, group: Group): string {
+    return group.id || index.toString();
   }
 }

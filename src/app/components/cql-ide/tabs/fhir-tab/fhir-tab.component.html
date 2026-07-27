@@ -144,16 +144,16 @@
           class="btn btn-outline-light btn-sm" 
           (click)="onCopyResourceToClipboard()" 
           title="Copy FHIR resource JSON to clipboard"
-          [disabled]="!hasSelectedLibrary() && !hasSelectedPatients()"
+          [disabled]="!hasSelectedLibrary() && !hasSelectedContext()"
         >
           <i class="bi-files"></i>
         </button>
       </div>
       <div>
-        @if (!hasSelectedLibrary() && !hasSelectedPatients()) {
+        @if (!hasSelectedLibrary() && !hasSelectedContext()) {
           <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
             <i class="bi-document fs-1 mb-2"></i>
-            <span>Select a library and patient(s) to view FHIR resources</span>
+            <span>Select a library and context subject(s) to view FHIR resources</span>
           </div>
         }
         
@@ -173,7 +173,7 @@
         }
         
         <!-- Patient Resources -->
-        @if (hasSelectedPatients()) {
+        @if (contextType() === 'Patient' && hasSelectedPatients()) {
           <div class="mb-3">
             <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
               <i class="bi-patient text-info"></i>
@@ -189,6 +189,31 @@
                 <div class="border rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
                   <app-syntax-highlighter 
                     [code]="patientAsString(patient) || 'No patient resource available'"
+                    language="autodetect">
+                  </app-syntax-highlighter>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Group Resources -->
+        @if (contextType() === 'Group' && hasSelectedGroups()) {
+          <div class="mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
+              <i class="bi-people text-info"></i>
+              <span class="fw-semibold small text-white">Group Resources ({{ selectedGroups().length }})</span>
+            </div>
+            @for (group of selectedGroups(); track trackByGroupId($index, group)) {
+              <div class="mb-3">
+                <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
+                  <i class="bi-people text-info"></i>
+                  <span class="fw-medium text-white">{{ getGroupDisplayName(group) }}</span>
+                  <span class="small text-muted">({{ group.id }})</span>
+                </div>
+                <div class="border rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
+                  <app-syntax-highlighter 
+                    [code]="groupAsString(group) || 'No group resource available'"
                     language="autodetect">
                   </app-syntax-highlighter>
                 </div>

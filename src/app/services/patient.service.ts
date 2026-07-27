@@ -90,4 +90,29 @@ export class PatientService extends BaseService {
 	get selectedPatient(): Patient | null {
 		return this.selectedPatients.length > 0 ? this.selectedPatients[0] : null;
 	}
+
+	getDisplayName(patient: Patient): string {
+		if (patient.name && patient.name.length > 0) {
+			const name = patient.name[0];
+			const given = name.given ? name.given.join(' ') : '';
+			const family = name.family || '';
+			const result = `${given} ${family}`.trim();
+			if (result) {
+				return result;
+			}
+		}
+
+		if (patient.text?.div) {
+			const textMatch = patient.text.div.match(/<div[^>]*>([^<]+)<\/div>/);
+			if (textMatch?.[1]) {
+				return textMatch[1].trim();
+			}
+		}
+
+		if (patient.identifier && patient.identifier.length > 0 && patient.identifier[0].value) {
+			return patient.identifier[0].value;
+		}
+
+		return patient.id || 'Unknown';
+	}
 }

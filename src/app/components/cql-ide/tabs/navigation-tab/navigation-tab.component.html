@@ -111,13 +111,30 @@
     </div>
   </div>
 
-  <!-- Patient Search and Selection -->
+  <!-- Context Search and Selection -->
   <div class="mb-3">
-    <div class="px-3 py-2 fw-semibold text-uppercase small text-muted">Patient Context</div>
+    <div class="d-flex justify-content-between align-items-center px-3 py-2">
+      <span class="fw-semibold text-uppercase small text-muted">Context</span>
+      <div id="ide-context-type-toggle" class="btn-group btn-group-sm" role="group" aria-label="Context type">
+        <button type="button" id="ide-context-type-patient" class="btn btn-sm"
+          [class.btn-primary]="contextType() === 'Patient'"
+          [class.btn-outline-primary]="contextType() !== 'Patient'"
+          (click)="setContextType('Patient')">
+          Patient
+        </button>
+        <button type="button" id="ide-context-type-group" class="btn btn-sm"
+          [class.btn-primary]="contextType() === 'Group'"
+          [class.btn-outline-primary]="contextType() !== 'Group'"
+          (click)="setContextType('Group')">
+          Group
+        </button>
+      </div>
+    </div>
 
+    @if (contextType() === 'Patient') {
     <!-- Patient Search -->
     <div class="px-3">
-      <input type="text" class="form-control form-control-sm mb-2" placeholder="Search patients..."
+      <input type="text" id="ide-context-search" class="form-control form-control-sm mb-2" placeholder="Search patients..."
         [ngModel]="patientSearchTerm()" (ngModelChange)="patientSearchTerm.set($event)" (input)="onPatientSearchInput($event)">
       @if (showPatientSearchResults()) {
       <div class="border rounded bg-dark">
@@ -128,7 +145,7 @@
             <strong class="d-block text-white">{{ getPatientDisplayName(patient) }}</strong>
             <small class="text-muted">ID: {{ patient.id }}</small>
           </div>
-          <i class="bi bi-{{ patientService.hasPatient(patient.id!) ? 'check' : 'person' }}" title="Edit CQL"></i>
+          <i class="bi bi-{{ patientService.hasPatient(patient.id!) ? 'check' : 'person' }}"></i>
         </button>
         }
       </div>
@@ -140,7 +157,7 @@
     <div class="border rounded mx-3 bg-dark">
       <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
         <div class="fw-semibold text-info">Selected Patients ({{ patientService.selectedPatients.length }})</div>
-        <button class="btn btn-outline-secondary btn-sm" (click)="clearPatientSelection()" title="Clear All Patients">
+        <button id="ide-context-clear" class="btn btn-outline-secondary btn-sm" (click)="clearPatientSelection()" title="Clear All Patients">
           <i class="bi bi-x me-1"></i>
           Clear
         </button>
@@ -157,6 +174,53 @@
       </div>
       }
     </div>
+    }
+    }
+
+    @if (contextType() === 'Group') {
+    <!-- Group Search -->
+    <div class="px-3">
+      <input type="text" id="ide-context-search" class="form-control form-control-sm mb-2" placeholder="Search groups..."
+        [ngModel]="groupSearchTerm()" (ngModelChange)="groupSearchTerm.set($event)" (input)="onGroupSearchInput($event)">
+      @if (showGroupSearchResults()) {
+      <div class="border rounded bg-dark">
+        @for (group of groupSearchResults(); track group.id) {
+        <button class="btn rounded-0 w-100 text-start d-flex justify-content-between align-items-center"
+          (click)="selectGroup(group)" [disabled]="groupService.hasGroup(group.id!)">
+          <div class="flex-fill">
+            <strong class="d-block text-white">{{ getGroupDisplayName(group) }}</strong>
+            <small class="text-muted">ID: {{ group.id }}</small>
+          </div>
+          <i class="bi bi-{{ groupService.hasGroup(group.id!) ? 'check' : 'people' }}"></i>
+        </button>
+        }
+      </div>
+      }
+    </div>
+
+    <!-- Selected Groups Display -->
+    @if (groupService.selectedGroups.length > 0) {
+    <div class="border rounded mx-3 bg-dark">
+      <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+        <div class="fw-semibold text-info">Selected Groups ({{ groupService.selectedGroups.length }})</div>
+        <button id="ide-context-clear" class="btn btn-outline-secondary btn-sm" (click)="clearGroupSelection()" title="Clear All Groups">
+          <i class="bi bi-x me-1"></i>
+          Clear
+        </button>
+      </div>
+      @for (group of groupService.selectedGroups; track trackByGroupId($index, group)) {
+      <div class="selected-patient-row d-flex justify-content-between align-items-center p-2 border-bottom">
+        <div class="selected-patient-info flex-fill">
+          <div class="fw-semibold text-white text-truncate">{{ getGroupDisplayName(group) }}</div>
+          <div class="small text-muted text-truncate">{{ group.id }}</div>
+        </div>
+        <button class="selected-patient-remove btn btn-outline-secondary btn-sm" (click)="removeGroup(group.id!)" title="Remove Group">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+      }
+    </div>
+    }
     }
   </div>
 </div>

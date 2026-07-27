@@ -423,10 +423,13 @@ export class FhirUploaderComponent implements AfterViewInit {
     const current = [...this.files()];
     const hospital = current.filter(f => f.name.toLowerCase().startsWith('hospital'));
     const practitioner = current.filter(f => f.name.toLowerCase().startsWith('practitioner'));
+    const group = current.filter(f => f.name.toLowerCase().startsWith('group'));
     const rest = current.filter(
-      f => !f.name.toLowerCase().startsWith('hospital') && !f.name.toLowerCase().startsWith('practitioner')
+      f => !f.name.toLowerCase().startsWith('hospital')
+        && !f.name.toLowerCase().startsWith('practitioner')
+        && !f.name.toLowerCase().startsWith('group')
     );
-    this.files.set([...hospital, ...practitioner, ...rest]);
+    this.files.set([...hospital, ...practitioner, ...rest, ...group]);
   }
 
   async addBundleExamples(): Promise<void> {

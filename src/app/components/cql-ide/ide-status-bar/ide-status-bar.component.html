@@ -16,10 +16,10 @@
       <i class="bi bi-{{ isValidSyntax ? 'check' : 'exclamation-triangle' }}"></i>
       {{ isValidSyntax ? 'Valid' : 'Invalid' }}
     </span>
-    @if (selectedPatientsCount() > 0) {
+    @if (selectedContextCount() > 0) {
       <span class="d-flex align-items-center gap-1 small text-info">
-        <i class="bi bi-person"></i>
-        {{ selectedPatientsCount() }} patient{{ selectedPatientsCount() === 1 ? '' : 's' }}
+        <i class="bi bi-{{ contextType() === 'Group' ? 'people' : 'person' }}"></i>
+        {{ selectedContextCount() }} {{ contextType() === 'Group' ? 'group' : 'patient' }}{{ selectedContextCount() === 1 ? '' : 's' }}
       </span>
     }
   </div>

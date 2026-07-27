@@ -132,7 +132,8 @@
     [editorState]="ideStateService.editorState()"
     [executionProgress]="ideStateService.executionProgress()"
     [executionStatus]="ideStateService.executionStatus()"
-    [selectedPatientsCount]="selectedPatients.length"
+    [selectedContextCount]="ideContextService.selectedCount()"
+    [contextType]="ideContextService.contextType()"
     [isLoadingLibraries]="false">
   </app-ide-status-bar>
 </div>

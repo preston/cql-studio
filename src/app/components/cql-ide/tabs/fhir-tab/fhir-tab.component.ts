@@ -3,9 +3,11 @@
 import { Component, output, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Library, Patient } from 'fhir/r4';
+import { Library, Patient, Group } from 'fhir/r4';
 import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
+import { GroupService } from '../../../../services/group.service';
+import { IdeContextService } from '../../../../services/ide-context.service';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
 import { SyntaxHighlighterComponent } from '../../../shared/syntax-highlighter/syntax-highlighter.component';
@@ -24,14 +26,32 @@ export class FhirTabComponent {
 
   readonly libraryService = inject(LibraryService);
   readonly patientService = inject(PatientService);
+  readonly groupService = inject(GroupService);
+  readonly ideContextService = inject(IdeContextService);
   readonly ideStateService = inject(IdeStateService);
   readonly settingsService = inject(SettingsService);
   readonly router = inject(Router);
 
   public activeLibrary = computed(() => this.ideStateService.getActiveLibraryResource());
   public hasSelectedLibrary = computed(() => !!this.activeLibrary());
-  public hasSelectedPatients = computed(() => this.patientService.selectedPatients.length > 0);
-  public selectedPatients = computed(() => this.patientService.selectedPatients);
+  public hasSelectedPatients = computed(() => {
+    this.ideContextService.selectionVersion();
+    return this.patientService.selectedPatients.length > 0;
+  });
+  public selectedPatients = computed(() => {
+    this.ideContextService.selectionVersion();
+    return this.patientService.selectedPatients;
+  });
+  public hasSelectedGroups = computed(() => {
+    this.ideContextService.selectionVersion();
+    return this.groupService.selectedGroups.length > 0;
+  });
+  public selectedGroups = computed(() => {
+    this.ideContextService.selectionVersion();
+    return this.groupService.selectedGroups;
+  });
+  public contextType = this.ideContextService.contextType;
+  public hasSelectedContext = computed(() => this.ideContextService.hasSelection());
   public fhirServerUrl = computed(() => this.settingsService.getEffectiveEvaluationServerUrl());
 
   onLibraryIdChange(value: string): void {
@@ -225,40 +245,27 @@ export class FhirTabComponent {
   }
 
   getPatientDisplayName(patient: Patient): string {
-    // Try multiple approaches to get patient name
-    if (patient.name && patient.name.length > 0) {
-      const name = patient.name[0];
-      const given = name.given ? name.given.join(' ') : '';
-      const family = name.family || '';
-      const result = `${given} ${family}`.trim();
-      if (result) {
-        return result;
-      }
+    return this.patientService.getDisplayName(patient);
+  }
+
+  groupAsString(group?: Group): string {
+    const targetGroup = group || this.groupService.selectedGroup;
+    if (targetGroup) {
+      return JSON.stringify(targetGroup, null, 2);
     }
-    
-    // Try alternative name fields
-    if (patient.text && patient.text.div) {
-      // Extract name from text field if available
-      const textMatch = patient.text.div.match(/<div[^>]*>([^<]+)<\/div>/);
-      if (textMatch && textMatch[1]) {
-        return textMatch[1].trim();
-      }
-    }
-    
-    // Try identifier fields
-    if (patient.identifier && patient.identifier.length > 0) {
-      const identifier = patient.identifier[0];
-      if (identifier.value) {
-        return identifier.value;
-      }
-    }
-    
-    // Fall back to ID
-    return patient.id || 'Unknown';
+    return '';
+  }
+
+  getGroupDisplayName(group: Group): string {
+    return this.groupService.getDisplayName(group);
   }
 
   trackByPatientId(index: number, patient: Patient): string {
     return patient.id || index.toString();
+  }
+
+  trackByGroupId(index: number, group: Group): string {
+    return group.id || index.toString();
   }
 
   onCopyResourceToClipboard(): void {
@@ -278,6 +285,16 @@ export class FhirTabComponent {
         const patientJson = this.patientAsString(patient);
         if (patientJson) {
           resources.push(`// Patient Resource: ${this.getPatientDisplayName(patient)}\n${patientJson}`);
+        }
+      });
+    }
+
+    // Add group resources if available
+    if (this.hasSelectedGroups()) {
+      this.selectedGroups().forEach(group => {
+        const groupJson = this.groupAsString(group);
+        if (groupJson) {
+          resources.push(`// Group Resource: ${this.getGroupDisplayName(group)}\n${groupJson}`);
         }
       });
     }
