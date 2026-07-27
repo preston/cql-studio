@@ -1,6 +1,6 @@
 {
   "name": "cql-studio",
-  "version": "2.1.5",
+  "version": "2.2.0",
   "author": "Preston Lee",
   "license": "Apache-2.0",
   "repository": {
@@ -88,7 +88,7 @@
     "@types/fhir": "^0.0.44",
     "@types/prismjs": "^1.26.6",
     "@types/semver": "^7.7.1",
-    "baseline-browser-mapping": "^2.11.4",
+    "baseline-browser-mapping": "^2.11.5",
     "jsdom": "^30.0.0",
     "typescript": "<7",
     "vitest": "^4.1.10"

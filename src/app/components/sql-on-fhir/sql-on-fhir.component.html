@@ -150,6 +150,7 @@
           }
         </div>
       </div>
+
     </div>
 
     <!-- Detail + pipeline (single step) -->
@@ -160,7 +161,7 @@
       <app-sql-pipeline-library-step [libraryId]="lib.id ?? ''" [libraryJson]="selectedLibraryJson()" />
       }
       @case ('cql') {
-      <app-sql-pipeline-cql-step [cqlPreview]="cqlPreview()" />
+      <app-sql-pipeline-cql-step [cqlPreview]="cqlPreview()" (cqlChanged)="onCqlEdited($event)" />
       }
       @case ('elm') {
       <app-sql-pipeline-elm-step [elmTranslationErrors]="elmTranslationErrors()"
