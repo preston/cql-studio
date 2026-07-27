@@ -35,6 +35,7 @@ import type {
   ElmDurationBetween,
   ElmIs,
   ElmAs,
+  ElmQuantity,
   ElmTypeSpecifier,
 } from '../types/elm';
 import { stripFhirNamespace, toSqlIdentifier } from '../types/elm';
@@ -139,6 +140,72 @@ function asPointInTime(sql: string): string {
 }
 
 /**
+ * True when an ELM expression compiles to a complete SQL statement (row set)
+ * rather than a bare scalar/boolean expression. Mirrors the statement types
+ * handled by exprToSql's set-shaped cases.
+ */
+function isStatementShapedExpr(expr: ElmExpression): boolean {
+  return [
+    'Retrieve', 'Query', 'ExpressionRef',
+    'Union', 'Intersect', 'Except', 'Distinct', 'Flatten',
+    'SingletonFrom', 'First', 'Last', 'List', 'ToList',
+  ].includes((expr as { type: string }).type);
+}
+
+/**
+ * Unwraps set-shaped wrappers to find the root Retrieve's resource type name
+ * (e.g. 'Patient', 'Procedure'). Returns null when no Retrieve is at the root —
+ * callers then skip resource-specific behavior rather than guessing.
+ */
+function rootRetrieveResource(expr: ElmExpression): string | null {
+  let e: ElmExpression | undefined = expr;
+  for (let depth = 0; e && depth < 10; depth++) {
+    const t = (e as { type: string }).type;
+    if (t === 'Retrieve') {
+      return stripFhirNamespace((e as ElmRetrieve).dataType);
+    }
+    if (t === 'Query') {
+      e = (e as ElmQuery).source[0]?.expression;
+      continue;
+    }
+    if (['SingletonFrom', 'Distinct', 'Flatten', 'ToList'].includes(t)) {
+      e = (e as ElmUnaryOp).operand;
+      continue;
+    }
+    if (t === 'First' || t === 'Last') {
+      e = (e as unknown as { source: ElmExpression }).source;
+      continue;
+    }
+    if (['Union', 'Intersect', 'Except'].includes(t)) {
+      e = (e as unknown as { operand: ElmExpression[] }).operand?.[0];
+      continue;
+    }
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Map CQL / UCUM temporal units to Postgres INTERVAL unit names. Returns null
+ * for non-temporal units (mg, %, mm[Hg], …) — those are magnitudes, not
+ * durations.
+ */
+function normalizeTemporalUnit(unit: string | undefined): string | null {
+  if (!unit) return null;
+  const map: Record<string, string> = {
+    year: 'years', years: 'years', a: 'years',
+    month: 'months', months: 'months', mo: 'months',
+    week: 'weeks', weeks: 'weeks', wk: 'weeks',
+    day: 'days', days: 'days', d: 'days',
+    hour: 'hours', hours: 'hours', h: 'hours',
+    minute: 'minutes', minutes: 'minutes', min: 'minutes',
+    second: 'seconds', seconds: 'seconds', s: 'seconds',
+    millisecond: 'milliseconds', milliseconds: 'milliseconds', ms: 'milliseconds',
+  };
+  return map[unit] ?? null;
+}
+
+/**
  * Render a CQL `start of <interval>` / `end of <interval>` expression in SQL.
  * If the inner is a `tstzrange(...)` (or `tsrange(...)`) call we use PostgreSQL's
  * `lower()` / `upper()`; otherwise we fall back to the schema's `<col>_start` /
@@ -197,8 +264,19 @@ export class ElmToSqlTranspiler {
   private defines = new Map<string, ElmExpressionDef>();
   private valueSets = new Map<string, string>(); // name → OID/URL
   private codeSystems = new Map<string, string>(); // name → URI
-  /** Patient alias in the innermost active CQL query (e.g. `p` in `from p` Patient). */
-  private patientAlias: string | null = null;
+  /**
+   * Row-key column per generated CTE (SQL identifier → column). Patient-shaped
+   * CTEs key on `id`; resource-shaped CTEs key on `subject_id`. Used to
+   * correlate EXISTS subqueries to the patient row so Patient-context defines
+   * are evaluated per patient rather than population-wide.
+   */
+  private defineKeyColumn = new Map<string, string>();
+  /**
+   * SQL alias of the patient row currently in scope (e.g. `Patient` inside a
+   * wrapped boolean define, or the query alias of a Query over [Patient]).
+   * Null when no patient row is in scope — EXISTS then stays uncorrelated.
+   */
+  private currentPatientAlias: string | null = null;
 
   constructor(options: TranspilerOptions = {}) {
     const now = new Date();
@@ -221,7 +299,8 @@ export class ElmToSqlTranspiler {
     this.defines.clear();
     this.valueSets.clear();
     this.codeSystems.clear();
-    this.patientAlias = null;
+    this.defineKeyColumn.clear();
+    this.currentPatientAlias = null;
 
     const lib: ElmLibrary = 'library' in input ? input.library : input;
 
@@ -280,7 +359,16 @@ export class ElmToSqlTranspiler {
 
   private generateCte(def: ElmExpressionDef): string {
     const cteName = toSqlIdentifier(def.name);
+    const isPatientContext = (def.context ?? 'Patient') === 'Patient';
+    const statementShaped = isStatementShapedExpr(def.expression);
     let body: string;
+
+    // A bare boolean/scalar define in Patient context is evaluated PER PATIENT
+    // in CQL (`exists [Procedure: X]` means "this patient has an X"). Expose the
+    // patient row as `Patient` while generating the body so EXISTS subqueries can
+    // correlate on it; the wrap below then filters Patient rows by the boolean.
+    const prevAlias = this.currentPatientAlias;
+    this.currentPatientAlias = isPatientContext && !statementShaped ? 'Patient' : null;
 
     try {
       if (this.isPatientResourcePopulationQuery(def)) {
@@ -292,17 +380,17 @@ export class ElmToSqlTranspiler {
       const msg = e instanceof Error ? e.message : String(e);
       this.warn(`Could not transpile define "${def.name}": ${msg}`);
       body = `SELECT NULL AS _unsupported -- ${msg}`;
+    } finally {
+      this.currentPatientAlias = prevAlias;
     }
 
     // PostgreSQL CTE bodies must be complete statements (SELECT/VALUES/WITH/etc).
-    // Scalar/boolean defines produce bare expressions — wrap them in a SELECT so
-    // they're valid CTEs returning a single-row, single-column result. If the
-    // expression references the Patient context CTE (e.g. `Patient.gender`),
-    // we filter Patient rows by the boolean so per-patient defines aggregate
-    // correctly via COUNT(*) in the final SELECT.
+    // Bare expressions get wrapped: in Patient context as a per-patient filter
+    // over the Patient CTE (so COUNT(*) counts PATIENTS satisfying the define —
+    // this is what makes population counts correct); otherwise as a one-row value.
     if (!startsWithSqlStatement(body)) {
       const trimmed = body.trim();
-      if (/\bPatient\./i.test(trimmed)) {
+      if (isPatientContext) {
         body = `SELECT Patient.* FROM Patient WHERE (${trimmed})`;
       } else {
         body = `SELECT (${trimmed}) AS value`;
@@ -317,8 +405,26 @@ export class ElmToSqlTranspiler {
       body = body.replace(/\s+LIMIT\s+1\s*$/i, '');
     }
 
+    // Record this CTE's row-key column so later defines can correlate EXISTS
+    // subqueries against it (patient-shaped → id, resource-shaped → subject_id).
+    this.defineKeyColumn.set(cteName, this.rowKeyColumnFor(def.expression, isPatientContext, statementShaped));
+
     const comment = this.opts.includeComments ? `  -- define "${def.name}"\n` : '';
     return `${cteName} AS (\n${comment}${this.indent(body)}\n)`;
+  }
+
+  /** Row-key column for a define's rows: `id` for patient-shaped, `subject_id` for resource-shaped. */
+  private rowKeyColumnFor(expr: ElmExpression, isPatientContext: boolean, statementShaped: boolean): string {
+    if (!statementShaped) {
+      // Bare boolean wrapped over Patient rows.
+      return isPatientContext ? 'id' : 'subject_id';
+    }
+    if (expr.type === 'ExpressionRef') {
+      const ref = toSqlIdentifier((expr as ElmExpressionRef).name);
+      return this.defineKeyColumn.get(ref) ?? 'subject_id';
+    }
+    const resource = rootRetrieveResource(expr);
+    return resource === 'Patient' ? 'id' : 'subject_id';
   }
 
   // ─── Expression dispatch ───────────────────────────────────────────────────
@@ -368,10 +474,22 @@ export class ElmToSqlTranspiler {
       case 'IncludedIn':
       case 'During':          return this.inToSql(expr as ElmBinaryOp, context);
       case 'Contains':        return this.containsToSql(expr as ElmBinaryOp, context);
+      case 'Before':
+      case 'SameOrBefore':
+      case 'After':
+      case 'SameOrAfter':     return this.temporalCompareToSql(expr as ElmBinaryOp, (expr as { type: string }).type, context);
+      case 'Overlaps':        return this.overlapsToSql(expr as ElmBinaryOp, context);
+      case 'Quantity':        return this.quantityToSql(expr as ElmQuantity);
       case 'Add':             return this.arithmeticToSql(expr as ElmBinaryOp, '+', context);
       case 'Subtract':        return this.arithmeticToSql(expr as ElmBinaryOp, '-', context);
       case 'Multiply':        return this.arithmeticToSql(expr as ElmBinaryOp, '*', context);
       case 'Divide':          return this.arithmeticToSql(expr as ElmBinaryOp, '/', context);
+      case 'Greatest':        return `GREATEST(${((expr as { operand?: ElmExpression[] }).operand ?? []).map(o => this.exprToSqlInline(o, context)).join(', ')})`;
+      case 'Least':           return `LEAST(${((expr as { operand?: ElmExpression[] }).operand ?? []).map(o => this.exprToSqlInline(o, context)).join(', ')})`;
+      case 'Round':           return `ROUND(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)})`;
+      case 'Truncate':        return `TRUNC(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)})`;
+      case 'Abs':             return `ABS(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)})`;
+      case 'Negate':          return `(-(${this.exprToSqlInline((expr as ElmUnaryOp).operand, context)}))`;
       case 'Union':           return this.setOpToSql('UNION ALL', (expr as { operand: ElmExpression[] }).operand, context);
       case 'Intersect':       return this.setOpToSql('INTERSECT', (expr as { operand: ElmExpression[] }).operand, context);
       case 'Except':          return this.setOpToSql('EXCEPT', (expr as { operand: ElmExpression[] }).operand, context);
@@ -472,11 +590,11 @@ export class ElmToSqlTranspiler {
     const alias = primarySource.alias;
     const fromSql = this.exprToSqlInline(primarySource.expression, context);
 
-    const savedPatientAlias = this.patientAlias;
-    if (this.isPatientRetrieve(primarySource.expression)) {
-      this.patientAlias = alias;
+    const prevAlias = this.currentPatientAlias;
+    if (rootRetrieveResource(primarySource.expression) === 'Patient') {
+      this.currentPatientAlias = alias;
     }
-
+    try {
     const parts: string[] = [];
 
     // Build SELECT clause
@@ -523,8 +641,10 @@ export class ElmToSqlTranspiler {
       if (orderParts.length > 0) parts.push(`ORDER BY ${orderParts.join(', ')}`);
     }
 
-    this.patientAlias = savedPatientAlias;
     return parts.join('\n');
+    } finally {
+      this.currentPatientAlias = prevAlias;
+    }
   }
 
   private relationshipToSql(rel: ElmRelationshipClause, parentAlias: string, context: string): string {
@@ -804,16 +924,88 @@ export class ElmToSqlTranspiler {
     return `${l} @> ARRAY[${r}]`;
   }
 
+  // ─── Temporal comparisons (Before / After / SameOrBefore / SameOrAfter) ───
+  //
+  // CQL's `before`/`after` compare points and/or intervals. When an operand
+  // renders as a Postgres range expression we reduce it to the relevant
+  // endpoint: `X before I` compares against lower(I); `I before X` compares
+  // upper(I). Point-vs-point falls through to a plain operator.
+
+  private temporalCompareToSql(expr: ElmBinaryOp, kind: string, context: string): string {
+    const [left, right] = expr.operand;
+    let l = this.exprToSqlInline(left, context);
+    let r = this.exprToSqlInline(right, context);
+    const op = kind === 'Before' ? '<' : kind === 'SameOrBefore' ? '<=' : kind === 'After' ? '>' : '>=';
+    const beforeish = op === '<' || op === '<=';
+
+    const lIsRange = /^ts(tz)?range\b/i.test(l.trim());
+    const rIsRange = /^ts(tz)?range\b/i.test(r.trim());
+    // `I before X` → the whole interval ends before X.
+    if (lIsRange) l = `${beforeish ? 'upper' : 'lower'}(${l})`;
+    // `X before I` → X is before the interval starts.
+    if (rIsRange) r = `${beforeish ? 'lower' : 'upper'}(${r})`;
+
+    return `${l} ${op} ${r}`;
+  }
+
+  private overlapsToSql(expr: ElmBinaryOp, context: string): string {
+    const [left, right] = expr.operand;
+    const l = this.exprToSqlInline(left, context);
+    const r = this.exprToSqlInline(right, context);
+    return `${l} && ${r}`;
+  }
+
+  // ─── Quantity literals ─────────────────────────────────────────────────────
+  //
+  // Temporal units render as Postgres INTERVAL literals so date arithmetic
+  // (`end of "Measurement Period" - 10 years`) becomes `upper(...) - INTERVAL
+  // '10 years'`. Non-temporal (UCUM) units render as the bare numeric value —
+  // the flat schema stores magnitudes without units, so `HbA1c > 9 '%'`
+  // compares value_quantity > 9.
+
+  private quantityToSql(expr: ElmQuantity): string {
+    const unit = normalizeTemporalUnit(expr.unit);
+    if (unit) {
+      return `INTERVAL '${expr.value} ${unit}'`;
+    }
+    return String(expr.value);
+  }
+
   // ─── Exists ───────────────────────────────────────────────────────────────
 
   private existsToSql(operand: ElmExpression, context: string): string {
-    if (operand.type === 'ExpressionRef' && this.patientAlias && this.expressionRefHasSubjectId(operand)) {
-      const cte = toSqlIdentifier(operand.name);
-      return `EXISTS (SELECT 1 FROM ${cte} AS _cor WHERE _cor.subject_id = ${this.patientAlias}.id)`;
+    // When a patient row is in scope (per-patient define or Query over [Patient]),
+    // `exists X` means "exists FOR THIS PATIENT" — correlate the subquery on the
+    // patient id. Without this, `exists [Procedure: Mastectomy]` evaluates
+    // population-wide: one boolean row, COUNT(*) always 1, populations wrong.
+    const patientAlias = this.currentPatientAlias;
+    const keyCol = patientAlias ? this.existsKeyColumnFor(operand) : null;
+
+    if (operand.type === 'ExpressionRef' && patientAlias && keyCol) {
+      const cte = toSqlIdentifier((operand as ElmExpressionRef).name);
+      return `EXISTS (SELECT 1 FROM ${cte} _e WHERE _e.${keyCol} = ${patientAlias}.id)`;
     }
     const inner = this.exprToSqlInline(operand, context);
-    if (/^\s*SELECT\b/i.test(inner)) return `EXISTS (${inner})`;
-    return `EXISTS (SELECT 1 FROM (${inner}) _e)`;
+    const correlation = patientAlias && keyCol ? ` WHERE _e.${keyCol} = ${patientAlias}.id` : '';
+    if (/^\s*SELECT\b/i.test(inner)) {
+      return `EXISTS (SELECT 1 FROM (${inner}) _e${correlation})`;
+    }
+    return `EXISTS (SELECT 1 FROM (${inner}) _e${correlation})`;
+  }
+
+  /**
+   * Column to correlate an EXISTS operand against the in-scope patient row, or
+   * null when the operand's row shape is unknown (correlation is then skipped
+   * rather than guessed — an uncorrelated EXISTS is the pre-existing behavior).
+   */
+  private existsKeyColumnFor(operand: ElmExpression): string | null {
+    if (operand.type === 'ExpressionRef') {
+      const ref = toSqlIdentifier((operand as ElmExpressionRef).name);
+      return this.defineKeyColumn.get(ref) ?? null;
+    }
+    const resource = rootRetrieveResource(operand);
+    if (resource) return resource === 'Patient' ? 'id' : 'subject_id';
+    return null;
   }
 
   // ─── Type guards (Is / As) ────────────────────────────────────────────────
@@ -924,9 +1116,16 @@ export class ElmToSqlTranspiler {
       return 'SELECT COUNT(*) AS patient_count FROM patient_view';
     }
 
+    // Population counts are PATIENT counts. A population define written as a
+    // resource query (e.g. Numerator = mammography observations during MP)
+    // yields resource rows — a patient with two mammograms must still count
+    // once, so count DISTINCT over the CTE's patient-key column
+    // (id for patient-shaped rows, subject_id for resource-shaped rows).
     const cols = populations.map(p => {
       const cte = toSqlIdentifier(p);
-      return `  (SELECT COUNT(*) FROM ${cte}) AS ${cte}_count`;
+      const keyCol = this.defineKeyColumn.get(cte);
+      const counter = keyCol ? `COUNT(DISTINCT ${keyCol})` : 'COUNT(*)';
+      return `  (SELECT ${counter} FROM ${cte}) AS ${cte}_count`;
     });
 
     return `SELECT\n${cols.join(',\n')}`;
@@ -939,7 +1138,7 @@ export class ElmToSqlTranspiler {
   }
 
   private patientBirthdateRef(): string {
-    return this.patientAlias ?? 'Patient';
+    return this.currentPatientAlias ?? 'Patient';
   }
 
   private isPatientRetrieve(expr: ElmExpression): boolean {

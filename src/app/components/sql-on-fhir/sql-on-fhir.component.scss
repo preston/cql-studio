@@ -11,3 +11,20 @@
   opacity: 0.65;
   cursor: not-allowed;
 }
+
+.sql-patient-results {
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.sql-patient-row {
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--bs-secondary-bg);
+  }
+
+  &:last-child {
+    border-bottom: 0 !important;
+  }
+}
