@@ -5,7 +5,7 @@ import { ValueSetDependencyNode, ValueSetDependencyStatus, ValueSetDependencyTre
 
 @Component({
   selector: 'app-value-set-dependency-tree',
-  standalone: true,
+
   templateUrl: './value-set-dependency-tree.component.html'
 })
 export class ValueSetDependencyTreeComponent {

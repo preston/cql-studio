@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
-import { Component, signal, ElementRef, HostBinding, AfterViewInit, viewChild, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, signal, ElementRef, HostBinding, AfterViewInit, viewChild, inject, afterNextRender, Injector } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -48,9 +48,9 @@ interface CqlFile {
 
 @Component({
   selector: 'app-fhir-uploader',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [DecimalPipe, FormsModule],
   templateUrl: './fhir-uploader.component.html',
+
   styleUrl: './fhir-uploader.component.scss'
 })
 export class FhirUploaderComponent implements AfterViewInit {
@@ -86,6 +86,7 @@ export class FhirUploaderComponent implements AfterViewInit {
   protected settingsService = inject(SettingsService);
   private router = inject(Router);
   private http = inject(HttpClient);
+  private injector = inject(Injector);
 
   constructor() {
     // Initialize with the effective FHIR base URL from settings
@@ -107,11 +108,12 @@ export class FhirUploaderComponent implements AfterViewInit {
 
   private focusModalButton(buttonRef: ElementRef<HTMLButtonElement> | undefined): void {
     if (buttonRef?.nativeElement) {
-      // Use setTimeout to ensure the DOM is updated
-      setTimeout(() => {
-        buttonRef.nativeElement.focus();
-      }, 0);
+      queueMicrotask(() => buttonRef.nativeElement.focus());
     }
+  }
+
+  private scheduleModalFocus(buttonRef: () => ElementRef<HTMLButtonElement> | undefined): void {
+    afterNextRender(() => this.focusModalButton(buttonRef()), { injector: this.injector });
   }
 
   onDragOver(event: DragEvent): void {
@@ -689,10 +691,7 @@ export class FhirUploaderComponent implements AfterViewInit {
     this.modalMessage.set(message);
     this.modalType.set(type);
     this.showUploadModal.set(true);
-    // Focus the OK button after the modal is shown
-    setTimeout(() => {
-      this.focusModalButton(this.resultModalButton());
-    }, 100);
+    this.scheduleModalFocus(() => this.resultModalButton());
   }
 
   closeModal(): void {
@@ -703,18 +702,12 @@ export class FhirUploaderComponent implements AfterViewInit {
 
   showExpungeConfirmation(): void {
     this.showExpungeModal.set(true);
-    // Focus the confirm button after the modal is shown
-    setTimeout(() => {
-      this.focusModalButton(this.expungeConfirmButton());
-    }, 100);
+    this.scheduleModalFocus(() => this.expungeConfirmButton());
   }
 
   showPurgeConfirmation(): void {
     this.showPurgeModal.set(true);
-    // Focus the confirm button after the modal is shown
-    setTimeout(() => {
-      this.focusModalButton(this.purgeConfirmButton());
-    }, 100);
+    this.scheduleModalFocus(() => this.purgeConfirmButton());
   }
 
   confirmExpunge(): void {

@@ -16,4 +16,22 @@
   .dropdown-item label {
     cursor: pointer;
   }
+
+  .clipboard-item-json-viewer {
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    app-syntax-highlighter {
+      display: block;
+      max-width: 100%;
+    }
+
+    app-syntax-highlighter ::ng-deep .syntax-highlighter,
+    app-syntax-highlighter ::ng-deep .syntax-highlighter code {
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: 100%;
+    }
+  }
 }

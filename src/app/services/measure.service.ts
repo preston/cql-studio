@@ -139,6 +139,21 @@ export class MeasureService extends BaseService {
     return this.http.delete<void>(`${this.measureReportPath()}/${id}`, { headers: this.headers() });
   }
 
+  createMeasureReport(report: MeasureReport): Observable<MeasureReport> {
+    return this.http.post<MeasureReport>(this.measureReportPath(), report, { headers: this.headers() });
+  }
+
+  putMeasureReport(report: MeasureReport): Observable<MeasureReport> {
+    if (!report.id?.trim()) {
+      throw new Error('MeasureReport.id is required for update.');
+    }
+    return this.http.put<MeasureReport>(
+      `${this.measureReportPath()}/${report.id}`,
+      report,
+      { headers: this.headers() },
+    );
+  }
+
   evaluateMeasure(measureId: string, params: EvaluateMeasureParams): Observable<MeasureReport> {
     const parameters: Parameters = {
       resourceType: 'Parameters',

@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, output, computed, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Library } from 'fhir/r4';
 import { SettingsService } from '../../../services/settings.service';
@@ -9,9 +8,9 @@ import { LibraryService } from '../../../services/library.service';
 
 @Component({
   selector: 'app-new-guideline-modal',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './new-guideline-modal.component.html',
+
   styleUrl: './new-guideline-modal.component.scss'
 })
 export class NewGuidelineModalComponent {

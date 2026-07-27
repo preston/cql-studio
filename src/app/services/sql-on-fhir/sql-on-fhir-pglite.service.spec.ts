@@ -63,6 +63,25 @@ describe('SqlOnFhirPgliteService', () => {
     expect(result.rows[0]).toMatchObject({ id: 'pat-1', gender: 'female', name_family: 'Doe' });
   });
 
+  it('seeds value_set_expansion rows with optional version column', async () => {
+    const tables = emptyFlatTables();
+    tables.value_set_expansion.push(
+      {
+        value_set_id: 'http://example.org/vs/Mammography',
+        code: '24605-8',
+        system: 'http://loinc.org',
+        display: 'MG',
+        version: '2024-01',
+      },
+    );
+    await service.seed('test-vs-version', tables);
+    const result = await service.execute(`
+      SELECT code, version FROM value_set_expansion
+      WHERE value_set_id = 'http://example.org/vs/Mammography'
+    `);
+    expect(result.rows).toEqual([{ code: '24605-8', version: '2024-01' }]);
+  });
+
   it('seeds value_set_expansion rows and supports a value-set IN-style join', async () => {
     const tables = emptyFlatTables();
     tables.observation_view.push({

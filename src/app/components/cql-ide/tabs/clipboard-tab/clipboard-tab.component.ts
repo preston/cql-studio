@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, computed, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { output } from '@angular/core';
 import { IdeStateService } from '../../../../services/ide-state.service';
@@ -14,9 +13,9 @@ import {
 
 @Component({
   selector: 'app-clipboard-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: 'clipboard-tab.component.html',
+
   styleUrls: ['clipboard-tab.component.scss']
 })
 export class ClipboardTabComponent {

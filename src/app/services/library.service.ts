@@ -81,6 +81,41 @@ export class LibraryService extends BaseService {
 		return this.http.get<Library>(this.urlFor(id), { headers: this.headers() });
 	}
 
+	findByNameAndVersion(name: string, version?: string): Observable<Library | null> {
+		let url = this.url() + `?name=${encodeURIComponent(name)}&_count=1`;
+		if (version) {
+			url += `&version=${encodeURIComponent(version)}`;
+		}
+		return this.http.get<Bundle>(url, { headers: this.headers() }).pipe(
+			map(bundle => {
+				const entry = bundle.entry?.[0]?.resource;
+				return entry?.resourceType === 'Library' ? entry as Library : null;
+			}),
+			catchError(() => of(null))
+		);
+	}
+
+	getElmXml(library: Library): Observable<string> {
+		const content = library.content?.find(c => c.contentType === 'application/elm+xml');
+		if (!content) {
+			return of('');
+		}
+		if (content.data) {
+			try {
+				return of(decodeUtf8Base64(content.data));
+			} catch {
+				return of('');
+			}
+		}
+		if (content.url) {
+			const headers = new HttpHeaders({ 'Accept': 'application/xml, text/xml' });
+			return this.http.get(content.url, { headers, responseType: 'text' }).pipe(
+				catchError(() => of(''))
+			);
+		}
+		return of('');
+	}
+
 	getCqlContent(library: Library): Observable<{ cqlContent: string; fromUrl: boolean }> {
 		const content = library.content?.find(c => c.contentType === 'text/cql');
 		if (!content) {

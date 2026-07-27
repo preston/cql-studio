@@ -74,7 +74,7 @@
                       @for (shortcut of getAllShortcuts(); track shortcut.key) {
                         <div class="col-6">
                           <div class="d-flex justify-content-between align-items-center p-2 rounded">
-                            <span class="small" [title]="shortcut?.description">{{ shortcut?.description }}</span>
+                            <span class="small" [title]="$safeNavigationMigration(shortcut?.description)">{{ shortcut?.description }}</span>
                             <kbd class="bg-dark text-light border border-secondary px-2 py-1 rounded" style="font-size: 0.75rem;">{{ shortcut?.key }}</kbd>
                           </div>
                         </div>

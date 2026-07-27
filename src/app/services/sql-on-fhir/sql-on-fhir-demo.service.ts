@@ -10,13 +10,14 @@ import { Observable, forkJoin } from 'rxjs';
 import { map } from 'rxjs/operators';
 import type { Bundle, Library, ValueSet } from 'fhir/r4';
 import { decodeUtf8Base64 } from '../utf8-encoding.lib';
+import { validateCms125DemoBundle } from './sql-on-fhir-execution-data.lib';
 
 export interface DemoMeasureContent {
   /** A FHIR Library resource with embedded base64 CQL in `content[0].data`. */
   library: Library;
   /** A small synthetic Patient/Encounter/Observation/Procedure Bundle. */
   bundle: Bundle;
-  /** Pre-expanded ValueSets referenced by the library, keyed by canonical URL. */
+  /** ValueSets referenced by the library (compose definitions). */
   valueSets: ValueSet[];
   /** Decoded CQL source (UTF-8), convenient for display alongside the Library. */
   cqlSource: string;
@@ -25,6 +26,7 @@ export interface DemoMeasureContent {
 }
 
 const CMS125_BASE = '/fhir/sql-on-fhir';
+export const CMS125_DATA_KEY = 'cms125-v1';
 const CMS125_PATHS = {
   library: `${CMS125_BASE}/cms125-library.json`,
   bundle: `${CMS125_BASE}/cms125-bundle.json`,
@@ -34,6 +36,8 @@ const CMS125_PATHS = {
     `${CMS125_BASE}/valuesets/office-visit.json`,
   ],
 } as const;
+
+export { validateCms125DemoBundle } from './sql-on-fhir-execution-data.lib';
 
 @Injectable({ providedIn: 'root' })
 export class SqlOnFhirDemoService {
@@ -45,13 +49,40 @@ export class SqlOnFhirDemoService {
       bundle: this.http.get<Bundle>(CMS125_PATHS.bundle),
       valueSets: forkJoin(CMS125_PATHS.valueSets.map(p => this.http.get<ValueSet>(p))),
     }).pipe(
-      map(({ library, bundle, valueSets }) => ({
-        library,
-        bundle,
-        valueSets,
-        cqlSource: decodeLibraryCql(library),
-        dataKey: 'cms125-v1',
-      })),
+      map(({ library, bundle, valueSets }) => {
+        validateCms125DemoBundle(bundle);
+        const validated = valueSets.filter(
+          vs => vs.url?.trim() && (vs.compose?.include?.length ?? 0) > 0,
+        );
+        if (validated.length !== CMS125_PATHS.valueSets.length) {
+          throw new Error(
+            `Expected ${CMS125_PATHS.valueSets.length} CMS125 value sets with compose definitions; loaded ${validated.length}.`,
+          );
+        }
+        return {
+          library,
+          bundle,
+          valueSets: validated,
+          cqlSource: decodeLibraryCql(library),
+          dataKey: CMS125_DATA_KEY,
+        };
+      }),
+    );
+  }
+
+  loadCms125ValueSets(): Observable<ValueSet[]> {
+    return forkJoin(CMS125_PATHS.valueSets.map(p => this.http.get<ValueSet>(p))).pipe(
+      map(valueSets => {
+        const validated = valueSets.filter(
+          vs => vs.url?.trim() && (vs.compose?.include?.length ?? 0) > 0,
+        );
+        if (validated.length !== CMS125_PATHS.valueSets.length) {
+          throw new Error(
+            `Expected ${CMS125_PATHS.valueSets.length} CMS125 value sets with compose definitions; loaded ${validated.length}.`,
+          );
+        }
+        return validated;
+      }),
     );
   }
 }

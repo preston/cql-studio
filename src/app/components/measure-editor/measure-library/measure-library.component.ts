@@ -1,9 +1,8 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Measure } from 'fhir/r4';
 import { MeasureService } from '../../../services/measure.service';
@@ -13,9 +12,9 @@ import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-measure-library',
-  standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './measure-library.component.html',
+
   styleUrl: './measure-library.component.scss'
 })
 export class MeasureLibraryComponent implements OnInit {

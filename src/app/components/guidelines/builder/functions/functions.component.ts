@@ -1,16 +1,15 @@
 // Author: Preston Lee
 
 import { Component, signal, inject, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GuidelinesStateService, CqlFunction } from '../../../../services/guidelines-state.service';
 import { GuidelineFunctionEditorComponent } from '../function-editor/function-editor.component';
 
 @Component({
   selector: 'app-functions',
-  standalone: true,
-  imports: [CommonModule, FormsModule, GuidelineFunctionEditorComponent],
+  imports: [FormsModule, GuidelineFunctionEditorComponent],
   templateUrl: './functions.component.html',
+
   styleUrl: './functions.component.scss'
 })
 export class FunctionsComponent {

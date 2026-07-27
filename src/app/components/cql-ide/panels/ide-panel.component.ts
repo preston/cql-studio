@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, output, viewChild, ElementRef, HostListener, inject, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { CdkDropList, CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { IdePanel, IdePanelTab } from './ide-panel-tab.interface';
 import { IdeStateService, TabDataScope } from '../../../services/ide-state.service';
@@ -12,6 +11,7 @@ export interface PanelTabListData {
 }
 import { LibraryService } from '../../../services/library.service';
 import { TranslationService } from '../../../services/translation.service';
+import { LibraryTranslationContextBuilder } from '../../../services/library-translation-context.lib';
 import { SettingsService } from '../../../services/settings.service';
 import { ToastService } from '../../../services/toast.service';
 
@@ -27,9 +27,7 @@ import { ClipboardTabComponent } from '../tabs/clipboard-tab/clipboard-tab.compo
 
 @Component({
   selector: 'app-ide-panel',
-  standalone: true,
   imports: [
-    CommonModule,
     CdkDropList,
     CdkDrag,
     NavigationTabComponent,
@@ -42,6 +40,7 @@ import { ClipboardTabComponent } from '../tabs/clipboard-tab/clipboard-tab.compo
     ClipboardTabComponent
   ],
   templateUrl: './ide-panel.component.html',
+
   styleUrls: ['./ide-panel.component.scss']
 })
 export class IdePanelComponent {
@@ -76,6 +75,7 @@ export class IdePanelComponent {
   );
   private libraryService = inject(LibraryService);
   private translationService = inject(TranslationService);
+  private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
   private settingsService = inject(SettingsService);
   private toastService = inject(ToastService);
 
@@ -167,7 +167,6 @@ export class IdePanelComponent {
         // Delete the library from the server
         this.libraryService.delete(activeLibrary.library).subscribe({
           next: () => {
-            console.log('Library deleted from server successfully');
             this.ideStateService.removeLibraryResource(activeLibraryId);
             this.ideStateService.selectLibraryResource('');
             this.ideStateService.invalidateTabData(TabDataScope.LibraryList);
@@ -312,12 +311,11 @@ export class IdePanelComponent {
     const cqlContent = this.getActiveLibraryCqlContent();
     if (cqlContent) {
       this.ideStateService.setTranslating(true);
-      
-      // Ensure translation assets are ready before translating
-      await this.translationService.ensureTranslationAssetsLoaded();
 
-      // Translate CQL to ELM with the current editor content
-      const translationResult = this.translationService.translateCqlToElm(cqlContent);
+      const translationResult = await this.translationService.translateCqlToElmAsync(
+        cqlContent,
+        this.libraryTranslationContextBuilder.fromLibraryResource(this.ideStateService.getActiveLibraryResource())
+      );
       
       // Update translation state with errors/warnings
       this.ideStateService.setTranslationErrors(translationResult.errors);
@@ -342,7 +340,6 @@ export class IdePanelComponent {
           timestamp: new Date()
         });
       } else {
-        console.log('Translation successful');
         
         // Add success message to output section
         const warningText = translationResult.warnings.length > 0 
@@ -371,12 +368,10 @@ export class IdePanelComponent {
 
   // AI Tab event handlers
   onInsertCqlCode(code: string): void {
-    console.log('Insert CQL code:', code);
     this.insertCqlCode.emit(code);
   }
 
   onReplaceCqlCode(code: string): void {
-    console.log('Replace CQL code:', code);
     this.replaceCqlCode.emit(code);
   }
 }

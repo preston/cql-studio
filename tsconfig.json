@@ -18,8 +18,7 @@
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
     "typeCheckHostBindings": true,
-    "strictTemplates": true,
-    "enableControlFlow": true
+    "strictTemplates": true
   },
   "files": [],
   "references": [

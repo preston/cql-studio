@@ -1,14 +1,13 @@
 // Author: Preston Lee
 
 import { Component, input, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Plan, PlanStep } from '../../../../models/plan.model';
 
 @Component({
   selector: 'app-plan-display',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './plan-display.component.html',
+
   styleUrls: ['./plan-display.component.scss']
 })
 export class PlanDisplayComponent {

@@ -1,16 +1,15 @@
 // Author: Preston Lee
 
 import { Component, input, AfterViewInit, effect, ElementRef, viewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
 
 // Import PrismJS dynamically to avoid CommonJS issues
 declare const Prism: any;
 
 @Component({
   selector: 'app-syntax-highlighter',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './syntax-highlighter.component.html',
+
   styleUrls: ['./syntax-highlighter.component.scss']
 })
 export class SyntaxHighlighterComponent implements AfterViewInit {
@@ -21,6 +20,8 @@ export class SyntaxHighlighterComponent implements AfterViewInit {
   preElement = viewChild<ElementRef>('preElement');
 
   private highlightSeq = 0;
+  private prismRetryFrames = 0;
+  private static readonly MAX_PRISM_RETRY_FRAMES = 10;
 
   constructor() {
     // Reactively highlight code when inputs change
@@ -47,12 +48,14 @@ export class SyntaxHighlighterComponent implements AfterViewInit {
       codeElement.textContent = code;
       
       if (code && typeof Prism !== 'undefined') {
+        this.prismRetryFrames = 0;
         // Auto-detect language if not specified
         const detectedLanguage = this.detectLanguage();
         const languageClass = `language-${detectedLanguage}`;
         
-        // Set the language class on the code element (required for prism-js-fold and line numbers)
+        // Set language on both elements so Prism theme and line-number gutter padding apply to <pre>
         codeElement.className = languageClass;
+        this.preElement()!.nativeElement.className = `syntax-highlighter ${languageClass}${this.showLineNumbers() ? ' line-numbers' : ''}`;
 
         // Defer heavy work (pretty JSON + Prism highlighting) until the browser is idle,
         // so the UI can remain responsive while the console card is being added.
@@ -97,11 +100,14 @@ export class SyntaxHighlighterComponent implements AfterViewInit {
         // Clear the element if there's no code
         codeElement.textContent = '';
         codeElement.className = '';
+        this.preElement()!.nativeElement.className = `syntax-highlighter${this.showLineNumbers() ? ' line-numbers' : ''}`;
       } else {
-        // PrismJS not loaded yet, retry after a short delay
-        setTimeout(() => {
-          this.highlightCode();
-        }, 100);
+        if (this.prismRetryFrames < SyntaxHighlighterComponent.MAX_PRISM_RETRY_FRAMES) {
+          this.prismRetryFrames++;
+          requestAnimationFrame(() => this.highlightCode());
+        } else {
+          this.prismRetryFrames = 0;
+        }
       }
     }
   }

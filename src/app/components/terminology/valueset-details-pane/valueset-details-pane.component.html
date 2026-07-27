@@ -83,7 +83,7 @@
                 </span>
               </div>
             }
-            @if (selectedValueSet()?.experimental !== undefined) {
+            @if ($safeNavigationMigration(selectedValueSet()?.experimental) !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Experimental</div>
                 <span class="badge" 
@@ -96,7 +96,7 @@
             @if (selectedValueSet()?.date) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Date</div>
-                <div>{{ formatDate(selectedValueSet()?.date) }}</div>
+                <div>{{ formatDate($safeNavigationMigration(selectedValueSet()?.date)) }}</div>
               </div>
             }
             @if (selectedValueSet()?.publisher) {
@@ -125,7 +125,7 @@
                 <div class="text-break">{{ selectedValueSet()?.copyright }}</div>
               </div>
             }
-            @if (selectedValueSet()?.immutable !== undefined) {
+            @if ($safeNavigationMigration(selectedValueSet()?.immutable) !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Immutable</div>
                 <span class="badge" 
@@ -272,10 +272,10 @@
             @if (selectedValueSet()?.compose?.lockedDate) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Locked Date</div>
-                <div>{{ formatDate(selectedValueSet()?.compose?.lockedDate) }}</div>
+                <div>{{ formatDate($safeNavigationMigration(selectedValueSet()?.compose?.lockedDate)) }}</div>
               </div>
             }
-            @if (selectedValueSet()?.compose?.inactive !== undefined) {
+            @if ($safeNavigationMigration(selectedValueSet()?.compose?.inactive) !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Inactive</div>
                 <span class="badge" 
@@ -376,16 +376,16 @@
             @if (selectedValueSet()?.expansion?.timestamp) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Timestamp</div>
-                <div>{{ formatDate(selectedValueSet()?.expansion?.timestamp) }}</div>
+                <div>{{ formatDate($safeNavigationMigration(selectedValueSet()?.expansion?.timestamp)) }}</div>
               </div>
             }
-            @if (selectedValueSet()?.expansion?.total !== undefined) {
+            @if ($safeNavigationMigration(selectedValueSet()?.expansion?.total) !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Total</div>
                 <div>{{ selectedValueSet()?.expansion?.total }}</div>
               </div>
             }
-            @if (selectedValueSet()?.expansion?.offset !== undefined) {
+            @if ($safeNavigationMigration(selectedValueSet()?.expansion?.offset) !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Offset</div>
                 <div>{{ selectedValueSet()?.expansion?.offset }}</div>
@@ -435,7 +435,7 @@
             @if (selectedValueSet()?.meta?.lastUpdated) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Last Updated</div>
-                <div>{{ formatDate(selectedValueSet()?.meta?.lastUpdated) }}</div>
+                <div>{{ formatDate($safeNavigationMigration(selectedValueSet()?.meta?.lastUpdated)) }}</div>
               </div>
             }
             @if (selectedValueSet()?.meta?.profile && selectedValueSet()!.meta!.profile!.length > 0) {

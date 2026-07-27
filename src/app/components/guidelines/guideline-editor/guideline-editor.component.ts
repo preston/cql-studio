@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, output, OnDestroy, signal, computed, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { SummaryComponent } from '../builder/summary/summary.component';
@@ -25,9 +24,7 @@ import { decodeUtf8Base64, encodeUtf8Base64 } from '../../../services/utf8-encod
 
 @Component({
   selector: 'app-guideline-editor',
-  standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     SummaryComponent,
     FunctionsComponent,
@@ -41,6 +38,7 @@ import { decodeUtf8Base64, encodeUtf8Base64 } from '../../../services/utf8-encod
     ExternalCqlComponent
   ],
   templateUrl: './guideline-editor.component.html',
+
   styleUrl: './guideline-editor.component.scss'
 })
 export class GuidelineEditorComponent implements OnInit, OnDestroy {
@@ -197,8 +195,7 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
     const cqlContent = this.cqlGenerationService.generateCql(artifact);
 
     // Translate to ELM for validation (ensure translation assets are ready)
-    await this.translationService.ensureTranslationAssetsLoaded();
-    const translationResult = this.translationService.translateCqlToElm(cqlContent);
+    const translationResult = await this.translationService.translateCqlToElmAsync(cqlContent);
     
     if (translationResult.hasErrors) {
       const errorMessage = translationResult.errors.join('; ');
@@ -256,11 +253,19 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
 
     this.libraryService.put(updatedLibrary).subscribe({
       next: (library: Library) => {
+        if (library.name) {
+          this.translationService.invalidateIncludedLibraryCache(
+            library.name,
+            library.version ?? null,
+            null,
+            cqlContent
+          );
+        }
         this.guidelinesStateService.setLibrary(library);
         this.guidelinesStateService.clearDirty();
         this.guidelinesStateService.setSaving(false);
         this.statusMessage.set('Guideline saved successfully');
-        setTimeout(() => this.statusMessage.set(''), 3000);
+        this.runAfterDelay(3000, () => this.statusMessage.set(''));
       },
       error: (error) => {
         const errorMessage = this.getErrorMessage(error);
@@ -298,6 +303,18 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
     if (this.library()?.id) {
       this.router.navigate(['/guidelines', this.library().id, 'testing']);
     }
+  }
+
+  private runAfterDelay(delayMs: number, callback: () => void): void {
+    const deadline = performance.now() + delayMs;
+    const tick = (): void => {
+      if (performance.now() >= deadline) {
+        callback();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
   }
 }
 

@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, signal, inject, computed, ViewChild, ElementRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, signal, inject, computed, viewChild, ElementRef, afterNextRender, Injector } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { Subject } from 'rxjs';
@@ -22,13 +21,13 @@ export interface SubjectOption {
 
 @Component({
   selector: 'app-measure-run-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, MeasureReportViewComponent],
+  imports: [FormsModule, MeasureReportViewComponent],
   templateUrl: './measure-run-tab.component.html',
+
   styleUrl: './measure-run-tab.component.scss'
 })
 export class MeasureRunTabComponent {
-  @ViewChild('subjectResultsList') subjectResultsListRef?: ElementRef<HTMLUListElement>;
+  subjectResultsListRef = viewChild<ElementRef<HTMLUListElement>>('subjectResultsList');
 
   measure = input<Measure | null>(null);
 
@@ -60,6 +59,7 @@ export class MeasureRunTabComponent {
   private patientService = inject(PatientService);
   private settingsService = inject(SettingsService);
   private toastService = inject(ToastService);
+  private injector = inject(Injector);
   private subjectSearchTrigger = new Subject<string>();
 
   constructor() {
@@ -187,11 +187,11 @@ export class MeasureRunTabComponent {
   }
 
   private scrollHighlightIntoView(index: number): void {
-    setTimeout(() => {
-      const list = this.subjectResultsListRef?.nativeElement;
+    afterNextRender(() => {
+      const list = this.subjectResultsListRef()?.nativeElement;
       const item = list?.querySelector(`[data-subject-index="${index}"]`);
       (item as HTMLElement)?.scrollIntoView({ block: 'nearest' });
-    }, 0);
+    }, { injector: this.injector });
   }
 
   protected selectSubjectOption(option: SubjectOption): void {
@@ -202,7 +202,7 @@ export class MeasureRunTabComponent {
   }
 
   protected onSubjectBlur(): void {
-    setTimeout(() => this.subjectSearchOpen.set(false), 200);
+    this.runAfterDelay(200, () => this.subjectSearchOpen.set(false));
   }
 
   protected async run(): Promise<void> {
@@ -249,5 +249,17 @@ export class MeasureRunTabComponent {
     const year = now.getFullYear();
     this.periodStart.set(`${year}-01-01`);
     this.periodEnd.set(`${year}-12-31`);
+  }
+
+  private runAfterDelay(delayMs: number, callback: () => void): void {
+    const deadline = performance.now() + delayMs;
+    const tick = (): void => {
+      if (performance.now() >= deadline) {
+        callback();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
   }
 }

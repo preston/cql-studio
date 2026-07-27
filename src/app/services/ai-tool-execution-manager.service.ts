@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of, throwError, Subject, firstValueFrom } from 'rxjs';
 import { catchError, tap, timeout } from 'rxjs/operators';
 import { ToolOrchestratorService, ToolResult } from './tool-orchestrator.service';
@@ -43,17 +43,15 @@ export class AiToolExecutionManagerService {
   public executionEvents = this.executionEvents$.asObservable();
   private readonly MAX_TOOL_RETRY_ATTEMPTS = 1;
   private readonly TOOL_RESULTS_SUMMARY_CHAR_LIMIT = 2000;
-  
-  constructor(
-    private toolOrchestrator: ToolOrchestratorService,
-    private stateService: AiConversationStateService,
-    private planningService: AiPlanningService,
-    private toolPolicyService: ToolPolicyService,
-    private aiService: AiService,
-    private conversationManager: ConversationManagerService,
-    private ideStateService: IdeStateService,
-    private settingsService: SettingsService
-  ) {}
+
+  private readonly toolOrchestrator = inject(ToolOrchestratorService);
+  private readonly stateService = inject(AiConversationStateService);
+  private readonly planningService = inject(AiPlanningService);
+  private readonly toolPolicyService = inject(ToolPolicyService);
+  private readonly aiService = inject(AiService);
+  private readonly conversationManager = inject(ConversationManagerService);
+  private readonly ideStateService = inject(IdeStateService);
+  private readonly settingsService = inject(SettingsService);
   
   /**
    * Generate unique key for a tool call (stable regardless of param key order)

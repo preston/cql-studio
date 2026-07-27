@@ -1,15 +1,14 @@
 // Author: Preston Lee
 
 import { Component, input, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseElement } from '../../../../../services/guidelines-state.service';
 
 @Component({
   selector: 'app-artifact-element',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './artifact-element.component.html',
+
   styleUrl: './artifact-element.component.scss'
 })
 export class ArtifactElementComponent {

@@ -14,6 +14,10 @@ import {
   stringAsSource
 } from '@cqframework/cql/cql-to-elm';
 import { CqlLocatorUtilsService } from './cql-locator-utils.service';
+import { CqlLibrarySourceService, LibraryTranslationContext } from './cql-library-source.service';
+import { ElmIncludeParser } from './elm-include.lib';
+
+export type { LibraryTranslationContext } from './cql-library-source.service';
 
 /**
  * `CqlTranslator.toJson()` exists at runtime and in the package's
@@ -52,9 +56,12 @@ export class TranslationService {
   private modelManager: ModelManager;
   private libraryManager: LibraryManager;
   private locatorUtils = inject(CqlLocatorUtilsService);
+  private librarySourceService = inject(CqlLibrarySourceService);
+  private elmIncludeParser = inject(ElmIncludeParser);
   
   // Hardcoded FHIR version - not configurable
   private readonly FHIR_VERSION = '4.0.1';
+  private readonly MAX_INCLUDE_RESOLVE_ITERATIONS = 5;
 
   private modelInfoCache = new Map<string, string>();
   private librarySourceCache = new Map<string, string>();
@@ -160,8 +167,9 @@ export class TranslationService {
           console.warn(`FHIRHelpers version ${version} is not supported. Only ${this.FHIR_VERSION} is supported.`);
           return null;
         }
-        
-        return null;
+
+        const cachedCql = this.librarySourceService.getCachedCql(id, system, version);
+        return cachedCql ? stringAsSource(cachedCql) : null;
       }
     );
     
@@ -175,9 +183,115 @@ export class TranslationService {
   // Translation assets are loaded via ensureTranslationAssetsLoaded() and cached.
 
   /**
-   * Translate CQL to ELM using the @cqframework/cql library
-   * @param cql The CQL code to translate
-   * @returns TranslationResult containing ELM XML and any errors/warnings/messages
+   * Translate CQL to ELM, prefetching included libraries from the FHIR server first.
+   * Discovers dependencies from stored ELM and compiler output ELM (not CQL text).
+   */
+  async translateCqlToElmAsync(cql: string, context?: LibraryTranslationContext): Promise<TranslationResult> {
+    await this.ensureTranslationAssetsLoaded();
+
+    if (context?.fhirLibraryId && !context.isDirty) {
+      try {
+        await this.librarySourceService.prefetchFromStoredLibrary(context.fhirLibraryId);
+      } catch (error) {
+        console.warn('Failed to prefetch library includes from stored ELM:', error);
+      }
+    }
+
+    let result = this.translateCqlToElm(cql);
+
+    for (let iteration = 0; iteration < this.MAX_INCLUDE_RESOLVE_ITERATIONS; iteration++) {
+      const missingRefs = this.getUncachedFhirIncludesFromElm(result.elmXml);
+      if (missingRefs.length === 0) {
+        break;
+      }
+
+      const fetchedAny = await this.librarySourceService.fetchMissingIncludes(missingRefs);
+      if (!fetchedAny) {
+        break;
+      }
+
+      result = this.translateCqlToElm(cql);
+    }
+
+    return result;
+  }
+
+  /**
+   * Translate CQL to ELM and return raw exceptions, prefetching FHIR library includes first.
+   */
+  async translateCqlToElmRawAsync(cql: string, context?: LibraryTranslationContext): Promise<RawTranslationResult> {
+    await this.ensureTranslationAssetsLoaded();
+
+    if (context?.fhirLibraryId && !context.isDirty) {
+      try {
+        await this.librarySourceService.prefetchFromStoredLibrary(context.fhirLibraryId);
+      } catch (error) {
+        console.warn('Failed to prefetch library includes from stored ELM:', error);
+      }
+    }
+
+    let result = this.translateCqlToElmRaw(cql);
+
+    for (let iteration = 0; iteration < this.MAX_INCLUDE_RESOLVE_ITERATIONS; iteration++) {
+      const missingRefs = this.getUncachedFhirIncludesFromElm(result.elmXml);
+      if (missingRefs.length === 0) {
+        break;
+      }
+
+      const fetchedAny = await this.librarySourceService.fetchMissingIncludes(missingRefs);
+      if (!fetchedAny) {
+        break;
+      }
+
+      result = this.translateCqlToElmRaw(cql);
+    }
+
+    return result;
+  }
+
+  /**
+   * Drop cached CQL and compiled ELM for included libraries saved on the FHIR server.
+   * The CQL source cache and LibraryManager.compiledLibraries must both be cleared:
+   * refreshing CQL alone leaves stale function signatures in compiledLibraries.
+   */
+  invalidateIncludedLibraryCache(
+    path?: string,
+    version?: string | null,
+    system?: string | null,
+    cqlContent?: string | null
+  ): void {
+    this.librarySourceService.invalidate(path, version, system);
+    if (path && cqlContent?.trim()) {
+      this.librarySourceService.setCachedCql(path, system, version, cqlContent);
+    }
+    this.invalidateCompiledUserLibraries();
+  }
+
+  private invalidateCompiledUserLibraries(): void {
+    const mapView = this.libraryManager.compiledLibraries?.asJsMapView?.();
+    if (!mapView) {
+      return;
+    }
+
+    for (const key of [...mapView.keys()]) {
+      if (key.c8i_1 !== 'FHIRHelpers') {
+        mapView.delete(key);
+      }
+    }
+  }
+
+  private getUncachedFhirIncludesFromElm(elmXml: string | null) {
+    if (!elmXml) {
+      return [];
+    }
+    return this.elmIncludeParser.extractFhirIncludes(elmXml).filter(ref =>
+      !this.librarySourceService.hasCachedCql(ref.path, ref.system, ref.version)
+    );
+  }
+
+  /**
+   * Translate CQL to ELM using the @cqframework/cql library.
+   * Requires included libraries to already be present in the FHIR library source cache.
    */
   translateCqlToElm(cql: string): TranslationResult {
     try {
@@ -248,9 +362,8 @@ export class TranslationService {
   }
 
   /**
-   * Translate CQL to ELM and return raw exceptions (for validation use)
-   * @param cql The CQL code to translate
-   * @returns RawTranslationResult containing raw CqlCompilerException objects
+   * Translate CQL to ELM and return raw exceptions (for validation use).
+   * Requires included libraries to already be present in the FHIR library source cache.
    */
   translateCqlToElmRaw(cql: string): RawTranslationResult {
     try {

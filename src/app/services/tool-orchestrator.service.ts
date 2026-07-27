@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import { AiService, MCPTool, MCPResponse } from './ai.service';
@@ -29,25 +29,21 @@ export interface ToolResult {
   providedIn: 'root'
 })
 export class ToolOrchestratorService {
-  private readonly browserTools: ReturnType<typeof BrowserToolsRegistry.createTools>;
+  private readonly aiService = inject(AiService);
+  private readonly ideStateService = inject(IdeStateService);
+  private readonly settingsService = inject(SettingsService);
+  private readonly clipboardService = inject(ClipboardService);
+  private readonly cqlValidationService = inject(CqlValidationService);
+  private readonly cqlFormatterService = inject(CqlFormatterService);
+  private readonly fhirClientService = inject(FhirClientService);
 
-  constructor(
-    private aiService: AiService,
-    private ideStateService: IdeStateService,
-    private settingsService: SettingsService,
-    private clipboardService: ClipboardService,
-    private cqlValidationService: CqlValidationService,
-    private cqlFormatterService: CqlFormatterService,
-    private fhirClientService: FhirClientService
-  ) {
-    this.browserTools = BrowserToolsRegistry.createTools({
-      ideStateService: this.ideStateService,
-      settingsService: this.settingsService,
-      clipboardService: this.clipboardService,
-      cqlValidationService: this.cqlValidationService,
-      cqlFormatterService: this.cqlFormatterService
-    });
-  }
+  private readonly browserTools = BrowserToolsRegistry.createTools({
+    ideStateService: this.ideStateService,
+    settingsService: this.settingsService,
+    clipboardService: this.clipboardService,
+    cqlValidationService: this.cqlValidationService,
+    cqlFormatterService: this.cqlFormatterService
+  });
 
   private get browserToolsByName(): Map<string, (typeof this.browserTools)[number]> {
     const map = new Map<string, (typeof this.browserTools)[number]>();

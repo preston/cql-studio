@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, output, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   Measure,
@@ -26,9 +25,9 @@ type PasteableField =
 
 @Component({
   selector: 'app-measure-definition-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './measure-definition-tab.component.html',
+
   styleUrl: './measure-definition-tab.component.scss'
 })
 export class MeasureDefinitionTabComponent {

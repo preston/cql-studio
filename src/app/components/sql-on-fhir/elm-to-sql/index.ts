@@ -43,13 +43,14 @@ export { stripFhirNamespace, toSqlIdentifier } from './types/elm';
 
 // MeasureReport generator
 export { generateMeasureReport, sqlRowToPopulationCounts } from './measure/measure-report';
-export type {
-  PopulationCounts,
-  MeasureReportOptions,
-  FhirMeasureReport,
-  FhirMeasureReportGroup,
-  FhirMeasureReportPopulation,
-} from './measure/measure-report';
+export type { PopulationCounts, MeasureReportOptions } from './measure/measure-report';
+export { MEASURE_POPULATION_NAMES, isStandardPopulationName } from '../measure-population.lib';
+export {
+  inferMeasureUrlFromLibrary,
+  normalizeMeasureReportForServer,
+  validateMeasureReportRequiredFields,
+} from './measure/measure-report-normalize.lib';
+export type { MeasureReportServerMode } from './measure/measure-report-normalize.lib';
 
 // SQL-on-FHIR ViewDefinitions
 export {

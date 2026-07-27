@@ -1,9 +1,9 @@
 <div class="code-diff-preview border rounded p-2">
-  @if (diff.title) {
+  @if (diff().title) {
   <div class="diff-header">
-    <h6 class="mb-0">{{ diff.title }}</h6>
-    @if (diff.description) {
-    <small class="text-muted">{{ diff.description }}</small>
+    <h6 class="mb-0">{{ diff().title }}</h6>
+    @if (diff().description) {
+    <small class="text-muted">{{ diff().description }}</small>
     }
   </div>
   }
@@ -20,14 +20,14 @@
     <!-- Unified View -->
     <div class="unified-diff">
       <div class="code-block">
-        @for (line of getLines(diff.before); track $index) {
-        <div class="diff-line" [class.removed]="isLineDifferent(line, getLines(diff.after)[$index])">
+        @for (line of getLines(diff().before); track $index) {
+        <div class="diff-line" [class.removed]="isLineDifferent(line, getLines(diff().after)[$index])">
           <span class="line-number">{{ $index + 1 }}</span>
           <span class="line-content">{{ line }}</span>
         </div>
         }
-        @for (line of getLines(diff.after); track $index) {
-        @if (isLineDifferent(getLines(diff.before)[$index], line)) {
+        @for (line of getLines(diff().after); track $index) {
+        @if (isLineDifferent(getLines(diff().before)[$index], line)) {
         <div class="diff-line added">
           <span class="line-number">{{ $index + 1 }}</span>
           <span class="line-content">{{ line }}</span>
@@ -42,8 +42,8 @@
       <div class="diff-panel">
         <div class="panel-header">Before</div>
         <div class="code-block">
-          @for (line of getLines(diff.before); track $index) {
-          <div class="diff-line" [class.removed]="isLineDifferent(line, getLines(diff.after)[$index])">
+          @for (line of getLines(diff().before); track $index) {
+          <div class="diff-line" [class.removed]="isLineDifferent(line, getLines(diff().after)[$index])">
             <span class="line-number">{{ $index + 1 }}</span>
             <span class="line-content">{{ line }}</span>
           </div>
@@ -53,8 +53,8 @@
       <div class="diff-panel">
         <div class="panel-header">After</div>
         <div class="code-block">
-          @for (line of getLines(diff.after); track $index) {
-          <div class="diff-line" [class.added]="isLineDifferent(getLines(diff.before)[$index], line)">
+          @for (line of getLines(diff().after); track $index) {
+          <div class="diff-line" [class.added]="isLineDifferent(getLines(diff().before)[$index], line)">
             <span class="line-number">{{ $index + 1 }}</span>
             <span class="line-content">{{ line }}</span>
           </div>
@@ -74,4 +74,3 @@
     </button>
   </div>
 </div>
-

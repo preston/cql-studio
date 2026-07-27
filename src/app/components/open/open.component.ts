@@ -16,9 +16,9 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-open',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './open.component.html',
+
   styleUrl: './open.component.scss'
 })
 export class OpenComponent implements OnInit {

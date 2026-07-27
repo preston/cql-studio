@@ -3,15 +3,15 @@
 
 import { ChangeDetectionStrategy, Component, effect, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CqlReadonlyPreviewComponent } from '../../shared/cql-readonly-preview/cql-readonly-preview.component';
+import { SyntaxHighlighterComponent } from '../../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-sql-pipeline-cql-step',
   standalone: true,
-  imports: [FormsModule, CqlReadonlyPreviewComponent],
+  imports: [FormsModule, SyntaxHighlighterComponent],
   templateUrl: './sql-pipeline-cql-step.component.html',
   styleUrl: './sql-pipeline-cql-step.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SqlPipelineCqlStepComponent {
   readonly cqlPreview = input('');

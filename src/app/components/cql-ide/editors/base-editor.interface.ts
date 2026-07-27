@@ -12,6 +12,7 @@ export interface IdeEditor {
   clearCode(): void;
   validateSyntax(code: string): void;
   navigateToLine(lineNumber: number): void;
+  navigateToPosition(line: number, column?: number): void;
 }
 
 export interface EditorState {

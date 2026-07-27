@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { Injectable, inject } from '@angular/core';
-import { TranslationService, RawTranslationResult } from './translation.service';
+import { TranslationService, RawTranslationResult, LibraryTranslationContext } from './translation.service';
 import { CqlCompilerException } from '@cqframework/cql/cql-to-elm';
 import { CqlLocatorUtilsService } from './cql-locator-utils.service';
 import type { CqlValidationDoc } from '../models/cql-validation-doc.model';
@@ -69,14 +69,34 @@ export class CqlValidationService {
   /** Single translator invocation; prefer this when you need errors and warnings together. */
   runFullValidation(cql: string, doc?: CqlValidationDoc): FullValidationResult {
     if (!cql?.trim()) {
-      return {
-        raw: EMPTY_RAW,
-        validation: EMPTY_VALIDATION,
-        structuredErrors: [],
-        structuredWarnings: []
-      };
+      return this.emptyFullValidation();
     }
     const raw = this.translationService.translateCqlToElmRaw(cql);
+    return this.buildFullValidation(raw, doc);
+  }
+
+  async runFullValidationAsync(
+    cql: string,
+    doc?: CqlValidationDoc,
+    context?: LibraryTranslationContext
+  ): Promise<FullValidationResult> {
+    if (!cql?.trim()) {
+      return this.emptyFullValidation();
+    }
+    const raw = await this.translationService.translateCqlToElmRawAsync(cql, context);
+    return this.buildFullValidation(raw, doc);
+  }
+
+  private emptyFullValidation(): FullValidationResult {
+    return {
+      raw: EMPTY_RAW,
+      validation: EMPTY_VALIDATION,
+      structuredErrors: [],
+      structuredWarnings: []
+    };
+  }
+
+  private buildFullValidation(raw: RawTranslationResult, doc?: CqlValidationDoc): FullValidationResult {
     return {
       raw,
       validation: this.validateFromRaw(raw, doc),
@@ -114,7 +134,7 @@ export class CqlValidationService {
     severity: 'error' | 'warning' | 'info',
     doc?: CqlValidationDoc
   ): ValidationError[] {
-    return exceptions.map(exception => {
+    const validationErrors = exceptions.map(exception => {
       const message = exception.message || 'Unknown error';
       
       // Extract line/column using shared utility
@@ -163,6 +183,48 @@ export class CqlValidationService {
         column: columnNumber
       };
     });
+
+    return this.dedupeValidationErrors(validationErrors);
+  }
+
+  private dedupeValidationErrors(validationErrors: ValidationError[]): ValidationError[] {
+    const seen = new Set<string>();
+    return validationErrors.filter(error => {
+      const key = [
+        error.severity,
+        error.message,
+        error.line ?? '',
+        error.column ?? '',
+        error.from,
+        error.to
+      ].join('|');
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+  }
+
+  private dedupeStructuredErrors(structuredErrors: StructuredError[]): StructuredError[] {
+    const seen = new Set<string>();
+    return structuredErrors.filter(error => {
+      const key = [
+        error.severity,
+        error.message,
+        error.line ?? '',
+        error.column ?? ''
+      ].join('|');
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
   }
 
   /**
@@ -173,7 +235,7 @@ export class CqlValidationService {
   }
 
   getStructuredErrorsFromRaw(rawResult: RawTranslationResult): StructuredError[] {
-    return rawResult.errors.map(e => {
+    return this.dedupeStructuredErrors(rawResult.errors.map(e => {
       const locatorInfo = this.locatorUtils.extractLocatorInfo(e);
       const formattedMessage = this.locatorUtils.formatLocator(locatorInfo);
       return {
@@ -183,7 +245,7 @@ export class CqlValidationService {
         severity: 'error' as const,
         formattedMessage: `${e.message || 'Unknown error'} ${formattedMessage}`.trim()
       };
-    });
+    }));
   }
 
   getStructuredWarnings(cql: string): StructuredError[] {
@@ -191,7 +253,7 @@ export class CqlValidationService {
   }
 
   getStructuredWarningsFromRaw(rawResult: RawTranslationResult): StructuredError[] {
-    return rawResult.warnings.map(e => {
+    return this.dedupeStructuredErrors(rawResult.warnings.map(e => {
       const locatorInfo = this.locatorUtils.extractLocatorInfo(e);
       const formattedMessage = this.locatorUtils.formatLocator(locatorInfo);
       return {
@@ -201,7 +263,7 @@ export class CqlValidationService {
         severity: 'warning' as const,
         formattedMessage: `${e.message || 'Unknown warning'} ${formattedMessage}`.trim()
       };
-    });
+    }));
   }
 
   /**

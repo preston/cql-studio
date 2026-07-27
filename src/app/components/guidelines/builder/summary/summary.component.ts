@@ -1,16 +1,15 @@
 // Author: Preston Lee
 
 import { Component, computed, input, output, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Library } from 'fhir/r4';
 import { GuidelinesStateService } from '../../../../services/guidelines-state.service';
 
 @Component({
   selector: 'app-summary',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './summary.component.html',
+
   styleUrl: './summary.component.scss'
 })
 export class SummaryComponent {

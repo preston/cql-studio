@@ -1,15 +1,14 @@
 // Author: Preston Lee
 
 import { Component, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GuidelinesStateService, ErrorStatement } from '../../../../services/guidelines-state.service';
 
 @Component({
   selector: 'app-error-statement',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './error-statement.component.html',
+
   styleUrl: './error-statement.component.scss'
 })
 export class ErrorStatementComponent {

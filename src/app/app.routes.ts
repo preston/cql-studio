@@ -24,6 +24,7 @@ import { MeasureEditorComponent } from './components/measure-editor/measure-edit
 import { MeasureLibraryComponent } from './components/measure-editor/measure-library/measure-library.component';
 import { MeasureWorkspaceComponent } from './components/measure-editor/measure-workspace/measure-workspace.component';
 import { MeasureReportsListComponent } from './components/measure-editor/measure-reports-list/measure-reports-list.component';
+import { MeasureReportViewerComponent } from './components/measure-editor/measure-report-viewer/measure-report-viewer.component';
 import { ClipboardManagerComponent } from './components/clipboard-manager/clipboard-manager.component';
 import { VsacBrowserComponent } from './components/vsac-browser/vsac-browser.component';
 import { FhirRegistryImporterComponent } from './components/fhir-registry-importer/fhir-registry-importer.component';
@@ -54,12 +55,15 @@ export const routes: Routes = [
       { path: 'search', component: CodeSearchTabComponent }
     ]
   },
+  { path: 'measure-reports', component: MeasureReportsListComponent },
+  { path: 'measure-reports/:reportId', component: MeasureReportViewerComponent },
+  { path: 'measures/reports/:reportId', redirectTo: 'measure-reports/:reportId' },
+  { path: 'measures/reports', redirectTo: 'measure-reports', pathMatch: 'full' },
   {
     path: 'measures',
     component: MeasureEditorComponent,
     children: [
       { path: '', component: MeasureLibraryComponent },
-      { path: 'reports', component: MeasureReportsListComponent },
       { path: 'new', component: MeasureWorkspaceComponent },
       { path: ':id', component: MeasureWorkspaceComponent }
     ]

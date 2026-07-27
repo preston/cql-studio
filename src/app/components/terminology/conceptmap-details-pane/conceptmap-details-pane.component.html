@@ -56,7 +56,7 @@
                 </span>
               </div>
             }
-            @if (selectedConceptMap()?.experimental !== undefined) {
+            @if ($safeNavigationMigration(selectedConceptMap()?.experimental) !== undefined) {
               <div class="mb-2">
                 <strong>Experimental:</strong>
                 <span class="badge ms-2" 
@@ -68,7 +68,7 @@
             }
             @if (selectedConceptMap()?.date) {
               <div class="mb-2">
-                <strong>Date:</strong> <span class="small">{{ formatDate(selectedConceptMap()?.date) }}</span>
+                <strong>Date:</strong> <span class="small">{{ formatDate($safeNavigationMigration(selectedConceptMap()?.date)) }}</span>
               </div>
             }
             @if (selectedConceptMap()?.publisher) {
@@ -383,7 +383,7 @@
             }
             @if (selectedConceptMap()?.meta?.lastUpdated) {
               <div class="mb-1">
-                <strong>Last Updated:</strong> <span>{{ formatDate(selectedConceptMap()?.meta?.lastUpdated) }}</span>
+                <strong>Last Updated:</strong> <span>{{ formatDate($safeNavigationMigration(selectedConceptMap()?.meta?.lastUpdated)) }}</span>
               </div>
             }
             @if (selectedConceptMap()?.meta?.profile && selectedConceptMap()!.meta!.profile!.length > 0) {

@@ -13,13 +13,21 @@ import { IdeEditor, EditorState as IdeEditorState } from '../base-editor.interfa
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { CqlFormatterService } from '../../../../services/cql-formatter.service';
 import { CqlValidationService, FullValidationResult, ValidationResult } from '../../../../services/cql-validation.service';
+import { LibraryTranslationContextBuilder } from '../../../../services/library-translation-context.lib';
 import { DEFAULT_SEND_TERMINOLOGY_ROUTING } from '../../../../services/cql-execution.service';
+import { CqlDefinitionIndexService, elmColumnToCodeMirror } from '../../../../services/cql-definition-index.service';
+import { CqlDefinitionIndex, CqlReferenceMatch, isReferenceResolvableSync } from '../../../../services/elm-locator.lib';
+import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
+import {
+  createGoToDefinitionExtension,
+  reconfigureDefinitionIndex
+} from '../../../../services/cql-codemirror-go-to-definition.lib';
 
 @Component({
   selector: 'app-cql-editor',
-  standalone: true,
   imports: [FormsModule],
   templateUrl: './cql-editor.component.html',
+
   styleUrls: ['./cql-editor.component.scss']
 })
 export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
@@ -74,10 +82,16 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private ideStateService = inject(IdeStateService);
   private cqlFormatterService = inject(CqlFormatterService);
   private cqlValidationService = inject(CqlValidationService);
+  private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
+  private definitionIndexService = inject(CqlDefinitionIndexService);
+  private libraryOpenerService = inject(CqlIdeLibraryOpenerService);
+
+  private definitionIndex: CqlDefinitionIndex | null = null;
 
   // Debouncing for validation
-  private validationTimeout?: ReturnType<typeof setTimeout>;
+  private validationDebounceFrame?: number;
   private readonly VALIDATION_DEBOUNCE_MS = 250;
+  private validationGeneration = 0;
   private currentValidationErrors: string[] = [];
   private pendingLintResolvers: Array<(diagnostics: Diagnostic[]) => void> = [];
   
@@ -91,7 +105,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
     effect(() => {
       const libraryId = this.libraryId();
       if (libraryId && this.editor) {
-        console.log('Library ID changed, reinitializing editor for:', libraryId);
         this.reinitializeEditor();
         this.updateCanExecute();
       }
@@ -110,10 +123,19 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       if (!loading && !loadError && this.editorContainer()?.nativeElement && !this.editor && !this.isInitializing) {
         this.initializeEditor();
         this.setupResizeObserver();
+        this.tryConsumePendingNavigation();
       }
     });
     
     // Watch for reload trigger signal
+    effect(() => {
+      const pending = this.ideStateService.pendingEditorNavigation();
+      const libraryId = this.libraryId();
+      if (pending?.libraryId === libraryId && this.editor && !this.contentLoading()) {
+        this.tryConsumePendingNavigation();
+      }
+    });
+
     effect(() => {
       const reloadTrigger = this.ideStateService.reloadTrigger();
       const libraryId = this.libraryId();
@@ -133,22 +155,15 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         return;
       }
       
-      console.log('Reload trigger detected, updating editor', {
-        libraryId,
-        libraryContentLength: library.cqlContent.length,
-        editorContentLength: this.getValue().length
-      });
-      
       // Set flag to prevent contentChange event from triggering parent updates
       this.isUpdatingFromReload = true;
       try {
         this.setValue(library.cqlContent);
         this.updateCanExecute();
       } finally {
-        // Reset flag after a microtask to allow the editor update to complete
-        setTimeout(() => {
+        queueMicrotask(() => {
           this.isUpdatingFromReload = false;
-        }, 0);
+        });
       }
     });
 
@@ -173,46 +188,31 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   ngAfterViewInit(): void {
-    console.log('Editor ngAfterViewInit called');
     if (this.contentLoading() || this.contentLoadError()) {
       return;
     }
     if (!this.isInitializing && !this.editor && this.editorContainer()?.nativeElement) {
       this.initializeEditor();
       this.setupResizeObserver();
-    } else {
-      console.log('Skipping initialization - already initializing or editor exists');
     }
   }
 
   ngOnDestroy(): void {
-    if (this.validationTimeout) {
-      clearTimeout(this.validationTimeout);
-    }
+    this.cancelValidationDebounce();
     this.editor?.destroy();
     this.resizeObserver?.disconnect();
   }
 
   private initializeEditor(): void {
-    console.log('initializeEditor called', {
-      editorContainer: !!this.editorContainer()?.nativeElement,
-      currentValue: this._value.substring(0, 100) + '...',
-      editorExists: !!this.editor,
-      isInitializing: this.isInitializing
-    });
-    
     if (this.isInitializing) {
-      console.log('Already initializing, skipping');
       return;
     }
     
     if (!this.editorContainer()?.nativeElement) {
-      console.log('Editor container not ready, returning');
       return;
     }
     
     if (this.editor) {
-      console.log('Editor already exists, updating content');
       return;
     }
     
@@ -221,7 +221,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
     const container = this.editorContainer()!.nativeElement;
     if (container.offsetWidth === 0 || container.offsetHeight === 0) {
       this.initializationRetries++;
-      console.log(`Container has no dimensions, retry ${this.initializationRetries}/${this.maxRetries}`);
       
       if (this.initializationRetries >= this.maxRetries) {
         console.error('Max initialization retries reached, forcing initialization with fallback dimensions');
@@ -246,6 +245,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         extensions: [
           ...createCqlEditorBaseExtensions(),
           ...this.grammarManager.createExtensions(),
+          ...createGoToDefinitionExtension(this.createGoToDefinitionHandlers()),
           lintGutter(),
           linter(this.createLintSource()),
           keymap.of([
@@ -306,8 +306,37 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
             '.cm-placeholder': {
               color: '#6c757d',
               fontStyle: 'italic'
+            },
+            '.cm-tooltip': {
+              backgroundColor: '#141414',
+              border: '1px solid #3a3a3a',
+              borderRadius: '4px',
+              color: '#f5f5f5',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)'
+            },
+            '.cm-tooltip-lint': {
+              fontFamily: "'Courier New', Courier, monospace",
+              fontSize: '0.85rem',
+              lineHeight: '1.4'
+            },
+            '.cm-diagnostic': {
+              backgroundColor: '#141414',
+              color: '#f5f5f5',
+              padding: '6px 8px'
+            },
+            '.cm-diagnostic-error': {
+              borderLeftColor: '#ef4444'
+            },
+            '.cm-diagnostic-warning': {
+              borderLeftColor: '#f59e0b'
+            },
+            '.cm-diagnosticText': {
+              color: '#f5f5f5'
+            },
+            '.cm-diagnosticSource': {
+              color: '#cfcfcf'
             }
-          }),
+          }, { dark: true }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               const newValue = update.state.doc.toString();
@@ -369,7 +398,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       
       this.isInitializing = false;
       this.initializationRetries = 0; // Reset retry counter on success
-      console.log('Editor initialization completed');
+      this.tryConsumePendingNavigation();
       
       // Update form validity signal after initialization
       this._isFormValidSignal.set(initialContent.trim().length > 0);
@@ -389,15 +418,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
   
   setValue(value: string): void {
-    console.log('setValue called:', {
-      value: value.substring(0, 50) + '...',
-      isInitializing: this.isInitializing,
-      editorExists: !!this.editor,
-      currentValue: this._value.substring(0, 50) + '...'
-    });
-    
     if (this.isInitializing) {
-      console.log('Skipping setValue - already initializing');
       return;
     }
     
@@ -414,9 +435,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
           insert: this._value
         }
       });
-      console.log('setValue completed, _value updated to:', this._value.substring(0, 50) + '...');
-    } else {
-      console.log('Editor not available for setValue');
     }
   }
   
@@ -533,8 +551,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         isValidSyntax: true
       });
 
-      // Restore cursor position after a brief delay to allow editor to update
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         if (this.editor && newCursorPosition) {
           try {
             const line = this.editor.state.doc.line(newCursorPosition.line);
@@ -551,11 +568,10 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
             this.editor.focus();
           } catch (error) {
             console.warn('Failed to restore cursor position:', error);
-            // Fallback: just focus the editor
             this.editor.focus();
           }
         }
-      }, 0);
+      });
     } catch (error) {
       console.error('Error applying formatted code:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -588,43 +604,8 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       }
 
       return new Promise((resolve) => {
-        // Add this resolver to pending list
         this.pendingLintResolvers.push(resolve);
-
-        // Clear any existing timeout
-        if (this.validationTimeout) {
-          clearTimeout(this.validationTimeout);
-        }
-
-        // Debounce validation - only the last call will execute
-        // Use the current editor state when timeout executes to get latest code
-        this.validationTimeout = setTimeout(() => {
-          try {
-            // Get the latest code from the editor state (in case it changed during debounce)
-            const latestCode = this.editor?.state.doc.toString() || code;
-            const latestDoc = this.editor?.state.doc;
-            
-            if (!latestDoc) {
-              // Editor was destroyed, resolve with empty diagnostics
-              const resolvers = this.pendingLintResolvers;
-              this.pendingLintResolvers = [];
-              resolvers.forEach(r => r([]));
-              return;
-            }
-
-            const diagnostics = this.collectLintDiagnostics(latestCode, latestDoc);
-            this.emitValidationUi(diagnostics.compilerResult);
-
-            const resolvers = this.pendingLintResolvers;
-            this.pendingLintResolvers = [];
-            resolvers.forEach(r => r(diagnostics.all));
-          } catch (error) {
-            console.error('Validation error:', error);
-            const resolvers = this.pendingLintResolvers;
-            this.pendingLintResolvers = [];
-            resolvers.forEach(r => r([]));
-          }
-        }, this.VALIDATION_DEBOUNCE_MS);
+        this.scheduleValidationDebounce(code);
       });
     };
   }
@@ -638,22 +619,115 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       return;
     }
 
-    // Clear debounce and validate immediately
-    if (this.validationTimeout) {
-      clearTimeout(this.validationTimeout);
+    this.cancelValidationDebounce();
+    void this.runImmediateValidation(code);
+  }
+
+  private async runImmediateValidation(code: string): Promise<void> {
+    if (!this.editor) {
+      return;
     }
 
-    const diagnostics = this.collectLintDiagnostics(code, this.editor.state.doc);
+    const generation = ++this.validationGeneration;
+    const diagnostics = await this.collectLintDiagnosticsAsync(code, this.editor.state.doc);
+    if (generation !== this.validationGeneration) {
+      return;
+    }
+
     this.emitValidationUi(diagnostics.compilerResult);
+    this.updateDefinitionIndex(diagnostics.compilerResult);
     this.editor.dispatch({ effects: [] });
   }
 
-  private collectLintDiagnostics(
+  private updateDefinitionIndex(full: FullValidationResult): void {
+    this.definitionIndex = this.definitionIndexService.buildIndex(full.raw.elmXml);
+    if (this.editor) {
+      reconfigureDefinitionIndex(this.editor, this.definitionIndex);
+    }
+  }
+
+  private createGoToDefinitionHandlers() {
+    return {
+      findReferenceAt: (line: number, column: number): CqlReferenceMatch | null => {
+        if (!this.definitionIndex) {
+          return null;
+        }
+        return this.definitionIndexService.findReferenceAt(this.definitionIndex, line, column);
+      },
+      isResolvableSync: (match: CqlReferenceMatch): boolean => {
+        if (!this.definitionIndex) {
+          return false;
+        }
+        return isReferenceResolvableSync(match, this.definitionIndex);
+      },
+      goToDefinitionAt: async (line: number, column: number): Promise<void> => {
+        await this.handleGoToDefinition(line, column);
+      }
+    };
+  }
+
+  private async handleGoToDefinition(line: number, column: number): Promise<void> {
+    if (!this.definitionIndex || !this.editor) {
+      return;
+    }
+
+    const match = this.definitionIndexService.findReferenceAt(this.definitionIndex, line, column);
+    if (!match) {
+      return;
+    }
+
+    const target = await this.definitionIndexService.resolveDefinitionTargetAsync(match, this.definitionIndex);
+    if (!target) {
+      return;
+    }
+
+    if (target.crossLibrary && target.includeRef) {
+      const libraryId = await this.libraryOpenerService.openIncludedLibrary(target.includeRef);
+      if (!libraryId) {
+        return;
+      }
+      this.ideStateService.requestNavigateToDefinition({
+        libraryId,
+        line: target.span.startLine,
+        column: elmColumnToCodeMirror(target.span.startColumn)
+      });
+      return;
+    }
+
+    this.navigateToPosition(
+      target.span.startLine,
+      elmColumnToCodeMirror(target.span.startColumn)
+    );
+  }
+
+  private tryConsumePendingNavigation(): void {
+    const pending = this.ideStateService.peekPendingEditorNavigation();
+    if (!pending || pending.libraryId !== this.libraryId() || !this.editor) {
+      return;
+    }
+
+    const resource = this.ideStateService.libraryResources().find(lib => lib.id === pending.libraryId);
+    if (resource?.contentLoading || resource?.contentLoadError) {
+      return;
+    }
+
+    const navigation = this.ideStateService.consumePendingEditorNavigation();
+    if (navigation) {
+      this.navigateToPosition(navigation.line, navigation.column);
+    }
+  }
+
+  private getLibraryTranslationContext() {
+    const library = this.ideStateService.libraryResources().find(lib => lib.id === this.libraryId());
+    return this.libraryTranslationContextBuilder.fromLibraryResource(library);
+  }
+
+  private async collectLintDiagnosticsAsync(
     code: string,
     doc: { line: (lineNumber: number) => { from: number; to: number }; lineAt: (pos: number) => { number: number } }
-  ): { all: Diagnostic[]; compilerResult: FullValidationResult } {
+  ): Promise<{ all: Diagnostic[]; compilerResult: FullValidationResult }> {
     const charDiagnostics = scanInvalidCqlCharacters(code, doc);
-    const full = this.cqlValidationService.runFullValidation(code, doc);
+    const full = await this.cqlValidationService.runFullValidationAsync(code, doc, this.getLibraryTranslationContext());
     const compilerDiagnostics = this.compilerValidationToDiagnostics(full.validation);
     return {
       all: [...charDiagnostics, ...compilerDiagnostics],
@@ -678,6 +752,66 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
     ];
   }
 
+  private cancelValidationDebounce(): void {
+    if (this.validationDebounceFrame !== undefined) {
+      cancelAnimationFrame(this.validationDebounceFrame);
+      this.validationDebounceFrame = undefined;
+    }
+  }
+
+  private scheduleValidationDebounce(fallbackCode: string): void {
+    this.cancelValidationDebounce();
+    const deadline = performance.now() + this.VALIDATION_DEBOUNCE_MS;
+    const tick = (): void => {
+      if (performance.now() >= deadline) {
+        this.validationDebounceFrame = undefined;
+        this.runDebouncedValidation(fallbackCode);
+      } else {
+        this.validationDebounceFrame = requestAnimationFrame(tick);
+      }
+    };
+    this.validationDebounceFrame = requestAnimationFrame(tick);
+  }
+
+  private runDebouncedValidation(fallbackCode: string): void {
+    void this.runDebouncedValidationAsync(fallbackCode);
+  }
+
+  private async runDebouncedValidationAsync(fallbackCode: string): Promise<void> {
+    const generation = ++this.validationGeneration;
+    try {
+      const latestCode = this.editor?.state.doc.toString() || fallbackCode;
+      const latestDoc = this.editor?.state.doc;
+
+      if (!latestDoc) {
+        const resolvers = this.pendingLintResolvers;
+        this.pendingLintResolvers = [];
+        resolvers.forEach(r => r([]));
+        return;
+      }
+
+      const diagnostics = await this.collectLintDiagnosticsAsync(latestCode, latestDoc);
+      if (generation !== this.validationGeneration) {
+        const resolvers = this.pendingLintResolvers;
+        this.pendingLintResolvers = [];
+        resolvers.forEach(r => r([]));
+        return;
+      }
+
+      this.emitValidationUi(diagnostics.compilerResult);
+      this.updateDefinitionIndex(diagnostics.compilerResult);
+
+      const resolvers = this.pendingLintResolvers;
+      this.pendingLintResolvers = [];
+      resolvers.forEach(r => r(diagnostics.all));
+    } catch (error) {
+      console.error('Validation error:', error);
+      const resolvers = this.pendingLintResolvers;
+      this.pendingLintResolvers = [];
+      resolvers.forEach(r => r([]));
+    }
+  }
+
   private emitValidationUi(full: FullValidationResult): void {
     this.currentValidationErrors = this.cqlValidationService.formatProblemsPanelMessages(full);
     this.syntaxErrors.emit(this.currentValidationErrors);
@@ -692,6 +826,10 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   navigateToLine(lineNumber: number): void {
+    this.navigateToPosition(lineNumber, 0);
+  }
+
+  navigateToPosition(lineNumber: number, column = 0): void {
     if (!this.editor) {
       console.warn('Editor not available for navigation');
       return;
@@ -699,13 +837,14 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
     try {
       const line = this.editor.state.doc.line(lineNumber);
-      const position = line.from;
-      
+      const columnOffset = Math.max(0, Math.min(column, line.length));
+      const position = line.from + columnOffset;
+
       this.editor.dispatch({
         selection: { anchor: position, head: position },
         scrollIntoView: true
       });
-      
+
       this.editor.focus();
     } catch (error) {
       console.error(`Failed to navigate to line ${lineNumber}:`, error);
@@ -716,7 +855,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
   private reinitializeEditor(): void {
     if (this.editor && !this.isInitializing) {
-      console.log('Reinitializing editor');
       const currentValue = this.getValue();
       this.editor.destroy();
       this.editor = undefined;
@@ -802,7 +940,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0 && !this.editor && !this.isInitializing) {
-          console.log('ResizeObserver detected container dimensions, initializing editor');
           this.initializeEditor();
           this.resizeObserver?.disconnect();
         }
@@ -863,17 +1000,6 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
     const canExecute = !isDirty;
     
     this._canExecuteSignal.set(canExecute);
-    
-    // Debug logging
-    console.log('canExecute updated:', {
-      hasContent,
-      libraryId: library.id,
-      hasLibrary: !!library.library,
-      currentContent: currentContent.substring(0, 50) + '...',
-      originalContent: library.originalContent.substring(0, 50) + '...',
-      isDirty,
-      canExecute
-    });
   }
 
 

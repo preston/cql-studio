@@ -229,7 +229,7 @@
               </button>
             </div>
           </div>
-          <div class="flex-grow-1 overflow-auto" style="min-height: 200px;">
+          <div class="flex-grow-1 overflow-y-auto overflow-x-hidden" style="min-height: 200px;">
             @for (item of clipboardItems(); track item.id) {
             <div class="clipboard-manager-item border-bottom px-3 py-2">
               <div class="d-flex align-items-start gap-2">
@@ -266,8 +266,11 @@
                     }
                   </div>
                   @if (isClipboardItemExpanded(item)) {
-                  <pre class="small bg-light p-2 mt-2 mb-0 rounded overflow-auto"
-                    style="max-height: 200px; font-size: 0.7rem;"><code>{{ getClipboardItemJson(item) }}</code></pre>
+                  <div class="clipboard-item-json-viewer bg-light p-2 mt-2 mb-0 rounded"
+                    style="max-height: 200px; font-size: 0.7rem;">
+                    <app-syntax-highlighter [code]="getClipboardItemJson(item)" language="json"
+                      [showLineNumbers]="true" />
+                  </div>
                   }
                 </div>
               </div>

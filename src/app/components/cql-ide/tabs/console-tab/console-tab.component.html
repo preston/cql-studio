@@ -33,8 +33,20 @@
   <div class="flex-fill overflow-auto" [class.executing]="isEvaluating()" #consoleContent (scroll)="onConsoleScroll($event)">
     <div class="p-2">
       @for (section of outputSections(); track section.id; let i = $index) {
-        <div [ngClass]="getOutputClass(section)"
-             [class.expanded]="section.expanded">
+        <div class="console-section"
+             [class.expanded]="section.expanded"
+             [class.console-section-text]="section.type === 'text'"
+             [class.console-section-json]="section.type === 'json'"
+             [class.console-section-xml]="section.type === 'xml'"
+             [class.console-section-error]="section.type === 'error' || section.status === 'error'"
+             [class.console-section-warning]="section.type === 'warning'"
+             [class.console-section-info]="section.type === 'info'"
+             [class.console-section-custom]="section.type === 'custom'"
+             [class.console-section-cql-execution]="section.type === 'cql-execution'"
+             [class.console-section-cql-translation]="section.type === 'cql-translation'"
+             [class.console-section-cql-validation]="section.type === 'cql-validation'"
+             [class.console-section-success]="section.status === 'success'"
+             [class.console-section-pending]="section.status === 'pending'">
           <div class="d-flex align-items-center gap-2 p-2 border-bottom console-section-header" (click)="onToggleSection(i)">
             <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
             <i class="bi {{ getOutputIcon(section) }} text-muted"></i>

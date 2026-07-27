@@ -70,6 +70,12 @@ The application supports runtime configuration through environment variables. Th
 
 - **CQL_STUDIO_FHIR_BASE_URL**: Specifies the base URL for the FHIR server. This URL is used for FHIR resource operations and data retrieval. Defaults to `http://localhost:8080/fhir`.
 
+### Including other CQL libraries
+
+To `include` another library from the CQL IDE, the dependency must be **saved** as a FHIR `Library` on the configured FHIR server. The included library's CQL `library` name and `version` must match the FHIR resource `name` and `version` fields.
+
+IDE translation discovers CQl includes from ELM (stored on FHIR and from compiler output), not by parsing CQL text. Execution uses the same saved libraries on the FHIR server.
+
 
 ## SQL on FHIR
 

@@ -96,12 +96,44 @@ function flattenContains(
   return rows;
 }
 
+async function fetchValueSetByUrl(
+  base: string,
+  encodedUrl: string,
+  fetchFn: typeof fetch,
+): Promise<FhirValueSet | null> {
+  const searchEndpoint = `${base}/ValueSet?url=${encodedUrl}&_format=json`;
+  try {
+    const resp = await fetchFn(searchEndpoint, {
+      headers: { Accept: 'application/fhir+json, application/json' },
+    });
+    if (!resp.ok) {
+      return null;
+    }
+    const bundle = (await resp.json()) as {
+      resourceType: string;
+      entry?: Array<{ resource: FhirValueSet }>;
+    };
+    if (bundle.resourceType === 'Bundle' && bundle.entry?.[0]?.resource) {
+      return bundle.entry[0].resource;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function valueSetHasExpansionRows(body: FhirValueSet | null): body is FhirValueSet & {
+  expansion: { contains: FhirValueSetContains[] };
+} {
+  return (body?.expansion?.contains?.length ?? 0) > 0;
+}
+
 /**
  * Attempt to load a single value set from the FHIR server.
  *
  * Strategy:
  *  1. `GET {base}/ValueSet/$expand?url={encodedUrl}` — asks the server to expand
- *  2. If that fails (404 / server doesn't support $expand), fall back to
+ *  2. If that fails or returns no codes, fall back to
  *     `GET {base}/ValueSet?url={encodedUrl}&_format=json` and read the stored
  *     expansion from the resource body.
  */
@@ -113,10 +145,9 @@ async function loadOne(
   const base = fhirBaseUrl.replace(/\/+$/, '');
   const encodedUrl = encodeURIComponent(ref.url);
 
-  // Try $expand first
-  const expandEndpoint = `${base}/ValueSet/$expand?url=${encodedUrl}&_format=json`;
   let body: FhirValueSet | null = null;
 
+  const expandEndpoint = `${base}/ValueSet/$expand?url=${encodedUrl}&_format=json`;
   try {
     const resp = await fetchFn(expandEndpoint, {
       headers: { Accept: 'application/fhir+json, application/json' },
@@ -128,25 +159,12 @@ async function loadOne(
     // network error — fall through to the search fallback
   }
 
-  // Fallback: search for the stored ValueSet resource by canonical URL
-  if (!body?.expansion) {
-    const searchEndpoint = `${base}/ValueSet?url=${encodedUrl}&_format=json`;
-    try {
-      const resp = await fetchFn(searchEndpoint, {
-        headers: { Accept: 'application/fhir+json, application/json' },
-      });
-      if (resp.ok) {
-        const bundle = (await resp.json()) as {
-          resourceType: string;
-          entry?: Array<{ resource: FhirValueSet }>;
-        };
-        if (bundle.resourceType === 'Bundle' && bundle.entry?.[0]?.resource) {
-          body = bundle.entry[0].resource;
-        }
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { name: ref.name, url: ref.url, rows: [], error: `Network error: ${msg}` };
+  if (!valueSetHasExpansionRows(body)) {
+    const stored = await fetchValueSetByUrl(base, encodedUrl, fetchFn);
+    if (valueSetHasExpansionRows(stored)) {
+      body = stored;
+    } else if (!body && stored) {
+      body = stored;
     }
   }
 
@@ -154,7 +172,7 @@ async function loadOne(
     return { name: ref.name, url: ref.url, rows: [], error: 'Not found on FHIR server' };
   }
 
-  if (!body.expansion?.contains?.length) {
+  if (!valueSetHasExpansionRows(body)) {
     return {
       name: ref.name,
       url: ref.url,
@@ -163,7 +181,6 @@ async function loadOne(
     };
   }
 
-  // Use the server's canonical URL if available, otherwise the requested URL
   const resolvedId = body.url ?? ref.url;
   const rows = flattenContains(body.expansion.contains, resolvedId);
   return { name: ref.name, url: ref.url, rows };

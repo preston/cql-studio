@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
@@ -13,9 +12,9 @@ import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-codesystems-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './codesystems-tab.component.html',
+
   styleUrl: './codesystems-tab.component.scss'
 })
 export class CodeSystemsTabComponent implements OnInit {

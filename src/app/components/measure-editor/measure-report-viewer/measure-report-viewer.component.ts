@@ -1,0 +1,99 @@
+// Author: Preston Lee
+
+import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { MeasureReport } from 'fhir/r4';
+import { firstValueFrom } from 'rxjs';
+import { MeasureService } from '../../../services/measure.service';
+import { ToastService } from '../../../services/toast.service';
+import { isResourceType } from '../../../services/fhir-resource-type.lib';
+import { MeasureReportViewComponent } from '../measure-report-view/measure-report-view.component';
+
+@Component({
+  selector: 'app-measure-report-viewer',
+  imports: [RouterLink, MeasureReportViewComponent, DatePipe],
+  templateUrl: './measure-report-viewer.component.html',
+  styleUrl: './measure-report-viewer.component.scss',
+})
+export class MeasureReportViewerComponent implements OnInit {
+  private readonly route = inject(ActivatedRoute);
+  private readonly measureService = inject(MeasureService);
+  private readonly toastService = inject(ToastService);
+
+  protected readonly loading = signal(true);
+  protected readonly error = signal<string | null>(null);
+  protected readonly notFound = signal(false);
+  protected readonly invalidResource = signal(false);
+  protected readonly report = signal<MeasureReport | null>(null);
+  protected readonly reportId = signal('');
+
+  ngOnInit(): void {
+    this.route.paramMap.subscribe(params => {
+      const id = params.get('reportId')?.trim() ?? '';
+      this.reportId.set(id);
+      void this.loadReport(id);
+    });
+  }
+
+  protected async retryLoad(): Promise<void> {
+    await this.loadReport(this.reportId());
+  }
+
+  protected statusBadgeClass(status: string | undefined): string {
+    switch (status) {
+      case 'complete':
+        return 'bg-success';
+      case 'pending':
+        return 'bg-warning text-dark';
+      case 'error':
+        return 'bg-danger';
+      default:
+        return 'bg-secondary';
+    }
+  }
+
+  protected measureDisplayName(measureUrl: string | undefined): string {
+    if (!measureUrl?.trim()) {
+      return '—';
+    }
+    const segment = measureUrl.split('/').filter(Boolean).pop();
+    return segment ?? measureUrl;
+  }
+
+  private async loadReport(id: string): Promise<void> {
+    this.loading.set(true);
+    this.error.set(null);
+    this.notFound.set(false);
+    this.invalidResource.set(false);
+    this.report.set(null);
+
+    if (!id) {
+      this.loading.set(false);
+      this.notFound.set(true);
+      return;
+    }
+
+    try {
+      const resource = await firstValueFrom(this.measureService.getMeasureReport(id));
+      if (!isResourceType(resource, 'MeasureReport')) {
+        this.invalidResource.set(true);
+        return;
+      }
+      this.report.set(resource);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (err instanceof HttpErrorResponse && err.status === 404) {
+        this.notFound.set(true);
+      } else if (/404|not found/i.test(msg)) {
+        this.notFound.set(true);
+      } else {
+        this.error.set(msg);
+        this.toastService.showError(msg, 'MeasureReport');
+      }
+    } finally {
+      this.loading.set(false);
+    }
+  }
+}

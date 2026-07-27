@@ -1,23 +1,22 @@
 // Author: Preston Lee
 
-import { Component, Input, Output, EventEmitter, computed, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, output, OnInit, inject, signal } from '@angular/core';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { LibraryResource } from '../../shared/ide-types';
 
 @Component({
   selector: 'app-editor-tabs',
-  standalone: true,
-  imports: [CommonModule],
   templateUrl: './editor-tabs.component.html',
+
   styleUrls: ['./editor-tabs.component.scss']
 })
 export class EditorTabsComponent implements OnInit {
-  @Output() selectLibrary = new EventEmitter<string>();
-  @Output() closeLibrary = new EventEmitter<string>();
-  @Output() reorderTabs = new EventEmitter<{ fromIndex: number; toIndex: number }>();
+  selectLibrary = output<string>();
+  closeLibrary = output<string>();
+  reorderTabs = output<{ fromIndex: number; toIndex: number }>();
 
-  isDragOver = false;
+  protected readonly ideStateService = inject(IdeStateService);
+  protected readonly isDragOver = signal(false);
 
   get libraryResources() {
     return this.ideStateService.libraryResources;
@@ -26,8 +25,6 @@ export class EditorTabsComponent implements OnInit {
   get activeLibraryId() {
     return this.ideStateService.activeLibraryId;
   }
-
-  constructor(public ideStateService: IdeStateService) {}
 
   ngOnInit(): void {
     // Component initialization
@@ -58,17 +55,17 @@ export class EditorTabsComponent implements OnInit {
 
   onTabDragEnter(event: DragEvent): void {
     event.preventDefault();
-    this.isDragOver = true;
+    this.isDragOver.set(true);
   }
 
   onTabDragLeave(event: DragEvent): void {
     event.preventDefault();
-    this.isDragOver = false;
+    this.isDragOver.set(false);
   }
 
   onTabDrop(event: DragEvent): void {
     event.preventDefault();
-    this.isDragOver = false;
+    this.isDragOver.set(false);
     
     try {
       const libraryId = event.dataTransfer?.getData('text/plain');
@@ -91,7 +88,7 @@ export class EditorTabsComponent implements OnInit {
 
   onTabDropAtPosition(event: DragEvent, targetPosition: number): void {
     event.preventDefault();
-    this.isDragOver = false;
+    this.isDragOver.set(false);
     
     try {
       const libraryId = event.dataTransfer?.getData('text/plain');

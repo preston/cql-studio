@@ -1,12 +1,11 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
+import { DatePipe, DecimalPipe, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CqlTestResults, TestResult, Capability } from '../../models/cql-test-results.model';
 import { BaseChartDirective } from 'ng2-charts';
-import { Chart, registerables } from 'chart.js';
 import { FileLoaderService } from '../../services/file-loader.service';
 import { SchemaValidationService } from '../../services/schema-validation.service';
 import { SettingsService } from '../../services/settings.service';
@@ -36,14 +35,11 @@ import {
   COLOR_TEXT_LIGHT
 } from '../../constants/colors.constants';
 
-// Register Chart.js components
-Chart.register(...registerables);
-
 @Component({
   selector: 'app-results-viewer',
-  standalone: true,
-  imports: [CommonModule, FormsModule, BaseChartDirective, SyntaxHighlighterComponent],
+  imports: [DatePipe, DecimalPipe, TitleCasePipe, FormsModule, BaseChartDirective, SyntaxHighlighterComponent],
   templateUrl: './results-viewer.component.html',
+
   styleUrl: './results-viewer.component.scss'
 })
 export class ResultsViewerComponent implements OnInit, OnDestroy {
@@ -71,8 +67,7 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
   private pollingSubscription?: Subscription;
   private lastResultsHash: string | null = null;
 
-  // Chart data properties
-  pieChartData: any = {
+  pieChartData = signal({
     labels: ['Passed', 'Failed', 'Skipped', 'Errors'],
     datasets: [{
       data: [0, 0, 0, 0],
@@ -80,7 +75,7 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
       borderColor: [COLOR_SUCCESS_DARK, COLOR_DANGER_DARK, COLOR_WARNING_DARK, COLOR_SECONDARY_DARK],
       borderWidth: 0
     }]
-  };
+  });
 
   pieChartOptions: any = {
     responsive: true,
@@ -124,39 +119,39 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
     }
   };
 
-  barChartData: any = {
-    labels: [],
+  barChartData = signal({
+    labels: [] as string[],
     datasets: [
       {
         label: 'Passed',
-        data: [],
+        data: [] as number[],
         backgroundColor: COLOR_SUCCESS,
         borderColor: COLOR_SUCCESS_DARK,
         borderWidth: 1
       },
       {
         label: 'Failed',
-        data: [],
+        data: [] as number[],
         backgroundColor: COLOR_DANGER,
         borderColor: COLOR_DANGER_DARK,
         borderWidth: 1
       },
       {
         label: 'Skipped',
-        data: [],
+        data: [] as number[],
         backgroundColor: COLOR_WARNING,
         borderColor: COLOR_WARNING_DARK,
         borderWidth: 1
       },
       {
         label: 'Errors',
-        data: [],
+        data: [] as number[],
         backgroundColor: COLOR_SECONDARY,
         borderColor: COLOR_SECONDARY_DARK,
         borderWidth: 1
       }
     ]
-  };
+  });
 
   barChartOptions: any = {
     responsive: true,
@@ -227,13 +222,11 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
     }
   };
 
-  constructor(
-    private router: Router,
-    private route: ActivatedRoute,
-    private fileLoader: FileLoaderService,
-    private schemaValidation: SchemaValidationService,
-    private settingsService: SettingsService
-  ) {}
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly fileLoader = inject(FileLoaderService);
+  private readonly schemaValidation = inject(SchemaValidationService);
+  private readonly settingsService = inject(SettingsService);
 
   ngOnInit(): void {
     this.loadResults();
@@ -669,13 +662,14 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
     const summary = this.testResults()?.testResultsSummary;
     if (!summary) return;
 
-    this.pieChartData = {
-      ...this.pieChartData,
+    const current = this.pieChartData();
+    this.pieChartData.set({
+      ...current,
       datasets: [{
-        ...this.pieChartData.datasets[0],
+        ...current.datasets[0],
         data: [summary.passCount, summary.failCount, summary.skipCount, summary.errorCount]
       }]
-    };
+    });
   }
 
   private updateBarChartData(): void {
@@ -716,27 +710,28 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
 
-    this.barChartData = {
+    const current = this.barChartData();
+    this.barChartData.set({
       labels: sortedGroups.map(item => item.group),
       datasets: [
         {
-          ...this.barChartData.datasets[0],
+          ...current.datasets[0],
           data: sortedGroups.map(item => item.counts.pass)
         },
         {
-          ...this.barChartData.datasets[1],
+          ...current.datasets[1],
           data: sortedGroups.map(item => item.counts.fail)
         },
         {
-          ...this.barChartData.datasets[2],
+          ...current.datasets[2],
           data: sortedGroups.map(item => item.counts.skip)
         },
         {
-          ...this.barChartData.datasets[3],
+          ...current.datasets[3],
           data: sortedGroups.map(item => item.counts.error)
         }
       ]
-    };
+    });
   }
 
   private updateUrlWithPreservedParams(): void {

@@ -19,7 +19,8 @@
       <input
         type="text"
         class="form-control"
-        [(ngModel)]="searchTerm"
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event)"
         (keyup.enter)="onSearch()"
         placeholder="Search libraries..."
         id="library-search-input"
@@ -28,11 +29,11 @@
         class="btn btn-outline-secondary"
         (click)="onSearch()"
         type="button"
-        [disabled]="isLoading"
+        [disabled]="isLoading()"
       >
         <i class="bi bi-search"></i>
       </button>
-      @if (searchTerm) {
+      @if (searchTerm()) {
         <button
           class="btn btn-outline-secondary"
           (click)="onClearSearch()"
@@ -45,13 +46,13 @@
   </div>
 
   <!-- Library List -->
-  @if (isLoading) {
+  @if (isLoading()) {
     <div class="text-center py-5">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
     </div>
-  } @else if (libraries.length === 0) {
+  } @else if (libraries().length === 0) {
     <div class="alert alert-info">
       <i class="bi bi-info-circle me-2"></i>No libraries found.
     </div>
@@ -67,8 +68,8 @@
                 type="button"
               >
                 Name
-                @if (sortBy === 'name') {
-                  <i class="bi bi-arrow-{{ sortOrder === 'asc' ? 'up' : 'down' }} ms-1"></i>
+                @if (sortBy() === 'name') {
+                  <i class="bi bi-arrow-{{ sortOrder() === 'asc' ? 'up' : 'down' }} ms-1"></i>
                 }
               </button>
             </th>
@@ -79,8 +80,8 @@
                 type="button"
               >
                 Version
-                @if (sortBy === 'version') {
-                  <i class="bi bi-arrow-{{ sortOrder === 'asc' ? 'up' : 'down' }} ms-1"></i>
+                @if (sortBy() === 'version') {
+                  <i class="bi bi-arrow-{{ sortOrder() === 'asc' ? 'up' : 'down' }} ms-1"></i>
                 }
               </button>
             </th>
@@ -92,8 +93,8 @@
                 type="button"
               >
                 Date
-                @if (sortBy === 'date') {
-                  <i class="bi bi-arrow-{{ sortOrder === 'asc' ? 'up' : 'down' }} ms-1"></i>
+                @if (sortBy() === 'date') {
+                  <i class="bi bi-arrow-{{ sortOrder() === 'asc' ? 'up' : 'down' }} ms-1"></i>
                 }
               </button>
             </th>
@@ -101,7 +102,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (library of libraries; track library.id) {
+          @for (library of libraries(); track library.id) {
             <tr>
               <td>
                 <strong>{{ library.name || library.id }}</strong>
@@ -157,21 +158,21 @@
     </div>
 
     <!-- Pagination -->
-    @if (totalPages > 1) {
+    @if (totalPages() > 1) {
       <nav aria-label="Library pagination">
         <ul class="pagination justify-content-center">
-          <li class="page-item" [class.disabled]="currentPage === 1">
+          <li class="page-item" [class.disabled]="currentPage() === 1">
             <button
               class="page-link"
-              (click)="goToPage(currentPage - 1)"
-              [disabled]="currentPage === 1"
+              (click)="goToPage(currentPage() - 1)"
+              [disabled]="currentPage() === 1"
               type="button"
             >
               Previous
             </button>
           </li>
-          @for (page of [].constructor(totalPages); track $index; let i = $index) {
-            <li class="page-item" [class.active]="currentPage === i + 1">
+          @for (page of [].constructor(totalPages()); track $index; let i = $index) {
+            <li class="page-item" [class.active]="currentPage() === i + 1">
               <button
                 class="page-link"
                 (click)="goToPage(i + 1)"
@@ -181,11 +182,11 @@
               </button>
             </li>
           }
-          <li class="page-item" [class.disabled]="currentPage === totalPages">
+          <li class="page-item" [class.disabled]="currentPage() === totalPages()">
             <button
               class="page-link"
-              (click)="goToPage(currentPage + 1)"
-              [disabled]="currentPage === totalPages"
+              (click)="goToPage(currentPage() + 1)"
+              [disabled]="currentPage() === totalPages()"
               type="button"
             >
               Next
@@ -196,4 +197,3 @@
     }
   }
 </div>
-

@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
-import { Component, OnInit, output, inject } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { Component, OnInit, output, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Library, Bundle } from 'fhir/r4';
 import { LibraryService } from '../../../services/library.service';
@@ -10,9 +10,9 @@ import { isResourceType } from '../../../services/fhir-resource-type.lib';
 
 @Component({
   selector: 'app-guidelines-browser',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, DatePipe],
   templateUrl: './guidelines-browser.component.html',
+
   styleUrl: './guidelines-browser.component.scss'
 })
 export class GuidelinesBrowserComponent implements OnInit {
@@ -21,77 +21,85 @@ export class GuidelinesBrowserComponent implements OnInit {
   deleteLibrary = output<Library>();
   createNew = output<void>();
 
-  protected libraries: Library[] = [];
-  protected isLoading = false;
-  protected searchTerm = '';
-  protected currentPage = 1;
-  protected totalPages = 0;
-  protected totalLibraries = 0;
-  protected pageSize = 10;
-  protected sortBy: 'name' | 'version' | 'date' = 'name';
-  protected sortOrder: 'asc' | 'desc' = 'asc';
+  protected readonly libraries = signal<Library[]>([]);
+  protected readonly isLoading = signal(false);
+  protected readonly searchTerm = signal('');
+  protected readonly currentPage = signal(1);
+  protected readonly totalPages = signal(0);
+  protected readonly totalLibraries = signal(0);
+  protected readonly pageSize = signal(10);
+  protected readonly sortBy = signal<'name' | 'version' | 'date'>('name');
+  protected readonly sortOrder = signal<'asc' | 'desc'>('asc');
 
-  private libraryService = inject(LibraryService);
-  public settingsService = inject(SettingsService);
+  private readonly libraryService = inject(LibraryService);
+  protected readonly settingsService = inject(SettingsService);
 
   ngOnInit(): void {
     this.loadLibraries();
   }
 
   public loadLibraries(): void {
-    this.isLoading = true;
-    this.libraryService.getAll(this.currentPage, this.pageSize, this.sortBy, this.sortOrder).subscribe({
+    this.isLoading.set(true);
+    this.libraryService.getAll(
+      this.currentPage(),
+      this.pageSize(),
+      this.sortBy(),
+      this.sortOrder()
+    ).subscribe({
       next: (bundle: Bundle) => {
-        this.isLoading = false;
-        this.libraries = bundle.entry
+        this.isLoading.set(false);
+        const loadedLibraries = bundle.entry
           ? bundle.entry
               .map(entry => entry.resource)
               .filter((resource): resource is Library => isResourceType(resource, 'Library'))
           : [];
-        
+        this.libraries.set(loadedLibraries);
+
         if (bundle.total && bundle.total > 0) {
-          this.totalLibraries = bundle.total;
-          this.totalPages = Math.ceil(bundle.total / this.pageSize);
+          this.totalLibraries.set(bundle.total);
+          this.totalPages.set(Math.ceil(bundle.total / this.pageSize()));
         } else {
           const hasNextPage = bundle.link?.some(link => link.relation === 'next');
           if (hasNextPage) {
-            this.totalLibraries = (this.currentPage * this.pageSize) + 1;
-            this.totalPages = this.currentPage + 1;
+            this.totalLibraries.set((this.currentPage() * this.pageSize()) + 1);
+            this.totalPages.set(this.currentPage() + 1);
           } else {
-            this.totalLibraries = (this.currentPage - 1) * this.pageSize + this.libraries.length;
-            this.totalPages = this.currentPage;
+            this.totalLibraries.set((this.currentPage() - 1) * this.pageSize() + loadedLibraries.length);
+            this.totalPages.set(this.currentPage());
           }
         }
       },
       error: (error: any) => {
-        this.isLoading = false;
+        this.isLoading.set(false);
         console.error('Error loading libraries:', error);
-        this.libraries = [];
-        this.totalPages = 0;
-        this.totalLibraries = 0;
+        this.libraries.set([]);
+        this.totalPages.set(0);
+        this.totalLibraries.set(0);
       }
     });
   }
 
   onSearch(): void {
-    if (this.searchTerm.trim()) {
-      this.isLoading = true;
-      this.libraryService.search(this.searchTerm).subscribe({
+    if (this.searchTerm().trim()) {
+      this.isLoading.set(true);
+      this.libraryService.search(this.searchTerm()).subscribe({
         next: (bundle: Bundle) => {
-          this.isLoading = false;
-          this.libraries = bundle.entry
-            ? bundle.entry
-                .map(entry => entry.resource)
-                .filter((resource): resource is Library => isResourceType(resource, 'Library'))
-            : [];
-          this.totalLibraries = this.libraries.length;
-          this.totalPages = 1;
-          this.currentPage = 1;
+          this.isLoading.set(false);
+          this.libraries.set(
+            bundle.entry
+              ? bundle.entry
+                  .map(entry => entry.resource)
+                  .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+              : []
+          );
+          this.totalLibraries.set(this.libraries().length);
+          this.totalPages.set(1);
+          this.currentPage.set(1);
         },
         error: (error: any) => {
-          this.isLoading = false;
+          this.isLoading.set(false);
           console.error('Error searching libraries:', error);
-          this.libraries = [];
+          this.libraries.set([]);
         }
       });
     } else {
@@ -100,8 +108,8 @@ export class GuidelinesBrowserComponent implements OnInit {
   }
 
   onClearSearch(): void {
-    this.searchTerm = '';
-    this.currentPage = 1;
+    this.searchTerm.set('');
+    this.currentPage.set(1);
     this.loadLibraries();
   }
 
@@ -125,20 +133,20 @@ export class GuidelinesBrowserComponent implements OnInit {
   }
 
   goToPage(page: number): void {
-    if (page >= 1 && page <= this.totalPages) {
-      this.currentPage = page;
+    if (page >= 1 && page <= this.totalPages()) {
+      this.currentPage.set(page);
       this.loadLibraries();
     }
   }
 
   onSort(column: 'name' | 'version' | 'date'): void {
-    if (this.sortBy === column) {
-      this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+    if (this.sortBy() === column) {
+      this.sortOrder.set(this.sortOrder() === 'asc' ? 'desc' : 'asc');
     } else {
-      this.sortBy = column;
-      this.sortOrder = 'asc';
+      this.sortBy.set(column);
+      this.sortOrder.set('asc');
     }
-    this.currentPage = 1;
+    this.currentPage.set(1);
     this.loadLibraries();
   }
 

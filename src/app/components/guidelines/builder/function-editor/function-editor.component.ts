@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, output, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CqlFunction, BaseElement, ConjunctionGroup } from '../../../../services/guidelines-state.service';
 import { ConjunctionGroupComponent } from '../conjunction-group/conjunction-group.component';
@@ -18,9 +17,9 @@ const CQL_DATA_TYPES = [
 
 @Component({
   selector: 'app-guideline-function-editor',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ConjunctionGroupComponent],
+  imports: [FormsModule, ConjunctionGroupComponent],
   templateUrl: './function-editor.component.html',
+
   styleUrl: './function-editor.component.scss'
 })
 export class GuidelineFunctionEditorComponent {

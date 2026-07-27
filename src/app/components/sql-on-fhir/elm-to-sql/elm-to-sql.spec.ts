@@ -9,6 +9,10 @@
 
 import { ElmToSqlTranspiler } from './transpiler/elm-to-sql';
 import { generateMeasureReport, sqlRowToPopulationCounts } from './measure/measure-report';
+import {
+  inferMeasureUrlFromLibrary,
+  normalizeMeasureReportForServer,
+} from './measure/measure-report-normalize.lib';
 import { STANDARD_VIEW_DEFINITIONS, viewDefinitionToSql, generateAllViewsSql } from './views/view-definitions';
 import { extractValueSets, extractUsedValueSets } from './valueset/value-set-extractor';
 import { loadValueSetExpansions } from './valueset/value-set-loader';
@@ -79,6 +83,55 @@ describe('ElmToSqlTranspiler', () => {
     expect(sql).toContain('2023-12-31');
   });
 
+  test('parameterValues override Measurement Period in generated SQL', () => {
+    const t = new ElmToSqlTranspiler({
+      parameterValues: {
+        'Measurement Period': {
+          kind: 'period',
+          start: '2020-06-01T00:00:00Z',
+          end: '2020-12-31T23:59:59Z',
+        },
+      },
+    });
+    const { sql } = t.transpile(fixture);
+    expect(sql).toContain('2020-06-01');
+    expect(sql).toContain('2020-12-31');
+  });
+
+  test('parameterValues emit SQL literal for non-Measurement Period string parameter', () => {
+    const elm: ElmLibraryWrapper = {
+      library: {
+        identifier: { id: 'ParamTest', version: '1.0.0' },
+        schemaIdentifier: { id: 'urn:hl7-org:elm', version: 'r1' },
+        usings: {
+          def: [{ localIdentifier: 'System', uri: 'urn:hl7-org:elm-types:r1' }],
+        },
+        parameters: {
+          def: [{ name: 'Reporting Year', parameterTypeSpecifier: { type: 'NamedTypeSpecifier', name: '{urn:hl7-org:elm-types:r1}String' } }],
+        },
+        statements: {
+          def: [
+            {
+              name: 'Initial Population',
+              context: 'Patient',
+              expression: {
+                type: 'Equal',
+                operand: [{ type: 'ParameterRef', name: 'Reporting Year' }, { type: 'Literal', valueType: '{urn:hl7-org:elm-types:r1}String', value: '2024' }],
+              },
+            },
+          ],
+        },
+      },
+    };
+    const t = new ElmToSqlTranspiler({
+      parameterValues: {
+        'Reporting Year': { kind: 'string', value: '2025' },
+      },
+    });
+    const { sql } = t.transpile(elm);
+    expect(sql).toContain("'2025'");
+  });
+
   test('can disable comments', () => {
     const t = new ElmToSqlTranspiler({ includeComments: false });
     const { sql } = t.transpile(fixture);
@@ -114,6 +167,22 @@ describe('ElmToSqlTranspiler', () => {
     const { sql } = t.transpile(fixture);
     expect(sql).toContain("DATE_PART");
   });
+
+  test('CMS125 correlates Exists Qualifying Encounters to the patient alias', () => {
+    const t = new ElmToSqlTranspiler();
+    const { sql } = t.transpile(fixture);
+    expect(sql).toContain('_cor.subject_id = p.id');
+  });
+
+  test('CMS125 resource populations count patients via subject_id', () => {
+    const t = new ElmToSqlTranspiler();
+    const { sql } = t.transpile(fixture);
+    expect(sql).toContain('Numerator AS (');
+    expect(sql).toContain('Denominator_Exclusion AS (');
+    expect(sql).toContain('proc.subject_id = Patient.id');
+    expect(sql).toContain('obs.subject_id = Patient.id');
+    expect(sql).not.toContain('_pop.subject_id');
+  });
 });
 
 // ─── MeasureReport generator ──────────────────────────────────────────────────
@@ -136,6 +205,7 @@ describe('generateMeasureReport', () => {
     const report = generateMeasureReport(counts, opts);
     expect(report.resourceType).toBe('MeasureReport');
     expect(report.status).toBe('complete');
+    expect(report.type).toBe('summary');
   });
 
   test('includes measure URL', () => {
@@ -169,6 +239,36 @@ describe('generateMeasureReport', () => {
   test('measure score is null when denominator is 0', () => {
     const report = generateMeasureReport({ 'Numerator': 5, 'Denominator': 0 }, opts);
     expect(report.group?.[0]?.measureScore).toBeUndefined();
+  });
+
+  test('population counts are integers', () => {
+    const report = generateMeasureReport({ 'Numerator': 80.9, 'Denominator': 120.1 }, opts);
+    expect(report.group?.[0]?.population?.[0]?.count).toBe(80);
+    expect(report.group?.[0]?.population?.[1]?.count).toBe(120);
+  });
+
+  test('create normalization strips client id', () => {
+    const report = generateMeasureReport(counts, opts);
+    const normalized = normalizeMeasureReportForServer(report, 'create');
+    expect(normalized.id).toBeUndefined();
+    expect(normalized.meta).toBeUndefined();
+    expect(normalized.group?.[0]?.id).toBe('group-1');
+  });
+
+  test('update normalization preserves server id and meta', () => {
+    const report = generateMeasureReport(counts, opts);
+    const meta = { versionId: '3', lastUpdated: '2024-06-01T00:00:00Z' };
+    const normalized = normalizeMeasureReportForServer(report, 'update', 'server-123', meta);
+    expect(normalized.id).toBe('server-123');
+    expect(normalized.meta).toEqual(meta);
+  });
+});
+
+describe('inferMeasureUrlFromLibrary', () => {
+  test('maps CMS125 demo library name to eCQM Measure URL', () => {
+    expect(inferMeasureUrlFromLibrary({ resourceType: 'Library', name: 'BreastCancerScreening' })).toBe(
+      'http://ecqi.healthit.gov/ecqms/Measure/BreastCancerScreening',
+    );
   });
 });
 
@@ -408,6 +508,26 @@ describe('loadValueSetExpansions', () => {
     const refs = [{ name: 'Test VS', url: 'http://cts.nlm.nih.gov/fhir/ValueSet/test-vs' }];
     const [result] = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
     expect(result.rows).toHaveLength(2);
+  });
+
+  test('falls back to stored ValueSet when $expand returns empty expansion', async () => {
+    const emptyExpand = {
+      resourceType: 'ValueSet',
+      url: 'http://cts.nlm.nih.gov/fhir/ValueSet/test-vs',
+      expansion: { timestamp: '2024-01-01T00:00:00Z' },
+    };
+    const bundleResponse = {
+      resourceType: 'Bundle',
+      entry: [{ resource: sampleExpansion }],
+    };
+    const mockFetch = makeFetch({
+      '$expand': emptyExpand,
+      'ValueSet?url': bundleResponse,
+    });
+    const refs = [{ name: 'Test VS', url: 'http://cts.nlm.nih.gov/fhir/ValueSet/test-vs' }];
+    const [result] = await loadValueSetExpansions('http://fhir.example.com', refs, mockFetch);
+    expect(result.rows).toHaveLength(2);
+    expect(result.error).toBeUndefined();
   });
 
   test('returns error (not throw) for not-found value sets', async () => {

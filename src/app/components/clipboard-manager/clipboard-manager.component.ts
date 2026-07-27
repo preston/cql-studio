@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, OnInit, inject, signal, computed, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -12,12 +11,13 @@ import { SettingsService } from '../../services/settings.service';
 import { ToastService } from '../../services/toast.service';
 import { Resource } from 'fhir/r4';
 import { resourceTypeOf } from '../../services/fhir-resource-type.lib';
+import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
   selector: 'app-clipboard-manager',
-  standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, SyntaxHighlighterComponent],
   templateUrl: './clipboard-manager.component.html',
+
   styleUrl: './clipboard-manager.component.scss'
 })
 export class ClipboardManagerComponent implements OnInit {

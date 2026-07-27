@@ -1,8 +1,7 @@
 // Author: Preston Lee
 
-import { Component, input, output, computed, signal, viewChild, ElementRef, AfterViewChecked, AfterViewInit, OnInit, OnDestroy } from '@angular/core';
-import { Subscription, BehaviorSubject } from 'rxjs';
-import { CommonModule } from '@angular/common';
+import { Component, input, output, computed, signal, viewChild, ElementRef, OnDestroy, effect, afterNextRender, inject, Injector } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MarkdownComponent } from 'ngx-markdown';
@@ -31,12 +30,12 @@ export interface AttachedFileEntry {
 
 @Component({
   selector: 'app-ai-tab',
-  standalone: true,
-  imports: [CommonModule, FormsModule, MarkdownComponent, CodeDiffPreviewComponent, PlanDisplayComponent, TimeagoPipe],
+  imports: [FormsModule, MarkdownComponent, CodeDiffPreviewComponent, PlanDisplayComponent, TimeagoPipe],
   templateUrl: './ai-tab.component.html',
+
   styleUrls: ['./ai-tab.component.scss']
 })
-export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, OnDestroy {
+export class AiTabComponent implements OnDestroy {
   messagesContainer = viewChild<ElementRef>('messagesContainer');
   scrollSentinel = viewChild<ElementRef>('scrollSentinel');
   thinkingFullContent = viewChild<ElementRef>('thinkingFullContent');
@@ -50,13 +49,11 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
   private _currentMessage = signal('');
   private _error = signal<string | null>(null);
   
-  /** Connection test state: driven by Observable so template updates don't trigger ExpressionChangedAfterItHasBeenCheckedError */
-  private _connectionTestResult = new BehaviorSubject<{ status: 'unknown' | 'testing' | 'connected' | 'error'; error: string; models: string[] }>({
+  connectionTest = signal<{ status: 'unknown' | 'testing' | 'connected' | 'error'; error: string; models: string[] }>({
     status: 'unknown',
     error: '',
     models: []
   });
-  public connectionTestResult$ = this._connectionTestResult.asObservable();
   private _suggestedCommands = signal<string[]>([]);
   private _isLoadingSuggestions = signal<boolean>(false);
   private _codeDiffPreview = signal<CodeDiff | null>(null);
@@ -147,19 +144,52 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     return plan.steps.some(s => s.status === 'in-progress');
   });
 
-  constructor(
-    private aiService: AiService,
-    public ideStateService: IdeStateService,
-    public settingsService: SettingsService,
-    private conversationManager: ConversationManagerService,
-    private router: Router,
-    private toolCallParser: ToolCallParserService,
-    private conversationState: AiConversationStateService,
-    private toolExecutionManager: AiToolExecutionManagerService,
-    private streamHandler: AiStreamResponseHandlerService,
-    private toolPolicyService: ToolPolicyService,
-    private attachmentParser: AttachmentParserService
-  ) {
+  private readonly aiService = inject(AiService);
+  readonly ideStateService = inject(IdeStateService);
+  readonly settingsService = inject(SettingsService);
+  private readonly conversationManager = inject(ConversationManagerService);
+  private readonly router = inject(Router);
+  private readonly toolCallParser = inject(ToolCallParserService);
+  private readonly conversationState = inject(AiConversationStateService);
+  private readonly toolExecutionManager = inject(AiToolExecutionManagerService);
+  private readonly streamHandler = inject(AiStreamResponseHandlerService);
+  private readonly toolPolicyService = inject(ToolPolicyService);
+  private readonly attachmentParser = inject(AttachmentParserService);
+  private readonly injector = inject(Injector);
+
+  constructor() {
+    afterNextRender(() => this.setupScrollSentinelObserver(), { injector: this.injector });
+
+    effect(() => {
+      const conversation = this.activeConversation();
+      const messageCount = conversation?.uiMessages?.length || 0;
+      const streamingLength = this.conversationState.streamingResponse().length;
+      const isStreaming = this.conversationState.isStreaming();
+      const hasToolCalls = this.conversationState.pendingToolCalls().length > 0;
+      const thinkingExpanded = this._thinkingAccordionExpanded();
+
+      if (thinkingExpanded && isStreaming) {
+        afterNextRender(() => {
+          const el = this.thinkingFullContent()?.nativeElement as HTMLElement | undefined;
+          if (el) {
+            el.scrollTop = el.scrollHeight;
+          }
+        }, { injector: this.injector });
+      }
+
+      if (messageCount > this._lastMessageCount ||
+          (isStreaming && streamingLength > this._lastStreamingLength) ||
+          hasToolCalls) {
+        const shouldAutoScroll =
+          !this._userScrolledUp || messageCount > this._lastMessageCount;
+        this._lastMessageCount = messageCount;
+        this._lastStreamingLength = streamingLength;
+
+        if (shouldAutoScroll) {
+          afterNextRender(() => this.scheduleScroll(), { injector: this.injector });
+        }
+      }
+    });
   }
 
   private getStreamResponseContext(isMainStream: boolean): StreamResponseContext {
@@ -253,15 +283,6 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
       );
     }
     this.finishResponse();
-  }
-
-  ngOnInit(): void {
-  }
-  
-  ngAfterViewInit(): void {
-    setTimeout(() => {
-      this.setupScrollSentinelObserver();
-    }, 0);
   }
 
   ngOnDestroy(): void {
@@ -441,18 +462,18 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
   }
 
   public testConnection(): void {
-    this._connectionTestResult.next({ status: 'testing', error: '', models: [] });
+    this.connectionTest.set({ status: 'testing', error: '', models: [] });
     this.aiService.testOllamaConnection().subscribe({
       next: (result) => {
         const status: 'connected' | 'error' | 'unknown' = result.connected ? 'connected' : (result.error ? 'error' : 'unknown');
-        this._connectionTestResult.next({
+        this.connectionTest.set({
           status,
           error: result.error || '',
           models: result.models || []
         });
       },
       error: (error) => {
-        this._connectionTestResult.next({
+        this.connectionTest.set({
           status: 'error',
           error: error.message,
           models: []
@@ -749,71 +770,39 @@ export class AiTabComponent implements OnInit, AfterViewInit, AfterViewChecked, 
     });
   }
 
-  public ngAfterViewChecked(): void {
-    if (!this.messagesContainer()) {
+  private setupScrollSentinelObserver(): void {
+    if (!this.messagesContainer() || !this.scrollSentinel()) {
       return;
     }
 
-    const conversation = this.activeConversation();
-    const messageCount = conversation?.uiMessages?.length || 0;
-    const streamingLength = this.conversationState.streamingResponse().length;
-    const isStreaming = this.conversationState.isStreaming();
-    const hasToolCalls = this.conversationState.pendingToolCalls().length > 0;
+    const container = this.messagesContainer()!.nativeElement;
+    const sentinel = this.scrollSentinel()?.nativeElement;
 
-    if (this._thinkingAccordionExpanded() && this.thinkingFullContent()?.nativeElement && isStreaming) {
-      const el = this.thinkingFullContent()!.nativeElement as HTMLElement;
-      el.scrollTop = el.scrollHeight;
+    if (!container || !sentinel) {
+      return;
     }
-    
-    if (messageCount > this._lastMessageCount ||
-        (isStreaming && streamingLength > this._lastStreamingLength) ||
-        hasToolCalls) {
-      const shouldAutoScroll =
-        !this._userScrolledUp || messageCount > this._lastMessageCount;
-      this._lastMessageCount = messageCount;
-      this._lastStreamingLength = streamingLength;
 
-      if (shouldAutoScroll) {
-        this.scheduleScroll();
+    container.addEventListener('scroll', this.onUserScroll);
+
+    this._intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          const isNearBottom = entry.isIntersecting ||
+                               (entry.boundingClientRect.top - container.clientHeight) < 100;
+
+          if (isNearBottom && !this.conversationState.isStreaming()) {
+            this._userScrolledUp = false;
+          }
+        });
+      },
+      {
+        root: container,
+        rootMargin: '0px 0px 100px 0px',
+        threshold: [0, 1]
       }
-    }
-  }
-  
-  private setupScrollSentinelObserver(): void {
-    setTimeout(() => {
-      if (!this.messagesContainer() || !this.scrollSentinel()) {
-        return;
-      }
-      
-      const container = this.messagesContainer()!.nativeElement;
-      const sentinel = this.scrollSentinel()?.nativeElement;
-      
-      if (!container || !sentinel) {
-        return;
-      }
-      
-      container.addEventListener('scroll', this.onUserScroll);
-      
-      this._intersectionObserver = new IntersectionObserver(
-        (entries) => {
-          entries.forEach(entry => {
-            const isNearBottom = entry.isIntersecting || 
-                                 (entry.boundingClientRect.top - container.clientHeight) < 100;
-            
-            if (isNearBottom && !this.conversationState.isStreaming()) {
-              this._userScrolledUp = false;
-            }
-          });
-        },
-        {
-          root: container,
-          rootMargin: '0px 0px 100px 0px',
-          threshold: [0, 1]
-        }
-      );
-      
-      this._intersectionObserver.observe(sentinel);
-    }, 100);
+    );
+
+    this._intersectionObserver.observe(sentinel);
   }
   
   private onUserScroll = (): void => {

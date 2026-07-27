@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS value_set_expansion (
   code TEXT,
   system TEXT,
   display TEXT,
+  version TEXT,
   PRIMARY KEY (value_set_id, code)
 );
 `;
@@ -145,6 +146,7 @@ export class SqlOnFhirPgliteService {
         const options = await loadBrowserWasmOptions();
         const pg = new PGlite(options);
         await pg.exec(FLAT_TABLE_DDL);
+        await pg.exec('ALTER TABLE value_set_expansion ADD COLUMN IF NOT EXISTS version TEXT');
         this.isReady.set(true);
         return pg;
       } catch (err) {

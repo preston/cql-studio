@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, input, computed, signal, effect, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ValueSet, Coding } from 'fhir/r4';
 import { ToastService } from '../../../services/toast.service';
@@ -9,9 +8,9 @@ import { ClipboardService } from '../../../services/clipboard.service';
 
 @Component({
   selector: 'app-code-search-details-pane',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './code-search-details-pane.component.html',
+
   styleUrl: './code-search-details-pane.component.scss'
 })
 export class CodeSearchDetailsPaneComponent {

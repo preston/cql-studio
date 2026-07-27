@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
-import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, output } from '@angular/core';
 
 export interface CodeDiff {
   before: string;
@@ -12,16 +11,16 @@ export interface CodeDiff {
 
 @Component({
   selector: 'app-code-diff-preview',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './code-diff-preview.component.html',
+
   styleUrls: ['./code-diff-preview.component.scss']
 })
 export class CodeDiffPreviewComponent {
-  @Input() diff!: CodeDiff;
-  @Input() autoApply: boolean = false;
-  @Output() approve = new EventEmitter<void>();
-  @Output() reject = new EventEmitter<void>();
+  diff = input.required<CodeDiff>();
+  autoApply = input<boolean>(false);
+  approve = output<void>();
+  reject = output<void>();
 
   viewMode: 'unified' | 'side-by-side' = 'unified';
 
@@ -61,4 +60,3 @@ export class CodeDiffPreviewComponent {
     return beforeLine.trim() !== afterLine.trim();
   }
 }
-

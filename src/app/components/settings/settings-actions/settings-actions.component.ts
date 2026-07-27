@@ -4,9 +4,9 @@ import { Component, input, output } from '@angular/core';
 
 @Component({
   selector: 'app-settings-actions',
-  standalone: true,
   imports: [],
   templateUrl: './settings-actions.component.html',
+
   styleUrl: './settings-actions.component.scss'
 })
 export class SettingsActionsComponent {

@@ -1,35 +1,39 @@
 // Author: Preston Lee
 
-import { Component, input, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, input, computed, signal } from '@angular/core';
 import { MeasureReport } from 'fhir/r4';
+import { SyntaxHighlighterComponent } from '../../shared/syntax-highlighter/syntax-highlighter.component';
+import {
+  formatMeasureScoreQuantity,
+  formatReference,
+  getPopulationLabel,
+  hasPopulations,
+} from '../measure-report-display.lib';
 
 @Component({
   selector: 'app-measure-report-view',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [SyntaxHighlighterComponent],
   templateUrl: './measure-report-view.component.html',
-  styleUrl: './measure-report-view.component.scss'
+  styleUrl: './measure-report-view.component.scss',
 })
 export class MeasureReportViewComponent {
   report = input<MeasureReport | null>(null);
+  showRawJson = input(false);
+  hideHeader = input(false);
 
-  protected readonly hasReport = computed(() => !!this.report());
   protected readonly groups = computed(() => this.report()?.group ?? []);
+  protected readonly hasPopulations = computed(() => hasPopulations(this.report()));
+  protected readonly rawJson = computed(() => {
+    const r = this.report();
+    return r ? JSON.stringify(r, null, 2) : '';
+  });
+  protected readonly showJsonPanel = signal(false);
 
-  protected displayQuantity(q: { value?: number; unit?: string; code?: string } | undefined): string {
-    if (q == null) return '—';
-    const v = q.value;
-    if (v == null) return '—';
-    const u = q.unit ?? q.code ?? '';
-    return u ? `${v} ${u}` : String(v);
-  }
+  protected readonly getPopulationLabel = getPopulationLabel;
+  protected readonly formatMeasureScoreQuantity = formatMeasureScoreQuantity;
+  protected readonly formatReference = formatReference;
 
-  protected getPopulationCode(pop: { code?: { coding?: Array<{ code?: string }> } }): string {
-    return pop?.code?.coding?.[0]?.code ?? '—';
-  }
-
-  protected getPopulationCount(pop: { count?: number }): string {
-    return pop?.count != null ? String(pop.count) : '—';
+  protected toggleJsonPanel(): void {
+    this.showJsonPanel.update(v => !v);
   }
 }

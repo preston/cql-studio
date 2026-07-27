@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { Component, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GuidelinesStateService, BaseElement } from '../../../../services/guidelines-state.service';
 import { ArtifactElementComponent } from './artifact-element/artifact-element.component';
@@ -9,9 +8,9 @@ import { ElementSelectComponent } from '../element-select/element-select.compone
 
 @Component({
   selector: 'app-base-elements',
-  standalone: true,
-  imports: [CommonModule, FormsModule, ArtifactElementComponent, ElementSelectComponent],
+  imports: [FormsModule, ArtifactElementComponent, ElementSelectComponent],
   templateUrl: './base-elements.component.html',
+
   styleUrl: './base-elements.component.scss'
 })
 export class BaseElementsComponent {

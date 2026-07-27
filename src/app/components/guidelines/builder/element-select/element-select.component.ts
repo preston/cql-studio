@@ -1,15 +1,14 @@
 // Author: Preston Lee
 
 import { Component, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseElement } from '../../../../services/guidelines-state.service';
 
 @Component({
   selector: 'app-element-select',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './element-select.component.html',
+
   styleUrl: './element-select.component.scss'
 })
 export class ElementSelectComponent {

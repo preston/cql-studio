@@ -19,8 +19,8 @@ import { createCqlEditorBaseExtensions } from '../../../services/cql-codemirror-
  */
 @Component({
   selector: 'app-cql-readonly-preview',
-  standalone: true,
   templateUrl: './cql-readonly-preview.component.html',
+
   styleUrl: './cql-readonly-preview.component.scss'
 })
 export class CqlReadonlyPreviewComponent implements AfterViewInit, OnDestroy {

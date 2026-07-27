@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { Component, input, output, OnInit, signal, computed, inject } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Patient, Parameters, Bundle, Library } from 'fhir/r4';
@@ -22,9 +22,9 @@ export interface TestResult {
 
 @Component({
   selector: 'app-guideline-testing',
-  standalone: true,
-  imports: [CommonModule, FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe],
   templateUrl: './guideline-testing.component.html',
+
   styleUrl: './guideline-testing.component.scss'
 })
 export class GuidelineTestingComponent implements OnInit {

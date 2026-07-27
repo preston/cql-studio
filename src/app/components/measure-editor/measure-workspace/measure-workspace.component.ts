@@ -1,8 +1,7 @@
 // Author: Preston Lee
 
 import { Component, signal, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterModule, ActivatedRoute, Router } from '@angular/router';
+import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -19,16 +18,15 @@ type WorkspaceTab = 'definition' | 'groups' | 'run' | 'reports';
 
 @Component({
   selector: 'app-measure-workspace',
-  standalone: true,
   imports: [
-    CommonModule,
-    RouterModule,
+    RouterLink,
     MeasureDefinitionTabComponent,
     MeasureGroupsTabComponent,
     MeasureRunTabComponent,
     MeasureReportsTabComponent
   ],
   templateUrl: './measure-workspace.component.html',
+
   styleUrl: './measure-workspace.component.scss'
 })
 export class MeasureWorkspaceComponent {
