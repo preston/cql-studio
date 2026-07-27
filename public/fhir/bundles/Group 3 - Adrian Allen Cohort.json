@@ -1,0 +1,28 @@
+{
+    "resourceType": "Bundle",
+    "type": "transaction",
+    "entry": [
+        {
+            "fullUrl": "http://clinfhir.com/fhir/Group/example-group-adrian-allen",
+            "resource": {
+                "resourceType": "Group",
+                "id": "example-group-adrian-allen",
+                "type": "person",
+                "actual": true,
+                "name": "Adrian Allen Cohort",
+                "member": [
+                    {
+                        "entity": {
+                            "reference": "Patient/cfsb1703736930464",
+                            "display": "Adrian Allen1"
+                        }
+                    }
+                ]
+            },
+            "request": {
+                "method": "PUT",
+                "url": "Group/example-group-adrian-allen"
+            }
+        }
+    ]
+}

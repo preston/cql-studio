@@ -1,0 +1,46 @@
+{
+    "resourceType": "Bundle",
+    "type": "transaction",
+    "entry": [
+        {
+            "fullUrl": "http://clinfhir.com/fhir/Group/example-group-all-patients",
+            "resource": {
+                "resourceType": "Group",
+                "id": "example-group-all-patients",
+                "type": "person",
+                "actual": true,
+                "name": "All Example Patients",
+                "member": [
+                    {
+                        "entity": {
+                            "reference": "Patient/cfsb1703736930464",
+                            "display": "Adrian Allen1"
+                        }
+                    },
+                    {
+                        "entity": {
+                            "reference": "Patient/cfsb1699034947598",
+                            "display": "Beth Brooks2"
+                        }
+                    },
+                    {
+                        "entity": {
+                            "reference": "Patient/cfsb1700025838491",
+                            "display": "Carmen Chavez"
+                        }
+                    },
+                    {
+                        "entity": {
+                            "reference": "Patient/cfsb1700154185275",
+                            "display": "Diana Dixon4"
+                        }
+                    }
+                ]
+            },
+            "request": {
+                "method": "PUT",
+                "url": "Group/example-group-all-patients"
+            }
+        }
+    ]
+}
