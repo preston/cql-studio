@@ -85,14 +85,20 @@ export class CqlExecutionService extends BaseService {
 
   private executeLibraryForPatients(libraryId: string, patientIds: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const executions = patientIds
-      .filter(patientId => patientId && patientId.trim().length > 0)
+      .filter(patientId => patientId && String(patientId).trim().length > 0)
       .map(patientId => {
+        const normalizedPatientId = String(patientId).trim();
         const parameters = this.createBaseParameters();
-        this.addSubjectParameter(parameters, patientId);
+        this.addSubjectParameter(parameters, normalizedPatientId);
         return this.executeHttpRequest(
           this.getLibraryEvaluateUrl(libraryId),
           parameters,
-          { libraryId, libraryName: options?.libraryName || libraryId, patientId, patientName: `Patient ${patientId}` }
+          {
+            libraryId,
+            libraryName: options?.libraryName || libraryId,
+            patientId: normalizedPatientId,
+            patientName: `Patient ${normalizedPatientId}`
+          }
         );
       });
 
@@ -113,17 +119,26 @@ export class CqlExecutionService extends BaseService {
   }
 
   private executeCqlForPatients(libraryId: string, patientIds: string[], options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
-    const executions = patientIds.map(patientId => {
-      const parameters = this.createBaseParameters();
-      this.addLibraryParameter(parameters, libraryId);
-      this.addSubjectParameter(parameters, patientId);
-      this.addExpressionParameter(parameters, options);
-      return this.executeHttpRequest(
-        this.getCqlOperationUrl(),
-        parameters,
-        { libraryId, libraryName: libraryId, patientId, patientName: `Patient ${patientId}`, functionName: options?.functionName }
-      );
-    });
+    const executions = patientIds
+      .filter(patientId => patientId && String(patientId).trim().length > 0)
+      .map(patientId => {
+        const normalizedPatientId = String(patientId).trim();
+        const parameters = this.createBaseParameters();
+        this.addLibraryParameter(parameters, libraryId);
+        this.addSubjectParameter(parameters, normalizedPatientId);
+        this.addExpressionParameter(parameters, options);
+        return this.executeHttpRequest(
+          this.getCqlOperationUrl(),
+          parameters,
+          {
+            libraryId,
+            libraryName: libraryId,
+            patientId: normalizedPatientId,
+            patientName: `Patient ${normalizedPatientId}`,
+            functionName: options?.functionName
+          }
+        );
+      });
 
     return forkJoin(executions);
   }

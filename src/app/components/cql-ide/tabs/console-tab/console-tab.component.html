@@ -32,7 +32,7 @@
 
   <div class="flex-fill overflow-auto" [class.executing]="isEvaluating()" #consoleContent (scroll)="onConsoleScroll($event)">
     <div class="p-2">
-      @for (section of outputSections(); track section.id; let i = $index) {
+      @for (section of outputSections(); track $index; let i = $index) {
         <div class="console-section"
              [class.expanded]="section.expanded"
              [class.console-section-text]="section.type === 'text'"

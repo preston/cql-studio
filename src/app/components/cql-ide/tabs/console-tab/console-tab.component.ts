@@ -16,7 +16,7 @@ import { CustomOutputCardComponent } from './custom-output-card.component';
   styleUrls: ['./console-tab.component.scss']
 })
 export class ConsoleTabComponent {
-  preserveLogs = input<boolean>(true);
+  preserveLogs = input<boolean>(false);
   isEvaluating = input<boolean>(false);
   executionProgress = input<number>(0);
   executionStatus = input<string>('');

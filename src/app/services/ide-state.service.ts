@@ -86,7 +86,7 @@ export class IdeStateService {
   private _outputSections = signal<OutputSection[]>([]);
   private _executionProgress = signal<number>(0);
   private _executionStatus = signal<string>('');
-  private _preserveLogs = signal<boolean>(true);
+  private _preserveLogs = signal<boolean>(false);
 
   // FHIR data
   private _selectedPatients = signal<Patient[]>([]);
@@ -258,12 +258,17 @@ export class IdeStateService {
   }
 
   addOutputSection(section: OutputSection): void {
-    // If preserveLogs is false, clear existing content before adding new section
+    this.addOutputSections([section]);
+  }
+
+  addOutputSections(sections: OutputSection[]): void {
+    if (sections.length === 0) {
+      return;
+    }
     if (!this._preserveLogs()) {
-      this._outputSections.set([section]);
+      this._outputSections.set(sections);
     } else {
-      // If preserveLogs is true, append to existing sections
-      this._outputSections.update(sections => [...sections, section]);
+      this._outputSections.update(existing => [...existing, ...sections]);
     }
   }
 

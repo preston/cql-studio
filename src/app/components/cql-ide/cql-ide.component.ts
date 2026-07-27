@@ -13,8 +13,13 @@ import { SettingsService } from '../../services/settings.service';
 import { AiService } from '../../services/ai.service';
 import { CqlValidationService } from '../../services/cql-validation.service';
 import { ToastService } from '../../services/toast.service';
-import { Library } from 'fhir/r4';
+import { Library, Patient } from 'fhir/r4';
 import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
+import {
+  buildSeparateExecutionOutputSections,
+  normalizeExecutionResults,
+  shouldRenderExecutionResultsSeparately
+} from '../../services/cql-execution-output.lib';
 import { KeyboardShortcut } from './shared/ide-types';
 
 // Import all the new components
@@ -464,8 +469,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Get selected patient IDs
-    const patientIds = this.patientService.selectedPatients.map(p => p.id).filter(id => id) as string[];
+    const patientIds = this.getSelectedPatientIds();
     
     // Prepare libraries for execution
     const librariesToExecute = libraries.map(lib => ({
@@ -479,7 +483,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         this.ideStateService.setExecuting(false);
         
         // Format and add results to output sections
-        this.formatAndAddExecutionResults(results, 'Execute All Libraries');
+        this.formatAndAddExecutionResults(results, 'Execute All Libraries', patientIds);
       },
       error: (error) => {
         console.error('All libraries execution failed:', error);
@@ -592,8 +596,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.setExecuting(true);
     this.ideStateService.setExecutionStatus('Translating CQL to ELM...');
     
-    // Get selected patient IDs
-    const patientIds = this.patientService.selectedPatients.map(p => p.id).filter(id => id) as string[];
+    const patientIds = this.getSelectedPatientIds();
     
     // Get current CQL content from memory (even if not saved)
     const currentCqlContent = activeLibrary.cqlContent || '';
@@ -636,7 +639,11 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         this.ideStateService.setExecutionStatus('');
         
         // Format and add results to output sections
-        this.formatAndAddExecutionResults(result, `Library: ${activeLibrary.name || activeLibrary.id}`);
+        this.formatAndAddExecutionResults(
+          result,
+          `Library: ${activeLibrary.name || activeLibrary.id}`,
+          patientIds
+        );
       },
       error: (error) => {
         console.error('Library execution failed:', error);
@@ -925,48 +932,71 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   // Helper methods for output formatting
-  private formatAndAddExecutionResults(results: any[], title: string): void {
-    const hasPatientResults = results.some(r => r.patientId);
+  private getSelectedPatientIds(): string[] {
+    return this.patientService.selectedPatients
+      .map(patient => patient.id)
+      .filter((id): id is string => id != null && String(id).trim().length > 0)
+      .map(id => String(id));
+  }
 
-    // If we executed with patient context, log each patient result separately
-    // so Console renders multiple items (one per patient), not a single combined blob.
-    if (hasPatientResults) {
-      results.forEach((r) => {
-        const patientLabel = r.patientName || r.patientId || 'Unknown patient';
-        const status = r.error ? 'error' : 'success';
-        const executionTime = r.executionTime || 0;
-        const librarySuffix = r.libraryName && !title.includes(r.libraryName) ? ` (${r.libraryName})` : '';
+  private getSelectedPatientNameById(): Map<string, string> {
+    const names = new Map<string, string>();
+    for (const patient of this.patientService.selectedPatients) {
+      if (!patient.id) {
+        continue;
+      }
+      names.set(String(patient.id), this.getPatientDisplayName(patient));
+    }
+    return names;
+  }
 
-        this.ideStateService.addOutputSection({
-          id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          title: `${title}${librarySuffix} - ${patientLabel}`,
-          content: JSON.stringify({
-            libraryId: r.libraryId,
-            libraryName: r.libraryName,
-            patientId: r.patientId,
-            patientName: r.patientName,
-            functionName: r.functionName,
-            executionTime: r.executionTime,
-            error: r.error ?? undefined,
-            result: r.result ?? undefined
-          }),
-          type: 'json',
-          status,
-          executionTime,
-          expanded: true,
-          timestamp: new Date()
-        });
-      });
+  private getPatientDisplayName(patient: Patient): string {
+    if (patient.name && patient.name.length > 0) {
+      const name = patient.name[0];
+      const given = name.given ? name.given.join(' ') : '';
+      const family = name.family || '';
+      const result = `${given} ${family}`.trim();
+      if (result) {
+        return result;
+      }
+    }
+
+    if (patient.text?.div) {
+      const textMatch = patient.text.div.match(/<div[^>]*>([^<]+)<\/div>/);
+      if (textMatch?.[1]) {
+        return textMatch[1].trim();
+      }
+    }
+
+    if (patient.identifier && patient.identifier.length > 0 && patient.identifier[0].value) {
+      return patient.identifier[0].value;
+    }
+
+    return patient.id ? String(patient.id) : 'Unknown patient';
+  }
+
+  private formatAndAddExecutionResults(results: unknown, title: string, patientIds: string[] = []): void {
+    const normalizedResults = normalizeExecutionResults(results);
+
+    if (shouldRenderExecutionResultsSeparately(normalizedResults, patientIds)) {
+      const sections = buildSeparateExecutionOutputSections(
+        normalizedResults,
+        title,
+        patientIds,
+        this.getSelectedPatientNameById(),
+        index => `output_${index}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+      );
+      this.ideStateService.addOutputSections(sections);
       return;
     }
 
     // No patient context: keep existing behavior (one combined json section).
-    const content = this.formatExecutionResults(results);
-    const status = results.some(r => r.error) ? 'error' : 'success';
-    const executionTime = results.reduce((total, r) => total + (r.executionTime || 0), 0);
+    const content = this.formatExecutionResults(normalizedResults);
+    const status = normalizedResults.some(r => r.error) ? 'error' : 'success';
+    const executionTime = normalizedResults.reduce((total, r) => total + (r.executionTime || 0), 0);
 
     this.ideStateService.addOutputSection({
-      id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `output_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
       title,
       content,
       type: 'json',
