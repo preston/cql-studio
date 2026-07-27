@@ -748,6 +748,21 @@ export class SqlOnFhirComponent implements OnInit {
     };
   }
 
+  /**
+   * User edited the CQL in the pipeline's CQL step. Setting cqlPreview re-fires
+   * the translation effect, which cascades into SQL regeneration; downstream
+   * results are cleared so stale counts/reports aren't shown against new logic.
+   * Execution data (bundle, value sets, patients) is intentionally kept so the
+   * edited measure runs against the same cohort — that's the authoring loop.
+   */
+  protected onCqlEdited(newCql: string): void {
+    this.sqlResultsRaw.set('');
+    this.sqlExecuteFailed.set(false);
+    this.measureReport.set(null);
+    this.latestPopulationCounts = null;
+    this.cqlPreview.set(newCql);
+  }
+
   protected loadCms125Demo(): void {
     this.isLoadingDemo.set(true);
     this.demoLoadError.set(null);

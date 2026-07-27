@@ -87,10 +87,10 @@ Not directly. Parse XML to the JSON structure first. The JSON format is simpler 
 | Primitives | `Literal` (Integer, Decimal, String, Boolean, Date, DateTime), `Null` |
 | Logic | `And`, `Or`, `Not`, `Xor`, `IsNull`, `IsTrue`, `IsFalse` |
 | Comparison | `Equal`, `NotEqual`, `Less`, `Greater`, `LessOrEqual`, `GreaterOrEqual` |
-| Arithmetic | `Add`, `Subtract`, `Multiply`, `Divide` |
-| Set/interval | `In`, `During`, `IncludedIn` (point-in-interval `@>` and interval-in-interval `<@`), `Contains`, `Exists` |
+| Arithmetic | `Add`, `Subtract`, `Multiply`, `Divide`, `Greatest`, `Least`, `Round`, `Truncate`, `Abs`, `Negate` |
+| Set/interval | `In`, `During`, `IncludedIn` (point-in-interval `@>` and interval-in-interval `<@`), `Contains`, `Exists`, `Overlaps` (`&&`), `Before`/`After`/`SameOrBefore`/`SameOrAfter` (interval operands reduce to `lower()`/`upper()`) |
 | Aggregates | `Count`, `Sum`, `Min`, `Max`, `Avg`, `AnyTrue`, `AllTrue` |
-| Temporal | `DurationBetween`, `Today`, `Now`, `Start`/`End` (via `lower()`/`upper()` for ranges), `Interval` |
+| Temporal | `DurationBetween`, `Today`, `Now`, `Start`/`End` (via `lower()`/`upper()` for ranges), `Interval`, `Quantity` literals (temporal units → `INTERVAL 'n unit'` for date arithmetic like `end of MP - 10 years`; UCUM units → bare magnitude for value comparisons like `> 9 '%'`) |
 | Control flow | `If`, `Case` |
 | Collections | `Union`, `Intersect`, `Except`, `Distinct`, `Flatten`, `First`, `Last`, `List` |
 | Functions | `AgeInYearsAt`, `AgeInMonthsAt`, `AgeInDaysAt`, `CalculateAgeAt`, `CalculateAgeInYearsAt`, `ToDate`, `ToDateTime`, `ToInterval`, `ToString`, `ToInteger`, `ToDecimal`, `Coalesce`, `Lower`, `Upper`, `Length`, `Substring` |
@@ -102,14 +102,13 @@ Not directly. Parse XML to the JSON structure first. The JSON format is simpler 
 | ---- | ------ | ----- |
 | `Collapse` / `Expand` | Emits warning + NULL | Interval list operations — planned |
 | `Message` | Emits warning + NULL | CQL tracing construct — low priority |
-| `Ratio` / `Quantity` comparisons | Partial | Unit-aware math not implemented |
+| Unit-aware `Quantity` math | Partial | Magnitude comparisons work (`> 9 '%'` → `> 9`); unit conversion (mg vs g) not implemented |
 | Cross-library `ExpressionRef` | Warning + falls through | Treats as local CTE reference |
 | `AnyInValueSet` / `AllInValueSet` | Emits warning + NULL | Planned |
 | `Slice` / `IndexOf` | Emits warning + NULL | Rarely used in eCQMs |
 | `DurationBetween` with `Week`/`Hour` | Falls to day | PostgreSQL `DATE_PART` limitation |
 | `Tuple` expressions | Emits warning + NULL | Complex return types — planned |
 | Stratifiers | Not generated | `stratifier` in MeasureReport always empty |
-| `DateTime` arithmetic (`+ 1 year`) | Not supported | Use `DurationBetween` instead |
 
 When an unsupported node is encountered, the transpiler emits a SQL block comment (`NULL /* unsupported: TypeName */`) and adds an entry to `warnings[]` in the `TranspileResult`. Block-comment style means the placeholder does not break single-line expressions. **Always check `warnings` after transpiling.**
 
