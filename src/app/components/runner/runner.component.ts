@@ -284,7 +284,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
         });
         
         // Show toast notification that tests are queued
-        this.toastService.showWarning(
+        this.toastService.showSuccess(
           'Your tests are queued for execution and will run as quickly as possible. Please do not leave this page.',
           'CQL Tests Queued for Execution'
         );
@@ -328,6 +328,18 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
             this.isPolling.set(false);
             this.stopPolling();
             this.stopTimer(); // Stop timer when job completes
+
+            if (status.status === 'completed') {
+              this.toastService.showSuccess(
+                'Your CQL test run finished successfully. You can download or view the results.',
+                'CQL Tests Completed'
+              );
+            } else if (status.status === 'failed') {
+              this.toastService.showError(
+                'Your CQL test run failed. Please check the results for details.',
+                'CQL Tests Failed'
+              );
+            }
           }
         },
         error: (error) => {
