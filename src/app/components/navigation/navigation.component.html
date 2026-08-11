@@ -42,28 +42,7 @@
           </ul>
         </li>
         }
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="testingDropdown" role="button" data-bs-toggle="dropdown"
-            aria-expanded="false">
-            <!-- <i class="bi bi-clipboard-check me-1"></i> -->
-            Testing
-          </a>
-          <ul class="dropdown-menu" aria-labelledby="testingDropdown">
-            <h6 class="dropdown-header">CQL Engines</h6>
-
-            <li>
-              <a id="runner-nav-link" class="dropdown-item" routerLink="/runner" routerLinkActive="active">
-                <i class="bi bi-play-circle me-2"></i>Test Runner
-              </a>
-            </li>
-            <li>
-              <a id="results-nav-link" class="dropdown-item" routerLink="/results/open" routerLinkActive="active">
-                <i class="bi bi-file-earmark-text me-2"></i>Test Results
-              </a>
-            </li>
-          </ul>
-        </li>
-
+ 
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="authoringDropdown" role="button" data-bs-toggle="dropdown"
             aria-expanded="false">
@@ -102,6 +81,29 @@
             }
           </ul>
         </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="testingDropdown" role="button" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            <!-- <i class="bi bi-clipboard-check me-1"></i> -->
+            Testing
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="testingDropdown">
+            <h6 class="dropdown-header">CQL Engines</h6>
+
+            <li>
+              <a id="runner-nav-link" class="dropdown-item" routerLink="/runner" routerLinkActive="active">
+                <i class="bi bi-play-circle me-2"></i>Test Runner
+              </a>
+            </li>
+            <li>
+              <a id="results-nav-link" class="dropdown-item" routerLink="/results/open" routerLinkActive="active">
+                <i class="bi bi-file-earmark-text me-2"></i>Test Results
+              </a>
+            </li>
+          </ul>
+        </li>
+
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="terminologyDropdown" role="button" data-bs-toggle="dropdown"
             aria-expanded="false">
@@ -154,12 +156,13 @@
       </ul>
       <ul class="navbar-nav">
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="documentationDropdown" role="button"
+          <a class="nav-link dropdown-toggle" href="#" id="learningDropdown" role="button"
             data-bs-toggle="dropdown" aria-expanded="false">
             <!-- <i class="bi bi-book me-1"></i> -->
-            Documentation
+            Learning
           </a>
-          <ul class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <ul class="dropdown-menu" aria-labelledby="learningDropdown">
+            <h6 class="dropdown-header">External Resources</h6>
             <li>
               <a id="cql-studio-website-nav-link" class="dropdown-item" href="https://cqlstudio.com/" target="_blank"
                 rel="noopener noreferrer">
@@ -171,12 +174,13 @@
               <a id="cql-studio-github-issues-nav-link" class="dropdown-item"
                 href="https://github.com/cqframework/cql-studio/issues" target="_blank" rel="noopener noreferrer">
                 <i class="bi bi-github me-2"></i>
-                Feedback &amp; Bug Reports
+                Feature Requests &amp; Bug Reports
               </a>
             </li>
             <li>
               <hr class="dropdown-divider">
             </li>
+            <h6 class="dropdown-header">Documentation</h6>
             <li>
               <a id="runner-documentation-menu-item" class="dropdown-item" routerLink="/documentation/runner"
                 routerLinkActive="active">
