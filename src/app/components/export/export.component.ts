@@ -31,7 +31,51 @@ export type ExportDestination = 'raw-cql' | 'fhir-package' | 'fhir-server' | 'cr
 export type ExportWizardStep = 'destination' | 'libraries' | 'dependencies' | 'confirm';
 export type ExportDepSortColumn = 'include' | 'kind' | 'name' | 'status' | 'detail';
 
-const STEPS: ExportWizardStep[] = ['destination', 'libraries', 'dependencies', 'confirm'];
+interface ExportWizardStepMeta {
+  id: ExportWizardStep;
+  label: string;
+}
+
+interface ExportDestinationMeta {
+  id: ExportDestination;
+  label: string;
+  icon: string;
+  help: string;
+}
+
+const EXPORT_WIZARD_STEPS: readonly ExportWizardStepMeta[] = [
+  { id: 'destination', label: 'Destination' },
+  { id: 'libraries', label: 'Libraries' },
+  { id: 'dependencies', label: 'Dependencies' },
+  { id: 'confirm', label: 'Confirm' }
+];
+
+const EXPORT_DESTINATIONS: readonly ExportDestinationMeta[] = [
+  {
+    id: 'raw-cql',
+    label: 'Raw CQL + dependencies (.zip)',
+    icon: 'bi-file-earmark-code',
+    help: 'Download .cql sources and any selected terminology JSON files.'
+  },
+  {
+    id: 'fhir-package',
+    label: 'FHIR NPM package (.tgz)',
+    icon: 'bi-box-seam',
+    help: 'Download a FHIR Packages–conformant Conformance .tgz with package.json and .index.json.'
+  },
+  {
+    id: 'fhir-server',
+    label: 'Publish to FHIR server',
+    icon: 'bi-cloud-upload',
+    help: 'POST selected Libraries and terminology to your configured FHIR endpoints.'
+  },
+  {
+    id: 'crmi',
+    label: 'CRMI artifact package',
+    icon: 'bi-diagram-3',
+    help: 'Build a CRMI artifact Bundle for download or publish. Local packaging only.'
+  }
+];
 
 @Component({
   selector: 'app-export',
@@ -46,7 +90,8 @@ export class ExportComponent implements OnInit {
   private readonly crmiPackageService = inject(CrmiArtifactPackageService);
   private readonly publishService = inject(ExportPublishService);
 
-  readonly steps = STEPS;
+  readonly steps = EXPORT_WIZARD_STEPS;
+  readonly destinations = EXPORT_DESTINATIONS;
   readonly activeStep = signal<ExportWizardStep>('destination');
   readonly destination = signal<ExportDestination | null>(null);
 
@@ -62,7 +107,6 @@ export class ExportComponent implements OnInit {
   /** Keys of graph nodes included in the export. */
   readonly selectedExportKeys = signal<ReadonlySet<string>>(new Set());
 
-  readonly includeFhirHelpers = signal(false);
   /** When destination is raw-cql, include a root complete-bundle.json (transaction + PUT). */
   readonly includeCompleteBundle = signal(true);
   readonly terminologyCapability = signal<'computable' | 'expanded'>('computable');
@@ -83,7 +127,12 @@ export class ExportComponent implements OnInit {
   readonly depSortColumn = signal<ExportDepSortColumn>('kind');
   readonly depSortOrder = signal<'asc' | 'desc'>('asc');
 
-  readonly stepIndex = computed(() => this.steps.indexOf(this.activeStep()));
+  readonly stepIndex = computed(() => this.steps.findIndex((s) => s.id === this.activeStep()));
+
+  readonly selectedDestinationMeta = computed(() => {
+    const id = this.destination();
+    return id ? (this.destinations.find((d) => d.id === id) ?? null) : null;
+  });
 
   readonly sortedDependencyNodes = computed(() => {
     const g = this.graph();
@@ -203,32 +252,6 @@ export class ExportComponent implements OnInit {
     void this.loadLibraries();
   }
 
-  stepLabel(step: ExportWizardStep): string {
-    switch (step) {
-      case 'destination':
-        return 'Destination';
-      case 'libraries':
-        return 'Libraries';
-      case 'dependencies':
-        return 'Dependencies';
-      case 'confirm':
-        return 'Confirm';
-    }
-  }
-
-  destinationLabel(dest: ExportDestination): string {
-    switch (dest) {
-      case 'raw-cql':
-        return 'Raw CQL + dependencies (.zip)';
-      case 'fhir-package':
-        return 'FHIR NPM package (.tgz)';
-      case 'fhir-server':
-        return 'Publish to FHIR server';
-      case 'crmi':
-        return 'CRMI artifact package';
-    }
-  }
-
   selectDestination(dest: ExportDestination): void {
     this.destination.set(dest);
     if (dest === 'crmi') {
@@ -237,32 +260,6 @@ export class ExportComponent implements OnInit {
       this.conditionalCreate.set(false);
     }
     this.activeStep.set('libraries');
-  }
-
-  destinationIcon(dest: ExportDestination): string {
-    switch (dest) {
-      case 'raw-cql':
-        return 'bi-file-earmark-code';
-      case 'fhir-package':
-        return 'bi-box-seam';
-      case 'fhir-server':
-        return 'bi-cloud-upload';
-      case 'crmi':
-        return 'bi-diagram-3';
-    }
-  }
-
-  destinationHelp(dest: ExportDestination): string {
-    switch (dest) {
-      case 'raw-cql':
-        return 'Download .cql sources and any selected terminology JSON files.';
-      case 'fhir-package':
-        return 'Download a FHIR Packages–conformant Conformance .tgz with package.json and .index.json.';
-      case 'fhir-server':
-        return 'POST selected Libraries and terminology to your configured FHIR endpoints.';
-      case 'crmi':
-        return 'Build a CRMI artifact Bundle for download or publish. Local packaging only.';
-    }
   }
 
   isLibrarySelected(lib: Library): boolean {
@@ -308,10 +305,10 @@ export class ExportComponent implements OnInit {
     if (!nextStep) {
       return;
     }
-    if (nextStep === 'dependencies') {
+    if (nextStep.id === 'dependencies') {
       await this.analyzeDependencies();
     }
-    if (this.activeStep() === 'dependencies' && nextStep === 'confirm') {
+    if (this.activeStep() === 'dependencies' && nextStep.id === 'confirm') {
       if (this.isGraphStale()) {
         await this.analyzeDependencies();
         if (!this.graph() || this.selectedCounts().library === 0) {
@@ -320,12 +317,11 @@ export class ExportComponent implements OnInit {
       }
       this.prefillPackageFields();
     }
-    this.activeStep.set(nextStep);
+    this.activeStep.set(nextStep.id);
   }
 
   currentGraphOptionsKey(): string {
     return exportGraphOptionsKey({
-      includeFhirHelpers: this.includeFhirHelpers(),
       includeCodeSystems: true,
       terminologyCapability: this.terminologyCapability()
     });
@@ -342,7 +338,6 @@ export class ExportComponent implements OnInit {
     this.progressMessage.set('Analyzing library and terminology dependencies…');
     try {
       const graph = await this.dependencyGraphService.buildGraph(this.selectedLibraries(), {
-        includeFhirHelpers: this.includeFhirHelpers(),
         includeCodeSystems: true,
         terminologyCapability: this.terminologyCapability()
       });
@@ -473,8 +468,6 @@ export class ExportComponent implements OnInit {
         return 'text-bg-secondary';
       case 'cycle':
         return 'text-bg-warning';
-      case 'bundled':
-        return 'text-bg-info';
       default:
         return 'text-bg-light';
     }

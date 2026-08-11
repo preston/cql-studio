@@ -42,7 +42,7 @@
           </ul>
         </li>
         }
- 
+
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="authoringDropdown" role="button" data-bs-toggle="dropdown"
             aria-expanded="false">
@@ -62,7 +62,8 @@
               </a>
             </li>
             <li>
-              <a id="measure-reports-nav-link" class="dropdown-item" routerLink="/measure-reports" routerLinkActive="active">
+              <a id="measure-reports-nav-link" class="dropdown-item" routerLink="/measure-reports"
+                routerLinkActive="active">
                 <i class="bi bi-file-earmark-bar-graph me-2"></i>Measure Reports
               </a>
             </li>
@@ -129,6 +130,8 @@
             Tools
           </a>
           <ul class="dropdown-menu" aria-labelledby="toolsDropdown">
+            <h6 class="dropdown-header">Import</h6>
+
             <li>
               <a id="fhir-uploader-nav-link" class="dropdown-item" routerLink="/uploader" routerLinkActive="active">
                 <i class="bi bi-upload me-2"></i>FHIR Uploader
@@ -138,12 +141,16 @@
             <li>
               <a id="fhir-registry-importer-nav-link" class="dropdown-item" routerLink="/fhir-registry-importer"
                 routerLinkActive="active">
-                <i class="bi bi-box-seam me-2"></i>FHIR Registry Importer
+                <i class="bi bi-box-seam me-2"></i>FHIR Registry
               </a>
             </li>
             <li>
+              <hr class="dropdown-divider">
+            </li>
+            <!-- <h6 class="dropdown-header">Export</h6> -->
+            <li>
               <a id="export-nav-link" class="dropdown-item" routerLink="/export" routerLinkActive="active">
-                <i class="bi bi-box-arrow-up me-2"></i>Export
+                <i class="bi bi-box-arrow-up me-2"></i>Export Wizard
               </a>
             </li>
             }
@@ -161,16 +168,15 @@
       </ul>
       <ul class="navbar-nav">
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="learningDropdown" role="button"
-            data-bs-toggle="dropdown" aria-expanded="false">
+          <a class="nav-link dropdown-toggle" href="#" id="learningDropdown" role="button" data-bs-toggle="dropdown"
+            aria-expanded="false">
             <!-- <i class="bi bi-book me-1"></i> -->
             Learning
           </a>
           <ul class="dropdown-menu" aria-labelledby="learningDropdown">
             @if (settingsService.settings().experimental) {
             <li>
-              <a id="examples-nav-link" class="dropdown-item" routerLink="/examples"
-                routerLinkActive="active">
+              <a id="examples-nav-link" class="dropdown-item" routerLink="/examples" routerLinkActive="active">
                 <i class="bi bi-lightbulb me-2"></i>
                 Examples
               </a>
@@ -229,24 +235,25 @@
           </a>
         </li>
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle text-truncate environment-switcher-toggle bg-body-secondary" href="#" id="environment-switcher" role="button"
-            data-bs-toggle="dropdown" aria-expanded="false">
+          <a class="nav-link dropdown-toggle text-truncate environment-switcher-toggle bg-body-secondary" href="#"
+            id="environment-switcher" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <span class="bi bi-globe2 me-1"></span>{{ activeEnvironmentName() }}
           </a>
           <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="environment-switcher">
             @for (env of environmentService.environments(); track env.id) {
-              <li>
-                <button type="button" class="dropdown-item d-flex justify-content-between align-items-center"
-                  [id]="'environment-switcher-' + env.id"
-                  (click)="activateEnvironment(env.id)">
-                  <span class="text-truncate">{{ env.name }}</span>
-                  @if (env.id === environmentService.activeEnvironmentId()) {
-                    <span class="bi bi-check-lg ms-2"></span>
-                  }
-                </button>
-              </li>
+            <li>
+              <button type="button" class="dropdown-item d-flex justify-content-between align-items-center"
+                [id]="'environment-switcher-' + env.id" (click)="activateEnvironment(env.id)">
+                <span class="text-truncate">{{ env.name }}</span>
+                @if (env.id === environmentService.activeEnvironmentId()) {
+                <span class="bi bi-check-lg ms-2"></span>
+                }
+              </button>
+            </li>
             }
-            <li><hr class="dropdown-divider"></li>
+            <li>
+              <hr class="dropdown-divider">
+            </li>
             <li>
               <a class="dropdown-item" id="environment-switcher-manage" routerLink="/settings"
                 [queryParams]="{ section: 'environments' }">

@@ -18,10 +18,9 @@ import {
 } from './valueset-compose-refs.lib';
 import { prepareValueSetForCapability } from './fhir-package-manifest.lib';
 import { resourceTypeOf } from './fhir-resource-type.lib';
-import { encodeUtf8Base64 } from './utf8-encoding.lib';
 
 export type ExportNodeKind = 'library' | 'valueset' | 'codesystem';
-export type ExportNodeStatus = 'resolved' | 'missing' | 'external' | 'cycle' | 'bundled';
+export type ExportNodeStatus = 'resolved' | 'missing' | 'external' | 'cycle';
 
 export interface ExportDependencyNode {
   key: string;
@@ -35,7 +34,6 @@ export interface ExportDependencyNode {
 }
 
 export interface ExportDependencyGraphOptions {
-  includeFhirHelpers?: boolean;
   includeCodeSystems?: boolean;
   terminologyCapability?: 'computable' | 'expanded';
 }
@@ -54,7 +52,6 @@ export interface ExportDependencyGraph {
 
 export function exportGraphOptionsKey(options: ExportDependencyGraphOptions): string {
   return [
-    options.includeFhirHelpers === true ? '1' : '0',
     options.includeCodeSystems !== false ? '1' : '0',
     options.terminologyCapability ?? 'computable'
   ].join('|');
@@ -74,7 +71,6 @@ export class ExportDependencyGraphService {
   private readonly libraryCache = new Map<string, Library | null>();
   private readonly valueSetCache = new Map<string, ValueSet | null>();
   private readonly codeSystemCache = new Map<string, CodeSystem | null>();
-  private bundledFhirHelpersCql: string | null = null;
 
   clearSessionCaches(): void {
     this.elmJsonCache.clear();
@@ -82,14 +78,12 @@ export class ExportDependencyGraphService {
     this.libraryCache.clear();
     this.valueSetCache.clear();
     this.codeSystemCache.clear();
-    this.bundledFhirHelpersCql = null;
   }
 
   async buildGraph(
     rootLibraries: Library[],
     options: ExportDependencyGraphOptions = {}
   ): Promise<ExportDependencyGraph> {
-    const includeFhirHelpers = options.includeFhirHelpers === true;
     const includeCodeSystems = options.includeCodeSystems !== false;
     const terminologyCapability = options.terminologyCapability ?? 'computable';
     const optionsKey = exportGraphOptionsKey(options);
@@ -105,7 +99,6 @@ export class ExportDependencyGraphService {
       const node = await this.walkLibrary(
         root,
         new Set<string>(),
-        includeFhirHelpers,
         includeCodeSystems,
         terminologyCapability,
         librariesByKey,
@@ -137,7 +130,6 @@ export class ExportDependencyGraphService {
   private async walkLibrary(
     library: Library,
     ancestry: Set<string>,
-    includeFhirHelpers: boolean,
     includeCodeSystems: boolean,
     terminologyCapability: 'computable' | 'expanded',
     librariesByKey: Map<string, Library>,
@@ -190,48 +182,6 @@ export class ExportDependencyGraphService {
     const includeRefs = elmXml ? this.elmIncludeParser.extractIncludes(elmXml) : [];
     for (const ref of includeRefs) {
       if (this.elmIncludeParser.isBundledLibraryPath(ref.path)) {
-        if (!includeFhirHelpers) {
-          const bundled: ExportDependencyNode = {
-            key: `library|bundled|${ref.path}|${ref.version ?? ''}`,
-            kind: 'library',
-            status: 'bundled',
-            label: `${ref.path}${ref.version ? ` ${ref.version}` : ''}`,
-            detail: 'Bundled FHIRHelpers (not included unless opted in)',
-            children: []
-          };
-          children.push(bundled);
-          this.pushFlat(flat, seenFlat, bundled);
-          continue;
-        }
-
-        const helpers = await this.resolveBundledFhirHelpers(ref.version);
-        if (!helpers) {
-          const missing: ExportDependencyNode = {
-            key: `library|${ref.path}|${ref.version ?? ''}`,
-            kind: 'library',
-            status: 'missing',
-            label: `${ref.path}${ref.version ? ` ${ref.version}` : ''}`,
-            detail: 'Could not load bundled FHIRHelpers for export',
-            children: []
-          };
-          children.push(missing);
-          this.pushFlat(flat, seenFlat, missing);
-          continue;
-        }
-
-        const childNode = await this.walkLibrary(
-          helpers,
-          nextAncestry,
-          includeFhirHelpers,
-          includeCodeSystems,
-          terminologyCapability,
-          librariesByKey,
-          valueSetsByKey,
-          codeSystemsByKey,
-          flat,
-          seenFlat
-        );
-        children.push(childNode);
         continue;
       }
 
@@ -257,7 +207,6 @@ export class ExportDependencyGraphService {
       const childNode = await this.walkLibrary(
         childLib,
         nextAncestry,
-        includeFhirHelpers,
         includeCodeSystems,
         terminologyCapability,
         librariesByKey,
@@ -490,59 +439,6 @@ export class ExportDependencyGraphService {
     this.elmXmlCache.set(cacheKey, elmXml);
     this.elmJsonCache.set(cacheKey, elmJson);
     return { elmXml, elmJson };
-  }
-
-  private async resolveBundledFhirHelpers(version: string | null): Promise<Library | null> {
-    const ver = version || '4.0.1';
-    const cacheKey = `lib|FHIRHelpers|${ver}|bundled`;
-    if (this.libraryCache.has(cacheKey)) {
-      return this.libraryCache.get(cacheKey) ?? null;
-    }
-
-    const fromServer = await this.resolveLibrary('FHIRHelpers', ver);
-    if (fromServer) {
-      this.libraryCache.set(cacheKey, fromServer);
-      return fromServer;
-    }
-
-    try {
-      if (this.bundledFhirHelpersCql == null) {
-        const response = await fetch(`/cql/FHIRHelpers-${ver}.cql`);
-        if (!response.ok) {
-          this.libraryCache.set(cacheKey, null);
-          return null;
-        }
-        this.bundledFhirHelpersCql = await response.text();
-      }
-      const cql = this.bundledFhirHelpersCql;
-      const synthetic: Library = {
-        resourceType: 'Library',
-        id: 'FHIRHelpers',
-        name: 'FHIRHelpers',
-        version: ver,
-        status: 'active',
-        type: {
-          coding: [
-            {
-              system: 'http://terminology.hl7.org/CodeSystem/library-type',
-              code: 'logic-library',
-              display: 'Logic Library'
-            }
-          ]
-        },
-        content: [
-          {
-            contentType: 'text/cql',
-            data: encodeUtf8Base64(cql)
-          }
-        ]
-      };
-      this.libraryCache.set(cacheKey, synthetic);
-      return synthetic;
-    } catch {
-      this.libraryCache.set(cacheKey, null);
-      return null;
-    }
   }
 
   private async resolveLibrary(name: string, version: string | null): Promise<Library | null> {
