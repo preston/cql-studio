@@ -48,6 +48,39 @@ export function collectionBundleToTransaction(bundle: Bundle): Bundle {
   };
 }
 
+/**
+ * Build a transaction Bundle that uses HTTP PUT for every resource.
+ * Callers must pass resources that already have an `id` (as export-resolved FHIR resources do).
+ */
+export function buildPutTransactionBundle(resources: Resource[]): Bundle {
+  const entry = resources.map((resource) => {
+    const rt = resourceTypeOf(resource);
+    const id =
+      typeof (resource as { id?: string }).id === 'string'
+        ? (resource as { id: string }).id.trim()
+        : '';
+    if (!rt || !id) {
+      throw new Error(
+        `Cannot build PUT transaction entry without resourceType and id (got ${rt ?? 'unknown'}/${id || 'missing'}).`
+      );
+    }
+    return {
+      resource,
+      request: {
+        method: 'PUT' as const,
+        url: `${rt}/${encodeURIComponent(id)}`
+      }
+    };
+  });
+
+  return {
+    resourceType: 'Bundle',
+    type: 'transaction',
+    timestamp: new Date().toISOString(),
+    entry
+  };
+}
+
 /** Prepare a bundle for HTTP POST to the FHIR service root (`[base]`). */
 export function normalizeBundleForBasePost(bundle: Bundle): Bundle {
   if (bundle.type === 'collection') {

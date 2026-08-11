@@ -1,0 +1,486 @@
+<div class="container-fluid py-3" id="export-page">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h3 mb-1" id="export-title">Export</h1>
+      <p class="text-muted mb-0">
+        Export CQL libraries and dependencies as zip archives, FHIR packages, or CRMI artifact bundles.
+      </p>
+    </div>
+  </div>
+
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-4 flex-wrap" id="export-wizard-header">
+    <ul class="nav nav-pills flex-wrap gap-1 mb-0" id="export-wizard-steps">
+      @for (step of steps; track step; let i = $index) {
+        <li class="nav-item">
+          <button
+            type="button"
+            class="nav-link"
+            [id]="'export-step-' + step"
+            [class.active]="activeStep() === step"
+            [disabled]="i > stepIndex()"
+            (click)="i <= stepIndex() && activeStep.set(step)">
+            <span class="badge text-bg-secondary me-1">{{ i + 1 }}</span>
+            {{ stepLabel(step) }}
+          </button>
+        </li>
+      }
+    </ul>
+    @if (activeStep() !== 'destination' && activeStep() !== 'confirm') {
+      <button id="export-next-btn" type="button" class="btn btn-primary" [disabled]="!canProceed() || busy()" (click)="next()">
+        Next
+      </button>
+    }
+  </div>
+
+  @if (progressMessage()) {
+    <div class="alert alert-info" id="export-progress" role="status">{{ progressMessage() }}</div>
+  }
+
+  <!-- Step 1: Destination -->
+  @if (activeStep() === 'destination') {
+    <div id="export-destination-step">
+      <p class="text-muted mb-3">Choose how you want to export, then continue with library selection.</p>
+      <div class="list-group" id="export-destination-list">
+        @for (dest of ['raw-cql', 'fhir-package', 'fhir-server', 'crmi']; track dest) {
+          <button
+            type="button"
+            class="list-group-item list-group-item-action py-3"
+            [id]="'export-destination-' + dest"
+            [class.active]="destination() === dest"
+            (click)="selectDestination($any(dest))">
+            <div class="d-flex align-items-start gap-3">
+              <i
+                class="bi {{ destinationIcon($any(dest)) }} fs-4 mt-1"
+                [class.text-primary]="destination() !== dest"
+                aria-hidden="true"></i>
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ destinationLabel($any(dest)) }}</div>
+                <div class="small" [class.text-white-50]="destination() === dest" [class.text-muted]="destination() !== dest">
+                  {{ destinationHelp($any(dest)) }}
+                </div>
+              </div>
+              <i class="bi bi-chevron-right mt-1" [class.text-muted]="destination() !== dest" aria-hidden="true"></i>
+            </div>
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Step 2: Libraries -->
+  @if (activeStep() === 'libraries') {
+    <div id="export-libraries-step">
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div class="input-group mb-3">
+            <div class="form-floating flex-grow-1">
+              <input
+                id="export-library-search"
+                type="search"
+                class="form-control"
+                placeholder="Search libraries by title…"
+                [ngModel]="librarySearch()"
+                (ngModelChange)="librarySearch.set($event)"
+                (keyup.enter)="loadLibraries()" />
+              <label for="export-library-search">Search libraries</label>
+            </div>
+            <button id="export-library-search-btn" type="button" class="btn btn-outline-secondary" (click)="loadLibraries()">
+              Search
+            </button>
+          </div>
+
+          @if (libraryLoading()) {
+            <div class="text-muted">Loading libraries…</div>
+          } @else if (libraryError()) {
+            <div class="alert alert-danger" id="export-library-error" role="alert">{{ libraryError() }}</div>
+          } @else if (libraryResults().length === 0) {
+            <div class="text-muted">No logic libraries found.</div>
+          } @else {
+            <div class="list-group" id="export-library-results">
+              @for (lib of libraryResults(); track lib.id || lib.url || lib.name) {
+                <label class="list-group-item list-group-item-action d-flex gap-2 align-items-start">
+                  <input
+                    class="form-check-input flex-shrink-0 mt-1"
+                    type="checkbox"
+                    [id]="'export-library-check-' + (lib.id || lib.name)"
+                    [checked]="isLibrarySelected(lib)"
+                    (change)="toggleLibrary(lib)" />
+                  <div>
+                    <div class="fw-semibold">{{ lib.title || lib.name || lib.id }}</div>
+                    <div class="small text-muted">
+                      {{ lib.name }}@if (lib.version) { · {{ lib.version }} }
+                      @if (lib.url) { · {{ lib.url }} }
+                    </div>
+                  </div>
+                </label>
+              }
+            </div>
+          }
+        </div>
+        <div class="col-lg-5">
+          <h2 class="h6">Selected ({{ selectedLibraries().length }})</h2>
+          @if (selectedLibraries().length === 0) {
+            <p class="text-muted small">Select one or more libraries to export.</p>
+          } @else {
+            <ul class="list-unstyled" id="export-selected-libraries">
+              @for (lib of selectedLibraries(); track lib.id || lib.url || lib.name) {
+                <li class="mb-2 d-flex align-items-center justify-content-between gap-2">
+                  <span class="fw-semibold">{{ lib.title || lib.name || lib.id }}</span>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" (click)="toggleLibrary(lib)">Remove</button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Step 3: Dependencies + selection -->
+  @if (activeStep() === 'dependencies') {
+    <div id="export-dependencies-step">
+      <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+        <div>
+          <h2 class="h6 mb-1">Dependencies</h2>
+          <p class="small text-muted mb-0">
+            Review discovered dependencies and choose what to include. ValueSets are selected by default; CodeSystems are not.
+          </p>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center gap-3 mb-3" id="export-analysis-controls">
+        <div class="form-check mb-0">
+          <input class="form-check-input" type="checkbox" id="export-include-fhirhelpers" [ngModel]="includeFhirHelpers()" (ngModelChange)="includeFhirHelpers.set($event)" />
+          <label class="form-check-label" for="export-include-fhirhelpers">Include FHIRHelpers</label>
+        </div>
+        <div class="form-floating" style="min-width: 14rem;">
+          <select
+            id="export-terminology-capability"
+            class="form-select"
+            [ngModel]="terminologyCapability()"
+            (ngModelChange)="terminologyCapability.set($event)"
+            aria-label="Terminology packaging">
+            <option value="computable">Computable (compose)</option>
+            <option value="expanded">Expanded (when available)</option>
+          </select>
+          <label for="export-terminology-capability">Terminology packaging</label>
+        </div>
+        <button id="export-reanalyze-btn" type="button" class="btn btn-outline-secondary" [disabled]="graphLoading()" (click)="reanalyze()">
+          Re-analyze
+        </button>
+      </div>
+
+      @if (destination() === 'raw-cql') {
+        <div class="mb-3" id="export-raw-cql-options">
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="export-include-complete-bundle"
+              [ngModel]="includeCompleteBundle()"
+              (ngModelChange)="includeCompleteBundle.set($event)" />
+            <label class="form-check-label" for="export-include-complete-bundle">
+              Add a complete Bundle
+            </label>
+          </div>
+          <p class="form-text text-muted mb-0">
+            When enabled, the zip root includes <code>complete-bundle.json</code>: a FHIR transaction Bundle of every selected resource using HTTP PUT, for server import alongside the raw files.
+          </p>
+        </div>
+      }
+
+      @if (graphLoading()) {
+        <div class="text-muted">Analyzing…</div>
+      } @else if (graphError()) {
+        <div class="alert alert-danger" id="export-graph-error" role="alert">{{ graphError() }}</div>
+      } @else if (graph(); as g) {
+        @if (isGraphStale()) {
+          <div class="alert alert-warning" id="export-graph-stale" role="alert">
+            Analysis options changed. Click Re-analyze (or Next) to refresh.
+          </div>
+        }
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3" id="export-selection-toolbar">
+          <div class="small text-muted mb-0" id="export-graph-summary">
+            Selected {{ selectedCounts().library }} / {{ g.libraries.length }} libraries,
+            {{ selectedCounts().valueset }} / {{ g.valueSets.length }} ValueSets,
+            {{ selectedCounts().codesystem }} / {{ g.codeSystems.length }} CodeSystems
+            @if (g.missingCount > 0) {
+              · <span class="text-danger">{{ g.missingCount }} missing</span>
+            }
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-3" id="export-selection-shortcuts">
+            <div class="d-flex align-items-center gap-1">
+              <span class="small text-muted">Libraries</span>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Library selection">
+                <button type="button" class="btn btn-outline-secondary" id="export-select-all-libraries" (click)="selectAllOfKind('library')">All</button>
+                <button type="button" class="btn btn-outline-secondary" id="export-deselect-all-libraries" (click)="deselectAllOfKind('library')">None</button>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              <span class="small text-muted">ValueSets</span>
+              <div class="btn-group btn-group-sm" role="group" aria-label="ValueSet selection">
+                <button type="button" class="btn btn-outline-secondary" id="export-select-all-valuesets" (click)="selectAllOfKind('valueset')">All</button>
+                <button type="button" class="btn btn-outline-secondary" id="export-deselect-all-valuesets" (click)="deselectAllOfKind('valueset')">None</button>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              <span class="small text-muted">CodeSystems</span>
+              <div class="btn-group btn-group-sm" role="group" aria-label="CodeSystem selection">
+                <button type="button" class="btn btn-outline-secondary" id="export-select-all-codesystems" (click)="selectAllOfKind('codesystem')">All</button>
+                <button type="button" class="btn btn-outline-secondary" id="export-deselect-all-codesystems" (click)="deselectAllOfKind('codesystem')">None</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="export-dependency-table">
+            <thead>
+              <tr>
+                <th scope="col" class="text-nowrap">
+                  <button type="button" class="btn btn-link p-0 text-decoration-none" id="export-sort-include" (click)="setDepSort('include')">
+                    Include
+                    @if (depSortColumn() === 'include') {
+                      <i class="bi ms-1" [class.bi-arrow-up]="depSortOrder() === 'asc'" [class.bi-arrow-down]="depSortOrder() === 'desc'" aria-hidden="true"></i>
+                    }
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="btn btn-link p-0 text-decoration-none" id="export-sort-kind" (click)="setDepSort('kind')">
+                    Kind
+                    @if (depSortColumn() === 'kind') {
+                      <i class="bi ms-1" [class.bi-arrow-up]="depSortOrder() === 'asc'" [class.bi-arrow-down]="depSortOrder() === 'desc'" aria-hidden="true"></i>
+                    }
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="btn btn-link p-0 text-decoration-none" id="export-sort-name" (click)="setDepSort('name')">
+                    Name
+                    @if (depSortColumn() === 'name') {
+                      <i class="bi ms-1" [class.bi-arrow-up]="depSortOrder() === 'asc'" [class.bi-arrow-down]="depSortOrder() === 'desc'" aria-hidden="true"></i>
+                    }
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="btn btn-link p-0 text-decoration-none" id="export-sort-status" (click)="setDepSort('status')">
+                    Status
+                    @if (depSortColumn() === 'status') {
+                      <i class="bi ms-1" [class.bi-arrow-up]="depSortOrder() === 'asc'" [class.bi-arrow-down]="depSortOrder() === 'desc'" aria-hidden="true"></i>
+                    }
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="btn btn-link p-0 text-decoration-none" id="export-sort-detail" (click)="setDepSort('detail')">
+                    Detail
+                    @if (depSortColumn() === 'detail') {
+                      <i class="bi ms-1" [class.bi-arrow-up]="depSortOrder() === 'asc'" [class.bi-arrow-down]="depSortOrder() === 'desc'" aria-hidden="true"></i>
+                    }
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (node of sortedDependencyNodes(); track node.key) {
+                <tr>
+                  <td>
+                    <div class="form-check mb-0">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        [id]="'export-node-' + node.key"
+                        [checked]="isExportNodeSelected(node.key)"
+                        [disabled]="!canToggleExportNode(node)"
+                        (change)="toggleExportNode(node)"
+                        [attr.aria-label]="'Include ' + node.label" />
+                    </div>
+                  </td>
+                  <td>{{ node.kind }}</td>
+                  <td>{{ node.label }}</td>
+                  <td><span class="badge" [class]="statusBadgeClass(node.status)">{{ node.status }}</span></td>
+                  <td class="small text-muted">{{ node.detail }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Step 4: Confirm (+ destination-specific settings) -->
+  @if (activeStep() === 'confirm') {
+    <div id="export-confirm-step">
+      <dl class="row mb-3">
+        <dt class="col-sm-3">Destination</dt>
+        <dd class="col-sm-9">{{ destination() ? destinationLabel(destination()!) : '—' }}</dd>
+        <dt class="col-sm-3">Root libraries</dt>
+        <dd class="col-sm-9">{{ selectedLibraries().length }} selected</dd>
+        <dt class="col-sm-3">Export set</dt>
+        <dd class="col-sm-9">
+          {{ selectedCounts().library }} libraries, {{ selectedCounts().valueset }} value sets, {{ selectedCounts().codesystem }} code systems
+          @if (graph(); as g) {
+            @if (g.hasBlockingMissing) {
+              <div class="text-danger small mt-1">Unresolved dependencies will block publish actions.</div>
+            }
+          }
+        </dd>
+        @if (destination() === 'raw-cql') {
+          <dt class="col-sm-3">Complete Bundle</dt>
+          <dd class="col-sm-9" id="export-confirm-complete-bundle">
+            {{ includeCompleteBundle() ? 'Yes — complete-bundle.json (transaction + PUT)' : 'No' }}
+          </dd>
+        }
+      </dl>
+
+      @if (destination() === 'fhir-package' || destination() === 'crmi') {
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <div class="form-floating">
+              <input
+                id="export-package-name"
+                class="form-control"
+                placeholder="org.example.cql-export"
+                [ngModel]="packageName()"
+                (ngModelChange)="packageName.set($event)" />
+              <label for="export-package-name">Package name</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-floating">
+              <input
+                id="export-package-version"
+                class="form-control"
+                placeholder="0.1.0"
+                [ngModel]="packageVersion()"
+                (ngModelChange)="packageVersion.set($event)" />
+              <label for="export-package-version">Package version</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-floating">
+              <input
+                id="export-package-author"
+                class="form-control"
+                placeholder="Author"
+                [ngModel]="packageAuthor()"
+                (ngModelChange)="packageAuthor.set($event)" />
+              <label for="export-package-author">Author</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-floating">
+              <input
+                id="export-package-title"
+                class="form-control"
+                placeholder="Title"
+                [ngModel]="packageTitle()"
+                (ngModelChange)="packageTitle.set($event)" />
+              <label for="export-package-title">Title</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="form-floating">
+              <textarea
+                id="export-package-description"
+                class="form-control"
+                style="height: 6rem;"
+                placeholder="Description"
+                [ngModel]="packageDescription()"
+                (ngModelChange)="packageDescription.set($event)"></textarea>
+              <label for="export-package-description">Description</label>
+            </div>
+          </div>
+          @if (!packageValidation().valid) {
+            <div class="col-12">
+              <div class="alert alert-warning" id="export-package-validation" role="alert">
+                <ul class="mb-0">
+                  @for (err of packageValidation().errors; track err) {
+                    <li>{{ err }}</li>
+                  }
+                </ul>
+              </div>
+            </div>
+          }
+          <div class="col-12">
+            <p class="form-text text-muted mb-0">
+              FHIR Packages require name, version, author, description, and a core dependency
+              (<code>hl7.fhir.r4.core&#64;4.0.1</code>). Type is <code>Conformance</code>.
+            </p>
+          </div>
+        </div>
+      }
+
+      @if (destination() === 'fhir-server' || destination() === 'crmi') {
+        <div class="mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="export-conditional-create" [ngModel]="conditionalCreate()" (ngModelChange)="conditionalCreate.set($event)" />
+            <label class="form-check-label" for="export-conditional-create">
+              CRMI conditional create (<code>ifNoneExist</code> on url+version)
+            </label>
+          </div>
+          <p class="form-text text-muted mb-0" id="export-endpoint-note">
+            Publish uses the active environment’s terminology and data FHIR endpoints (Libraries → data; ValueSets/CodeSystems → terminology).
+          </p>
+        </div>
+      }
+
+      @if (destination() === 'crmi') {
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <div class="form-floating">
+              <select
+                id="export-crmi-bundle-type"
+                class="form-select"
+                [ngModel]="crmiBundleType()"
+                (ngModelChange)="crmiBundleType.set($event)"
+                aria-label="Bundle type">
+                <option value="transaction">transaction</option>
+                <option value="collection">collection</option>
+              </select>
+              <label for="export-crmi-bundle-type">Bundle type</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-floating">
+              <select
+                id="export-crmi-action"
+                class="form-select"
+                [ngModel]="crmiAction()"
+                (ngModelChange)="crmiAction.set($event)"
+                aria-label="Action">
+                <option value="download-bundle">Download Bundle JSON</option>
+                <option value="download-tgz">Download FHIR package (.tgz)</option>
+                <option value="publish">Publish to FHIR server</option>
+              </select>
+              <label for="export-crmi-action">Action</label>
+            </div>
+          </div>
+        </div>
+      }
+
+      <button
+        id="export-execute-btn"
+        type="button"
+        class="btn btn-primary"
+        [disabled]="!canExecute()"
+        (click)="execute()">
+        @if (busy()) {
+          Working…
+        } @else if (destination() === 'fhir-server' || (destination() === 'crmi' && crmiAction() === 'publish')) {
+          Publish
+        } @else {
+          Download
+        }
+      </button>
+
+      @if (lastOutcomes().length > 0) {
+        <ul class="mt-3" id="export-outcomes">
+          @for (msg of lastOutcomes(); track msg) {
+            <li>{{ msg }}</li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</div>

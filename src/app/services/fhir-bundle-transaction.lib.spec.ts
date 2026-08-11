@@ -1,7 +1,11 @@
 // Author: Preston Lee
 
 import { Bundle, Patient, Resource } from 'fhir/r4';
-import { collectionBundleToTransaction, normalizeBundleForBasePost } from './fhir-bundle-transaction.lib';
+import {
+  buildPutTransactionBundle,
+  collectionBundleToTransaction,
+  normalizeBundleForBasePost
+} from './fhir-bundle-transaction.lib';
 
 describe('fhir-bundle-transaction.lib', () => {
   it('collectionBundleToTransaction adds PUT request when resource has id', () => {
@@ -49,5 +53,23 @@ describe('fhir-bundle-transaction.lib', () => {
     };
     const tx = collectionBundleToTransaction(bundle);
     expect(tx.entry?.map((e) => e.request?.url)).toEqual(['Patient/a', 'Observation/b']);
+  });
+
+  it('buildPutTransactionBundle uses PUT for every resource with an id', () => {
+    const tx = buildPutTransactionBundle([
+      { resourceType: 'Library', id: 'lib-1' } as Resource,
+      { resourceType: 'ValueSet', id: 'vs-1' } as Resource
+    ]);
+    expect(tx.type).toBe('transaction');
+    expect(tx.entry?.map((e) => e.request)).toEqual([
+      { method: 'PUT', url: 'Library/lib-1' },
+      { method: 'PUT', url: 'ValueSet/vs-1' }
+    ]);
+  });
+
+  it('buildPutTransactionBundle throws when a resource has no id', () => {
+    expect(() =>
+      buildPutTransactionBundle([{ resourceType: 'ValueSet', name: 'Office Visit' } as Resource])
+    ).toThrow(/without resourceType and id/);
   });
 });

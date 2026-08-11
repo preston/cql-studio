@@ -28,6 +28,7 @@ import { MeasureReportViewerComponent } from './components/measure-editor/measur
 import { ClipboardManagerComponent } from './components/clipboard-manager/clipboard-manager.component';
 import { VsacBrowserComponent } from './components/vsac-browser/vsac-browser.component';
 import { FhirRegistryImporterComponent } from './components/fhir-registry-importer/fhir-registry-importer.component';
+import { ExportComponent } from './components/export/export.component';
 import { SqlOnFhirComponent } from './components/sql-on-fhir/sql-on-fhir.component';
 import { sqlOnFhirGuard } from './components/sql-on-fhir/sql-on-fhir.guard';
 import { ExamplesComponent } from './components/examples/examples.component';
@@ -86,6 +87,7 @@ export const routes: Routes = [
   // Short alias; Angular preserves ?package=&version= on redirect for external deep links.
   { path: 'fhir-registry', redirectTo: 'fhir-registry-importer', pathMatch: 'full' },
   { path: 'fhir-registry-importer', component: FhirRegistryImporterComponent },
+  { path: 'export', component: ExportComponent },
   { path: 'guidelines', component: GuidelinesComponent },
   { path: 'guidelines/:id/testing', component: GuidelinesComponent },
   { path: 'guidelines/:id', component: GuidelinesComponent },
