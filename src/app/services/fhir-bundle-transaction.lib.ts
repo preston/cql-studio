@@ -49,6 +49,19 @@ export function collectionBundleToTransaction(bundle: Bundle): Bundle {
 }
 
 /**
+ * Build a transaction Bundle that uses HTTP PUT when the resource has an id, otherwise POST.
+ * Prefer this for export complete-bundles that may include id-less clinical/data resources.
+ */
+export function buildTransactionBundle(resources: Resource[]): Bundle {
+  return {
+    resourceType: 'Bundle',
+    type: 'transaction',
+    timestamp: new Date().toISOString(),
+    entry: resources.map((resource) => collectionEntryToTransactionEntry({ resource }))
+  };
+}
+
+/**
  * Build a transaction Bundle that uses HTTP PUT for every resource.
  * Callers must pass resources that already have an `id` (as export-resolved FHIR resources do).
  */

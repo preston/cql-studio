@@ -153,8 +153,13 @@ export class FhirPackageArchiveService {
   }
 
   private padToBlock(data: Uint8Array): Uint8Array {
-    const blocks = Math.ceil(data.length / 512) || 1;
-    const size = blocks * 512;
+    // A zero-length member must contribute zero padding bytes; forcing a full 512-byte block here
+    // for empty files corrupts the archive (readers see a 0-byte header followed by unexpected
+    // "data", which throws off every subsequent entry's offset).
+    if (data.length === 0) {
+      return data;
+    }
+    const size = Math.ceil(data.length / 512) * 512;
     if (data.length === size) {
       return data;
     }

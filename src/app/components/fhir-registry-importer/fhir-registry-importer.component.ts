@@ -28,12 +28,32 @@ import {
   ResolvedPackageNode
 } from '../../models/fhir-package-import.types';
 import { packageInstanceKey } from '../../services/fhir-package-dependency-resolver.lib';
+import { FhirPackageLocalUploadStagingService } from '../../services/fhir-package-local-upload-staging.service';
 import {
   FHIR_REGISTRY_IMPORTER_QUERY_PACKAGE,
-  FHIR_REGISTRY_IMPORTER_QUERY_VERSION
+  FHIR_REGISTRY_IMPORTER_QUERY_SOURCE,
+  FHIR_REGISTRY_IMPORTER_QUERY_VERSION,
+  FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL
 } from './fhir-registry-importer.deep-link';
+import { ImplementationGuidePanelComponent } from '../shared/implementation-guide-panel/implementation-guide-panel.component';
+import { ImplementationGuide } from 'fhir/r4';
+import {
+  defaultSelectedIgEntryKeys,
+  enrichIgEntriesForArchive,
+  IgResourceEntryVm,
+  isDefaultIgImportableResourceType,
+  parseImplementationGuideEntries,
+  parseImplementationGuideFromPackageFiles
+} from '../../services/implementation-guide.lib';
+import { IgImportSanitizeOptions } from '../../services/fhir-package-import.service';
+import { isConformanceResourceType } from '../../services/fhir-resource-endpoint.lib';
 
 type QuickFilter = 'all' | 'terminology' | 'conformance' | 'examples';
+
+function isFhirPackageArchiveName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.endsWith('.tgz') || lower.endsWith('.tar.gz');
+}
 
 const LOAD_STATUS_LABEL: Record<PackageLoadStatus, string> = {
   pending: 'Not loaded',
@@ -47,7 +67,7 @@ const DOM_PACKAGE_DETAIL = 'fhir-registry-importer-package-detail-panel';
 
 @Component({
   selector: 'app-fhir-registry-importer',
-  imports: [NgTemplateOutlet, FormsModule],
+  imports: [NgTemplateOutlet, FormsModule, ImplementationGuidePanelComponent],
 
   templateUrl: './fhir-registry-importer.component.html'
 })
@@ -67,6 +87,7 @@ export class FhirRegistryImporterComponent {
   private readonly packageLoadService = inject(FhirPackageLoadService);
   private readonly dependencyResolver = inject(FhirPackageDependencyResolverService);
   private readonly packageImportService = inject(FhirPackageImportService);
+  private readonly packageStaging = inject(FhirPackageLocalUploadStagingService);
   private readonly injector = inject(Injector);
   private readonly route = inject(ActivatedRoute);
 
@@ -98,10 +119,35 @@ export class FhirRegistryImporterComponent {
   protected readonly rootPackageName = signal<string | null>(null);
   protected readonly activePackageName = signal<string | null>(null);
   protected readonly findPackagesExpanded = signal(true);
+  /** When set, root package came from a local `.tgz` (not the registry). */
+  protected readonly localSourceFileName = signal<string | null>(null);
+  protected readonly localPackageLoading = signal(false);
+  protected readonly localPackageError = signal<string | null>(null);
+
+  protected readonly igSanitizeBeforeImport = signal(true);
+  /**
+   * Per package-instance (`packageKey`) IG selection so switching packages/versions doesn't lose
+   * review state or apply another version's keys.
+   */
+  private readonly igSelectionByPackage = signal<
+    Map<string, { entryKeys: ReadonlySet<string>; globalIndices: ReadonlySet<number> }>
+  >(new Map());
+  protected readonly igSelectedEntryKeys = computed<ReadonlySet<string>>(() => {
+    const key = this.activeIgSelectionKey();
+    return (key && this.igSelectionByPackage().get(key)?.entryKeys) || new Set();
+  });
+  protected readonly igSelectedGlobalIndices = computed<ReadonlySet<number>>(() => {
+    const key = this.activeIgSelectionKey();
+    return (key && this.igSelectionByPackage().get(key)?.globalIndices) || new Set();
+  });
 
   /** Last deep-link key applied from query params (avoids reload loops). */
   private lastAppliedDeepLinkKey: string | null = null;
   private deepLinkGeneration = 0;
+  /** Bumped on workspace reset so in-flight tarball loads don't write into a new plan. */
+  private workspaceGeneration = 0;
+  /** In-flight package loads so concurrent callers await the same promise. */
+  private readonly packageLoadPromises = new Map<string, Promise<void>>();
 
   constructor() {
     // Supports in-app navigation and direct/external URLs such as:
@@ -176,6 +222,28 @@ export class FhirRegistryImporterComponent {
     return this.packagesByName().get(n) ?? null;
   });
 
+  protected readonly activeImplementationGuide = computed((): ImplementationGuide | null => {
+    const st = this.activePackage();
+    if (!st || st.loadStatus !== 'loaded') {
+      return null;
+    }
+    return parseImplementationGuideFromPackageFiles(st.rows, st.files);
+  });
+
+  protected readonly activeIgEntries = computed((): IgResourceEntryVm[] => {
+    const ig = this.activeImplementationGuide();
+    const st = this.activePackage();
+    if (!ig || !st) {
+      return [];
+    }
+    return enrichIgEntriesForArchive(parseImplementationGuideEntries(ig), st.rows);
+  });
+
+  protected readonly activeIgRow = computed(() => {
+    const st = this.activePackage();
+    return st?.rows.find((r) => r.resourceType === 'ImplementationGuide') ?? null;
+  });
+
   protected readonly filteredRows = computed(() => {
     const st = this.activePackage();
     if (!st) {
@@ -239,6 +307,10 @@ export class FhirRegistryImporterComponent {
     const map = this.packagesByName();
     return order.map((name) => map.get(name)).filter((x): x is PackageImportState => !!x);
   });
+
+  protected readonly hasImportWorkspace = computed(
+    () => this.manifest() != null || this.localSourceFileName() != null
+  );
 
   protected readonly includedPlanCount = computed(
     () => this.planList().filter((p) => p.includePackage).length
@@ -340,10 +412,40 @@ export class FhirRegistryImporterComponent {
   }
 
   /**
-   * Deep-link entry point for query params from Examples or external systems.
-   * Expects `package` (required) and optional `version`.
+   * Deep-link entry point for query params from Examples, Uploader, or external systems.
+   * Supports `package` (+ optional `version`) for registry loads, or `source=local` for staged `.tgz`.
    */
   private applyDeepLinkFromQueryParams(params: ParamMap): void {
+    const source = params.get(FHIR_REGISTRY_IMPORTER_QUERY_SOURCE)?.trim();
+    if (source === FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL) {
+      const staged = this.packageStaging.peek();
+      const key = staged
+        ? `source=local\0${staged.fileName}\0${staged.bytes.byteLength}`
+        : 'source=local\0empty';
+      if (key === this.lastAppliedDeepLinkKey) {
+        return;
+      }
+      this.lastAppliedDeepLinkKey = key;
+      const generation = ++this.deepLinkGeneration;
+      void this.consumeStagedLocalPackage().then((ok) => {
+        if (generation !== this.deepLinkGeneration) {
+          return;
+        }
+        if (!ok) {
+          this.lastAppliedDeepLinkKey = null;
+          return;
+        }
+        this.findPackagesExpanded.set(false);
+        afterNextRender(
+          () => {
+            this.scrollToImportWorkspace();
+          },
+          { injector: this.injector }
+        );
+      });
+      return;
+    }
+
     const packageId = params.get(FHIR_REGISTRY_IMPORTER_QUERY_PACKAGE)?.trim();
     if (!packageId) {
       return;
@@ -374,6 +476,110 @@ export class FhirRegistryImporterComponent {
     });
   }
 
+  private async consumeStagedLocalPackage(): Promise<boolean> {
+    const staged = this.packageStaging.consume();
+    if (!staged) {
+      this.localPackageError.set(
+        'No local FHIR package was staged. Upload a .tgz from the FHIR Uploader or choose a file below.'
+      );
+      return false;
+    }
+    return this.loadLocalPackageBytes(staged.fileName, staged.bytes);
+  }
+
+  async onLocalPackageFileSelect(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    input.value = '';
+    await this.loadLocalPackageFile(file);
+  }
+
+  async loadLocalPackageFile(file: File): Promise<boolean> {
+    this.localPackageError.set(null);
+    if (!isFhirPackageArchiveName(file.name)) {
+      this.localPackageError.set('Please choose a FHIR package archive (.tgz or .tar.gz).');
+      return false;
+    }
+    this.localPackageLoading.set(true);
+    try {
+      const bytes = await file.arrayBuffer();
+      const ok = await this.loadLocalPackageBytes(file.name, bytes);
+      if (ok) {
+        this.findPackagesExpanded.set(false);
+        afterNextRender(
+          () => {
+            this.scrollToImportWorkspace();
+          },
+          { injector: this.injector }
+        );
+      }
+      return ok;
+    } finally {
+      this.localPackageLoading.set(false);
+    }
+  }
+
+  private async loadLocalPackageBytes(fileName: string, bytes: ArrayBuffer): Promise<boolean> {
+    this.localPackageError.set(null);
+    this.packageError.set(null);
+    this.manifestError.set(null);
+    this.manifest.set(null);
+    this.selectedPackageId.set(null);
+    this.selectedVersion.set(null);
+    this.resolvedNodes.set(null);
+    this.importOrderNames.set([]);
+    this.packagesByName.set(new Map());
+    this.rootPackageName.set(null);
+    this.activePackageName.set(null);
+    this.dependencyWarnings.set([]);
+    this.dependencyErrors.set([]);
+    this.localSourceFileName.set(null);
+    this.igSelectionByPackage.set(new Map());
+    this.workspaceGeneration++;
+    this.packageLoadPromises.clear();
+    this.packageLoading.set(true);
+    try {
+      const parsed = this.packageLoadService.parseLocalFhirPackageTarball(
+        bytes,
+        fileName.replace(/\.(tgz|tar\.gz)$/i, '')
+      );
+      const version = (parsed.pkgJson.version ?? '').trim() || '0.0.0';
+      this.selectedPackageId.set(parsed.packageName);
+      this.selectedVersion.set(version);
+      this.localSourceFileName.set(fileName);
+      this.setRootPackageFromParsed(parsed, version);
+      this.dependencyWarnings.set([]);
+      this.dependencyErrors.set([]);
+      this.resolvedNodes.set(
+        new Map([
+          [
+            parsed.packageName,
+            {
+              name: parsed.packageName,
+              version,
+              pkgJson: parsed.pkgJson
+            } satisfies ResolvedPackageNode
+          ]
+        ])
+      );
+      this.importOrderNames.set([parsed.packageName]);
+      this.activePackageName.set(parsed.packageName);
+      this.initIgSelectionForPackage(parsed.packageName);
+      return true;
+    } catch (e) {
+      this.localPackageError.set(
+        e instanceof Error ? e.message : 'Failed to load local FHIR package.'
+      );
+      this.packageError.set(this.localPackageError());
+      return false;
+    } finally {
+      this.packageLoading.set(false);
+    }
+  }
+
   /**
    * Load a package by id (and optional version) into the import workspace.
    * When version is omitted or not present in the manifest, uses dist-tags.latest
@@ -385,6 +591,8 @@ export class FhirRegistryImporterComponent {
     if (!id) {
       return false;
     }
+    this.localSourceFileName.set(null);
+    this.localPackageError.set(null);
     this.selectedPackageId.set(id);
     this.manifest.set(null);
     this.selectedVersion.set(null);
@@ -392,6 +600,9 @@ export class FhirRegistryImporterComponent {
     this.resolvedNodes.set(null);
     this.importOrderNames.set([]);
     this.packagesByName.set(new Map());
+    this.igSelectionByPackage.set(new Map());
+    this.workspaceGeneration++;
+    this.packageLoadPromises.clear();
     this.rootPackageName.set(null);
     this.activePackageName.set(null);
     this.dependencyWarnings.set([]);
@@ -459,6 +670,7 @@ export class FhirRegistryImporterComponent {
       );
       this.importOrderNames.set([parsed.packageName]);
       this.activePackageName.set(parsed.packageName);
+      this.initIgSelectionForPackage(parsed.packageName);
     } catch (e) {
       this.packageError.set(e instanceof Error ? e.message : 'Failed to load package.');
     } finally {
@@ -598,6 +810,125 @@ export class FhirRegistryImporterComponent {
   async selectPlanPackage(name: string): Promise<void> {
     this.activePackageName.set(name);
     await this.ensurePackageLoaded(name);
+    this.initIgSelectionForPackage(name);
+  }
+
+  private activeIgSelectionKey(): string | null {
+    const st = this.activePackage();
+    if (!st) {
+      return null;
+    }
+    return st.packageKey || packageInstanceKey(st.name, st.version);
+  }
+
+  private igSelectionKeyForPackage(name: string): string | null {
+    const st = this.packagesByName().get(name);
+    if (!st) {
+      return null;
+    }
+    return st.packageKey || packageInstanceKey(st.name, st.version);
+  }
+
+  /** Only seeds defaults the first time a package instance's IG is seen; preserves prior review. */
+  private initIgSelectionForPackage(name: string): void {
+    const selectionKey = this.igSelectionKeyForPackage(name);
+    if (!name || !selectionKey || this.igSelectionByPackage().has(selectionKey)) {
+      return;
+    }
+    const st = this.packagesByName().get(name);
+    if (!st || st.loadStatus !== 'loaded') {
+      return;
+    }
+    const ig = parseImplementationGuideFromPackageFiles(st.rows, st.files);
+    if (!ig) {
+      return;
+    }
+    const entries = enrichIgEntriesForArchive(parseImplementationGuideEntries(ig), st.rows);
+    this.setIgSelectionForKey(selectionKey, {
+      entryKeys: defaultSelectedIgEntryKeys(entries),
+      globalIndices: new Set((ig.global ?? []).map((_, i) => i))
+    });
+  }
+
+  private setIgSelectionForKey(
+    selectionKey: string,
+    selection: { entryKeys: ReadonlySet<string>; globalIndices: ReadonlySet<number> }
+  ): void {
+    this.igSelectionByPackage.update((m) => {
+      const n = new Map(m);
+      n.set(selectionKey, selection);
+      return n;
+    });
+  }
+
+  private setIgSelectionForActivePackage(selection: {
+    entryKeys: ReadonlySet<string>;
+    globalIndices: ReadonlySet<number>;
+  }): void {
+    const key = this.activeIgSelectionKey();
+    if (!key) {
+      return;
+    }
+    this.setIgSelectionForKey(key, selection);
+  }
+
+  onIgEntryKeysChange(keys: ReadonlySet<string>): void {
+    this.setIgSelectionForActivePackage({
+      entryKeys: keys,
+      globalIndices: this.igSelectedGlobalIndices()
+    });
+  }
+
+  onIgGlobalIndicesChange(indices: ReadonlySet<number>): void {
+    this.setIgSelectionForActivePackage({
+      entryKeys: this.igSelectedEntryKeys(),
+      globalIndices: indices
+    });
+  }
+
+  selectIgReferencedRows(): void {
+    const matchedEntries = this.activeIgEntries().filter((e) => e.importable && e.matchedRowKey);
+    const matched = new Set(matchedEntries.map((e) => e.matchedRowKey as string));
+    const igKey = this.activeIgRow()?.rowKey;
+    this.updateActiveRows((rows) =>
+      rows.map((r) => ({
+        ...r,
+        selected: matched.has(r.rowKey) || (!!igKey && r.rowKey === igKey)
+      }))
+    );
+    this.setIgSelectionForActivePackage({
+      entryKeys: new Set(matchedEntries.map((e) => e.key)),
+      globalIndices: this.igSelectedGlobalIndices()
+    });
+  }
+
+  selectIgConformanceOnly(): void {
+    const igKey = this.activeIgRow()?.rowKey;
+    this.updateActiveRows((rows) =>
+      rows.map((r) => ({
+        ...r,
+        selected:
+          (!!igKey && r.rowKey === igKey) ||
+          (isConformanceResourceType(r.resourceType) &&
+            isDefaultIgImportableResourceType(r.resourceType) &&
+            !r.isExample)
+      }))
+    );
+    this.setIgSelectionForActivePackage({
+      entryKeys: defaultSelectedIgEntryKeys(this.activeIgEntries()),
+      globalIndices: this.igSelectedGlobalIndices()
+    });
+  }
+
+  selectIgMetadataOnly(): void {
+    const igKey = this.activeIgRow()?.rowKey;
+    this.updateActiveRows((rows) =>
+      rows.map((r) => ({
+        ...r,
+        selected: !!igKey && r.rowKey === igKey
+      }))
+    );
+    this.setIgSelectionForActivePackage({ entryKeys: new Set(), globalIndices: new Set() });
   }
 
   async loadAllPackagesForImport(): Promise<void> {
@@ -612,9 +943,32 @@ export class FhirRegistryImporterComponent {
 
   private async ensurePackageLoaded(name: string): Promise<void> {
     const st = this.packagesByName().get(name);
-    if (!st || st.loadStatus === 'loaded' || st.loadStatus === 'loading') {
+    if (!st) {
       return;
     }
+    if (st.loadStatus === 'loaded') {
+      this.initIgSelectionForPackage(name);
+      return;
+    }
+    const inFlight = this.packageLoadPromises.get(name);
+    if (inFlight) {
+      await inFlight;
+      this.initIgSelectionForPackage(name);
+      return;
+    }
+    const promise = this.loadPackageTarball(name, st).finally(() => {
+      this.packageLoadPromises.delete(name);
+    });
+    this.packageLoadPromises.set(name, promise);
+    await promise;
+    this.initIgSelectionForPackage(name);
+  }
+
+  private async loadPackageTarball(
+    name: string,
+    st: PackageImportState
+  ): Promise<void> {
+    const gen = this.workspaceGeneration;
     const nodes = this.resolvedNodes();
     const node = nodes?.get(name);
     const version = node?.version ?? st.version;
@@ -633,8 +987,14 @@ export class FhirRegistryImporterComponent {
         throw new Error(`No tarball URL for ${name} @ ${version}.`);
       }
       const parsed = await this.packageLoadService.fetchAndParseTarball(tarballUrl, name, name);
+      if (gen !== this.workspaceGeneration) {
+        return;
+      }
       this.packagesByName.update((m) => {
         const n = new Map(m);
+        if (!n.has(name)) {
+          return n;
+        }
         n.set(name, {
           ...st,
           loadStatus: 'loaded',
@@ -648,6 +1008,9 @@ export class FhirRegistryImporterComponent {
         return n;
       });
     } catch (e) {
+      if (gen !== this.workspaceGeneration) {
+        return;
+      }
       const msg = e instanceof Error ? e.message : String(e);
       this.packagesByName.update((m) => {
         const n = new Map(m);
@@ -818,6 +1181,42 @@ export class FhirRegistryImporterComponent {
     };
   }
 
+  private buildIgSanitizeOptions(
+    packageName: string,
+    rows: IndexedResourceRowVm[],
+    files: Map<string, Uint8Array>,
+    selectedRows: IndexedResourceRowVm[]
+  ): IgImportSanitizeOptions | undefined {
+    if (!this.igSanitizeBeforeImport()) {
+      return undefined;
+    }
+    const igRow = selectedRows.find((r) => r.resourceType === 'ImplementationGuide');
+    if (!igRow) {
+      return undefined;
+    }
+    const ig = parseImplementationGuideFromPackageFiles(rows, files, igRow.filename);
+    if (!ig) {
+      return undefined;
+    }
+    const entries = enrichIgEntriesForArchive(parseImplementationGuideEntries(ig), rows);
+    const selectionKey =
+      this.igSelectionKeyForPackage(packageName) ??
+      packageInstanceKey(packageName, this.packagesByName().get(packageName)?.version ?? '');
+    let stored = this.igSelectionByPackage().get(selectionKey);
+    if (!stored) {
+      stored = {
+        entryKeys: defaultSelectedIgEntryKeys(entries),
+        globalIndices: new Set((ig.global ?? []).map((_, i) => i))
+      };
+      this.setIgSelectionForKey(selectionKey, stored);
+    }
+    return {
+      igFilename: igRow.filename,
+      includedEntryKeys: stored.entryKeys,
+      includedGlobalIndices: stored.globalIndices
+    };
+  }
+
   private appendPrepareFailures(
     accumulated: RegistryImportResultRow[],
     packageName: string,
@@ -893,9 +1292,11 @@ export class FhirRegistryImporterComponent {
           continue;
         }
         pkgIndex++;
+        const igSanitize = this.buildIgSanitizeOptions(name, st.rows, st.files, selectedRows);
         const { resources, errors: loadErrors } = this.packageImportService.collectResourcesFromFiles(
           selectedRows,
-          st.files
+          st.files,
+          igSanitize
         );
         if (loadErrors.length > 0) {
           this.appendPrepareFailures(accumulated, name, loadErrors);

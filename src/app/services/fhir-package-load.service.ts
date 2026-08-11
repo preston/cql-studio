@@ -9,6 +9,7 @@ import { IndexedResourceRowVm, PackageSummaryVm } from '../models/fhir-package-v
 import { FhirPackageRegistryService } from './fhir-package-registry.service';
 import { FhirPackageTarService } from './fhir-package-tar.service';
 import { FhirPackageMetadataService } from './fhir-package-metadata.service';
+import { validateFhirPackageJson } from './fhir-package-manifest.lib';
 import { decodeUtf8Bytes } from './utf8-encoding.lib';
 
 export interface ParsedFhirPackageTarball {
@@ -18,6 +19,14 @@ export interface ParsedFhirPackageTarball {
   packageName: string;
   summary: PackageSummaryVm;
   rows: IndexedResourceRowVm[];
+}
+
+export interface ParseTarballOptions {
+  /**
+   * When true, enforce FHIR NPM package rules on `package/package.json`
+   * (name, version, author, description, core dependency). Use for local `.tgz` uploads.
+   */
+  requireFhirCompliance?: boolean;
 }
 
 @Injectable({
@@ -40,10 +49,23 @@ export class FhirPackageLoadService {
   parseTarballBuffer(
     tgzBytes: ArrayBuffer,
     jsonNameFallback: string,
-    rowKeyScope?: string
+    rowKeyScope?: string,
+    options?: ParseTarballOptions
   ): ParsedFhirPackageTarball {
     const files = this.tar.extractTarGz(tgzBytes);
-    return this.parseExtractedFiles(files, jsonNameFallback, rowKeyScope);
+    return this.parseExtractedFiles(files, jsonNameFallback, rowKeyScope, options);
+  }
+
+  /**
+   * Parse a local FHIR package `.tgz` with strict FHIR packaging compliance.
+   */
+  parseLocalFhirPackageTarball(
+    tgzBytes: ArrayBuffer,
+    jsonNameFallback = 'unknown.package'
+  ): ParsedFhirPackageTarball {
+    return this.parseTarballBuffer(tgzBytes, jsonNameFallback, undefined, {
+      requireFhirCompliance: true
+    });
   }
 
   /**
@@ -53,13 +75,32 @@ export class FhirPackageLoadService {
   parseExtractedFiles(
     files: Map<string, Uint8Array>,
     jsonNameFallback: string,
-    rowKeyScope?: string
+    rowKeyScope?: string,
+    options?: ParseTarballOptions
   ): ParsedFhirPackageTarball {
     const raw = this.utf8File(files, 'package/package.json');
     if (!raw) {
-      throw new Error('package/package.json not found in archive.');
+      throw new Error(
+        'Not a FHIR package: package/package.json not found in archive. ' +
+          'FHIR packages must be a .tgz with a package/ folder containing package.json.'
+      );
     }
-    const pkgJson = JSON.parse(raw) as FhirPackageJson;
+    let pkgJson: FhirPackageJson;
+    try {
+      pkgJson = JSON.parse(raw) as FhirPackageJson;
+    } catch {
+      throw new Error('Not a FHIR package: package/package.json is not valid JSON.');
+    }
+
+    if (options?.requireFhirCompliance) {
+      const validation = validateFhirPackageJson(pkgJson);
+      if (!validation.valid) {
+        throw new Error(
+          'Not a FHIR-compliant package: ' + validation.errors.join(' ')
+        );
+      }
+    }
+
     const packageName = (pkgJson.name ?? jsonNameFallback).trim();
     const scope = (rowKeyScope ?? packageName).trim();
     const summary = this.metadata.buildPackageSummary(pkgJson);

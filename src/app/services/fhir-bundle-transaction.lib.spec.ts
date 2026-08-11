@@ -3,6 +3,7 @@
 import { Bundle, Patient, Resource } from 'fhir/r4';
 import {
   buildPutTransactionBundle,
+  buildTransactionBundle,
   collectionBundleToTransaction,
   normalizeBundleForBasePost
 } from './fhir-bundle-transaction.lib';
@@ -53,6 +54,18 @@ describe('fhir-bundle-transaction.lib', () => {
     };
     const tx = collectionBundleToTransaction(bundle);
     expect(tx.entry?.map((e) => e.request?.url)).toEqual(['Patient/a', 'Observation/b']);
+  });
+
+  it('buildTransactionBundle uses PUT when id present and POST when missing', () => {
+    const tx = buildTransactionBundle([
+      { resourceType: 'Patient', id: 'p1' },
+      { resourceType: 'Observation' } as Resource
+    ]);
+    expect(tx.type).toBe('transaction');
+    expect(tx.entry?.[0].request?.method).toBe('PUT');
+    expect(tx.entry?.[0].request?.url).toBe('Patient/p1');
+    expect(tx.entry?.[1].request?.method).toBe('POST');
+    expect(tx.entry?.[1].request?.url).toBe('Observation');
   });
 
   it('buildPutTransactionBundle uses PUT for every resource with an id', () => {

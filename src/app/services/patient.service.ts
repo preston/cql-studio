@@ -39,10 +39,15 @@ export class PatientService extends BaseService {
 		return baseUrl + '/Patient/' + id;
 	}
 
-	search(searchTerm: string): Observable<Bundle> {
-		const encoded = encodeURIComponent(searchTerm);
-		return this.http.get<Bundle>(this.url() + "?name:contains=" + encoded, { headers: this.headersForDataEndpoint() });
-	}
+  search(searchTerm: string, page = 1, pageSize = 20): Observable<Bundle> {
+    const encoded = encodeURIComponent(searchTerm);
+    const count = Math.max(1, pageSize);
+    const offset = Math.max(0, (page - 1) * count);
+    return this.http.get<Bundle>(
+      `${this.url()}?name:contains=${encoded}&_count=${count}&_offset=${offset}`,
+      { headers: this.headersForDataEndpoint() }
+    );
+  }
 
 	get(id: string) {
 		return this.http.get<Patient>(this.urlFor(id), { headers: this.headersForDataEndpoint() });

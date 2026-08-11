@@ -33,11 +33,18 @@ function toArchivePrefixUnderPackage(dir: string): string {
     return '';
   }
   let s = dir.replace(/\\/g, '/').replace(/^\/+/, '');
+  // Strip leading "./" segments (possibly repeated) before removing the trailing slash.
+  s = s.replace(/^(\.\/)+/, '');
   s = s.replace(/\/+$/, '');
   if (!s) {
     return '';
   }
-  return `package/${s}/`;
+  // `directories.example` is already relative to the package root; avoid double-prefixing if a
+  // manifest author wrote it as "package/example" instead of just "example".
+  if (s === 'package' || s.startsWith('package/')) {
+    s = s.slice('package'.length).replace(/^\/+/, '');
+  }
+  return s ? `package/${s}/` : 'package/';
 }
 
 /** Whether `filename` (archive key) is under one of the example prefixes. */

@@ -7,12 +7,41 @@ import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../services/settings.service';
-import { Library } from 'fhir/r4';
+import { FhirPackageLoadService } from '../../services/fhir-package-load.service';
+import { FhirPackageLocalUploadStagingService } from '../../services/fhir-package-local-upload-staging.service';
+import {
+  FHIR_REGISTRY_IMPORTER_QUERY_SOURCE,
+  FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL
+} from '../fhir-registry-importer/fhir-registry-importer.deep-link';
+import { Library, Bundle, ImplementationGuide, Resource } from 'fhir/r4';
 import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
 import {
   FHIR_BUNDLE_EXAMPLE_PATHS,
   FHIR_CQL_EXAMPLE_PATHS
 } from '../../constants/example-paths.constants';
+import { ImplementationGuidePanelComponent } from '../shared/implementation-guide-panel/implementation-guide-panel.component';
+import {
+  defaultSelectedIgEntryKeys,
+  enrichIgEntriesForBundle,
+  filterImplementationGuide,
+  IgResourceEntryVm,
+  parseImplementationGuideEntries
+} from '../../services/implementation-guide.lib';
+
+function isFhirPackageArchiveName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.endsWith('.tgz') || lower.endsWith('.tar.gz');
+}
+
+interface BundleIgState {
+  entryIndex: number;
+  ig: ImplementationGuide;
+  entries: IgResourceEntryVm[];
+  selectedEntryKeys: ReadonlySet<string>;
+  selectedGlobalIndices: ReadonlySet<number>;
+  sanitize: boolean;
+  expanded: boolean;
+}
 
 interface BundleFile {
   id: string;
@@ -22,6 +51,7 @@ interface BundleFile {
   isValid: boolean;
   error?: string;
   enabled: boolean;
+  igStates?: BundleIgState[];
   uploadResult?: {
     success: boolean;
     error?: string;
@@ -48,7 +78,7 @@ interface CqlFile {
 
 @Component({
   selector: 'app-fhir-uploader',
-  imports: [DecimalPipe, FormsModule],
+  imports: [DecimalPipe, FormsModule, ImplementationGuidePanelComponent],
   templateUrl: './fhir-uploader.component.html',
 
   styleUrl: './fhir-uploader.component.scss'
@@ -62,6 +92,9 @@ export class FhirUploaderComponent implements AfterViewInit {
   protected readonly uploadProgress = signal<number>(0);
   protected readonly isDragOver = signal<boolean>(false);
   protected readonly isCqlDragOver = signal<boolean>(false);
+  protected readonly isPackageDragOver = signal<boolean>(false);
+  protected readonly isPackageLoading = signal<boolean>(false);
+  protected readonly packageError = signal<string | null>(null);
   protected readonly draggedFileId = signal<string | null>(null);
   protected readonly expandedResult = signal<string | null>(null);
   protected readonly isExpunging = signal<boolean>(false);
@@ -87,6 +120,8 @@ export class FhirUploaderComponent implements AfterViewInit {
   private router = inject(Router);
   private http = inject(HttpClient);
   private injector = inject(Injector);
+  private packageLoadService = inject(FhirPackageLoadService);
+  private packageStaging = inject(FhirPackageLocalUploadStagingService);
 
   constructor() {
     // Initialize with the effective FHIR base URL from settings
@@ -176,6 +211,64 @@ export class FhirUploaderComponent implements AfterViewInit {
     }
   }
 
+  onPackageDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isPackageDragOver.set(true);
+  }
+
+  onPackageDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isPackageDragOver.set(false);
+  }
+
+  onPackageDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isPackageDragOver.set(false);
+    const files = event.dataTransfer?.files;
+    if (files?.length) {
+      void this.handlePackageFile(files[0]);
+    }
+  }
+
+  onPackageFileSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files?.length) {
+      void this.handlePackageFile(input.files[0]);
+      input.value = '';
+    }
+  }
+
+  private async handlePackageFile(file: File): Promise<void> {
+    this.packageError.set(null);
+    if (!isFhirPackageArchiveName(file.name)) {
+      this.packageError.set('Please choose a FHIR package archive (.tgz or .tar.gz).');
+      return;
+    }
+
+    this.isPackageLoading.set(true);
+    try {
+      const bytes = await file.arrayBuffer();
+      // Strict FHIR packaging validation before handoff.
+      this.packageLoadService.parseLocalFhirPackageTarball(bytes, file.name.replace(/\.(tgz|tar\.gz)$/i, ''));
+      this.packageStaging.stage(file.name, bytes);
+      await this.router.navigate(['/fhir-registry-importer'], {
+        queryParams: {
+          [FHIR_REGISTRY_IMPORTER_QUERY_SOURCE]: FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL
+        }
+      });
+    } catch (error) {
+      this.packageStaging.clear();
+      this.packageError.set(
+        error instanceof Error ? error.message : 'Failed to validate FHIR package.'
+      );
+    } finally {
+      this.isPackageLoading.set(false);
+    }
+  }
+
   private addFiles(files: File[]): void {
     const newFiles: BundleFile[] = files
       .filter(file => file.name.toLowerCase().endsWith('.json'))
@@ -227,81 +320,187 @@ export class FhirUploaderComponent implements AfterViewInit {
   private async validateBundleFile(bundleFile: BundleFile): Promise<void> {
     try {
       const text = await this.readFileAsText(bundleFile.file);
-      const json = JSON.parse(text);
-      
-      // Check if it's a valid FHIR Bundle
+      const json = JSON.parse(text) as Bundle;
+
       if (json.resourceType === 'Bundle' && Array.isArray(json.entry)) {
         bundleFile.isValid = true;
         bundleFile.error = undefined;
+        bundleFile.igStates = this.buildIgStatesFromBundle(json);
       } else {
         bundleFile.isValid = false;
         bundleFile.error = 'Not a valid FHIR Bundle resource';
+        bundleFile.igStates = undefined;
       }
     } catch (error) {
       bundleFile.isValid = false;
       bundleFile.error = 'Invalid JSON or file read error';
+      bundleFile.igStates = undefined;
     }
+    this.files.update((list) => list.map((f) => (f.id === bundleFile.id ? { ...bundleFile } : f)));
+  }
+
+  private buildIgStatesFromBundle(bundle: Bundle): BundleIgState[] {
+    const resources = (bundle.entry ?? [])
+      .map((e) => e.resource)
+      .filter((r): r is Resource => !!r);
+    const states: BundleIgState[] = [];
+    (bundle.entry ?? []).forEach((entry, entryIndex) => {
+      if (entry.resource?.resourceType !== 'ImplementationGuide') {
+        return;
+      }
+      const ig = entry.resource as ImplementationGuide;
+      const entries = enrichIgEntriesForBundle(parseImplementationGuideEntries(ig), resources);
+      states.push({
+        entryIndex,
+        ig,
+        entries,
+        selectedEntryKeys: defaultSelectedIgEntryKeys(entries),
+        selectedGlobalIndices: new Set((ig.global ?? []).map((_, i) => i)),
+        sanitize: true,
+        expanded: true
+      });
+    });
+    return states;
+  }
+
+  toggleBundleIgExpanded(fileId: string, igIndex: number): void {
+    this.files.update((list) =>
+      list.map((f) => {
+        if (f.id !== fileId || !f.igStates) {
+          return f;
+        }
+        const igStates = f.igStates.map((s, i) =>
+          i === igIndex ? { ...s, expanded: !s.expanded } : s
+        );
+        return { ...f, igStates };
+      })
+    );
+  }
+
+  onBundleIgEntryKeysChange(fileId: string, igIndex: number, keys: ReadonlySet<string>): void {
+    this.patchBundleIgState(fileId, igIndex, { selectedEntryKeys: keys });
+  }
+
+  onBundleIgGlobalIndicesChange(fileId: string, igIndex: number, indices: ReadonlySet<number>): void {
+    this.patchBundleIgState(fileId, igIndex, { selectedGlobalIndices: indices });
+  }
+
+  onBundleIgSanitizeChange(fileId: string, igIndex: number, sanitize: boolean): void {
+    this.patchBundleIgState(fileId, igIndex, { sanitize });
+  }
+
+  selectBundleIgReferenced(fileId: string, igIndex: number): void {
+    const file = this.files().find((f) => f.id === fileId);
+    const state = file?.igStates?.[igIndex];
+    if (!state) {
+      return;
+    }
+    const keys = new Set(
+      state.entries.filter((e) => e.importable && e.matchedResourceKey).map((e) => e.key)
+    );
+    this.patchBundleIgState(fileId, igIndex, { selectedEntryKeys: keys });
+  }
+
+  selectBundleIgConformanceOnly(fileId: string, igIndex: number): void {
+    const file = this.files().find((f) => f.id === fileId);
+    const state = file?.igStates?.[igIndex];
+    if (!state) {
+      return;
+    }
+    this.patchBundleIgState(fileId, igIndex, {
+      selectedEntryKeys: defaultSelectedIgEntryKeys(state.entries)
+    });
+  }
+
+  selectBundleIgMetadataOnly(fileId: string, igIndex: number): void {
+    this.patchBundleIgState(fileId, igIndex, {
+      selectedEntryKeys: new Set(),
+      selectedGlobalIndices: new Set()
+    });
+  }
+
+  private patchBundleIgState(
+    fileId: string,
+    igIndex: number,
+    patch: Partial<BundleIgState>
+  ): void {
+    this.files.update((list) =>
+      list.map((f) => {
+        if (f.id !== fileId || !f.igStates) {
+          return f;
+        }
+        const igStates = f.igStates.map((s, i) => (i === igIndex ? { ...s, ...patch } : s));
+        return { ...f, igStates };
+      })
+    );
   }
 
   private async processCqlFile(cqlFile: CqlFile): Promise<void> {
+    let next: CqlFile;
     try {
       const cqlContent = await this.readFileAsText(cqlFile.file);
-      cqlFile.cqlContent = cqlContent;
-      
-      // Convert CQL to FHIR Library resource
       const fhirLibrary = this.convertCqlToFhirLibrary(cqlContent, cqlFile.name);
-      cqlFile.fhirLibrary = fhirLibrary;
-      cqlFile.isValid = true;
-      cqlFile.error = undefined;
+      next = {
+        ...cqlFile,
+        cqlContent,
+        fhirLibrary,
+        isValid: true,
+        error: undefined
+      };
     } catch (error) {
-      console.log(error);
-      cqlFile.isValid = false;
-      cqlFile.error = 'Error reading or processing CQL file';
+      next = {
+        ...cqlFile,
+        isValid: false,
+        error: 'Error reading or processing CQL file'
+      };
     }
+    this.cqlFiles.update((list) => list.map((f) => (f.id === cqlFile.id ? next : f)));
   }
 
-  private convertCqlToFhirLibrary(cqlContent: string, fileName: string): any {
+  private convertCqlToFhirLibrary(cqlContent: string, fileName: string): Library {
     const contentWithoutComments = this.stripCqlComments(cqlContent);
-    const libraryNameMatch = contentWithoutComments.match(/library\s+(\w+)/i);
-    const libraryName = libraryNameMatch ? libraryNameMatch[1] : fileName.replace('.cql', '');
-    
-    // Extract version if present
-    const versionMatch = cqlContent.match(/using\s+FHIR\s+version\s+['"]([^'"]+)['"]/i);
-    const fhirVersion = versionMatch ? versionMatch[1] : '4.0.1';
-    
-    // Extract description from comments
+    const libraryHeader =
+      contentWithoutComments.match(/library\s+(?:"([^"]+)"|'([^']+)'|([A-Za-z_][\w.]*))/i) ??
+      null;
+    const libraryName =
+      libraryHeader?.[1] || libraryHeader?.[2] || libraryHeader?.[3] || fileName.replace(/\.cql$/i, '');
+
     const descriptionMatch = cqlContent.match(/\/\*\*([^*]+)\*\//s);
     const description = descriptionMatch ? descriptionMatch[1].trim() : `CQL Library: ${libraryName}`;
-    
-    // Extract version from CQL content if present
-    const cqlVersionMatch = cqlContent.match(/version\s+['"]([^'"]+)['"]/i);
-    const cqlVersion = cqlVersionMatch ? cqlVersionMatch[1] : '0.0.0';
-    
-    // Create a canonical URL for the library using the effective FHIR server base URL from settings
-    // const libraryId = libraryName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+    // Prefer an explicit library version declaration near the header, not FHIR `using` version.
+    const cqlVersionMatch = contentWithoutComments.match(
+      /library\s+(?:"[^"]+"|'[^']+'|[A-Za-z_][\w.]*)\s+version\s+['"]([^'"]+)['"]/i
+    );
+    const cqlVersion = cqlVersionMatch?.[1] ?? '0.0.0';
+
     const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
-    const canonicalUrl = `${effectiveFhirBaseUrl}/Library/${libraryName}`;
-    
-    // Create FHIR Library resource
-    const library: Library = {
+    const canonicalUrl = `${effectiveFhirBaseUrl.replace(/\/+$/, '')}/Library/${encodeURIComponent(libraryName)}`;
+
+    return {
       resourceType: 'Library',
-      type: {      },
-      id: libraryName,
+      type: {
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/library-type',
+            code: 'logic-library'
+          }
+        ]
+      },
+      id: libraryName.replace(/[^A-Za-z0-9.-]/g, '-'),
       version: cqlVersion,
       name: libraryName,
       title: libraryName,
       status: 'active',
-      description: description,
+      description,
       url: canonicalUrl,
       content: [
         {
           contentType: 'text/cql',
           data: encodeUtf8Base64(cqlContent)
         }
-      ],
+      ]
     };
-    console.log(library); 
-    return library;
   }
 
   private stripCqlComments(cqlContent: string): string {
@@ -597,7 +796,25 @@ export class FhirUploaderComponent implements AfterViewInit {
 
   private async uploadSingleBundle(bundleFile: BundleFile): Promise<any> {
     const text = await this.readFileAsText(bundleFile.file);
-    const bundle = JSON.parse(text);
+    let body = text;
+    const igStates = bundleFile.igStates;
+    if (igStates?.some((s) => s.sanitize)) {
+      const bundle = JSON.parse(text) as Bundle;
+      for (const state of igStates) {
+        if (!state.sanitize) {
+          continue;
+        }
+        const entry = bundle.entry?.[state.entryIndex];
+        if (entry?.resource?.resourceType === 'ImplementationGuide') {
+          entry.resource = filterImplementationGuide(
+            entry.resource as ImplementationGuide,
+            state.selectedEntryKeys,
+            state.selectedGlobalIndices
+          );
+        }
+      }
+      body = JSON.stringify(bundle);
+    }
 
     const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     const response = await fetch(effectiveFhirBaseUrl, {
@@ -606,7 +823,7 @@ export class FhirUploaderComponent implements AfterViewInit {
         'Content-Type': 'application/fhir+json',
         'Accept': 'application/fhir+json'
       },
-      body: text
+      body
     });
 
     if (!response.ok) {

@@ -22,6 +22,16 @@ describe('fhir-package-directories.lib', () => {
     expect(archivePathPrefixesForExampleDirectories({})).toEqual([]);
   });
 
+  it('archivePathPrefixesForExampleDirectories strips a leading "./"', () => {
+    const pkg: FhirPackageJson = { name: 'x', directories: { example: './example' } };
+    expect(archivePathPrefixesForExampleDirectories(pkg)).toEqual(['package/example/']);
+  });
+
+  it('archivePathPrefixesForExampleDirectories does not double-prefix an already-package-relative value', () => {
+    const pkg: FhirPackageJson = { name: 'x', directories: { example: 'package/example' } };
+    expect(archivePathPrefixesForExampleDirectories(pkg)).toEqual(['package/example/']);
+  });
+
   it('filenameIsUnderExamplePrefixes matches package-relative paths', () => {
     const prefixes = ['package/example/'];
     expect(filenameIsUnderExamplePrefixes('package/example/Patient-1.json', prefixes)).toBe(true);

@@ -26,6 +26,18 @@
       background-color: rgba(25, 135, 84, 0.1);
     }
   }
+
+  &.package-drop-zone {
+    &:hover {
+      border-color: #ffc107;
+      background-color: rgba(255, 193, 7, 0.08);
+    }
+
+    &.drag-over {
+      border-color: #ffc107;
+      background-color: rgba(255, 193, 7, 0.15);
+    }
+  }
 }
 
 .list-group-item {

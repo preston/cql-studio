@@ -17,6 +17,7 @@ import {
   archivePathPrefixesForExampleDirectories,
   filenameIsUnderExamplePrefixes
 } from './fhir-package-directories.lib';
+import { fhirPackageAuthorToString } from './fhir-package-manifest.lib';
 
 const TERMINOLOGY_TYPES = new Set(['CodeSystem', 'ValueSet', 'ConceptMap', 'NamingSystem']);
 
@@ -52,7 +53,7 @@ export class FhirPackageMetadataService {
       jurisdiction: pkg.jurisdiction ?? '',
       specUrl: pkg.url ?? '',
       license: pkg.license != null ? String(pkg.license) : '',
-      author: pkg.author != null ? String(pkg.author) : '',
+      author: fhirPackageAuthorToString(pkg.author),
       date: pkg.date ?? '',
       exampleDirectoryPrefixes: archivePathPrefixesForExampleDirectories(pkg)
     };
@@ -81,7 +82,7 @@ export class FhirPackageMetadataService {
       if (!path.startsWith('package/') || !path.endsWith('.json')) {
         continue;
       }
-      if (path.endsWith('package.json') || path.endsWith('.index.json')) {
+      if (/(^|\/)package\.json$/.test(path) || /(^|\/)\.index\.json$/.test(path)) {
         continue;
       }
       if (seen.has(path)) {
@@ -119,20 +120,41 @@ export class FhirPackageMetadataService {
   }
 
   private inferResourceType(path: string, files: Map<string, Uint8Array>): string {
+    return this.readResourceSummary(path, files)?.resourceType?.trim() || 'Unknown';
+  }
+
+  /**
+   * Best-effort parse of a package member's identity fields. Used to fill in `id`/`url`/`version`
+   * when the package's `.index.json` entry is missing them (or there is no index at all), so
+   * IG entry↔archive-row matching (`matchIgReferenceToArchiveRow`) doesn't silently fail on
+   * synthetic rows built purely from the file list.
+   */
+  private readResourceSummary(
+    path: string,
+    files: Map<string, Uint8Array>
+  ): { resourceType?: string; id?: string; url?: string; version?: string; kind?: string; type?: string } | null {
     const raw = files.get(path);
     if (!raw) {
-      return 'Unknown';
+      return null;
     }
     try {
       const text = decodeUtf8Bytes(raw, { fatal: false });
-      const t = text.trimStart();
-      if (!t.startsWith('{')) {
-        return 'Unknown';
+      if (!text.trimStart().startsWith('{')) {
+        return null;
       }
-      const obj = JSON.parse(text) as { resourceType?: string };
-      return (obj.resourceType ?? '').trim() || 'Unknown';
+      const obj = JSON.parse(text) as {
+        resourceType?: string;
+        id?: string;
+        url?: string;
+        version?: string;
+        kind?: string;
+        type?: unknown;
+      };
+      // `type` is a string on some resources (StructureDefinition.type, Bundle.type) but a
+      // CodeableConcept on others (Library.type); only surface it when it's actually a string.
+      return { ...obj, type: typeof obj.type === 'string' ? obj.type : undefined };
     } catch {
-      return 'Unknown';
+      return null;
     }
   }
 
@@ -147,7 +169,8 @@ export class FhirPackageMetadataService {
     }
     const archiveKey = resolvePackageArchiveKey(nameFromIndex, files);
     const filename = archiveKey ?? nameFromIndex;
-    const fromFile = this.inferResourceType(filename, files);
+    const summary = this.readResourceSummary(filename, files);
+    const fromFile = (summary?.resourceType ?? '').trim() || 'Unknown';
     let rt = (f.resourceType ?? '').trim() || fromFile;
     if (!rt) {
       rt = 'Unknown';
@@ -156,7 +179,7 @@ export class FhirPackageMetadataService {
       rt = 'CapabilityStatement';
     }
     const isExample = filenameIsUnderExamplePrefixes(filename, examplePrefixes);
-    const bundleType = fromFile === 'Bundle' ? this.parseBundleTypeField(filename, files) : undefined;
+    const bundleType = fromFile === 'Bundle' ? summary?.type : undefined;
     const spAbstractBase =
       fromFile === 'SearchParameter' && this.searchParameterHasAbstractBaseType(filename, files);
     const suggested = this.suggestTarget(rt);
@@ -164,11 +187,11 @@ export class FhirPackageMetadataService {
       rowKey: filename,
       filename,
       resourceType: rt,
-      id: (f.id ?? '').trim(),
-      url: (f.url ?? '').trim(),
-      version: (f.version ?? '').trim(),
-      kind: (f.kind ?? '').trim(),
-      typeField: (f.type ?? '').trim(),
+      id: (f.id ?? summary?.id ?? '').trim(),
+      url: (f.url ?? summary?.url ?? '').trim(),
+      version: (f.version ?? summary?.version ?? '').trim(),
+      kind: (f.kind ?? summary?.kind ?? '').trim(),
+      typeField: (f.type ?? summary?.type ?? '').trim(),
       isExample,
       suggestedTarget: suggested,
       targetTerminology: suggested === 'terminology',
@@ -177,26 +200,6 @@ export class FhirPackageMetadataService {
       importNote: this.importNoteFor(rt, suggested, isExample, bundleType, spAbstractBase),
       selected: this.rowSelectedByDefault(isExample, rt, fromFile, bundleType, spAbstractBase)
     };
-  }
-
-  private parseBundleTypeField(path: string, files: Map<string, Uint8Array>): string | undefined {
-    const raw = files.get(path);
-    if (!raw) {
-      return undefined;
-    }
-    try {
-      const text = decodeUtf8Bytes(raw, { fatal: false });
-      if (!text.trimStart().startsWith('{')) {
-        return undefined;
-      }
-      const obj = JSON.parse(text) as { resourceType?: string; type?: string };
-      if (obj.resourceType !== 'Bundle') {
-        return undefined;
-      }
-      return typeof obj.type === 'string' ? obj.type : undefined;
-    } catch {
-      return undefined;
-    }
   }
 
   /**

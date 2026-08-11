@@ -1,0 +1,290 @@
+<div class="row g-3" id="export-data-step">
+  <div class="col-lg-7">
+    <ul class="nav nav-pills flex-wrap gap-1 mb-3" id="export-data-tabs">
+      @for (tab of tabs; track tab) {
+        <li class="nav-item">
+          <button
+            type="button"
+            class="nav-link"
+            [id]="'export-data-tab-' + tab"
+            [class.active]="activeTab() === tab"
+            (click)="setTab(tab)">
+            {{ tab }}
+          </button>
+        </li>
+      }
+    </ul>
+
+    @if (activeTab() === 'Patient') {
+      <div class="input-group mb-3">
+        <div class="form-floating flex-grow-1">
+          <input
+            id="export-data-patient-search"
+            type="search"
+            class="form-control"
+            placeholder="Search patients"
+            [ngModel]="getSearchParam('name')"
+            (ngModelChange)="setSearchParam('name', $event)"
+            (keyup.enter)="onSearch()" />
+          <label for="export-data-patient-search">Patient name</label>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" id="export-data-patient-search-btn" (click)="onSearch()">Search</button>
+      </div>
+    }
+
+    @if (activeTab() === 'Measure') {
+      <div class="input-group mb-3">
+        <div class="form-floating flex-grow-1">
+          <input
+            id="export-data-measure-search"
+            type="search"
+            class="form-control"
+            placeholder="Search measures"
+            [ngModel]="getSearchParam('name')"
+            (ngModelChange)="setSearchParam('name', $event)"
+            (keyup.enter)="onSearch()" />
+          <label for="export-data-measure-search">Measure name or title</label>
+        </div>
+        <button type="button" class="btn btn-outline-secondary" id="export-data-measure-search-btn" (click)="onSearch()">Search</button>
+      </div>
+    }
+
+    @if (activeTab() === 'MeasureReport') {
+      <div class="row g-2 mb-3">
+        <div class="col-md-4">
+          <div class="form-floating">
+            <input id="export-data-mr-measure" class="form-control" placeholder="Measure" [ngModel]="getSearchParam('measure')" (ngModelChange)="setSearchParam('measure', $event)" />
+            <label for="export-data-mr-measure">Measure</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-floating">
+            <input id="export-data-mr-subject" class="form-control" placeholder="Subject" [ngModel]="getSearchParam('subject')" (ngModelChange)="setSearchParam('subject', $event)" />
+            <label for="export-data-mr-subject">Subject</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-floating">
+            <input id="export-data-mr-status" class="form-control" placeholder="Status" [ngModel]="getSearchParam('status')" (ngModelChange)="setSearchParam('status', $event)" />
+            <label for="export-data-mr-status">Status</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <button type="button" class="btn btn-outline-secondary" id="export-data-mr-search-btn" (click)="onSearch()">Search</button>
+        </div>
+      </div>
+    }
+
+    @if (activeTab() === 'Condition' || activeTab() === 'Observation') {
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <div class="form-floating">
+            <input id="export-data-clinical-patient" class="form-control" placeholder="Patient" [ngModel]="getSearchParam('patient')" (ngModelChange)="setSearchParam('patient', $event)" />
+            <label for="export-data-clinical-patient">Patient reference</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-floating">
+            <input id="export-data-clinical-code" class="form-control" placeholder="Code" [ngModel]="getSearchParam('code')" (ngModelChange)="setSearchParam('code', $event)" />
+            <label for="export-data-clinical-code">Code</label>
+          </div>
+        </div>
+        @if (activeTab() === 'Observation') {
+          <div class="col-md-6">
+            <div class="form-floating">
+              <input id="export-data-obs-category" class="form-control" placeholder="Category" [ngModel]="getSearchParam('category')" (ngModelChange)="setSearchParam('category', $event)" />
+              <label for="export-data-obs-category">Category</label>
+            </div>
+          </div>
+        }
+        <div class="col-md-6">
+          <div class="form-floating">
+            <input id="export-data-clinical-text" class="form-control" placeholder="Text" [ngModel]="getSearchParam('text')" (ngModelChange)="setSearchParam('text', $event)" />
+            <label for="export-data-clinical-text">Text search</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <button type="button" class="btn btn-outline-secondary" id="export-data-clinical-search-btn" (click)="onSearch()">Search</button>
+        </div>
+      </div>
+    }
+
+    @if (activeTab() === 'ImplementationGuide') {
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <div class="form-floating">
+            <input id="export-data-ig-query" class="form-control" placeholder="Name" [ngModel]="getSearchParam('query')" (ngModelChange)="setSearchParam('query', $event)" />
+            <label for="export-data-ig-query">Name or title</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-floating">
+            <input id="export-data-ig-package-id" class="form-control" placeholder="packageId" [ngModel]="getSearchParam('packageId')" (ngModelChange)="setSearchParam('packageId', $event)" />
+            <label for="export-data-ig-package-id">packageId</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <button type="button" class="btn btn-outline-secondary" id="export-data-ig-search-btn" (click)="onSearch()">Search</button>
+        </div>
+      </div>
+    }
+
+    @if (activeTab() === 'Other') {
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <div class="form-floating">
+            <select
+              id="export-data-other-type"
+              class="form-select"
+              [ngModel]="getSearchParam('resourceType')"
+              (ngModelChange)="setSearchParam('resourceType', $event)">
+              <option value="">Select type…</option>
+              @for (type of otherResourceTypes(); track type) {
+                <option [value]="type">{{ type }}</option>
+              }
+            </select>
+            <label for="export-data-other-type">Resource type</label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-floating">
+            <input id="export-data-other-query" class="form-control" placeholder="Search" [ngModel]="getSearchParam('query')" (ngModelChange)="setSearchParam('query', $event)" />
+            <label for="export-data-other-query">Search</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <button type="button" class="btn btn-outline-secondary" id="export-data-other-search-btn" (click)="onSearch()">Search</button>
+        </div>
+      </div>
+    }
+
+    @if (searchLoading()) {
+      <div class="text-muted">Searching…</div>
+    } @else if (searchError()) {
+      <div class="alert alert-danger" id="export-data-search-error" role="alert">{{ searchError() }}</div>
+    } @else if (activeTab() !== 'ImplementationGuide' || !activeIg()) {
+      @if (searchResults().length === 0) {
+        <div class="text-muted">No results.</div>
+      } @else {
+        <div class="list-group mb-3" id="export-data-results">
+          @for (resource of searchResults(); track resource.id || $index) {
+            <label class="list-group-item list-group-item-action d-flex gap-2 align-items-start">
+              @if (activeTab() === 'ImplementationGuide') {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary"
+                  [id]="'export-data-ig-open-' + (resource.id || $index)"
+                  (click)="openIgInspector($any(resource))">
+                  Inspect
+                </button>
+              } @else {
+                <input
+                  class="form-check-input flex-shrink-0 mt-1"
+                  type="checkbox"
+                  [checked]="isSelected(resource)"
+                  (change)="toggleResource(resource)" />
+              }
+              <div>
+                <div class="fw-semibold">{{ resourceLabel(resource) }}</div>
+                <div class="small text-muted">{{ resource.resourceType }}@if (resource.id) { · {{ resource.id }} }</div>
+              </div>
+            </label>
+          }
+        </div>
+        <div class="d-flex align-items-center gap-2 small text-muted" id="export-data-pagination">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="export-data-prev" [disabled]="currentPage() <= 1" (click)="goToPage(currentPage() - 1)">Previous</button>
+          <span>Page {{ currentPage() }} of {{ totalPages() }}</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="export-data-next" [disabled]="currentPage() >= totalPages()" (click)="goToPage(currentPage() + 1)">Next</button>
+        </div>
+      }
+    }
+
+    @if (activeTab() === 'ImplementationGuide' && activeIg(); as ig) {
+      <app-implementation-guide-panel
+        [ig]="ig"
+        [entries]="igEntries()"
+        mode="export"
+        [selectedEntryKeys]="igEntryKeys()"
+        [selectedGlobalIndices]="igGlobalIndices()"
+        [sanitize]="igSanitize()"
+        [syncPackageManifest]="igSyncManifest()"
+        [showSanitizeToggle]="true"
+        [showSyncToggle]="showIgSyncToggle()"
+        [resolveLoading]="igResolveLoading()"
+        [resolveFailures]="igResolveFailures()"
+        (selectedEntryKeysChange)="onIgEntryKeysChange($event)"
+        (selectedGlobalIndicesChange)="onIgGlobalChange($event)"
+        (sanitizeChange)="onIgSanitizeChange($event)"
+        (syncPackageManifestChange)="onIgSyncChange($event)"
+        (resolveSelected)="resolveIgSelected()" />
+    }
+  </div>
+
+  <div class="col-lg-5">
+    <h2 class="h6">Selected ({{ selected().length }})</h2>
+    @if (selected().length === 0) {
+      <p class="text-muted small">Optional — select FHIR data resources to include in the export.</p>
+    } @else {
+      @for (group of groupedSelected(); track group.resourceType) {
+        <div class="mb-3" [id]="'export-data-selected-' + group.resourceType">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <span class="fw-semibold">{{ group.resourceType }} ({{ group.count }})</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="clearType(group.resourceType)">Clear</button>
+          </div>
+          <ul class="list-unstyled mb-0">
+            @for (item of group.items; track item.key) {
+              <li class="mb-2 d-flex align-items-start justify-content-between gap-2">
+                <div>
+                  <div class="fw-semibold">{{ item.label }}</div>
+                  <div class="small text-muted">{{ item.detail }}</div>
+                  @if (item.source === 'patient-expansion') {
+                    <span class="badge text-bg-info">expanded</span>
+                  }
+                  @if (item.source === 'ig-resolution') {
+                    <span class="badge text-bg-secondary">IG</span>
+                  }
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="removeSelection(item.key)">Remove</button>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    }
+
+    @if (selectedPatients().length > 0) {
+      <div class="card border-secondary mt-3" id="export-data-patient-expansion">
+        <div class="card-body">
+          <h3 class="h6 fw-semibold">Patient expansion</h3>
+          <div class="form-check mb-2">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="export-data-expansion-enabled"
+              [ngModel]="patientExpansionEnabled()"
+              (ngModelChange)="onExpansionEnabledChange($event)" />
+            <label class="form-check-label" for="export-data-expansion-enabled">
+              Include related clinical data for selected patients
+            </label>
+          </div>
+          @if (patientExpansionEnabled()) {
+            <div class="d-flex flex-wrap gap-2">
+              @for (type of expansionTypeOptions; track type) {
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    [id]="'export-data-expansion-' + type"
+                    [checked]="isExpansionTypeOn(type)"
+                    (change)="toggleExpansionType(type)" />
+                  <label class="form-check-label" [for]="'export-data-expansion-' + type">{{ type }}</label>
+                </div>
+              }
+            </div>
+            <p class="small text-muted mb-0 mt-2">Related resources are fetched when you click Next.</p>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

@@ -18,7 +18,7 @@
             [id]="'export-step-' + step.id"
             [class.active]="activeStep() === step.id"
             [disabled]="i > stepIndex()"
-            (click)="i <= stepIndex() && activeStep.set(step.id)">
+            (click)="goToStep(step.id)">
             <span class="badge text-bg-secondary me-1">{{ i + 1 }}</span>
             {{ step.label }}
           </button>
@@ -26,8 +26,12 @@
       }
     </ul>
     @if (activeStep() !== 'destination' && activeStep() !== 'confirm') {
-      <button id="export-next-btn" type="button" class="btn btn-primary" [disabled]="!canProceed() || busy()" (click)="next()">
-        Next
+      <button id="export-next-btn" type="button" class="btn btn-primary" [disabled]="!canProceed() || busy() || stepBusy()" (click)="next()">
+        @if (stepBusy()) {
+          Working…
+        } @else {
+          Next
+        }
       </button>
     }
   </div>
@@ -136,7 +140,21 @@
     </div>
   }
 
-  <!-- Step 3: Dependencies + selection -->
+  <!-- Step 3: Data -->
+  @if (activeStep() === 'data') {
+    <div id="export-data-step-wrapper">
+      <app-export-data-step
+        [selected]="selectedDataResources()"
+        [destination]="destination()"
+        [igExportOptions]="igExportOptions()"
+        [patientExpansion]="patientExpansion()"
+        (selectedChange)="selectedDataResources.set($event)"
+        (igOptionsChange)="igExportOptions.set($event)"
+        (patientExpansionChange)="patientExpansion.set($event)" />
+    </div>
+  }
+
+  <!-- Step 4: Dependencies + selection -->
   @if (activeStep() === 'dependencies') {
     <div id="export-dependencies-step">
       <div class="row g-3 align-items-end mb-3" id="export-analysis-controls">
@@ -290,7 +308,7 @@
     </div>
   }
 
-  <!-- Step 4: Confirm (+ destination-specific settings) -->
+  <!-- Step 5: Confirm (+ destination-specific settings) -->
   @if (activeStep() === 'confirm') {
     <div id="export-confirm-step">
       <dl class="row mb-3">
@@ -298,6 +316,22 @@
         <dd class="col-sm-9">{{ selectedDestinationMeta()?.label ?? '—' }}</dd>
         <dt class="col-sm-3">Root libraries</dt>
         <dd class="col-sm-9">{{ selectedLibraries().length }} selected</dd>
+        <dt class="col-sm-3">Data resources</dt>
+        <dd class="col-sm-9" id="export-confirm-data-resources">{{ dataSelectionSummaryText() }}</dd>
+        @if (sanitizedIgCount(selectedDataResources(), igExportOptions()) > 0 || igSyncEnabled(selectedDataResources(), igExportOptions())) {
+          <dt class="col-sm-3">Implementation guides</dt>
+          <dd class="col-sm-9" id="export-confirm-ig-summary">
+            @if (sanitizedIgCount(selectedDataResources(), igExportOptions()) > 0) {
+              {{ sanitizedIgCount(selectedDataResources(), igExportOptions()) }} sanitized
+            }
+            @if (sanitizedIgCount(selectedDataResources(), igExportOptions()) > 0 && igSyncEnabled(selectedDataResources(), igExportOptions())) {
+              ·
+            }
+            @if (igSyncEnabled(selectedDataResources(), igExportOptions())) {
+              package.json synced from IG
+            }
+          </dd>
+        }
         <dt class="col-sm-3">Export set</dt>
         <dd class="col-sm-9" id="export-confirm-export-set">
           @if (graph(); as g) {
@@ -318,13 +352,19 @@
           <dt class="col-sm-3">Complete Bundle</dt>
           <dd class="col-sm-9" id="export-confirm-complete-bundle">
             @if (includeCompleteBundle()) {
-              Yes — zip root will include <code>complete-bundle.json</code> (transaction Bundle with PUT) for server import alongside the raw files.
+              Yes — zip root will include <code>complete-bundle.json</code> (transaction Bundle; PUT when id present, otherwise POST) for server import alongside the raw files.
             } @else {
               No
             }
           </dd>
         }
       </dl>
+
+      @if (showCrmiDataWarning()) {
+        <div class="alert alert-warning" id="export-crmi-data-warning" role="alert">
+          This CRMI artifact bundle includes non-library clinical or IG data. That is supported but non-standard for CRMI packages.
+        </div>
+      }
 
       @if (destination() === 'fhir-package' || destination() === 'crmi') {
         <div class="row g-3 mb-3">

@@ -8,6 +8,11 @@ import { TerminologyService } from './terminology.service';
 import { SettingsService } from './settings.service';
 import { resourceTypeOf } from './fhir-resource-type.lib';
 import { collectionBundleToTransaction } from './fhir-bundle-transaction.lib';
+import {
+  cloneBundleEntriesWithHapiSafeClientIds,
+  cloneResourcesWithHapiSafeClientIds
+} from './fhir-hapi-client-id.lib';
+import { describeFhirHttpFailure } from './fhir-http-error.lib';
 
 const TERMINOLOGY_TYPES = new Set(['CodeSystem', 'ValueSet', 'ConceptMap', 'NamingSystem']);
 
@@ -75,16 +80,15 @@ export class ExportPublishService {
       return this.publishPartitionedBundles(resources, transactionBundle, onProgress);
     }
 
-    return this.publishResources(resources, false, onProgress);
+    return this.publishResources(resources, onProgress);
   }
 
   /**
-   * Publish a flat resource list.
-   * @param conditionalCreate when true, caller should pass a CRMI Bundle via publishBundle instead.
+   * Publish a flat resource list via unconditional PUT/POST transactions. For conditional-create
+   * (CRMI) semantics, build a Bundle with `request` entries and call `publishBundle` instead.
    */
   async publishResources(
     resources: Resource[],
-    _conditionalCreate = false,
     onProgress?: (message: string) => void
   ): Promise<ExportPublishOutcome[]> {
     const { termRes, dataRes } = this.partitionResources(resources);
@@ -151,7 +155,7 @@ export class ExportPublishService {
       const bundle: Bundle = {
         resourceType: 'Bundle',
         type: 'transaction',
-        entry: pickEntries([...termRes, ...dataRes])
+        entry: cloneBundleEntriesWithHapiSafeClientIds(pickEntries([...termRes, ...dataRes]))
       };
       outcomes.push(await this.postChannel(bundle, 'merged', (b) => this.terminologyService.postBundle(b)));
       return outcomes;
@@ -162,7 +166,7 @@ export class ExportPublishService {
       const bundle: Bundle = {
         resourceType: 'Bundle',
         type: 'transaction',
-        entry: pickEntries(termRes)
+        entry: cloneBundleEntriesWithHapiSafeClientIds(pickEntries(termRes))
       };
       outcomes.push(
         await this.postChannel(bundle, 'terminology', (b) => this.terminologyService.postBundle(b))
@@ -173,7 +177,7 @@ export class ExportPublishService {
       const bundle: Bundle = {
         resourceType: 'Bundle',
         type: 'transaction',
-        entry: pickEntries(dataRes)
+        entry: cloneBundleEntriesWithHapiSafeClientIds(pickEntries(dataRes))
       };
       outcomes.push(await this.postChannel(bundle, 'data', (b) => this.fhirClient.postBundle(b)));
     }
@@ -181,10 +185,13 @@ export class ExportPublishService {
   }
 
   private toUnconditionalTransaction(resources: Resource[]): Bundle {
+    // HAPI (HAPI-0960) rejects client-assigned logical ids made only of digits (common in
+    // registry packages such as hl7.fhir.r4.core); rewrite them before building PUT entries.
+    const safe = cloneResourcesWithHapiSafeClientIds(resources);
     return collectionBundleToTransaction({
       resourceType: 'Bundle',
       type: 'collection',
-      entry: resources.map((resource) => ({ resource }))
+      entry: safe.map((resource) => ({ resource }))
     });
   }
 
@@ -202,11 +209,10 @@ export class ExportPublishService {
         response
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       return {
         channel,
         success: false,
-        message: `Publish failed (${channel}): ${message}`
+        message: `Publish failed (${channel}): ${describeFhirHttpFailure(err)}`
       };
     }
   }

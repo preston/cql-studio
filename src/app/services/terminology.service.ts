@@ -577,6 +577,11 @@ export class TerminologyService extends BaseService {
    */
   postBundle(bundle: Bundle | string): Observable<Bundle> {
     const url = normalizeFhirBaseUrlForBundlePost(this.getTerminologyBaseUrl());
+    if (!url) {
+      return new Observable((subscriber) => {
+        subscriber.error(new Error('Terminology endpoint is not configured'));
+      });
+    }
     const payload: object | string =
       typeof bundle === 'string' ? bundle : normalizeBundleForBasePost(bundle);
     return this.http.post<Bundle>(url, payload, {

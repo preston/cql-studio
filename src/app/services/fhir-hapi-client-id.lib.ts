@@ -71,11 +71,8 @@ function applyNumericIdPrefixToTree(root: Resource): void {
   });
 }
 
-/**
- * For one transaction, build remap from every logical id (all roots and contained),
- * apply `n`+digit ids, then rewrite references so cross-resource links stay valid.
- */
-export function applyHapiNumericIdRulesToTransactionRoots(roots: Resource[]): void {
+/** Builds the `Type/oldId` → `Type/newId` (plus `#oldId` → `#newId`) remap for a resource set. */
+function buildNumericIdRemap(roots: Resource[]): Map<string, string> {
   const remap = new Map<string, string>();
   for (const root of roots) {
     visitResourcesDepthFirst(root, (res) => {
@@ -84,12 +81,23 @@ export function applyHapiNumericIdRulesToTransactionRoots(roots: Resource[]): vo
       if (!id || !NUMERIC_ONLY_ID.test(id)) {
         return;
       }
-      if (!resourceType) {
-        return;
+      if (resourceType) {
+        remap.set(`${resourceType}/${id}`, `${resourceType}/n${id}`);
       }
-      remap.set(`${resourceType}/${id}`, `${resourceType}/n${id}`);
+      // Contained resources are referenced locally as "#id" rather than "Type/id"; a numeric-only
+      // contained id needs the same prefix rewrite so `#1` still resolves after `id` becomes `n1`.
+      remap.set(`#${id}`, `#n${id}`);
     });
   }
+  return remap;
+}
+
+/**
+ * For one transaction, build remap from every logical id (all roots and contained),
+ * apply `n`+digit ids, then rewrite references so cross-resource links stay valid.
+ */
+export function applyHapiNumericIdRulesToTransactionRoots(roots: Resource[]): void {
+  const remap = buildNumericIdRemap(roots);
   if (remap.size === 0) {
     return;
   }
@@ -114,5 +122,39 @@ export function mangleNumericOnlyIdsForHapi(root: Resource): void {
 export function cloneResourcesWithHapiSafeClientIds(resources: Resource[]): Resource[] {
   const clones = resources.map((r) => structuredClone(r) as Resource);
   applyHapiNumericIdRulesToTransactionRoots(clones);
+  return clones;
+}
+
+interface BundleEntryLike {
+  fullUrl?: string;
+  resource?: Resource;
+  request?: { method?: string; url?: string; ifNoneExist?: string };
+}
+
+/**
+ * Same numeric-id rewrite as `cloneResourcesWithHapiSafeClientIds`, but also fixes up
+ * `request.url` on PUT entries (which otherwise still target the old, HAPI-rejected id) so a
+ * pre-built transaction/collection bundle (e.g. from CRMI packaging) stays internally consistent.
+ */
+export function cloneBundleEntriesWithHapiSafeClientIds<T extends BundleEntryLike>(entries: T[]): T[] {
+  const clones = entries.map((e) => structuredClone(e)) as T[];
+  const roots = clones.map((e) => e.resource).filter((r): r is Resource => !!r);
+  const remap = buildNumericIdRemap(roots);
+  if (remap.size === 0) {
+    return clones;
+  }
+  for (const root of roots) {
+    applyNumericIdPrefixToTree(root);
+    rewriteReferencesDeep(root, remap);
+  }
+  for (const entry of clones) {
+    const url = entry.request?.url;
+    if (entry.request && typeof url === 'string') {
+      const mapped = remap.get(url);
+      if (mapped) {
+        entry.request.url = mapped;
+      }
+    }
+  }
   return clones;
 }

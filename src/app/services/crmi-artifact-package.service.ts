@@ -122,12 +122,13 @@ export class CrmiArtifactPackageService {
     const url = typeof meta.url === 'string' ? meta.url.trim() : '';
     const version = typeof meta.version === 'string' ? meta.version.trim() : '';
 
-    // CRMI recommends conditional create on canonical url (+ version).
-    // Keep values unencoded to match CRMI packaging examples; URLs with '&' are rare for canonicals.
+    // CRMI recommends conditional create on canonical url (+ version). Encode values since
+    // ifNoneExist is parsed as a query string; unencoded '&'/'#'/'=' in a canonical would otherwise
+    // be misread as extra search parameters.
     if (conditionalCreate && url) {
-      let ifNoneExist = `url=${url}`;
+      let ifNoneExist = `url=${encodeURIComponent(url)}`;
       if (version) {
-        ifNoneExist += `&version=${version}`;
+        ifNoneExist += `&version=${encodeURIComponent(version)}`;
       }
       entry.request = {
         method: 'POST',

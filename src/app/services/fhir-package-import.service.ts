@@ -12,7 +12,6 @@
  * HAPI validates those codes and throws HAPI-1684 (see hl7.fhir.r4.core SearchParameter-DomainResource-text.json).
  */
 
-import { HttpErrorResponse } from '@angular/common/http';
 import { decodeUtf8Bytes } from './utf8-encoding.lib';
 import { Injectable, inject } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
@@ -23,9 +22,18 @@ import { resolvePackageArchiveKey } from './fhir-package-archive-path.lib';
 import { collectionBundleToTransaction } from './fhir-bundle-transaction.lib';
 import { cloneResourcesWithHapiSafeClientIds } from './fhir-hapi-client-id.lib';
 import { resourceTypeOf } from './fhir-resource-type.lib';
+import { isResourceType } from './fhir-resource-type.lib';
+import { filterImplementationGuide } from './implementation-guide.lib';
+import { describeFhirHttpFailure, fhirOutcomeSummary } from './fhir-http-error.lib';
 import { TerminologyService } from './terminology.service';
 import { FhirClientService } from './fhir-client.service';
 import { SettingsService } from './settings.service';
+
+export interface IgImportSanitizeOptions {
+  igFilename: string;
+  includedEntryKeys: ReadonlySet<string>;
+  includedGlobalIndices?: ReadonlySet<number>;
+}
 
 const TERM_ORDER: Record<string, number> = {
   CodeSystem: 0,
@@ -66,7 +74,8 @@ export class FhirPackageImportService {
 
   collectResourcesFromFiles(
     selectedRows: IndexedResourceRowVm[],
-    files: Map<string, Uint8Array>
+    files: Map<string, Uint8Array>,
+    igSanitize?: IgImportSanitizeOptions
   ): { resources: Resource[]; errors: string[] } {
     const resources: Resource[] = [];
     const errors: string[] = [];
@@ -86,7 +95,21 @@ export class FhirPackageImportService {
           continue;
         }
         obj.__filename = row.filename;
-        resources.push(obj as Resource);
+        let resource = obj as Resource;
+        if (
+          igSanitize &&
+          row.filename === igSanitize.igFilename &&
+          isResourceType(resource, 'ImplementationGuide')
+        ) {
+          // Reattach sidecar used by partitionByTargets (defensive after deep-clone filter).
+          resource = filterImplementationGuide(
+            resource,
+            igSanitize.includedEntryKeys,
+            igSanitize.includedGlobalIndices
+          );
+          (resource as Resource & { __filename?: string }).__filename = row.filename;
+        }
+        resources.push(resource);
       } catch (e) {
         errors.push(`${row.filename}: ${e instanceof Error ? e.message : 'parse error'}`);
       }
@@ -317,7 +340,7 @@ export class FhirPackageImportService {
             channel: channelLabel,
             ...fields,
             ok: false,
-            message: `${status}${this.outcomeSummary(oc)}`.trim()
+            message: `${status}${fhirOutcomeSummary(oc)}`.trim()
           });
         } else {
           outcomes.push({
@@ -356,23 +379,6 @@ export class FhirPackageImportService {
     };
   }
 
-  private outcomeSummary(outcome: OperationOutcome | undefined): string {
-    const issues = outcome?.issue;
-    if (!issues?.length) {
-      return '';
-    }
-    const parts = issues
-      .map((i) => {
-        const d = i.diagnostics;
-        const t = i.details?.text;
-        const a = typeof d === 'string' ? d : d != null ? JSON.stringify(d) : '';
-        const b = typeof t === 'string' ? t : t != null ? JSON.stringify(t) : '';
-        return a || b;
-      })
-      .filter(Boolean);
-    return parts.length ? ` — ${parts.join('; ')}` : '';
-  }
-
   /** FHIR says `response.status` is a string; some stacks send numbers or omit it. */
   private bundleEntryStatusString(raw: unknown): string {
     if (raw == null) {
@@ -388,27 +394,6 @@ export class FhirPackageImportService {
   }
 
   private describeFailure(e: unknown): string {
-    if (e instanceof HttpErrorResponse) {
-      const errBody = e.error;
-      if (errBody != null && typeof errBody === 'object' && 'issue' in errBody) {
-        const msg = this.outcomeSummary(errBody as OperationOutcome).replace(/^\s*—\s*/, '');
-        return [e.message, msg].filter(Boolean).join(' — ');
-      }
-      if (typeof errBody === 'string' && errBody.trim()) {
-        return `${e.message} — ${errBody.trim().slice(0, 500)}`;
-      }
-      return e.message || `${e.status ?? ''} ${e.statusText ?? ''}`.trim();
-    }
-    if (e instanceof Error) {
-      return e.message;
-    }
-    if (typeof e === 'string') {
-      return e;
-    }
-    try {
-      return JSON.stringify(e);
-    } catch {
-      return String(e);
-    }
+    return describeFhirHttpFailure(e);
   }
 }

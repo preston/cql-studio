@@ -50,6 +50,18 @@ describe('fhir-hapi-client-id.lib', () => {
     expect(p.contained?.[0].id).toBe('n8');
   });
 
+  it('rewrites local "#id" references to a mangled contained resource id', () => {
+    const p: Patient = {
+      resourceType: 'Patient',
+      id: '5',
+      contained: [{ resourceType: 'Observation', id: '8', status: 'final', code: { text: 'x' } } as Resource],
+      generalPractitioner: [{ reference: '#8' }]
+    } as Patient;
+    mangleNumericOnlyIdsForHapi(p);
+    expect(p.contained?.[0].id).toBe('n8');
+    expect((p.generalPractitioner ?? [])[0]?.reference).toBe('#n8');
+  });
+
   it('cloneResourcesWithHapiSafeClientIds does not mutate originals', () => {
     const original: Patient = { resourceType: 'Patient', id: '42' };
     const [clone] = cloneResourcesWithHapiSafeClientIds([original]);

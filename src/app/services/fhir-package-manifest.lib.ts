@@ -90,6 +90,36 @@ export function validateFhirPackageManifestInput(
   return { valid: errors.length === 0, errors };
 }
 
+/**
+ * Validate a parsed `package/package.json` against FHIR NPM package rules
+ * (https://hl7.org/fhir/packages.html). Rejects generic NPM manifests that lack
+ * FHIR required fields (dotted name, semver, author, description, core dependency).
+ */
+export function validateFhirPackageJson(pkg: FhirPackageJson): FhirPackageManifestValidation {
+  return validateFhirPackageManifestInput({
+    name: pkg.name ?? '',
+    version: pkg.version ?? '',
+    author: fhirPackageAuthorToString(pkg.author),
+    description: pkg.description ?? '',
+    type: pkg.type,
+    canonical: pkg.canonical,
+    dependencies: pkg.dependencies
+  });
+}
+
+export function fhirPackageAuthorToString(author: FhirPackageJson['author']): string {
+  if (typeof author === 'string') {
+    return author;
+  }
+  if (author != null && typeof author === 'object') {
+    const obj = author as { name?: string; email?: string };
+    if (typeof obj.name === 'string' && obj.name.trim()) {
+      return obj.name.trim();
+    }
+  }
+  return '';
+}
+
 export function buildFhirPackageJson(input: FhirPackageManifestInput): FhirPackageJson {
   const validation = validateFhirPackageManifestInput(input);
   if (!validation.valid) {

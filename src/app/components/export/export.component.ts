@@ -3,8 +3,9 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
-import { Bundle, Library, Resource } from 'fhir/r4';
+import { Bundle, Library, Patient, Resource } from 'fhir/r4';
 import { LibraryService } from '../../services/library.service';
+import { describeFhirHttpFailure } from '../../services/fhir-http-error.lib';
 import { ToastService } from '../../services/toast.service';
 import {
   ExportDependencyGraph,
@@ -24,11 +25,32 @@ import {
 import { CrmiArtifactPackageService } from '../../services/crmi-artifact-package.service';
 import { ExportPublishService } from '../../services/export-publish.service';
 import { downloadBytes, downloadJson } from '../../services/download-blob.lib';
-import { buildPutTransactionBundle } from '../../services/fhir-bundle-transaction.lib';
-import { resourceTypeOf } from '../../services/fhir-resource-type.lib';
+import { buildTransactionBundle } from '../../services/fhir-bundle-transaction.lib';
+import { resourceTypeOf, isResourceType } from '../../services/fhir-resource-type.lib';
+import { ExportDestination, ExportWizardStep } from './export.types';
+import { ExportDataStepComponent } from './export-data-step/export-data-step.component';
+import {
+  ExportDataSelection,
+  IgExportOptions,
+  PatientExpansionOptions,
+  dataSelectionSummary,
+  mergeExportDataSelections
+} from '../../services/export-data-resource.lib';
+import { ExportDataSearchService } from '../../services/export-data-search.service';
+import {
+  buildFhirPackageManifestFromIg,
+  exportDataResourceKey
+} from '../../services/implementation-guide.lib';
+import {
+  applyIgSanitizeIfConfigured,
+  hasNonLibraryClinicalData,
+  igSyncEnabled,
+  mergeExportResources,
+  primaryIgForManifestSync,
+  sanitizedIgCount
+} from '../../services/export-merge.lib';
 
-export type ExportDestination = 'raw-cql' | 'fhir-package' | 'fhir-server' | 'crmi';
-export type ExportWizardStep = 'destination' | 'libraries' | 'dependencies' | 'confirm';
+export type { ExportDestination, ExportWizardStep } from './export.types';
 export type ExportDepSortColumn = 'include' | 'kind' | 'name' | 'status' | 'detail';
 
 interface ExportWizardStepMeta {
@@ -46,6 +68,7 @@ interface ExportDestinationMeta {
 const EXPORT_WIZARD_STEPS: readonly ExportWizardStepMeta[] = [
   { id: 'destination', label: 'Destination' },
   { id: 'libraries', label: 'Libraries' },
+  { id: 'data', label: 'Data' },
   { id: 'dependencies', label: 'Dependencies' },
   { id: 'confirm', label: 'Confirm' }
 ];
@@ -79,7 +102,7 @@ const EXPORT_DESTINATIONS: readonly ExportDestinationMeta[] = [
 
 @Component({
   selector: 'app-export',
-  imports: [FormsModule],
+  imports: [FormsModule, ExportDataStepComponent],
   templateUrl: './export.component.html'
 })
 export class ExportComponent implements OnInit {
@@ -89,6 +112,7 @@ export class ExportComponent implements OnInit {
   private readonly archiveService = inject(FhirPackageArchiveService);
   private readonly crmiPackageService = inject(CrmiArtifactPackageService);
   private readonly publishService = inject(ExportPublishService);
+  private readonly dataSearchService = inject(ExportDataSearchService);
 
   readonly steps = EXPORT_WIZARD_STEPS;
   readonly destinations = EXPORT_DESTINATIONS;
@@ -101,9 +125,18 @@ export class ExportComponent implements OnInit {
   readonly libraryResults = signal<Library[]>([]);
   readonly selectedLibraries = signal<Library[]>([]);
 
+  readonly selectedDataResources = signal<ExportDataSelection[]>([]);
+  readonly igExportOptions = signal<Record<string, IgExportOptions>>({});
+  readonly patientExpansion = signal<PatientExpansionOptions>({
+    enabled: false,
+    resourceTypes: ['Condition', 'Observation']
+  });
+
   readonly graphLoading = signal(false);
   readonly graphError = signal<string | null>(null);
   readonly graph = signal<ExportDependencyGraph | null>(null);
+  /** Fingerprint of selectedLibraries used to build the current graph (staleness check). */
+  readonly analyzedRootsKey = signal<string | null>(null);
   /** Keys of graph nodes included in the export. */
   readonly selectedExportKeys = signal<ReadonlySet<string>>(new Set());
 
@@ -121,11 +154,16 @@ export class ExportComponent implements OnInit {
   readonly packageTitle = signal('');
 
   readonly busy = signal(false);
+  /** True while next() is transitioning steps (patient expansion, IG resolve, dependency analysis). */
+  readonly stepBusy = signal(false);
   readonly progressMessage = signal<string | null>(null);
   readonly lastOutcomes = signal<string[]>([]);
 
   readonly depSortColumn = signal<ExportDepSortColumn>('kind');
   readonly depSortOrder = signal<'asc' | 'desc'>('asc');
+
+  readonly sanitizedIgCount = sanitizedIgCount;
+  readonly igSyncEnabled = igSyncEnabled;
 
   readonly stepIndex = computed(() => this.steps.findIndex((s) => s.id === this.activeStep()));
 
@@ -208,6 +246,15 @@ export class ExportComponent implements OnInit {
     return validateFhirPackageManifestInput(this.manifestInput());
   });
 
+  readonly dataSelectionSummaryText = computed(() =>
+    dataSelectionSummary(this.selectedDataResources())
+  );
+
+  readonly showCrmiDataWarning = computed(
+    () =>
+      this.destination() === 'crmi' && hasNonLibraryClinicalData(this.selectedDataResources())
+  );
+
   readonly canProceed = computed(() => {
     const step = this.activeStep();
     if (step === 'destination') {
@@ -215,6 +262,9 @@ export class ExportComponent implements OnInit {
     }
     if (step === 'libraries') {
       return this.selectedLibraries().length > 0;
+    }
+    if (step === 'data') {
+      return true;
     }
     if (step === 'dependencies') {
       return (
@@ -273,6 +323,42 @@ export class ExportComponent implements OnInit {
     } else {
       this.selectedLibraries.set([...current, lib]);
     }
+    // Library roots changed — prior dependency graph is no longer valid.
+    this.graph.set(null);
+    this.analyzedRootsKey.set(null);
+    this.selectedExportKeys.set(new Set());
+  }
+
+  /** Navigate to a prior wizard step (pills). Re-runs data/dependency work when entering dependencies. */
+  async goToStep(stepId: ExportWizardStep): Promise<void> {
+    const targetIdx = this.steps.findIndex((s) => s.id === stepId);
+    if (targetIdx < 0 || targetIdx > this.stepIndex() || this.stepBusy()) {
+      return;
+    }
+    if (stepId === 'dependencies') {
+      this.stepBusy.set(true);
+      try {
+        if (this.activeStep() === 'data') {
+          await this.processDataStepBeforeDependencies();
+        }
+        if (this.isGraphStale()) {
+          await this.analyzeDependencies();
+        }
+        if (!this.graph()) {
+          if (this.graphError()) {
+            this.toastService.show({ type: 'error', message: this.graphError()! });
+          }
+          return;
+        }
+      } catch (err) {
+        const message = describeFhirHttpFailure(err);
+        this.toastService.show({ type: 'error', message });
+        return;
+      } finally {
+        this.stepBusy.set(false);
+      }
+    }
+    this.activeStep.set(stepId);
   }
 
   async loadLibraries(): Promise<void> {
@@ -289,7 +375,7 @@ export class ExportComponent implements OnInit {
         .filter((lib) => this.isLogicLibrary(lib));
       this.libraryResults.set(libs);
     } catch (err) {
-      this.libraryError.set(err instanceof Error ? err.message : String(err));
+      this.libraryError.set(describeFhirHttpFailure(err));
       this.libraryResults.set([]);
     } finally {
       this.libraryLoading.set(false);
@@ -297,7 +383,7 @@ export class ExportComponent implements OnInit {
   }
 
   async next(): Promise<void> {
-    if (!this.canProceed()) {
+    if (!this.canProceed() || this.stepBusy()) {
       return;
     }
     const idx = this.stepIndex();
@@ -305,19 +391,40 @@ export class ExportComponent implements OnInit {
     if (!nextStep) {
       return;
     }
-    if (nextStep.id === 'dependencies') {
-      await this.analyzeDependencies();
-    }
-    if (this.activeStep() === 'dependencies' && nextStep.id === 'confirm') {
-      if (this.isGraphStale()) {
+    this.stepBusy.set(true);
+    try {
+      if (this.activeStep() === 'data' && nextStep.id === 'dependencies') {
+        await this.processDataStepBeforeDependencies();
+      }
+      if (nextStep.id === 'dependencies') {
         await this.analyzeDependencies();
-        if (!this.graph() || this.selectedCounts().library === 0) {
+        if (!this.graph()) {
+          this.toastService.show({
+            type: 'error',
+            message: this.graphError() ?? 'Dependency analysis failed.'
+          });
           return;
         }
       }
-      this.prefillPackageFields();
+      if (this.activeStep() === 'dependencies' && nextStep.id === 'confirm') {
+        if (this.isGraphStale()) {
+          await this.analyzeDependencies();
+          if (!this.graph() || this.selectedCounts().library === 0) {
+            return;
+          }
+        }
+        this.prefillPackageFields();
+      }
+      this.activeStep.set(nextStep.id);
+    } catch (err) {
+      const message = describeFhirHttpFailure(err);
+      this.toastService.show({ type: 'error', message });
+      if (this.activeStep() === 'data') {
+        this.graphError.set(message);
+      }
+    } finally {
+      this.stepBusy.set(false);
     }
-    this.activeStep.set(nextStep.id);
   }
 
   currentGraphOptionsKey(): string {
@@ -327,22 +434,36 @@ export class ExportComponent implements OnInit {
     });
   }
 
+  private rootsFingerprint(): string {
+    return this.selectedLibraries()
+      .map((l) => this.libraryIdentityKey(l))
+      .sort()
+      .join(';');
+  }
+
   isGraphStale(): boolean {
     const g = this.graph();
-    return !g || g.optionsKey !== this.currentGraphOptionsKey();
+    return (
+      !g ||
+      g.optionsKey !== this.currentGraphOptionsKey() ||
+      this.analyzedRootsKey() !== this.rootsFingerprint()
+    );
   }
 
   async analyzeDependencies(): Promise<void> {
     this.graphLoading.set(true);
     this.graphError.set(null);
     this.progressMessage.set('Analyzing library and terminology dependencies…');
+    const previousGraph = this.graph();
+    const previousSelection = this.selectedExportKeys();
     try {
       const graph = await this.dependencyGraphService.buildGraph(this.selectedLibraries(), {
         includeCodeSystems: true,
         terminologyCapability: this.terminologyCapability()
       });
       this.graph.set(graph);
-      this.applyDefaultExportSelection(graph);
+      this.analyzedRootsKey.set(this.rootsFingerprint());
+      this.applyExportSelection(graph, previousGraph, previousSelection);
       if (graph.missingCount > 0) {
         this.toastService.show({
           type: 'warning',
@@ -350,9 +471,12 @@ export class ExportComponent implements OnInit {
         });
       }
     } catch (err) {
-      this.graphError.set(err instanceof Error ? err.message : String(err));
+      const message = describeFhirHttpFailure(err);
+      this.graphError.set(message);
       this.graph.set(null);
+      this.analyzedRootsKey.set(null);
       this.selectedExportKeys.set(new Set());
+      this.toastService.show({ type: 'error', message });
     } finally {
       this.graphLoading.set(false);
       this.progressMessage.set(null);
@@ -449,7 +573,7 @@ export class ExportComponent implements OnInit {
           break;
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = describeFhirHttpFailure(err);
       this.toastService.show({ type: 'error', message });
       this.lastOutcomes.set([message]);
     } finally {
@@ -473,14 +597,28 @@ export class ExportComponent implements OnInit {
     }
   }
 
-  private applyDefaultExportSelection(graph: ExportDependencyGraph): void {
+  /**
+   * Applies default include/exclude for newly-discovered graph nodes (libraries and ValueSets on,
+   * CodeSystems off) while preserving the user's prior explicit choices for nodes that existed in
+   * `previousGraph` (re-analysis should not silently revert manual include/exclude toggles).
+   */
+  private applyExportSelection(
+    graph: ExportDependencyGraph,
+    previousGraph: ExportDependencyGraph | null,
+    previousSelection: ReadonlySet<string>
+  ): void {
+    const previousKeys = previousGraph ? new Set(previousGraph.flat.map((n) => n.key)) : null;
     const keys = new Set<string>();
     for (const node of graph.flat) {
       if (node.status !== 'resolved' || !node.resource) {
         continue;
       }
-      // Libraries and ValueSets on by default; CodeSystems off by default.
-      if (node.kind === 'library' || node.kind === 'valueset') {
+      const isKnownNode = !!previousKeys?.has(node.key);
+      if (isKnownNode) {
+        if (previousSelection.has(node.key)) {
+          keys.add(node.key);
+        }
+      } else if (node.kind === 'library' || node.kind === 'valueset') {
         keys.add(node.key);
       }
     }
@@ -488,14 +626,76 @@ export class ExportComponent implements OnInit {
   }
 
   private selectedResources(graph: ExportDependencyGraph): Resource[] {
-    const keys = this.selectedExportKeys();
-    const resources: Resource[] = [];
-    for (const node of graph.flat) {
-      if (keys.has(node.key) && node.status === 'resolved' && node.resource) {
-        resources.push(node.resource);
+    return mergeExportResources(
+      graph,
+      this.selectedExportKeys(),
+      this.selectedDataResources(),
+      this.igExportOptions()
+    );
+  }
+
+  private async processDataStepBeforeDependencies(): Promise<void> {
+    const expansion = this.patientExpansion();
+    if (expansion.enabled) {
+      const patients = this.selectedDataResources()
+        .map((s) => s.resource)
+        .filter((r): r is Patient => isResourceType(r, 'Patient'));
+      if (patients.length > 0) {
+        this.progressMessage.set('Fetching related clinical data for selected patients…');
+        try {
+          const expanded = await this.dataSearchService.expandPatients(patients, expansion);
+          if (expanded.length > 0) {
+            this.selectedDataResources.set(
+              mergeExportDataSelections(this.selectedDataResources(), expanded)
+            );
+          }
+        } catch (err) {
+          throw new Error(
+            `Patient expansion failed: ${err instanceof Error ? err.message : String(err)}`
+          );
+        } finally {
+          this.progressMessage.set(null);
+        }
       }
     }
-    return resources;
+
+    const igOpts = this.igExportOptions();
+    for (const sel of this.selectedDataResources()) {
+      if (!isResourceType(sel.resource, 'ImplementationGuide')) {
+        continue;
+      }
+      const key = exportDataResourceKey(sel.resource);
+      const opts = igOpts[key];
+      if (!opts?.resolveReferences) {
+        continue;
+      }
+      this.progressMessage.set('Resolving ImplementationGuide references…');
+      try {
+        const result = await this.dataSearchService.resolveIgReferences(
+          sel.resource,
+          new Set(opts.selectedEntryKeys),
+          false,
+          new Set(opts.selectedGlobalIndices)
+        );
+        if (result.resolved.length > 0) {
+          this.selectedDataResources.set(
+            mergeExportDataSelections(this.selectedDataResources(), result.resolved)
+          );
+        }
+        if (result.failures.length > 0) {
+          this.toastService.show({
+            type: 'warning',
+            message: `${result.failures.length} ImplementationGuide reference(s) could not be resolved.`
+          });
+        }
+      } catch (err) {
+        throw new Error(
+          `ImplementationGuide resolve failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      } finally {
+        this.progressMessage.set(null);
+      }
+    }
   }
 
   private selectedLibraryNodes(graph: ExportDependencyGraph): ExportDependencyNode[] {
@@ -507,6 +707,12 @@ export class ExportComponent implements OnInit {
         keys.has(n.key) &&
         !!n.resource
     );
+  }
+
+  private selectedPrimaryLibraries(graph: ExportDependencyGraph): Library[] {
+    return this.selectedLibraryNodes(graph)
+      .map((n) => n.resource as Library)
+      .filter((lib) => this.isSelectedPrimary(lib));
   }
 
   private async executeRawCql(graph: ExportDependencyGraph): Promise<void> {
@@ -555,9 +761,17 @@ export class ExportComponent implements OnInit {
     if (this.includeCompleteBundle()) {
       const resources = this.selectedResources(graph);
       if (resources.length > 0) {
-        const completeBundle = buildPutTransactionBundle(resources);
+        const completeBundle = buildTransactionBundle(resources);
         files['complete-bundle.json'] = JSON.stringify(completeBundle, null, 2);
       }
+    }
+
+    for (const sel of this.selectedDataResources()) {
+      const resource = applyIgSanitizeIfConfigured(sel.resource, this.igExportOptions());
+      const rt = resourceTypeOf(resource) ?? 'Resource';
+      const id = (resource as { id?: string }).id ?? 'unknown';
+      const safeId = id.replace(/[^A-Za-z0-9._-]+/g, '_');
+      files[`data/${rt}/${safeId}.json`] = JSON.stringify(resource, null, 2);
     }
 
     if (Object.keys(files).length === 0) {
@@ -586,10 +800,12 @@ export class ExportComponent implements OnInit {
   private async executeFhirServer(graph: ExportDependencyGraph): Promise<void> {
     this.progressMessage.set('Publishing to FHIR server…');
     const resources = this.selectedResources(graph);
-    const primaryLibs = this.selectedLibraryNodes(graph)
-      .map((n) => n.resource as Library)
-      .filter((lib) => this.isSelectedPrimary(lib));
-    const roots = primaryLibs.length > 0 ? primaryLibs : this.selectedLibraries();
+    const roots = this.selectedPrimaryLibraries(graph);
+    if (this.conditionalCreate() && roots.length === 0) {
+      throw new Error(
+        'Select at least one root library in the dependency table for conditional-create publish.'
+      );
+    }
 
     let outcomes;
     if (this.conditionalCreate()) {
@@ -608,7 +824,7 @@ export class ExportComponent implements OnInit {
       });
       outcomes = await this.publishService.publishBundle(bundle, (m) => this.progressMessage.set(m));
     } else {
-      outcomes = await this.publishService.publishResources(resources, false, (m) =>
+      outcomes = await this.publishService.publishResources(resources, (m) =>
         this.progressMessage.set(m)
       );
     }
@@ -622,10 +838,12 @@ export class ExportComponent implements OnInit {
 
   private async executeCrmi(graph: ExportDependencyGraph): Promise<void> {
     const resources = this.selectedResources(graph);
-    const primaryLibs = this.selectedLibraryNodes(graph)
-      .map((n) => n.resource as Library)
-      .filter((lib) => this.isSelectedPrimary(lib));
-    const roots = primaryLibs.length > 0 ? primaryLibs : this.selectedLibraries();
+    const roots = this.selectedPrimaryLibraries(graph);
+    if (roots.length === 0) {
+      throw new Error(
+        'Select at least one root library in the dependency table for CRMI packaging.'
+      );
+    }
     const rootKeys = new Set(roots.map((l) => this.libraryIdentityKey(l)));
     const deps = resources.filter((r) => {
       if (resourceTypeOf(r) !== 'Library') {
@@ -667,6 +885,21 @@ export class ExportComponent implements OnInit {
   }
 
   private manifestInput(): FhirPackageManifestInput {
+    const syncIg = primaryIgForManifestSync(
+      this.selectedDataResources(),
+      this.igExportOptions()
+    );
+    if (syncIg) {
+      const fromIg = buildFhirPackageManifestFromIg(syncIg);
+      return {
+        ...fromIg,
+        name: this.packageName() || fromIg.name,
+        version: this.packageVersion() || fromIg.version,
+        author: this.packageAuthor() || fromIg.author,
+        description: this.packageDescription() || fromIg.description,
+        title: this.packageTitle() || fromIg.title
+      };
+    }
     return {
       name: this.packageName(),
       version: this.packageVersion(),
@@ -681,6 +914,30 @@ export class ExportComponent implements OnInit {
   }
 
   private prefillPackageFields(): void {
+    const syncIg = primaryIgForManifestSync(
+      this.selectedDataResources(),
+      this.igExportOptions()
+    );
+    if (syncIg) {
+      const fromIg = buildFhirPackageManifestFromIg(syncIg);
+      // Only fill empty fields so returning to Confirm doesn't wipe user edits.
+      if (!this.packageName().trim() || this.packageName() === 'org.example.cql-export') {
+        this.packageName.set(fromIg.name);
+      }
+      if (!this.packageVersion().trim() || this.packageVersion() === '0.1.0') {
+        this.packageVersion.set(fromIg.version);
+      }
+      if (!this.packageAuthor().trim() && fromIg.author) {
+        this.packageAuthor.set(fromIg.author);
+      }
+      if (!this.packageDescription().trim() && fromIg.description) {
+        this.packageDescription.set(fromIg.description);
+      }
+      if (!this.packageTitle().trim() && fromIg.title) {
+        this.packageTitle.set(fromIg.title);
+      }
+      return;
+    }
     const primary = this.selectedLibraries()[0];
     if (primary && !this.packageDescription().trim()) {
       this.packageDescription.set(

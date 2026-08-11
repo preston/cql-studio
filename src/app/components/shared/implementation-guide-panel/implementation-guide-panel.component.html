@@ -1,0 +1,181 @@
+<div class="card border-secondary" id="ig-panel">
+  <div class="card-header py-2">
+    <div class="fw-semibold">{{ ig().title || ig().name || 'ImplementationGuide' }}</div>
+    <div class="small text-muted">
+      {{ ig().packageId }}@if (ig().version) { · {{ ig().version }} }
+      @if (ig().status) { · {{ ig().status }} }
+    </div>
+    @if (ig().url) {
+      <div class="small text-break">{{ ig().url }}</div>
+    }
+    @if (ig().fhirVersion?.length) {
+      <div class="small text-muted">FHIR {{ ig().fhirVersion.join(', ') }}</div>
+    }
+  </div>
+  <div class="card-body">
+    @if ((ig().dependsOn?.length ?? 0) > 0) {
+      <h3 class="h6 fw-semibold">Dependencies</h3>
+      <div class="table-responsive mb-3">
+        <table class="table table-sm align-middle" id="ig-panel-depends-on">
+          <thead>
+            <tr>
+              <th>packageId</th>
+              <th>uri</th>
+              <th>version</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (dep of ig().dependsOn ?? []; track $index) {
+              <tr>
+                <td class="small">{{ dep.packageId || '—' }}</td>
+                <td class="small text-break">{{ dep.uri || '—' }}</td>
+                <td class="small">{{ dep.version || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <div class="d-flex flex-wrap gap-2 mb-2" id="ig-panel-entry-shortcuts">
+      @if (mode() === 'export') {
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="ig-panel-all-conformance" (click)="selectAllConformance()">
+          All conformance
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="ig-panel-none" (click)="selectNone()">None</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="ig-panel-reset-defaults" (click)="resetDefaults()">
+          Reset defaults
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary"
+          id="ig-panel-resolve-selected"
+          [disabled]="resolveLoading()"
+          (click)="resolveSelected.emit()">
+          @if (resolveLoading()) {
+            Resolving…
+          } @else {
+            Resolve selected from server
+          }
+        </button>
+      } @else {
+        <button type="button" class="btn btn-sm btn-outline-primary" id="ig-panel-select-referenced" (click)="selectReferenced.emit()">
+          Select IG-referenced
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="ig-panel-select-conformance" (click)="selectConformanceOnly.emit()">
+          Conformance only
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="ig-panel-metadata-only" (click)="selectMetadataOnly.emit()">
+          IG metadata only
+        </button>
+      }
+    </div>
+
+    @if (mode() === 'import-bundle') {
+      <div class="small text-muted mb-2" id="ig-panel-bundle-scope-hint">
+        These shortcuts only affect which entries remain in this ImplementationGuide's own
+        definition/manifest when sanitized below; they do not change which other bundle resources
+        are uploaded.
+      </div>
+    }
+
+    <div class="table-responsive mb-3">
+      <table class="table table-sm align-middle" id="ig-panel-entries">
+        <thead>
+          <tr>
+            <th>Include</th>
+            <th>Reference</th>
+            <th>Name</th>
+            <th>Example</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (group of groupedEntries(); track group[0]) {
+            @if (group[0]) {
+              <tr class="table-light">
+                <td colspan="5" class="small fw-semibold">{{ groupingLabel(group[0]) }}</td>
+              </tr>
+            }
+            @for (entry of group[1]; track entry.key) {
+              <tr>
+                <td>
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    [id]="'ig-panel-entry-' + entry.key"
+                    [checked]="isEntrySelected(entry.key)"
+                    [disabled]="isEntryDisabled(entry)"
+                    (change)="toggleEntry(entry.key)" />
+                </td>
+                <td class="small text-break">{{ entry.reference }}</td>
+                <td class="small">{{ entry.name || '—' }}</td>
+                <td class="small">{{ entry.isExample ? 'Yes' : 'No' }}</td>
+                <td class="small text-muted">{{ matchLabel(entry) }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if ((ig().global?.length ?? 0) > 0) {
+      <h3 class="h6 fw-semibold">Global profiles</h3>
+      <ul class="list-unstyled mb-3" id="ig-panel-global">
+        @for (g of ig().global ?? []; track $index) {
+          <li class="mb-1">
+            <label class="d-flex gap-2 align-items-start">
+              <input
+                type="checkbox"
+                class="form-check-input mt-1"
+                [id]="'ig-panel-global-' + $index"
+                [checked]="isGlobalSelected($index)"
+                (change)="toggleGlobal($index)" />
+              <span class="small">
+                <span class="badge text-bg-secondary me-1">{{ g.type }}</span>
+                {{ g.profile }}
+              </span>
+            </label>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (showSanitizeToggle() || showSyncToggle()) {
+      <div class="d-flex flex-column gap-2" id="ig-panel-export-toggles">
+        @if (showSanitizeToggle()) {
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="ig-panel-sanitize"
+              [ngModel]="sanitize()"
+              (ngModelChange)="sanitizeChange.emit($event)" />
+            <label class="form-check-label" for="ig-panel-sanitize">Sanitize exported IG (trim unselected entries)</label>
+          </div>
+        }
+        @if (showSyncToggle()) {
+          <div class="form-check">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="ig-panel-sync-manifest"
+              [ngModel]="syncPackageManifest()"
+              (ngModelChange)="syncPackageManifestChange.emit($event)" />
+            <label class="form-check-label" for="ig-panel-sync-manifest">Sync package.json from this IG</label>
+          </div>
+        }
+      </div>
+    }
+
+    @if (resolveFailures().length > 0) {
+      <div class="alert alert-warning py-2 small mt-3 mb-0" id="ig-panel-resolve-failures" role="alert">
+        <ul class="mb-0 ps-3">
+          @for (f of resolveFailures(); track f.reference + f.message) {
+            <li>{{ f.reference }}: {{ f.message }}</li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+</div>

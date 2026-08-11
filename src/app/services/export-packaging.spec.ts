@@ -226,7 +226,7 @@ describe('CrmiArtifactPackageService', () => {
     expect((bundle.entry?.[0]?.resource as Library).id).toBe('primary');
     expect(bundle.entry?.[0]?.request?.method).toBe('POST');
     expect(bundle.entry?.[0]?.request?.ifNoneExist).toBe(
-      'url=http://example.org/Library/primary&version=1.0.0'
+      `url=${encodeURIComponent('http://example.org/Library/primary')}&version=1.0.0`
     );
   });
 
