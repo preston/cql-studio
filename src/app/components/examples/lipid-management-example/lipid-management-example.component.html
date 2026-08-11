@@ -1,0 +1,24 @@
+<div id="lipid-management-example">
+  <h5 class="card-title mb-3">{{ example.title }}</h5>
+  @if (example.packageId) {
+    <div class="mb-3">
+      <app-example-import-cta
+        [packageId]="example.packageId"
+        [packageVersion]="example.packageVersion"
+        buttonId="lipid-management-example-import-cta" />
+    </div>
+  } @else {
+    <p class="text-muted small mb-3" id="lipid-management-package-unavailable">
+      A FHIR package for this example is not published yet.
+    </p>
+  }
+  <p class="text-muted">{{ example.description }}</p>
+  <p>
+    This hands-on example is based on the open-source
+    <a href="https://github.com/preston/lipid-management" target="_blank" rel="noopener noreferrer"
+      id="lipid-management-github-link">Lipid Management</a>
+    project: CQL libraries and value sets for lipid therapy decision support on FHIR R4, including
+    PREVENT-aligned cardiovascular risk utilities and VSAC/ASU terminology packs loaded against a
+    CQL-capable FHIR server.
+  </p>
+</div>

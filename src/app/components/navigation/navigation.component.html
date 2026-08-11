@@ -162,6 +162,18 @@
             Learning
           </a>
           <ul class="dropdown-menu" aria-labelledby="learningDropdown">
+            @if (settingsService.settings().experimental) {
+            <li>
+              <a id="examples-nav-link" class="dropdown-item" routerLink="/examples"
+                routerLinkActive="active">
+                <i class="bi bi-lightbulb me-2"></i>
+                Examples
+              </a>
+            </li>
+            <li>
+              <hr class="dropdown-divider">
+            </li>
+            }
             <h6 class="dropdown-header">External Resources</h6>
             <li>
               <a id="cql-studio-website-nav-link" class="dropdown-item" href="https://cqlstudio.com/" target="_blank"

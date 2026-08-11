@@ -1,0 +1,70 @@
+<div id="examples" class="container mt-4 mb-5">
+  <div class="row g-4">
+    <div class="col-md-4 col-lg-3">
+      <div class="mb-3">
+        <label class="form-label visually-hidden" for="examples-search">Search examples</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search mx-1"></i></span>
+          <input
+            id="examples-search"
+            type="search"
+            class="form-control"
+            placeholder="Search examples"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="onSearchInput($event)" />
+        </div>
+      </div>
+
+      <div class="mb-3" id="examples-badge-filters">
+        <div class="d-flex flex-wrap gap-1">
+          @for (badge of allBadges; track badge) {
+            <button
+              type="button"
+              class="btn btn-sm rounded-pill"
+              [id]="badgeFilterId(badge)"
+              [class.btn-primary]="isBadgeSelected(badge)"
+              [class.btn-outline-secondary]="!isBadgeSelected(badge)"
+              (click)="toggleBadgeFilter(badge)">
+              {{ badge }}
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (isFiltered()) {
+        <p class="small text-muted mb-2" id="examples-result-count">
+          {{ filteredExamples().length }} of {{ catalogSize }} shown
+        </p>
+      }
+
+      <div class="list-group" id="examples-list">
+        @for (entry of filteredExamples(); track entry.id) {
+          <a
+            class="list-group-item list-group-item-action"
+            [id]="'examples-list-item-' + entry.id"
+            [routerLink]="['/examples', entry.path]"
+            routerLinkActive="active">
+            <div class="fw-semibold">{{ entry.title }}</div>
+            <div class="d-flex flex-wrap gap-1 mt-1">
+              @for (badge of entry.badges; track badge) {
+                <span class="badge rounded-pill text-bg-secondary">{{ badge }}</span>
+              }
+            </div>
+          </a>
+        } @empty {
+          <div class="list-group-item text-muted" id="examples-list-empty">
+            No examples match your search or filters.
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="col-md-8 col-lg-9">
+      <div class="card">
+        <div class="card-body">
+          <router-outlet />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

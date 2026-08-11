@@ -1,8 +1,10 @@
 // Author: Preston Lee
 
 import { afterNextRender, Component, computed, inject, Injector, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, ParamMap } from '@angular/router';
 import { SettingsService } from '../../services/settings.service';
 import { FhirPackageRegistryService } from '../../services/fhir-package-registry.service';
 import { FhirPackageMetadataService } from '../../services/fhir-package-metadata.service';
@@ -26,6 +28,10 @@ import {
   ResolvedPackageNode
 } from '../../models/fhir-package-import.types';
 import { packageInstanceKey } from '../../services/fhir-package-dependency-resolver.lib';
+import {
+  FHIR_REGISTRY_IMPORTER_QUERY_PACKAGE,
+  FHIR_REGISTRY_IMPORTER_QUERY_VERSION
+} from './fhir-registry-importer.deep-link';
 
 type QuickFilter = 'all' | 'terminology' | 'conformance' | 'examples';
 
@@ -62,6 +68,7 @@ export class FhirRegistryImporterComponent {
   private readonly dependencyResolver = inject(FhirPackageDependencyResolverService);
   private readonly packageImportService = inject(FhirPackageImportService);
   private readonly injector = inject(Injector);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly searchQuery = signal('');
   protected readonly catalogFhirVersionFilter = signal<string | null>(null);
@@ -91,6 +98,18 @@ export class FhirRegistryImporterComponent {
   protected readonly rootPackageName = signal<string | null>(null);
   protected readonly activePackageName = signal<string | null>(null);
   protected readonly findPackagesExpanded = signal(true);
+
+  /** Last deep-link key applied from query params (avoids reload loops). */
+  private lastAppliedDeepLinkKey: string | null = null;
+  private deepLinkGeneration = 0;
+
+  constructor() {
+    // Supports in-app navigation and direct/external URLs such as:
+    // /fhir-registry-importer?package=hl7.fhir.us.core&version=6.1.0
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
+      this.applyDeepLinkFromQueryParams(params);
+    });
+  }
 
   protected readonly quickFilter = signal<QuickFilter>('all');
   protected readonly includeExamples = signal(false);
@@ -317,7 +336,55 @@ export class FhirRegistryImporterComponent {
   }
 
   async selectCatalogEntry(entry: FhirPackageCatalogEntry): Promise<void> {
-    const id = entry.Name;
+    await this.openPackage(entry.Name);
+  }
+
+  /**
+   * Deep-link entry point for query params from Examples or external systems.
+   * Expects `package` (required) and optional `version`.
+   */
+  private applyDeepLinkFromQueryParams(params: ParamMap): void {
+    const packageId = params.get(FHIR_REGISTRY_IMPORTER_QUERY_PACKAGE)?.trim();
+    if (!packageId) {
+      return;
+    }
+    const version = params.get(FHIR_REGISTRY_IMPORTER_QUERY_VERSION)?.trim() || null;
+    const key = `${packageId}\0${version ?? ''}`;
+    if (key === this.lastAppliedDeepLinkKey) {
+      return;
+    }
+    this.lastAppliedDeepLinkKey = key;
+    const generation = ++this.deepLinkGeneration;
+    void this.openPackage(packageId, version).then((ok) => {
+      if (generation !== this.deepLinkGeneration) {
+        return;
+      }
+      if (!ok) {
+        // Allow the same deep-link to be retried after a failed load.
+        this.lastAppliedDeepLinkKey = null;
+        return;
+      }
+      this.findPackagesExpanded.set(false);
+      afterNextRender(
+        () => {
+          this.scrollToImportWorkspace();
+        },
+        { injector: this.injector }
+      );
+    });
+  }
+
+  /**
+   * Load a package by id (and optional version) into the import workspace.
+   * When version is omitted or not present in the manifest, uses dist-tags.latest
+   * (or highest semver) — same as catalog selection.
+   * @returns true when a package version was selected and load was attempted without manifest failure
+   */
+  async openPackage(packageId: string, version?: string | null): Promise<boolean> {
+    const id = packageId.trim();
+    if (!id) {
+      return false;
+    }
     this.selectedPackageId.set(id);
     this.manifest.set(null);
     this.selectedVersion.set(null);
@@ -334,15 +401,25 @@ export class FhirRegistryImporterComponent {
     try {
       const m = await this.registryService.getPackageManifest(id);
       this.manifest.set(m);
+      const requested = version?.trim() || null;
       const latest = m['dist-tags']?.latest;
       const versions = Object.keys(m.versions ?? {}).sort((a, b) => this.compareSemver(a, b));
-      const pick = latest && m.versions?.[latest] ? latest : versions[versions.length - 1] ?? null;
-      if (pick) {
-        this.selectedVersion.set(pick);
-        await this.loadPackageVersion(pick);
+      const pick =
+        requested && m.versions?.[requested]
+          ? requested
+          : latest && m.versions?.[latest]
+            ? latest
+            : (versions[versions.length - 1] ?? null);
+      if (!pick) {
+        this.manifestError.set('No versions found for this package.');
+        return false;
       }
+      this.selectedVersion.set(pick);
+      await this.loadPackageVersion(pick);
+      return this.packageError() == null;
     } catch (e) {
       this.manifestError.set(e instanceof Error ? e.message : 'Failed to load package manifest.');
+      return false;
     } finally {
       this.manifestLoading.set(false);
     }

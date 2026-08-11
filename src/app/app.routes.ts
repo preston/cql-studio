@@ -30,6 +30,10 @@ import { VsacBrowserComponent } from './components/vsac-browser/vsac-browser.com
 import { FhirRegistryImporterComponent } from './components/fhir-registry-importer/fhir-registry-importer.component';
 import { SqlOnFhirComponent } from './components/sql-on-fhir/sql-on-fhir.component';
 import { sqlOnFhirGuard } from './components/sql-on-fhir/sql-on-fhir.guard';
+import { ExamplesComponent } from './components/examples/examples.component';
+import { GLP1PrescribingExampleComponent } from './components/examples/glp1-prescribing-example/glp1-prescribing-example.component';
+import { LipidManagementExampleComponent } from './components/examples/lipid-management-example/lipid-management-example.component';
+import { HospitalAtHomeExampleComponent } from './components/examples/hospital-at-home-example/hospital-at-home-example.component';
 
 export const routes: Routes = [
   // Normal app routes
@@ -40,6 +44,16 @@ export const routes: Routes = [
   { path: 'documentation/results', component: ResultsDocumentationComponent },
   { path: 'documentation/runner', component: RunnerDocumentationComponent },
   { path: 'settings', component: SettingsComponent },
+  {
+    path: 'examples',
+    component: ExamplesComponent,
+    children: [
+      { path: '', redirectTo: 'glp1', pathMatch: 'full' },
+      { path: 'glp1', component: GLP1PrescribingExampleComponent },
+      { path: 'lipid-management', component: LipidManagementExampleComponent },
+      { path: 'hospital-at-home', component: HospitalAtHomeExampleComponent }
+    ]
+  },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'runner', component: RunnerComponent },
   { path: 'uploader', component: FhirUploaderComponent },
@@ -69,6 +83,7 @@ export const routes: Routes = [
     ]
   },
   { path: 'vsac', component: VsacBrowserComponent },
+  // Short alias; Angular preserves ?package=&version= on redirect for external deep links.
   { path: 'fhir-registry', redirectTo: 'fhir-registry-importer', pathMatch: 'full' },
   { path: 'fhir-registry-importer', component: FhirRegistryImporterComponent },
   { path: 'guidelines', component: GuidelinesComponent },

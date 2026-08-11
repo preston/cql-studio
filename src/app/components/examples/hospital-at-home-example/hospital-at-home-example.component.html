@@ -1,0 +1,21 @@
+<div id="hospital-at-home-example">
+  <h5 class="card-title mb-3">{{ example.title }}</h5>
+  @if (example.packageId) {
+    <div class="mb-3">
+      <app-example-import-cta
+        [packageId]="example.packageId"
+        [packageVersion]="example.packageVersion"
+        buttonId="hospital-at-home-example-import-cta" />
+    </div>
+  } @else {
+    <p class="text-muted small mb-3" id="hospital-at-home-package-unavailable">
+      A FHIR package for this example is not published yet.
+    </p>
+  }
+  <p class="text-muted">{{ example.description }}</p>
+  <p>
+    Placeholder content for a CDS and gaps-in-care library that evaluates whether an admitted patient
+    is eligible to transfer from inpatient care to a hospital-at-home environment. Detailed tutorial
+    material and importable artifacts will be added here when available.
+  </p>
+</div>

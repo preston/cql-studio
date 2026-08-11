@@ -1,0 +1,21 @@
+<div id="glp1-prescribing-example">
+  <h5 class="card-title mb-3">{{ example.title }}</h5>
+  @if (example.packageId) {
+    <div class="mb-3">
+      <app-example-import-cta
+        [packageId]="example.packageId"
+        [packageVersion]="example.packageVersion"
+        buttonId="glp1-example-import-cta" />
+    </div>
+  } @else {
+    <p class="text-muted small mb-3" id="glp1-package-unavailable">
+      A FHIR package for this example is not published yet.
+    </p>
+  }
+  <p class="text-muted">{{ example.description }}</p>
+  <p>
+    This example walks through importing a FHIR package related to GLP-1 prescribing decision support.
+    Use the import button above to open the FHIR Registry Importer with the package pre-selected; then
+    review resources and run Import when you are ready.
+  </p>
+</div>
