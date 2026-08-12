@@ -5,8 +5,7 @@
     </div>
   </div>
 
-  <div class="mb-4" style="max-width: 16rem;">
-    <label for="team-dashboard-workspace-filter" class="form-label small mb-1">Workspace</label>
+  <div class="form-floating mb-4" style="max-width: 16rem;">
     <select
       id="team-dashboard-workspace-filter"
       class="form-select"
@@ -17,37 +16,38 @@
         <option [value]="ws.id">{{ ws.name }}</option>
       }
     </select>
+    <label for="team-dashboard-workspace-filter">Workspace</label>
   </div>
 
   <div class="row g-3 mb-4" id="team-dashboard-charts">
     <div class="col-12">
       <div class="card" id="team-dashboard-series-chart">
-        <div class="card-header d-flex flex-wrap gap-2 align-items-end justify-content-between">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
           <h2 class="h6 mb-0">Activity over time</h2>
           <div class="d-flex flex-wrap gap-2">
-            <div>
-              <label for="team-dashboard-series-range" class="form-label small mb-1">Range</label>
+            <div class="form-floating" style="min-width: 8rem;">
               <select
                 id="team-dashboard-series-range"
-                class="form-select form-select-sm"
+                class="form-select"
                 [ngModel]="seriesRange()"
                 (ngModelChange)="onSeriesRangeChange($event)">
                 @for (opt of statsRanges; track opt.value) {
                   <option [value]="opt.value">{{ opt.label }}</option>
                 }
               </select>
+              <label for="team-dashboard-series-range">Range</label>
             </div>
-            <div>
-              <label for="team-dashboard-series-interval" class="form-label small mb-1">Bucket</label>
+            <div class="form-floating" style="min-width: 8rem;">
               <select
                 id="team-dashboard-series-interval"
-                class="form-select form-select-sm"
+                class="form-select"
                 [ngModel]="seriesInterval()"
                 (ngModelChange)="onSeriesIntervalChange($event)">
                 @for (opt of statsIntervals; track opt.value) {
                   <option [value]="opt.value">{{ opt.label }}</option>
                 }
               </select>
+              <label for="team-dashboard-series-interval">Bucket</label>
             </div>
           </div>
         </div>
@@ -75,32 +75,32 @@
 
     <div class="col-lg-6">
       <div class="card h-100" id="team-dashboard-actor-chart">
-        <div class="card-header d-flex flex-wrap gap-2 align-items-end justify-content-between">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
           <h2 class="h6 mb-0">Activity by actor</h2>
           <div class="d-flex flex-wrap gap-2">
-            <div>
-              <label for="team-dashboard-actor-range" class="form-label small mb-1">Range</label>
+            <div class="form-floating" style="min-width: 8rem;">
               <select
                 id="team-dashboard-actor-range"
-                class="form-select form-select-sm"
+                class="form-select"
                 [ngModel]="actorRange()"
                 (ngModelChange)="onActorRangeChange($event)">
                 @for (opt of statsRanges; track opt.value) {
                   <option [value]="opt.value">{{ opt.label }}</option>
                 }
               </select>
+              <label for="team-dashboard-actor-range">Range</label>
             </div>
-            <div>
-              <label for="team-dashboard-actor-top" class="form-label small mb-1">Top</label>
+            <div class="form-floating" style="min-width: 6rem;">
               <select
                 id="team-dashboard-actor-top"
-                class="form-select form-select-sm"
+                class="form-select"
                 [ngModel]="actorTop()"
                 (ngModelChange)="onActorTopChange(+$event)">
                 @for (n of statsTopOptions; track n) {
                   <option [value]="n">{{ n }}</option>
                 }
               </select>
+              <label for="team-dashboard-actor-top">Top</label>
             </div>
           </div>
         </div>
@@ -128,19 +128,19 @@
 
     <div class="col-lg-6">
       <div class="card h-100" id="team-dashboard-verb-chart">
-        <div class="card-header d-flex flex-wrap gap-2 align-items-end justify-content-between">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-center justify-content-between">
           <h2 class="h6 mb-0">Activity by type</h2>
-          <div>
-            <label for="team-dashboard-verb-range" class="form-label small mb-1">Range</label>
+          <div class="form-floating" style="min-width: 8rem;">
             <select
               id="team-dashboard-verb-range"
-              class="form-select form-select-sm"
+              class="form-select"
               [ngModel]="verbRange()"
               (ngModelChange)="onVerbRangeChange($event)">
               @for (opt of statsRanges; track opt.value) {
                 <option [value]="opt.value">{{ opt.label }}</option>
               }
             </select>
+            <label for="team-dashboard-verb-range">Range</label>
           </div>
         </div>
         <div class="card-body">
@@ -166,9 +166,8 @@
     </div>
   </div>
 
-  <div class="d-flex flex-wrap gap-2 align-items-end mb-3" id="team-dashboard-log-controls">
-    <div style="max-width: 8rem; min-width: 6rem;">
-      <label for="team-dashboard-page-size" class="form-label small mb-1">Per page</label>
+  <div class="d-flex flex-wrap gap-2 align-items-stretch mb-3" id="team-dashboard-log-controls">
+    <div class="form-floating" style="max-width: 8rem; min-width: 6rem;">
       <select
         id="team-dashboard-page-size"
         class="form-select"
@@ -178,9 +177,9 @@
           <option [value]="size">{{ size }}</option>
         }
       </select>
+      <label for="team-dashboard-page-size">Per page</label>
     </div>
-    <div style="max-width: 10rem; min-width: 8rem;">
-      <label for="team-dashboard-sort-by" class="form-label small mb-1">Sort by</label>
+    <div class="form-floating" style="max-width: 10rem; min-width: 8rem;">
       <select
         id="team-dashboard-sort-by"
         class="form-select"
@@ -190,9 +189,9 @@
           <option [value]="opt.value">{{ opt.label }}</option>
         }
       </select>
+      <label for="team-dashboard-sort-by">Sort by</label>
     </div>
-    <div style="max-width: 10rem; min-width: 8rem;">
-      <label for="team-dashboard-sort-order" class="form-label small mb-1">Order</label>
+    <div class="form-floating" style="max-width: 10rem; min-width: 8rem;">
       <select
         id="team-dashboard-sort-order"
         class="form-select"
@@ -201,6 +200,7 @@
         <option value="desc">Newest first</option>
         <option value="asc">Oldest first</option>
       </select>
+      <label for="team-dashboard-sort-order">Order</label>
     </div>
   </div>
 
