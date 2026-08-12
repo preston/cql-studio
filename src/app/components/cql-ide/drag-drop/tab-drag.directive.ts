@@ -57,7 +57,7 @@ export class TabDragDirective {
       position: absolute;
       top: -1000px;
       left: -1000px;
-      background: var(--ide-blue);
+      background: var(--bs-primary);
       color: white;
       padding: 8px 12px;
       border-radius: 4px;

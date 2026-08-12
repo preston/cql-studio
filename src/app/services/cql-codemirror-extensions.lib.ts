@@ -10,7 +10,8 @@ import { lintKeymap } from '@codemirror/lint';
 
 /**
  * CodeMirror extensions shared by CQL editors, without duplicating grammar-provided
- * indentOnInput, syntaxHighlighting, or autocompletion (see CqlGrammarManager).
+ * indentOnInput or autocompletion (see CqlGrammarManager). Theme and syntaxHighlighting
+ * are provided separately via createCqlEditorThemeExtensions.
  */
 export function createCqlEditorBaseExtensions(): Extension[] {
   return [

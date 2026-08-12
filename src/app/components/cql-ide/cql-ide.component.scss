@@ -1,8 +1,5 @@
 // Author: Preston Lee
 
-@use './styles/ide-theme' as theme;
-
-/* Import shared IDE styles */
 @use './styles/ide-shared' as shared;
 
 .ide-container {
@@ -14,10 +11,10 @@
 }
 
 .ide-header {
-  background-color: theme.$ide-bg-secondary;
-  color: theme.$ide-text-primary;
-  padding: 1rem;
-  border-bottom: 1px solid theme.$ide-border;
+  background-color: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--bs-border-color);
 }
 
 .ide-content {
@@ -27,23 +24,23 @@
 }
 
 .panel {
-  background-color: theme.$ide-bg-primary;
-  border: 1px solid theme.$ide-border;
-  padding: 1rem;
+  background-color: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  padding: 0.75rem;
 }
 
 .left-panel {
-  border-right: 4px solid theme.$ide-border;
+  border-right: 4px solid var(--bs-border-color);
 }
 
 .right-panel {
-  border-left: 4px solid theme.$ide-border;
+  border-left: 4px solid var(--bs-border-color);
 }
 
 .main-content {
   flex: 1;
-  background-color: #222222;
-  padding: 1rem;
+  background-color: var(--bs-body-bg);
+  padding: 0;
   display: flex;
   flex-direction: column;
 }
@@ -52,20 +49,21 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0; // Allows flex item to shrink below content size
-  overflow-y: auto; // Enable vertical scrolling when needed
+  min-height: 0;
+  overflow-y: auto;
+  background-color: var(--bs-body-bg);
 }
 
 .bottom-panel {
-  background-color: theme.$ide-bg-primary;
-  border-top: 4px solid theme.$ide-border;
-  padding: 1rem;
+  background-color: var(--bs-body-bg);
+  border-top: 4px solid var(--bs-border-color);
+  padding: 0.75rem;
   min-height: 100px;
 }
 
 .status-bar {
-  background-color: theme.$ide-bg-secondary;
-  color: theme.$ide-text-primary;
-  padding: 0.5rem 1rem;
-  border-top: 1px solid theme.$ide-border;
+  background-color: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+  padding: 0.25rem 0.75rem;
+  border-top: 1px solid var(--bs-border-color);
 }

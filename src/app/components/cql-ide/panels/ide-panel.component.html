@@ -11,7 +11,7 @@
     [cdkDropListData]="panelTabsData()"
     [cdkDropListConnectedTo]="connectedPanelIds()"
     (cdkDropListDropped)="onPanelTabDrop($event)"
-    class="ide-panel-tab-bar bg-dark border-dark border-bottom">
+    class="ide-panel-tab-bar bg-body-secondary border-bottom">
     @for (tab of panel().tabs; track tab.id) {
       <div
         cdkDrag

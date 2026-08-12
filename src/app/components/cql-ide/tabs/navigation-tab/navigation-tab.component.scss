@@ -3,52 +3,29 @@
 .nav-menu {
   height: 100%;
   overflow-y: auto;
-  background-color: var(--ide-bg-primary) !important;
 }
 
-.search-container {
-  padding: 0 16px 8px 16px;
-}
-
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 20px;
-  color: #888888;
-  font-size: 12px;
-}
-
+.loading-state,
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  color: #858585;
-  font-size: 15px;
-  gap: 16px;
+  padding: 2rem 1rem;
+  gap: 0.75rem;
   text-align: center;
+  font-size: 0.8125rem;
 }
 
 .empty-state i {
-  font-size: 48px;
+  font-size: 2rem;
   opacity: 0.6;
-  color: var(--ide-accent);
 }
 
 .pagination-controls {
-  margin-top: 12px;
-  padding: 8px 0;
-  border-top: 1px solid var(--ide-border);
-}
-
-.pagination-info {
-  font-size: 10px;
-  color: #888888;
-  text-align: center;
-  margin-bottom: 8px;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--bs-border-color);
 }
 
 .pagination-buttons {
@@ -58,31 +35,47 @@
   gap: 4px;
 }
 
-.btn-pagination {
-  background: none;
-  border: 1px solid var(--ide-border);
-  color: #cccccc;
+.btn-pagination,
+.btn-page {
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  color: var(--bs-body-color);
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 3px;
-  transition: all 0.2s;
   font-size: 11px;
-  height: 28px;
+  height: 26px;
+  min-width: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
+
+  &:hover:not(:disabled) {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-primary);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
-.btn-pagination:hover:not(:disabled) {
-  background-color: #37373d;
-  border-color: var(--ide-accent);
-  color: var(--ide-text-white);
+.btn-page.active {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: var(--bs-white);
 }
 
-.btn-pagination:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.btn-page.ellipsis {
+  cursor: default;
+  border: none;
+  background: none;
+
+  &:hover {
+    background: none;
+    border: none;
+  }
 }
 
 .page-numbers {
@@ -92,70 +85,28 @@
   margin: 0 8px;
 }
 
-.btn-page {
-  background: none;
-  border: 1px solid var(--ide-border);
-  color: #cccccc;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 3px;
-  transition: all 0.2s;
-  font-size: 11px;
-  height: 28px;
-  min-width: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-page:hover:not(:disabled) {
-  background-color: #37373d;
-  border-color: var(--ide-accent);
-  color: var(--ide-text-white);
-}
-
-.btn-page.active {
-  background-color: var(--ide-blue);
-  border-color: var(--ide-blue);
-  color: var(--ide-text-white);
-}
-
-.btn-page.ellipsis {
-  cursor: default;
-  border: none;
-  background: none;
-}
-
-.btn-page.ellipsis:hover {
-  background: none;
-  border: none;
-  color: #cccccc;
-}
-
 .library-item {
   cursor: pointer;
-  transition: all 0.2s;
 
   .library-item-content {
     min-width: 0;
   }
-  
+
   &:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--bs-tertiary-bg);
   }
-  
+
   .library-hover-icon {
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.15s ease;
   }
-  
+
   &:hover .library-hover-icon {
     opacity: 1;
   }
 }
 
 .selected-patient-info {
-  /* Allow `text-truncate` to work inside flexbox rows. */
   min-width: 0;
 }
 

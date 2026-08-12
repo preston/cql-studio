@@ -3,11 +3,12 @@
 import { Component, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EditorView } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+import { Compartment, EditorState } from '@codemirror/state';
 import { keymap } from '@codemirror/view';
 import { linter, lintGutter, Diagnostic } from '@codemirror/lint';
 import { CqlGrammarManager } from '../../../../services/cql-grammar-manager.service';
 import { createCqlEditorBaseExtensions } from '../../../../services/cql-codemirror-extensions.lib';
+import { createCqlEditorThemeExtensions } from '../../../../services/cql-editor-theme.lib';
 import { scanInvalidCqlCharacters } from '../../../../services/cql-character-lint.lib';
 import { IdeEditor, EditorState as IdeEditorState } from '../base-editor.interface';
 import { IdeStateService } from '../../../../services/ide-state.service';
@@ -17,6 +18,7 @@ import { LibraryTranslationContextBuilder } from '../../../../services/library-t
 import { CqlDefinitionIndexService, elmColumnToCodeMirror } from '../../../../services/cql-definition-index.service';
 import { CqlDefinitionIndex, CqlReferenceMatch, isReferenceResolvableSync } from '../../../../services/elm-locator.lib';
 import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
+import { SettingsService } from '../../../../services/settings.service';
 import {
   createGoToDefinitionExtension,
   reconfigureDefinitionIndex
@@ -53,6 +55,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
   private editor?: EditorView;
   private grammarManager: CqlGrammarManager;
+  private themeCompartment = new Compartment();
   private _value: string = '';
   private isInitializing: boolean = false;
   private initializationRetries: number = 0;
@@ -75,6 +78,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   isFormValid = computed(() => this._isFormValidSignal());
 
   private ideStateService = inject(IdeStateService);
+  private settingsService = inject(SettingsService);
   private cqlFormatterService = inject(CqlFormatterService);
   private cqlValidationService = inject(CqlValidationService);
   private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
@@ -102,6 +106,17 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       if (libraryId && this.editor) {
         this.reinitializeEditor();
         this.updateCanExecute();
+      }
+    });
+
+    effect(() => {
+      const theme = this.settingsService.theme_effective();
+      if (this.editor) {
+        this.editor.dispatch({
+          effects: this.themeCompartment.reconfigure(
+            createCqlEditorThemeExtensions(theme, this.height())
+          )
+        });
       }
     });
 
@@ -275,63 +290,9 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
               }
             }
           ]),
-          EditorView.theme({
-            '&': {
-              height: this.height(),
-              fontSize: '14px',
-              fontFamily: "'Courier New', Courier, monospace"
-            },
-            '.cm-content': {
-              padding: '12px',
-              minHeight: this.height(),
-              color: '#ffffff'
-            },
-            '.cm-focused': {
-              outline: 'none'
-            },
-            '.cm-editor': {
-              border: 'none',
-              borderRadius: '0.375rem',
-              backgroundColor: '#1e1e1e'
-            },
-            '.cm-editor.cm-focused': {
-              borderColor: '#0d6efd',
-              boxShadow: '0 0 0 0.2rem rgba(13, 110, 253, 0.25)'
-            },
-            '.cm-placeholder': {
-              color: '#6c757d',
-              fontStyle: 'italic'
-            },
-            '.cm-tooltip': {
-              backgroundColor: '#141414',
-              border: '1px solid #3a3a3a',
-              borderRadius: '4px',
-              color: '#f5f5f5',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)'
-            },
-            '.cm-tooltip-lint': {
-              fontFamily: "'Courier New', Courier, monospace",
-              fontSize: '0.85rem',
-              lineHeight: '1.4'
-            },
-            '.cm-diagnostic': {
-              backgroundColor: '#141414',
-              color: '#f5f5f5',
-              padding: '6px 8px'
-            },
-            '.cm-diagnostic-error': {
-              borderLeftColor: '#ef4444'
-            },
-            '.cm-diagnostic-warning': {
-              borderLeftColor: '#f59e0b'
-            },
-            '.cm-diagnosticText': {
-              color: '#f5f5f5'
-            },
-            '.cm-diagnosticSource': {
-              color: '#cfcfcf'
-            }
-          }, { dark: true }),
+          this.themeCompartment.of(
+            createCqlEditorThemeExtensions(this.settingsService.theme_effective(), this.height())
+          ),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               const newValue = update.state.doc.toString();

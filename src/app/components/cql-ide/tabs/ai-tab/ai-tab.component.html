@@ -77,7 +77,7 @@
                         (click)="onSelectConversation(conversation.id)">
                   <div class="flex-fill min-w-0">
                     <div class="fw-bold text-truncate">{{ getContextDisplayName(conversation) }}</div>
-                    <small class="text-white">{{ conversation.updatedAt | timeago }}</small>
+                    <small class="text-body">{{ conversation.updatedAt | timeago }}</small>
                   </div>
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-danger align-self-center"
@@ -90,7 +90,7 @@
               }
               <li><hr class="dropdown-divider"></li>
               <li>
-                <button type="button" class="dropdown-item text-white" (click)="onClearAllConversations()">
+                <button type="button" class="dropdown-item text-body" (click)="onClearAllConversations()">
                   <i class="bi bi-trash me-2"></i>Clear All
                 </button>
               </li>

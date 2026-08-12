@@ -1,6 +1,5 @@
 
-<!-- The IDE should always render using the dark theme regardless of user preference due to code editor library issues. This should change in the future when the editors can be made more responsive. -->
-<div class="ide-container" data-bs-theme="dark">
+<div class="ide-container">
   <!-- Main Layout -->
   <div #ideLayout class="ide-layout" id="ide-layout">
     <!-- Left Panel -->
@@ -73,7 +72,7 @@
                         <div class="col-6">
                           <div class="d-flex justify-content-between align-items-center p-2 rounded">
                             <span class="small" [title]="$safeNavigationMigration(shortcut?.description)">{{ shortcut?.description }}</span>
-                            <kbd class="bg-dark text-light border border-secondary px-2 py-1 rounded" style="font-size: 0.75rem;">{{ shortcut?.key }}</kbd>
+                            <kbd class="bg-body-secondary text-body border px-2 py-1 rounded" style="font-size: 0.75rem;">{{ shortcut?.key }}</kbd>
                           </div>
                         </div>
                       }

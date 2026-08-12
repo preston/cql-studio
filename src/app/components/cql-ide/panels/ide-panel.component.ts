@@ -91,11 +91,11 @@ export class IdePanelComponent {
     const classes = ['ide-panel'];
     
     if (this.position() === 'left') {
-      classes.push('sidebar', 'bg-dark', 'border-end');
+      classes.push('sidebar', 'bg-body', 'border-end');
     } else if (this.position() === 'right') {
-      classes.push('right-panel', 'bg-dark', 'border-start');
+      classes.push('right-panel', 'bg-body', 'border-start');
     } else if (this.position() === 'bottom') {
-      classes.push('bottom-panel', 'bg-dark', 'border-top');
+      classes.push('bottom-panel', 'bg-body', 'border-top');
     }
     
     if (this.panel().isVisible) {

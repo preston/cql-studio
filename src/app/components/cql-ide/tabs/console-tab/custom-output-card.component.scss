@@ -1,42 +1,46 @@
+// Author: Preston Lee
+
 .custom-output-card {
-  border: 1px solid var(--ide-border);
-  border-radius: 6px;
-  background-color: var(--ide-bg-primary);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  background-color: var(--bs-body-bg);
   margin-bottom: 8px;
   overflow: hidden;
 }
 
 .card-header {
-  padding: 12px 16px;
-  background-color: var(--ide-bg-secondary);
-  border-bottom: 1px solid var(--ide-border);
+  padding: 8px 12px;
+  background-color: var(--bs-secondary-bg);
+  border-bottom: 1px solid var(--bs-border-color);
   font-weight: 500;
 }
 
 .card-title {
   flex: 1;
-  font-size: 14px;
-}
-
-.card-body {
-  padding: 16px;
-}
-
-.execution-info, .translation-info, .validation-info {
-  background-color: rgba(255, 255, 255, 0.05);
-  padding: 12px;
-  border-radius: 4px;
   font-size: 13px;
 }
 
-.result-content {
-  background-color: var(--ide-bg-secondary);
+.card-body {
   padding: 12px;
+}
+
+.execution-info,
+.translation-info,
+.validation-info {
+  background-color: var(--bs-tertiary-bg);
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.result-content {
+  background-color: var(--bs-secondary-bg);
+  padding: 10px;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
   font-size: 12px;
   line-height: 1.4;
-  color: #d4d4d4;
+  color: var(--bs-body-color);
   white-space: pre-wrap;
   word-wrap: break-word;
   margin: 0;
@@ -45,17 +49,17 @@
 }
 
 .cql-execution-card {
-  border-left: 4px solid #28a745;
+  border-left: 4px solid var(--bs-success);
 }
 
 .cql-translation-card {
-  border-left: 4px solid #17a2b8;
+  border-left: 4px solid var(--bs-info);
 }
 
 .cql-validation-card {
-  border-left: 4px solid #ffc107;
+  border-left: 4px solid var(--bs-warning);
 }
 
 .default-custom-card {
-  border-left: 4px solid #6f42c1;
+  border-left: 4px solid var(--bs-purple, #6f42c1);
 }

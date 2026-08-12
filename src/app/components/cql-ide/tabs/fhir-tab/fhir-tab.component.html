@@ -1,11 +1,11 @@
 <div class="fhir-panel">
-  <div class="p-3 text-light">
+  <div class="p-3 text-body-secondary">
     <!-- FHIR Server Connection -->
     <div class="mb-4 pb-3 border-bottom">
       <div class="d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
           <i class="bi-server"></i>
-          <span class="fw-semibold small text-white">Server</span>
+          <span class="fw-semibold small text-body">Server</span>
         </div>
         <div class="d-flex align-items-center gap-2">
           <span class="text-info text-truncate fhir-url ms-2" 
@@ -25,28 +25,31 @@
       <!-- Library Form -->
       <div class="mb-3">
         <div class="mb-3">
-          <label for="library-id-input" class="form-label text-white small">Library ID</label>
-          <div class="input-group input-group-sm">
+          <label for="library-id-input" class="form-label text-body small">Library ID</label>
+          <div class="d-flex align-items-stretch gap-2">
             <input 
               id="library-id-input"
               type="text" 
-              class="form-control" 
+              class="form-control form-control-sm"
               [ngModel]="activeLibrary()?.id ?? ''"
               (ngModelChange)="onLibraryIdChange($event)"
               placeholder="Enter library ID"
+              aria-label="Library ID"
             >
             <button 
-              class="btn btn-outline-secondary" 
+              class="btn btn-outline-secondary btn-sm"
               type="button"
               (click)="onGenerateDefaultId()"
               title="Generate default ID from library name"
+              aria-label="Generate default library ID"
             >
-              <i class="bi-arrow-repeat"></i>
+              <i class="bi bi-arrow-repeat"></i>
             </button>
           </div>
         </div>
         
-        <div class="form-floating mb-3">
+        <div class="mb-3">
+          <label for="library-name-input" class="form-label text-body small">Name</label>
           <input 
             id="library-name-input"
             type="text" 
@@ -58,10 +61,10 @@
             title="Library name can only contain letters, numbers, hyphens, and underscores"
             placeholder="Enter library name (letters, numbers, hyphens, underscores only)"
           >
-          <label for="library-name-input" class="text-white">Name</label>
         </div>
         
-        <div class="form-floating mb-3">
+        <div class="mb-3">
+          <label for="library-title-input" class="form-label text-body small">Title</label>
           <input 
             id="library-title-input"
             type="text" 
@@ -70,10 +73,10 @@
             (ngModelChange)="onLibraryTitleChange($event)"
             placeholder="Enter library title"
           >
-          <label for="library-title-input" class="text-white">Title</label>
         </div>
         
-        <div class="form-floating mb-3">
+        <div class="mb-3">
+          <label for="library-version-input" class="form-label text-body small">Version</label>
           <input 
             id="library-version-input"
             type="text" 
@@ -82,10 +85,10 @@
             (ngModelChange)="onLibraryVersionChange($event)"
             placeholder="0.0.0"
           >
-          <label for="library-version-input" class="text-white">Version</label>
         </div>
         
-        <div class="form-floating mb-3">
+        <div class="mb-3">
+          <label for="library-description-input" class="form-label text-body small">Description</label>
           <input 
             id="library-description-input"
             type="text" 
@@ -94,27 +97,28 @@
             (ngModelChange)="onLibraryDescriptionChange($event)"
             placeholder="Library description"
           >
-          <label for="library-description-input" class="text-white">Description</label>
         </div>
         
         <div class="mb-3">
-          <label for="library-url-input" class="form-label text-white small">URL</label>
-          <div class="input-group input-group-sm">
+          <label for="library-url-input" class="form-label text-body small">URL</label>
+          <div class="d-flex align-items-stretch gap-2">
             <input 
               id="library-url-input"
               type="text" 
-              class="form-control" 
+              class="form-control form-control-sm"
               [ngModel]="activeLibrary()?.url ?? ''"
               (ngModelChange)="onLibraryUrlChange($event)"
               placeholder="Enter library canonical URL"
+              aria-label="Library URL"
             >
             <button 
-              class="btn btn-outline-secondary" 
+              class="btn btn-outline-secondary btn-sm"
               type="button"
               (click)="onGenerateDefaultUrl()"
               title="Generate default URL from FHIR server and library ID"
+              aria-label="Generate default library URL"
             >
-              <i class="bi-arrow-repeat"></i>
+              <i class="bi bi-arrow-repeat"></i>
             </button>
           </div>
         </div>
@@ -138,10 +142,10 @@
       <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
         <div class="d-flex align-items-center gap-2">
           <i class="bi-document"></i>
-          <span class="fw-semibold small text-white">Resource</span>
+          <span class="fw-semibold small text-body">Resource</span>
         </div>
         <button 
-          class="btn btn-outline-light btn-sm" 
+          class="btn btn-outline-secondary btn-sm" 
           (click)="onCopyResourceToClipboard()" 
           title="Copy FHIR resource JSON to clipboard"
           [disabled]="!hasSelectedLibrary() && !hasSelectedContext()"
@@ -163,7 +167,7 @@
             
             
             <!-- Library Resource Display -->
-            <div class="border rounded p-3 bg-dark" style="max-height: 350px; overflow-y: auto;">
+            <div class="border rounded p-3 bg-body-secondary" style="max-height: 350px; overflow-y: auto;">
               <app-syntax-highlighter 
                 [code]="libraryAsString() || 'No library resource available'"
                 language="json">
@@ -177,16 +181,16 @@
           <div class="mb-3">
             <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
               <i class="bi-patient text-info"></i>
-              <span class="fw-semibold small text-white">Patient Resources ({{ selectedPatients().length }})</span>
+              <span class="fw-semibold small text-body">Patient Resources ({{ selectedPatients().length }})</span>
             </div>
             @for (patient of selectedPatients(); track trackByPatientId($index, patient)) {
               <div class="mb-3">
                 <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
                   <i class="bi-patient text-info"></i>
-                  <span class="fw-medium text-white">{{ getPatientDisplayName(patient) }}</span>
+                  <span class="fw-medium text-body">{{ getPatientDisplayName(patient) }}</span>
                   <span class="small text-muted">({{ patient.id }})</span>
                 </div>
-                <div class="border rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
+                <div class="border rounded p-3 bg-body-secondary" style="max-height: 200px; overflow-y: auto;">
                   <app-syntax-highlighter 
                     [code]="patientAsString(patient) || 'No patient resource available'"
                     language="autodetect">
@@ -202,16 +206,16 @@
           <div class="mb-3">
             <div class="d-flex align-items-center gap-2 mb-2 pb-2 border-bottom">
               <i class="bi-people text-info"></i>
-              <span class="fw-semibold small text-white">Group Resources ({{ selectedGroups().length }})</span>
+              <span class="fw-semibold small text-body">Group Resources ({{ selectedGroups().length }})</span>
             </div>
             @for (group of selectedGroups(); track trackByGroupId($index, group)) {
               <div class="mb-3">
                 <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
                   <i class="bi-people text-info"></i>
-                  <span class="fw-medium text-white">{{ getGroupDisplayName(group) }}</span>
+                  <span class="fw-medium text-body">{{ getGroupDisplayName(group) }}</span>
                   <span class="small text-muted">({{ group.id }})</span>
                 </div>
-                <div class="border rounded p-3 bg-dark" style="max-height: 200px; overflow-y: auto;">
+                <div class="border rounded p-3 bg-body-secondary" style="max-height: 200px; overflow-y: auto;">
                   <app-syntax-highlighter 
                     [code]="groupAsString(group) || 'No group resource available'"
                     language="autodetect">

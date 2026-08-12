@@ -9,7 +9,7 @@
         [(ngModel)]="searchTerm"
       >
       <div class="d-flex align-items-center gap-1">
-        <label class="form-label mb-0 small text-light">Sort:</label>
+        <label class="form-label mb-0 small text-body-secondary">Sort:</label>
         <select 
           class="form-select form-select-sm" 
           [(ngModel)]="sortBy" 
@@ -40,7 +40,7 @@
         title="Click to go to line {{ item.line }}"
       >
         <i class="bi bi-{{ getIconForType(item.type) }} me-1 text-info" style="font-size: 0.75rem;"></i>
-        <span class="text-light small flex-fill">{{ item.name }}</span>
+        <span class="text-body-secondary small flex-fill">{{ item.name }}</span>
         <span class="text-muted small">{{ item.line }}</span>
       </div>
     }

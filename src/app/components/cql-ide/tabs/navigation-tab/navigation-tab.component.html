@@ -12,11 +12,13 @@
     <!-- Paginated Library List -->
     <div class="border-top pt-3">
       <div class="mb-2 px-3">
-        <div class="mb-2 fw-semibold small text-white">Server Libraries</div>
-        <div class="input-group input-group-sm mb-2">
+        <div class="mb-2 fw-semibold small text-body">Server Libraries</div>
+        <div class="d-flex align-items-stretch gap-2 mb-2">
           <input type="text" class="form-control form-control-sm" placeholder="Search libraries..."
-            [ngModel]="libraryListSearchTerm()" (ngModelChange)="libraryListSearchTerm.set($event)" (keydown.enter)="onLibraryListSearch()">
-          <button class="btn btn-outline-secondary" type="button" (click)="onLibraryListSearch()" title="Search">
+            [ngModel]="libraryListSearchTerm()" (ngModelChange)="libraryListSearchTerm.set($event)"
+            (keydown.enter)="onLibraryListSearch()" aria-label="Search libraries">
+          <button class="btn btn-outline-secondary btn-sm" type="button" (click)="onLibraryListSearch()" title="Search"
+            aria-label="Search libraries">
             <i class="bi bi-search"></i>
           </button>
         </div>
@@ -29,22 +31,24 @@
               <option value="version">Version</option>
               <option value="date">Date</option>
             </select>
-            <button class="btn btn-outline-secondary btn-sm" (click)="changeSorting(librarySortBy())"
-              [title]="'Sort ' + (librarySortOrder() === 'asc' ? 'Descending' : 'Ascending')">
-              <i class="bi bi-{{ librarySortOrder() === 'asc' ? 'arrow-up' : 'arrow-down' }} me-1"></i>
-              <!-- {{ librarySortOrder() === 'asc' ? 'Asc' : 'Desc' }} -->
-            </button>
-            
+
+
             <!-- Page Size Controls -->
             <select class="form-select form-select-sm" [ngModel]="pageSize()" (ngModelChange)="changePageSize(+$event)"
-            title="Items per page">
-            <option value="1">1</option>
-            <option value="5">5</option>
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-          </select>
-        </div>
+              title="Items per page">
+              <option value="1">1</option>
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+
+
+            <button class="btn btn-outline-secondary btn-sm" (click)="changeSorting(librarySortBy())"
+              [title]="'Sort ' + (librarySortOrder() === 'asc' ? 'Descending' : 'Ascending')">
+              <i class="bi bi-{{ librarySortOrder() === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -63,7 +67,7 @@
         <div class="d-flex align-items-center justify-content-between p-2 border-bottom library-item"
           (click)="addLibraryFromPaginatedList(library)">
           <div class="flex-fill library-item-content">
-            <div class="fw-medium text-truncate text-white">{{ getLibraryDisplayName(library) }}</div>
+            <div class="fw-medium text-truncate text-body">{{ getLibraryDisplayName(library) }}</div>
             <div class="d-flex flex-column gap-1 small text-muted">
               <span class="fw-medium text-info">v{{ getLibraryVersion(library) }}</span>
             </div>
@@ -88,7 +92,8 @@
 
 
         <div class="pagination-buttons d-flex align-items-center justify-content-center gap-1">
-          <button class="btn-pagination" (click)="previousPage()" [disabled]="currentPage() === 1" title="Previous Page">
+          <button class="btn-pagination" (click)="previousPage()" [disabled]="currentPage() === 1"
+            title="Previous Page">
             <i class="bi bi-chevron-left"></i>
           </button>
 
@@ -102,7 +107,8 @@
             }
           </div>
 
-          <button class="btn-pagination" (click)="nextPage()" [disabled]="currentPage() === totalPages()" title="Next Page">
+          <button class="btn-pagination" (click)="nextPage()" [disabled]="currentPage() === totalPages()"
+            title="Next Page">
             <i class="bi bi-chevron-right"></i>
           </button>
         </div>
@@ -117,14 +123,12 @@
       <span class="fw-semibold text-uppercase small text-muted">Context</span>
       <div id="ide-context-type-toggle" class="btn-group btn-group-sm" role="group" aria-label="Context type">
         <button type="button" id="ide-context-type-patient" class="btn btn-sm"
-          [class.btn-primary]="contextType() === 'Patient'"
-          [class.btn-outline-primary]="contextType() !== 'Patient'"
+          [class.btn-primary]="contextType() === 'Patient'" [class.btn-outline-primary]="contextType() !== 'Patient'"
           (click)="setContextType('Patient')">
           Patient
         </button>
         <button type="button" id="ide-context-type-group" class="btn btn-sm"
-          [class.btn-primary]="contextType() === 'Group'"
-          [class.btn-outline-primary]="contextType() !== 'Group'"
+          [class.btn-primary]="contextType() === 'Group'" [class.btn-outline-primary]="contextType() !== 'Group'"
           (click)="setContextType('Group')">
           Group
         </button>
@@ -134,15 +138,16 @@
     @if (contextType() === 'Patient') {
     <!-- Patient Search -->
     <div class="px-3">
-      <input type="text" id="ide-context-search" class="form-control form-control-sm mb-2" placeholder="Search patients..."
-        [ngModel]="patientSearchTerm()" (ngModelChange)="patientSearchTerm.set($event)" (input)="onPatientSearchInput($event)">
+      <input type="text" id="ide-context-search" class="form-control form-control-sm mb-2"
+        placeholder="Search patients..." [ngModel]="patientSearchTerm()" (ngModelChange)="patientSearchTerm.set($event)"
+        (input)="onPatientSearchInput($event)">
       @if (showPatientSearchResults()) {
-      <div class="border rounded bg-dark">
+      <div class="border rounded bg-body-secondary">
         @for (patient of patientSearchResults(); track patient.id) {
         <button class="btn rounded-0 w-100 text-start d-flex justify-content-between align-items-center"
           (click)="selectPatient(patient)" [disabled]="patientService.hasPatient(patient.id!)">
           <div class="flex-fill">
-            <strong class="d-block text-white">{{ getPatientDisplayName(patient) }}</strong>
+            <strong class="d-block text-body">{{ getPatientDisplayName(patient) }}</strong>
             <small class="text-muted">ID: {{ patient.id }}</small>
           </div>
           <i class="bi bi-{{ patientService.hasPatient(patient.id!) ? 'check' : 'person' }}"></i>
@@ -154,10 +159,11 @@
 
     <!-- Selected Patients Display -->
     @if (patientService.selectedPatients.length > 0) {
-    <div class="border rounded mx-3 bg-dark">
+    <div class="border rounded mx-3 bg-body-secondary">
       <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
         <div class="fw-semibold text-info">Selected Patients ({{ patientService.selectedPatients.length }})</div>
-        <button id="ide-context-clear" class="btn btn-outline-secondary btn-sm" (click)="clearPatientSelection()" title="Clear All Patients">
+        <button id="ide-context-clear" class="btn btn-outline-secondary btn-sm" (click)="clearPatientSelection()"
+          title="Clear All Patients">
           <i class="bi bi-x me-1"></i>
           Clear
         </button>
@@ -165,10 +171,11 @@
       @for (patient of patientService.selectedPatients; track trackByPatientId($index, patient)) {
       <div class="selected-patient-row d-flex justify-content-between align-items-center p-2 border-bottom">
         <div class="selected-patient-info flex-fill">
-          <div class="fw-semibold text-white text-truncate">{{ getPatientDisplayName(patient) }}</div>
+          <div class="fw-semibold text-body text-truncate">{{ getPatientDisplayName(patient) }}</div>
           <div class="small text-muted text-truncate">{{ patient.id }}</div>
         </div>
-        <button class="selected-patient-remove btn btn-outline-secondary btn-sm" (click)="removePatient(patient.id!)" title="Remove Patient">
+        <button class="selected-patient-remove btn btn-outline-secondary btn-sm" (click)="removePatient(patient.id!)"
+          title="Remove Patient">
           <i class="bi bi-x"></i>
         </button>
       </div>
@@ -180,15 +187,16 @@
     @if (contextType() === 'Group') {
     <!-- Group Search -->
     <div class="px-3">
-      <input type="text" id="ide-context-search" class="form-control form-control-sm mb-2" placeholder="Search groups..."
-        [ngModel]="groupSearchTerm()" (ngModelChange)="groupSearchTerm.set($event)" (input)="onGroupSearchInput($event)">
+      <input type="text" id="ide-context-search" class="form-control form-control-sm mb-2"
+        placeholder="Search groups..." [ngModel]="groupSearchTerm()" (ngModelChange)="groupSearchTerm.set($event)"
+        (input)="onGroupSearchInput($event)">
       @if (showGroupSearchResults()) {
-      <div class="border rounded bg-dark">
+      <div class="border rounded bg-body-secondary">
         @for (group of groupSearchResults(); track group.id) {
         <button class="btn rounded-0 w-100 text-start d-flex justify-content-between align-items-center"
           (click)="selectGroup(group)" [disabled]="groupService.hasGroup(group.id!)">
           <div class="flex-fill">
-            <strong class="d-block text-white">{{ getGroupDisplayName(group) }}</strong>
+            <strong class="d-block text-body">{{ getGroupDisplayName(group) }}</strong>
             <small class="text-muted">ID: {{ group.id }}</small>
           </div>
           <i class="bi bi-{{ groupService.hasGroup(group.id!) ? 'check' : 'people' }}"></i>
@@ -200,10 +208,11 @@
 
     <!-- Selected Groups Display -->
     @if (groupService.selectedGroups.length > 0) {
-    <div class="border rounded mx-3 bg-dark">
+    <div class="border rounded mx-3 bg-body-secondary">
       <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
         <div class="fw-semibold text-info">Selected Groups ({{ groupService.selectedGroups.length }})</div>
-        <button id="ide-context-clear" class="btn btn-outline-secondary btn-sm" (click)="clearGroupSelection()" title="Clear All Groups">
+        <button id="ide-context-clear" class="btn btn-outline-secondary btn-sm" (click)="clearGroupSelection()"
+          title="Clear All Groups">
           <i class="bi bi-x me-1"></i>
           Clear
         </button>
@@ -211,10 +220,11 @@
       @for (group of groupService.selectedGroups; track trackByGroupId($index, group)) {
       <div class="selected-patient-row d-flex justify-content-between align-items-center p-2 border-bottom">
         <div class="selected-patient-info flex-fill">
-          <div class="fw-semibold text-white text-truncate">{{ getGroupDisplayName(group) }}</div>
+          <div class="fw-semibold text-body text-truncate">{{ getGroupDisplayName(group) }}</div>
           <div class="small text-muted text-truncate">{{ group.id }}</div>
         </div>
-        <button class="selected-patient-remove btn btn-outline-secondary btn-sm" (click)="removeGroup(group.id!)" title="Remove Group">
+        <button class="selected-patient-remove btn btn-outline-secondary btn-sm" (click)="removeGroup(group.id!)"
+          title="Remove Group">
           <i class="bi bi-x"></i>
         </button>
       </div>

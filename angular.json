@@ -56,7 +56,6 @@
               "node_modules/bootswatch/dist/materia/bootstrap.min.css",
               "node_modules/bootstrap-icons/font/bootstrap-icons.css",
               "src/styles.scss",
-              "node_modules/prismjs/themes/prism-tomorrow.css",
               "node_modules/prismjs/plugins/line-numbers/prism-line-numbers.css",
               "node_modules/prism-js-fold/prism-js-fold.css"
             ],

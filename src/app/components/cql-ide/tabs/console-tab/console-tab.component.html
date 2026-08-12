@@ -1,5 +1,5 @@
-<div class="console-panel d-flex flex-column bg-dark text-light">
-  <div class="console-toolbar d-flex align-items-center gap-2 px-2 border-bottom bg-dark">
+<div class="console-panel d-flex flex-column bg-body text-body">
+  <div class="console-toolbar d-flex align-items-center gap-2 px-2 border-bottom bg-body-secondary">
     <button class="btn  btn-sm" (click)="onClearOutput()" title="Clear Console">
       <i class="bi-trash me-1"></i> Clear
     </button>
@@ -16,14 +16,14 @@
       <div class="form-check d-flex align-items-center gap-2">
         <input class="form-check-input" type="checkbox" id="preserveLogs" [ngModel]="preserveLogs()"
           (ngModelChange)="onPreserveLogsChange($event)" title="Preserve logs between executions">
-        <label class="form-check-label small text-light mb-0" for="preserveLogs">
+        <label class="form-check-label small text-body-secondary mb-0" for="preserveLogs">
           Preserve Logs
         </label>
       </div>
       <div class="form-check d-flex align-items-center gap-2">
         <input class="form-check-input" type="checkbox" id="autoscroll" [ngModel]="autoscrollEnabled"
           (ngModelChange)="onAutoscrollChange($event)" title="Automatically scroll to bottom when new content is added">
-        <label class="form-check-label small text-light mb-0" for="autoscroll">
+        <label class="form-check-label small text-body-secondary mb-0" for="autoscroll">
           Autoscroll
         </label>
       </div>
@@ -50,7 +50,7 @@
           <div class="d-flex align-items-center gap-2 p-2 border-bottom console-section-header" (click)="onToggleSection(i)">
             <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
             <i class="bi {{ getOutputIcon(section) }} text-muted"></i>
-            <span class="fw-medium flex-fill text-white">{{ section.title }}</span>
+            <span class="fw-medium flex-fill text-body">{{ section.title }}</span>
             <span class="badge" [class.bg-success]="section.status === 'success'"
               [class.bg-danger]="section.status === 'error'"
               [class.bg-warning]="section.status !== 'success' && section.status !== 'error'">
@@ -64,7 +64,7 @@
             }
           </div>
           @if (section.expanded) {
-            <div class="p-3 bg-dark console-section-content">
+            <div class="p-3 bg-body console-section-content">
               @switch (section.type) {
                 @case ('custom') {
                   <!-- Custom output cards for CQL execution functions -->
@@ -97,7 +97,7 @@
         <div class="progress mb-2">
           <div class="progress-bar" [style.width.%]="executionProgress()"></div>
         </div>
-        <span class="small text-light">{{ executionStatus() }}</span>
+        <span class="small text-body">{{ executionStatus() }}</span>
       </div>
     }
   </div>

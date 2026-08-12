@@ -1,11 +1,9 @@
 // Author: Preston Lee
 
-@use '../styles/ide-theme' as theme;
-
 .ide-panel {
   position: relative;
-  background-color: theme.$ide-bg-primary;
-  border-color: theme.$ide-border;
+  background-color: var(--bs-body-bg);
+  border-color: var(--bs-border-color);
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -13,23 +11,22 @@
 }
 
 .sidebar {
-  border-right: 4px solid theme.$ide-border;
+  border-right: 4px solid var(--bs-border-color);
   min-width: 300px;
 }
 
 .right-panel {
-  border-left: 4px solid theme.$ide-border;
+  border-left: 4px solid var(--bs-border-color);
   min-width: 300px;
 }
 
 .bottom-panel {
-  border-top: 4px solid theme.$ide-border;
+  border-top: 4px solid var(--bs-border-color);
   min-height: 100px;
   contain: layout;
   flex-shrink: 0;
 }
 
-/* Panel Visibility */
 .sidebar:not(.visible),
 .right-panel:not(.visible),
 .bottom-panel:not(.visible) {
@@ -40,22 +37,19 @@
   flex: 1;
   overflow: auto;
   min-height: 0;
-  background-color: theme.$ide-bg-primary;
+  background-color: var(--bs-body-bg);
 }
 
-/* Resize Handles */
 .resize-handle {
   position: absolute;
-  // background-color: theme.$ide-blue;
   cursor: col-resize;
   z-index: 10;
   transition: background-color 0.2s ease;
   opacity: 0.8;
-  // border: 1px solid theme.$ide-text-white;
 }
 
 .resize-handle:hover {
-  background-color: theme.$ide-blue-hover;
+  background-color: var(--bs-primary);
   opacity: 1;
 }
 
@@ -81,31 +75,12 @@
   cursor: row-resize;
 }
 
-/* Tab styling */
-.btn {
-  border-color: theme.$ide-border !important;
-}
-
-.btn:not(.active) {
-  background-color: theme.$ide-bg-primary !important;
-  border-color: theme.$ide-border !important;
-}
-
-.btn.active {
-  color: theme.$ide-text-white !important;
-}
-
-.btn:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* Tab bar: keep horizontal layout when CDK adds .cdk-drop-list */
 .ide-panel-tab-bar {
   display: flex;
   flex-wrap: nowrap;
   flex-direction: row;
   align-items: stretch;
-  min-height: 2rem;
+  min-height: 1.75rem;
 }
 
 .ide-panel-tab-bar .ide-panel-tab {
@@ -113,14 +88,20 @@
   align-items: center;
   justify-content: center;
   line-height: 1;
-  min-height: 2rem;
+  min-height: 1.75rem;
   cursor: grab;
+
   &:active {
     cursor: grabbing;
   }
+
+  &.active {
+    background-color: var(--bs-primary);
+    color: var(--bs-white);
+    border-color: var(--bs-primary);
+  }
 }
 
-/* CDK drag placeholder and animation */
 .cdk-drag-placeholder {
   opacity: 0.4;
   min-width: 4rem;

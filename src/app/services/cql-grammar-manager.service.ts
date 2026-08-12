@@ -1,7 +1,6 @@
 // Author: Preston Lee
 
 import { LanguageSupport } from '@codemirror/language';
-import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { completeFromList, autocompletion } from '@codemirror/autocomplete';
 import { Extension } from '@codemirror/state';
@@ -220,22 +219,8 @@ export class CqlGrammarManager {
       }
     });
 
-    const cqlHighlightStyle = HighlightStyle.define([
-      { tag: tags.keyword, color: '#7bb3f0', fontWeight: 'bold' },
-      { tag: tags.function(tags.variableName), color: '#f0e68c' },
-      { tag: tags.typeName, color: '#6dd5ed' },
-      { tag: tags.operator, color: '#e0e0e0' },
-      { tag: tags.number, color: '#a8d8a8' },
-      { tag: tags.string, color: '#f4a261' },
-      { tag: tags.variableName, color: '#b3d9ff' },
-      { tag: tags.comment, color: '#8fbc8f', fontStyle: 'italic' },
-      { tag: tags.bracket, color: '#e0e0e0' },
-      { tag: tags.punctuation, color: '#e0e0e0' }
-    ]);
-
     return new LanguageSupport(language, [
       indentOnInput(),
-      syntaxHighlighting(cqlHighlightStyle),
       autocompletion({
         override: [
           completeFromList(completions.map(completion => ({

@@ -118,7 +118,7 @@ app-cql-ide .ide-container {
 }
 
 .tab-bar .d-flex.align-items-center:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--bs-tertiary-bg);
 }
 
 .tab-bar .d-flex.align-items-center.dragging {

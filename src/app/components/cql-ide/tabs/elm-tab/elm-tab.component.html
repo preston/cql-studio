@@ -1,9 +1,9 @@
 <div class="elm-panel">
-  <div class="p-3 text-light">
+  <div class="p-3 text-body-secondary">
     <!-- ELM Translation Header -->
     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
       <div class="d-flex align-items-center gap-2">
-        <span class="fw-semibold small text-white">ELM Translation</span>
+        <span class="fw-semibold small text-body">ELM Translation</span>
       </div>
       <div class="d-flex gap-2">
         <button 
@@ -15,7 +15,7 @@
           {{ isTranslating() ? 'Translating...' : 'Translate' }}
         </button>
         <button 
-          class="btn btn-outline-light btn-sm" 
+          class="btn btn-outline-secondary btn-sm" 
           (click)="onClearElmTranslation()" 
           [disabled]="!elmTranslationResults()"
           title="Clear Translation"
@@ -70,7 +70,7 @@
             <button
               id="elm-copy-xml-btn"
               type="button"
-              class="btn btn-outline-light btn-sm"
+              class="btn btn-outline-secondary btn-sm"
               (click)="onCopyElmXml()"
               title="Copy ELM XML"
               aria-label="Copy ELM XML"
@@ -80,7 +80,7 @@
             <button 
               id="elm-download-xml-btn"
               type="button"
-              class="btn btn-outline-light btn-sm" 
+              class="btn btn-outline-secondary btn-sm" 
               (click)="onDownloadElmXml()" 
               title="Download ELM XML"
             >
