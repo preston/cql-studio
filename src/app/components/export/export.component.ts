@@ -70,6 +70,8 @@ interface ExportDestinationMeta {
   label: string;
   icon: string;
   help: string;
+  /** When true, shown in the destination list but not selectable. */
+  disabled?: boolean;
 }
 
 interface ExportPublishTargetGroup {
@@ -109,7 +111,8 @@ const EXPORT_DESTINATIONS: readonly ExportDestinationMeta[] = [
     id: 'crmi',
     label: 'CRMI artifact package',
     icon: 'bi-diagram-3',
-    help: 'Build a CRMI artifact Bundle for download, or copy the packaged resources to another environment.'
+    help: 'Coming soon — build a CRMI artifact Bundle for download, or copy the packaged resources to another environment.',
+    disabled: true
   }
 ];
 
@@ -384,6 +387,10 @@ export class ExportComponent implements OnInit {
   }
 
   selectDestination(dest: ExportDestination): void {
+    const meta = this.destinations.find((d) => d.id === dest);
+    if (meta?.disabled) {
+      return;
+    }
     this.destination.set(dest);
     if (dest === 'crmi') {
       this.conditionalCreate.set(true);

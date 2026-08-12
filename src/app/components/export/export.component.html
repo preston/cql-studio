@@ -51,19 +51,33 @@
             class="list-group-item list-group-item-action py-3"
             [id]="'export-destination-' + dest.id"
             [class.active]="destination() === dest.id"
+            [class.disabled]="dest.disabled"
+            [disabled]="!!dest.disabled"
+            [attr.aria-disabled]="dest.disabled ? true : null"
             (click)="selectDestination(dest.id)">
             <div class="d-flex align-items-start gap-3">
               <i
                 class="bi {{ dest.icon }} fs-4 mt-1"
-                [class.text-primary]="destination() !== dest.id"
+                [class.text-primary]="!dest.disabled && destination() !== dest.id"
+                [class.text-muted]="dest.disabled"
                 aria-hidden="true"></i>
               <div class="flex-grow-1">
-                <div class="fw-semibold">{{ dest.label }}</div>
-                <div class="small" [class.text-white-50]="destination() === dest.id" [class.text-muted]="destination() !== dest.id">
+                <div class="fw-semibold">
+                  {{ dest.label }}
+                  @if (dest.disabled) {
+                    <span class="badge text-bg-secondary ms-2">Coming soon</span>
+                  }
+                </div>
+                <div
+                  class="small"
+                  [class.text-white-50]="!dest.disabled && destination() === dest.id"
+                  [class.text-muted]="dest.disabled || destination() !== dest.id">
                   {{ dest.help }}
                 </div>
               </div>
-              <i class="bi bi-chevron-right mt-1" [class.text-muted]="destination() !== dest.id" aria-hidden="true"></i>
+              @if (!dest.disabled) {
+                <i class="bi bi-chevron-right mt-1" [class.text-muted]="destination() !== dest.id" aria-hidden="true"></i>
+              }
             </div>
           </button>
         }
