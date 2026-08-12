@@ -1,5 +1,5 @@
 
-<div class="ide-container">
+<div class="ide-container" [attr.data-ui-revision]="ideStateService.uiRevision()">
   <!-- Main Layout -->
   <div #ideLayout class="ide-layout" id="ide-layout">
     <!-- Left Panel -->
@@ -49,6 +49,8 @@
               [isNewLibrary]="!library.library"
               (contentChange)="onEditorContentChange($event, library.id)"
               (syntaxErrors)="onEditorSyntaxErrors($event, library.id)"
+              (findReferencesResultChange)="onFindReferencesResult($event)"
+              (valuesetPeekResultChange)="onValuesetPeekResult($event)"
               (executeLibrary)="onExecuteLibrary()"
               (reloadLibrary)="onReloadLibrary()"
               (formatCql)="onFormatCql()"

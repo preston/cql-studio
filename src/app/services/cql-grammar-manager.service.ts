@@ -2,7 +2,7 @@
 
 import { LanguageSupport } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-import { completeFromList, autocompletion } from '@codemirror/autocomplete';
+import { completeFromList, autocompletion, CompletionSource } from '@codemirror/autocomplete';
 import { Extension } from '@codemirror/state';
 import { StreamLanguage } from '@codemirror/language';
 import { indentOnInput } from '@codemirror/language';
@@ -124,7 +124,7 @@ export class CqlGrammarManager {
     return this.currentGrammar;
   }
 
-  createLanguageSupport(): LanguageSupport {
+  createLanguageSupport(extraCompletionSources: CompletionSource[] = []): LanguageSupport {
     const grammar = this.currentGrammar;
 
     const completions = [
@@ -154,6 +154,12 @@ export class CqlGrammarManager {
     const language = StreamLanguage.define({
       name: `cql-${grammar.version}`,
       tokenTable: TOKEN_TABLE,
+      languageData: {
+        commentTokens: {
+          line: '//',
+          block: { open: '/*', close: '*/' }
+        }
+      },
       token: (stream) => {
         if (stream.eatSpace()) {
           return null;
@@ -228,13 +234,14 @@ export class CqlGrammarManager {
             type: completion.type,
             info: completion.info,
             detail: completion.detail
-          })))
+          }))),
+          ...extraCompletionSources
         ]
       })
     ]);
   }
 
-  createExtensions(): Extension[] {
-    return [this.createLanguageSupport()];
+  createExtensions(extraCompletionSources: CompletionSource[] = []): Extension[] {
+    return [this.createLanguageSupport(extraCompletionSources)];
   }
 }

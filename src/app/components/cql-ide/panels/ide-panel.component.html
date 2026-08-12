@@ -64,7 +64,25 @@
     @if (getActiveTab()?.type === 'problems') {
       <app-problems-tab></app-problems-tab>
     }
-    
+
+    <!-- Keep References / ValueSet Peek mounted so results stay visible across tab switches -->
+    @if (hasTabType('references')) {
+      <div
+        class="h-100"
+        [class.d-none]="getActiveTab()?.type !== 'references'"
+        [attr.aria-hidden]="getActiveTab()?.type !== 'references'">
+        <app-references-tab [result]="ideStateService.findReferencesResult()"></app-references-tab>
+      </div>
+    }
+
+    @if (hasTabType('valueset-peek')) {
+      <div
+        class="h-100"
+        [class.d-none]="getActiveTab()?.type !== 'valueset-peek'"
+        [attr.aria-hidden]="getActiveTab()?.type !== 'valueset-peek'">
+        <app-valueset-peek-tab [result]="ideStateService.valuesetPeekResult()"></app-valueset-peek-tab>
+      </div>
+    } 
     <!-- Console Tab -->
     @if (getActiveTab()?.type === 'output') {
       <app-console-tab 

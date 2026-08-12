@@ -44,6 +44,26 @@ export function extractElmValueSets(
   }));
 }
 
+function collectValueSetRefNames(node: unknown, names: Set<string>): void {
+  if (node == null || typeof node !== 'object') {
+    return;
+  }
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectValueSetRefNames(item, names);
+    }
+    return;
+  }
+
+  const obj = node as Record<string, unknown>;
+  if (obj['type'] === 'ValueSetRef' && typeof obj['name'] === 'string') {
+    names.add(obj['name']);
+  }
+  for (const value of Object.values(obj)) {
+    collectValueSetRefNames(value, names);
+  }
+}
+
 /**
  * Returns only value set references used via `ValueSetRef` in statements.
  */
@@ -56,16 +76,10 @@ export function extractUsedElmValueSets(
   }
 
   const lib = resolveLibrary(input);
-  const statementsJson = JSON.stringify(lib.statements ?? {});
+  const usedNames = new Set<string>();
+  collectValueSetRefNames(lib.statements ?? {}, usedNames);
 
-  return all.filter((ref) => {
-    const escaped = ref.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(
-      `"type"\\s*:\\s*"ValueSetRef"[^}]*?"name"\\s*:\\s*"${escaped}"` +
-        `|"name"\\s*:\\s*"${escaped}"[^}]*?"type"\\s*:\\s*"ValueSetRef"`
-    );
-    return pattern.test(statementsJson);
-  });
+  return all.filter((ref) => usedNames.has(ref.name));
 }
 
 export function parseElmJsonForValueSets(elmJson: string): ElmLibraryWrapperForValueSets | null {

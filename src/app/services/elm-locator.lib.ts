@@ -9,15 +9,22 @@ export interface CqlSourceSpan {
   endColumn: number;
 }
 
-export type CqlDefinitionKind = 'expression' | 'function' | 'context';
+export type CqlDefinitionKind = 'expression' | 'function' | 'context' | 'valueset' | 'codesystem';
 
 export interface CqlDefinition {
   name: string;
   kind: CqlDefinitionKind;
   span: CqlSourceSpan;
+  /** Canonical URL/id for valueset/codesystem defs from ELM. */
+  url?: string;
 }
 
-export type CqlReferenceKind = 'expressionRef' | 'functionRef' | 'includeStatement';
+export type CqlReferenceKind =
+  | 'expressionRef'
+  | 'functionRef'
+  | 'includeStatement'
+  | 'valueSetRef'
+  | 'codeSystemRef';
 
 export interface CqlReference {
   kind: CqlReferenceKind;
@@ -118,9 +125,14 @@ export function buildDefinitionIndex(elmXml: string, includeParser: ElmIncludePa
   const includeStatements: CqlReference[] = [];
   const includes = new Map<string, ElmIncludeRef>();
 
-  const addDefinition = (name: string, kind: CqlDefinitionKind, span: CqlSourceSpan): void => {
+  const addDefinition = (
+    name: string,
+    kind: CqlDefinitionKind,
+    span: CqlSourceSpan,
+    url?: string
+  ): void => {
     const existing = definitions.get(name) ?? [];
-    existing.push({ name, kind, span });
+    existing.push({ name, kind, span, ...(url ? { url } : {}) });
     definitions.set(name, existing);
   };
 
@@ -149,6 +161,28 @@ export function buildDefinitionIndex(elmXml: string, includeParser: ElmIncludePa
     addDefinition(name, 'context', span);
   }
 
+  for (const def of doc.querySelectorAll('valueSets > def')) {
+    const name = def.getAttribute('name');
+    const locator = def.getAttribute('locator');
+    const url = def.getAttribute('id');
+    const span = parseLocator(locator);
+    if (!name || !span) {
+      continue;
+    }
+    addDefinition(name, 'valueset', span, url ?? undefined);
+  }
+
+  for (const def of doc.querySelectorAll('codeSystems > def')) {
+    const name = def.getAttribute('name');
+    const locator = def.getAttribute('locator');
+    const url = def.getAttribute('id');
+    const span = parseLocator(locator);
+    if (!name || !span) {
+      continue;
+    }
+    addDefinition(name, 'codesystem', span, url ?? undefined);
+  }
+
   for (const element of doc.querySelectorAll('[locator]')) {
     const locator = element.getAttribute('locator');
     const span = parseLocator(locator);
@@ -174,6 +208,26 @@ export function buildDefinitionIndex(elmXml: string, includeParser: ElmIncludePa
     if (typeAttr.includes('FunctionRef')) {
       references.push({
         kind: 'functionRef',
+        name: element.getAttribute('name'),
+        libraryName: element.getAttribute('libraryName'),
+        span
+      });
+      continue;
+    }
+
+    if (typeAttr.includes('ValueSetRef')) {
+      references.push({
+        kind: 'valueSetRef',
+        name: element.getAttribute('name'),
+        libraryName: element.getAttribute('libraryName'),
+        span
+      });
+      continue;
+    }
+
+    if (typeAttr.includes('CodeSystemRef')) {
+      references.push({
+        kind: 'codeSystemRef',
         name: element.getAttribute('name'),
         libraryName: element.getAttribute('libraryName'),
         span
@@ -274,7 +328,7 @@ export function findDefinition(
     return null;
   }
   if (kind) {
-    return defs.find(d => d.kind === kind) ?? defs[0];
+    return defs.find(d => d.kind === kind) ?? null;
   }
   return defs[0];
 }
@@ -311,7 +365,9 @@ export function resolveDefinitionTarget(
     if (!reference.name) {
       return null;
     }
-    const def = findDefinition(index, reference.name);
+    const defs = index.definitions.get(reference.name) ?? [];
+    const def =
+      defs.find(d => d.kind === 'expression' || d.kind === 'function' || d.kind === 'context') ?? null;
     if (!def) {
       return null;
     }
@@ -334,6 +390,28 @@ export function resolveDefinitionTarget(
       return null;
     }
     const def = findDefinition(index, reference.name, 'function');
+    if (!def) {
+      return null;
+    }
+    return { span: def.span, crossLibrary: false };
+  }
+
+  if (reference.kind === 'valueSetRef') {
+    if (!reference.name) {
+      return null;
+    }
+    const def = findDefinition(index, reference.name, 'valueset');
+    if (!def) {
+      return null;
+    }
+    return { span: def.span, crossLibrary: false };
+  }
+
+  if (reference.kind === 'codeSystemRef') {
+    if (!reference.name) {
+      return null;
+    }
+    const def = findDefinition(index, reference.name, 'codesystem');
     if (!def) {
       return null;
     }

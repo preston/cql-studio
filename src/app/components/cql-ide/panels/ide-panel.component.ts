@@ -24,6 +24,8 @@ import { ProblemsTabComponent } from '../tabs/problems-tab/problems-tab.componen
 import { ConsoleTabComponent } from '../tabs/console-tab/console-tab.component';
 import { AiTabComponent } from '../tabs/ai-tab/ai-tab.component';
 import { ClipboardTabComponent } from '../tabs/clipboard-tab/clipboard-tab.component';
+import { ReferencesTabComponent } from '../tabs/references-tab/references-tab.component';
+import { ValuesetPeekTabComponent } from '../tabs/valueset-peek-tab/valueset-peek-tab.component';
 
 @Component({
   selector: 'app-ide-panel',
@@ -37,7 +39,9 @@ import { ClipboardTabComponent } from '../tabs/clipboard-tab/clipboard-tab.compo
     ProblemsTabComponent,
     ConsoleTabComponent,
     AiTabComponent,
-    ClipboardTabComponent
+    ClipboardTabComponent,
+    ReferencesTabComponent,
+    ValuesetPeekTabComponent
   ],
   templateUrl: './ide-panel.component.html',
 
@@ -295,7 +299,15 @@ export class IdePanelComponent {
   }
 
   getActiveTab(): IdePanelTab | undefined {
-    return this.panel().tabs.find(tab => tab.isActive);
+    const panel = this.panel();
+    if (panel.activeTabId) {
+      return panel.tabs.find(tab => tab.id === panel.activeTabId);
+    }
+    return panel.tabs.find(tab => tab.isActive);
+  }
+
+  hasTabType(type: string): boolean {
+    return this.panel().tabs.some(tab => tab.type === type);
   }
 
   getActiveLibraryCqlContent(): string {

@@ -1,0 +1,58 @@
+<div class="modal-backdrop fade show"></div>
+<div
+  class="modal fade show d-block"
+  tabindex="-1"
+  role="dialog"
+  id="rename-symbol-modal"
+  aria-modal="true"
+  aria-labelledby="rename-symbol-modal-title">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="rename-symbol-modal-title">Rename Symbol</h5>
+        <button
+          type="button"
+          class="btn-close"
+          id="rename-symbol-modal-close"
+          (click)="onCancel()"
+          aria-label="Close">
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 small text-body-secondary">
+          Renaming <code id="rename-symbol-old-name">{{ oldName() }}</code> in the active library.
+        </div>
+        <div class="mb-0">
+          <label for="rename-symbol-new-name" class="form-label">New name</label>
+          <input
+            type="text"
+            class="form-control"
+            id="rename-symbol-new-name"
+            [class.is-invalid]="!!errorMessage()"
+            [ngModel]="newName()"
+            (ngModelChange)="onNameChange($event)"
+            name="newName"
+            autocomplete="off"
+            placeholder="NewIdentifier"
+          />
+          @if (errorMessage()) {
+            <div class="invalid-feedback d-block" id="rename-symbol-error">{{ errorMessage() }}</div>
+          }
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="rename-symbol-modal-cancel" (click)="onCancel()">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="rename-symbol-modal-submit"
+          (click)="onConfirm()"
+          [disabled]="!canSubmit()">
+          Rename
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

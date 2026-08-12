@@ -2,6 +2,10 @@
 
 import { Component, inject } from '@angular/core';
 import { IdeStateService } from '../../../../services/ide-state.service';
+import {
+  parseProblemMessage,
+  ParsedProblemMessage
+} from '../../../../services/cql-problems-message.lib';
 
 @Component({
   selector: 'app-problems-tab',
@@ -16,20 +20,40 @@ export class ProblemsTabComponent {
   get syntaxErrors() {
     return this.ideStateService.editorState().syntaxErrors;
   }
-  
+
   get isValidSyntax() {
     return this.ideStateService.editorState().isValidSyntax;
   }
 
+  parse(error: string): ParsedProblemMessage {
+    return parseProblemMessage(error);
+  }
+
   getErrorMessage(error: string): string {
-    return error.replace(/\s*\(line\s+\d+(?:,\s*column\s+\d+)?\)\s*$/i, '').trim();
+    return this.parse(error).message;
   }
 
   getErrorLine(error: string): number | null {
-    const match = error.match(/\(line\s+(\d+)/i);
-    if (match) {
-      return parseInt(match[1], 10);
+    return this.parse(error).line;
+  }
+
+  iconClass(error: string): string {
+    const severity = this.parse(error).severity;
+    if (severity === 'warning') {
+      return 'bi bi-exclamation-triangle text-warning';
     }
-    return null;
+    if (severity === 'info') {
+      return 'bi bi-info-circle text-info';
+    }
+    return 'bi bi-exclamation-octagon text-danger';
+  }
+
+  onProblemClick(error: string): void {
+    const parsed = this.parse(error);
+    if (parsed.line == null) {
+      return;
+    }
+    const column = parsed.column != null ? Math.max(0, parsed.column - 1) : 0;
+    this.ideStateService.requestNavigateToPosition(parsed.line, column);
   }
 }

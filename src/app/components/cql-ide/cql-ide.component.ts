@@ -2,8 +2,14 @@
 
 import { Component, OnInit, OnDestroy, HostListener, viewChild, viewChildren, effect, inject, ElementRef, untracked } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { IdeStateService } from '../../services/ide-state.service';
+import {
+  IdeFindReferencesResult,
+  IdeStateService,
+  IdeValuesetPeekResult
+} from '../../services/ide-state.service';
 import { IdeTabRegistryService } from '../../services/ide-tab-registry.service';
+import { problemsIndicateValidSyntax, formatCharacterDiagnosticsForProblems } from '../../services/cql-problems-message.lib';
+import { scanInvalidCqlCharacters } from '../../services/cql-character-lint.lib';
 import { LibraryService } from '../../services/library.service';
 import { IdeContextService } from '../../services/ide-context.service';
 import { TranslationService } from '../../services/translation.service';
@@ -217,6 +223,26 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       component: null
     };
 
+    const referencesTab = {
+      id: 'references-tab',
+      title: 'References',
+      icon: 'bi-search',
+      type: 'references',
+      isActive: false,
+      isClosable: true,
+      component: null
+    };
+
+    const valuesetPeekTab = {
+      id: 'valueset-peek-tab',
+      title: 'ValueSet Peek',
+      icon: 'bi-collection',
+      type: 'valueset-peek',
+      isActive: false,
+      isClosable: true,
+      component: null
+    };
+
 
     // Add tabs to panels
     this.ideStateService.addTabToPanel('left', navigationTab);
@@ -233,6 +259,11 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     
     this.ideStateService.addTabToPanel('bottom', outputTab);
     this.ideStateService.addTabToPanel('bottom', problemsTab);
+    this.ideStateService.addTabToPanel('bottom', referencesTab);
+    this.ideStateService.addTabToPanel('bottom', valuesetPeekTab);
+
+    this.ideStateService.setActiveTab('left', 'navigation-tab');
+    this.ideStateService.setActiveTab('bottom', 'output-tab');
     
     // Set the active tab for the right panel: AI tab if available, otherwise FHIR tab
     if (aiTabAdded) {
@@ -621,8 +652,16 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     }
     this.ideStateService.updateEditorState({
       syntaxErrors: errors,
-      isValidSyntax: errors.length === 0
+      isValidSyntax: problemsIndicateValidSyntax(errors)
     });
+  }
+
+  onFindReferencesResult(result: IdeFindReferencesResult | null): void {
+    this.ideStateService.setFindReferencesResult(result);
+  }
+
+  onValuesetPeekResult(result: IdeValuesetPeekResult | null): void {
+    this.ideStateService.setValuesetPeekResult(result);
   }
 
   // Editor toolbar methods
@@ -803,6 +842,30 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       return;
     }
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
+    const lines = cql.split('\n');
+    const doc = {
+      line: (lineNumber: number) => {
+        let from = 0;
+        for (let i = 0; i < lineNumber - 1; i++) {
+          from += (lines[i]?.length ?? 0) + 1;
+        }
+        const text = lines[lineNumber - 1] ?? '';
+        return { from, to: from + text.length, length: text.length };
+      },
+      lineAt: (pos: number) => {
+        let offset = 0;
+        for (let i = 0; i < lines.length; i++) {
+          const lineLength = lines[i]?.length ?? 0;
+          const lineEnd = offset + lineLength;
+          if (pos <= lineEnd || i === lines.length - 1) {
+            return { number: i + 1, from: offset };
+          }
+          offset = lineEnd + 1;
+        }
+        return { number: 1, from: 0 };
+      }
+    };
+    const charDiagnostics = scanInvalidCqlCharacters(cql, doc);
     const full = await this.cqlValidationService.runFullValidationAsync(
       cql,
       undefined,
@@ -810,10 +873,13 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     );
     const structuredErrors = full.structuredErrors;
     const structuredWarnings = full.structuredWarnings;
-    const syntaxErrors = this.cqlValidationService.formatProblemsPanelMessages(full);
+    const syntaxErrors = [
+      ...this.cqlValidationService.formatProblemsPanelMessages(full),
+      ...formatCharacterDiagnosticsForProblems(charDiagnostics, doc)
+    ];
     this.ideStateService.updateEditorState({
       syntaxErrors,
-      isValidSyntax: structuredErrors.length === 0
+      isValidSyntax: problemsIndicateValidSyntax(syntaxErrors)
     });
     const libraryName = activeLibrary?.name ?? activeLibrary?.id ?? 'Library';
     this.ideStateService.addCqlValidationOutput(
@@ -821,16 +887,16 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       { errors: structuredErrors, warnings: structuredWarnings },
       structuredErrors.length
     );
-    if (structuredErrors.length === 0 && structuredWarnings.length === 0) {
+    if (structuredErrors.length === 0 && structuredWarnings.length === 0 && charDiagnostics.length === 0) {
       this.toastService.showSuccess('CQL validation passed with no errors or warnings.', 'Validate CQL');
     } else if (structuredErrors.length === 0) {
-      this.toastService.showSuccess(
-        `CQL validation passed with ${structuredWarnings.length} warning(s). See Problems and Console.`,
+      this.toastService.showWarning(
+        `CQL validation completed with ${structuredWarnings.length + charDiagnostics.length} warning(s).`,
         'Validate CQL'
       );
     } else {
       this.toastService.showError(
-        `CQL validation found ${structuredErrors.length} error(s). See Problems and Console.`,
+        `CQL validation found ${structuredErrors.length} error(s).`,
         'Validate CQL'
       );
     }
@@ -1064,7 +1130,14 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       {
         key: 'Ctrl+Space',
         description: 'Autocomplete'
-      }
+      },
+      {
+        key: isMac ? '⌘+/' : 'Ctrl+/',
+        description: 'Toggle Line Comment'
+      },
+      { key: 'F12', description: 'Go to Definition / Open Terminology' },
+      { key: 'Shift+F12', description: 'Find All References' },
+      { key: 'Hover / right-click', description: 'Find References, Peek ValueSet, Rename' }
     ];
   }
 

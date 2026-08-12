@@ -95,6 +95,27 @@ describe('elm-locator.lib', () => {
     expect(target?.span).toEqual(parseLocator('14:1-14:15'));
   });
 
+  it('buildDefinitionIndex indexes valueset/codesystem defs and refs', () => {
+    const terminologyElm = readFileSync(join(fixturesDir, 'terminology-sample.elm.xml'), 'utf8');
+    const index = buildDefinitionIndex(terminologyElm, includeParser)!;
+    const vs = findDefinition(index, 'Mammography', 'valueset');
+    expect(vs?.url).toBe('http://example.org/ValueSet/mammography');
+    expect(vs?.span).toEqual(parseLocator('4:1-4:90'));
+
+    const use = findReferenceAt(index, 7, 15);
+    expect(use?.reference.kind).toBe('valueSetRef');
+    expect(use?.reference.name).toBe('Mammography');
+    const target = resolveDefinitionTarget(use!, index);
+    expect(target?.span).toEqual(vs?.span);
+  });
+
+  it('findDefinition returns null when requested kind is absent', () => {
+    const terminologyElm = readFileSync(join(fixturesDir, 'terminology-sample.elm.xml'), 'utf8');
+    const index = buildDefinitionIndex(terminologyElm, includeParser)!;
+    expect(findDefinition(index, 'Mammography', 'expression')).toBeNull();
+    expect(findDefinition(index, 'Mammography', 'function')).toBeNull();
+  });
+
   it('findReferenceAt prefers the innermost reference span', () => {
     const index = buildDefinitionIndex(helloWorldElm, includeParser)!;
     const match = findReferenceAt(index, 20, 14);

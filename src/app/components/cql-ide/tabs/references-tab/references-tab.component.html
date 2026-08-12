@@ -1,0 +1,48 @@
+<div class="references-panel p-2" id="references-tab-panel">
+  @if (result(); as refs) {
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="small text-body-secondary">
+        <span class="fw-semibold" id="references-tab-symbol">{{ refs.symbolName }}</span>
+        —
+        @if (filterTerm().trim() && filteredLocations().length !== refs.locations.length) {
+          {{ filteredLocations().length }} of {{ refs.locations.length }} reference{{ refs.locations.length === 1 ? '' : 's' }}
+        } @else {
+          {{ refs.locations.length }} reference{{ refs.locations.length === 1 ? '' : 's' }}
+        }
+      </div>
+      <button type="button" class="btn btn-sm btn-link text-body-secondary" id="references-tab-clear" (click)="onClear()">
+        Clear
+      </button>
+    </div>
+    @if (refs.locations.length > 0) {
+      <div class="mb-2">
+        <input
+          type="text"
+          class="form-control form-control-sm"
+          id="references-tab-filter"
+          placeholder="Filter references..."
+          [ngModel]="filterTerm()"
+          (ngModelChange)="filterTerm.set($event)" />
+      </div>
+    }
+    @for (loc of filteredLocations(); track $index) {
+      <button
+        type="button"
+        class="d-flex flex-column align-items-start w-100 text-start border-0 border-bottom bg-transparent p-2 references-item"
+        [id]="'references-tab-item-' + $index"
+        (click)="onNavigate(loc.line, loc.column)">
+        <div class="small text-muted">Line {{ loc.line }} · {{ loc.kind }}</div>
+        <div class="small text-body text-truncate w-100">{{ loc.preview }}</div>
+      </button>
+    }
+    @if (refs.locations.length === 0) {
+      <div class="text-muted py-3 text-center small">No references found.</div>
+    } @else if (filteredLocations().length === 0) {
+      <div class="text-muted py-3 text-center small" id="references-tab-filter-empty">No matching references.</div>
+    }
+  } @else {
+    <div class="d-flex align-items-center justify-content-center py-4 text-muted">
+      <span>Hover or right-click a symbol, then choose Find All References (or press Shift+F12).</span>
+    </div>
+  }
+</div>

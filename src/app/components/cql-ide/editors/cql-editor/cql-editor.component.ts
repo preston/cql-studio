@@ -2,31 +2,87 @@
 
 import { Component, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { EditorView } from '@codemirror/view';
-import { Compartment, EditorState } from '@codemirror/state';
-import { keymap } from '@codemirror/view';
+import { EditorView, Decoration, DecorationSet, keymap } from '@codemirror/view';
+import { Compartment, EditorState, StateEffect, StateField } from '@codemirror/state';
 import { linter, lintGutter, Diagnostic } from '@codemirror/lint';
+import { firstValueFrom } from 'rxjs';
 import { CqlGrammarManager } from '../../../../services/cql-grammar-manager.service';
 import { createCqlEditorBaseExtensions } from '../../../../services/cql-codemirror-extensions.lib';
 import { createCqlEditorThemeExtensions } from '../../../../services/cql-editor-theme.lib';
 import { scanInvalidCqlCharacters } from '../../../../services/cql-character-lint.lib';
 import { IdeEditor, EditorState as IdeEditorState } from '../base-editor.interface';
-import { IdeStateService } from '../../../../services/ide-state.service';
+import {
+  IdeFindReferencesResult,
+  IdeStateService,
+  IdeValuesetPeekResult
+} from '../../../../services/ide-state.service';
 import { CqlFormatterService } from '../../../../services/cql-formatter.service';
 import { CqlValidationService, FullValidationResult, ValidationResult } from '../../../../services/cql-validation.service';
 import { LibraryTranslationContextBuilder } from '../../../../services/library-translation-context.lib';
 import { CqlDefinitionIndexService, elmColumnToCodeMirror } from '../../../../services/cql-definition-index.service';
-import { CqlDefinitionIndex, CqlReferenceMatch, isReferenceResolvableSync } from '../../../../services/elm-locator.lib';
+import {
+  CqlDefinitionIndex,
+  isReferenceResolvableSync,
+  positionContains,
+  findDefinition
+} from '../../../../services/elm-locator.lib';
 import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
 import { SettingsService } from '../../../../services/settings.service';
 import {
-  createGoToDefinitionExtension,
+  createEditorActionsExtension,
+  CqlEditorAction,
   reconfigureDefinitionIndex
-} from '../../../../services/cql-codemirror-go-to-definition.lib';
+} from '../../../../services/cql-codemirror-editor-actions.lib';
+import {
+  buildTerminologySymbolIndex,
+  buildTerminologySymbolIndexFromElm,
+  findTerminologySymbolAt,
+  CqlTerminologySymbolIndex,
+  provisionalFhirIdFromUrl
+} from '../../../../services/cql-terminology-symbols.lib';
+import { CqlTerminologyExistenceService } from '../../../../services/cql-terminology-existence.service';
+import { TerminologyResourceOpenerService } from '../../../../services/terminology-resource-opener.service';
+import { TerminologyService } from '../../../../services/terminology.service';
+import { LibraryService } from '../../../../services/library.service';
+import { describeFhirHttpFailure } from '../../../../services/fhir-http-error.lib';
+import { createIncludeLibraryCompletionSource } from '../../../../services/cql-include-completion.lib';
+import {
+  extractElmHoverTypeInfos,
+  formatHoverTypeInfo,
+  ElmHoverTypeInfo
+} from '../../../../services/elm-hover-type.lib';
+import {
+  collectLocalRenameSpans,
+  findDefineNameTokenSpan,
+  formatRenameReplacement
+} from '../../../../services/cql-symbol-rename.lib';
+import {
+  formatCharacterDiagnosticsForProblems,
+  problemsIndicateValidSyntax
+} from '../../../../services/cql-problems-message.lib';
+import { RenameSymbolModalComponent } from '../../rename-symbol-modal/rename-symbol-modal.component';
+
+const setReferenceHighlightEffect = StateEffect.define<DecorationSet>();
+const referenceHighlightField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(value, tr) {
+    let next = value;
+    for (const effect of tr.effects) {
+      if (effect.is(setReferenceHighlightEffect)) {
+        next = effect.value;
+      }
+    }
+    if (tr.docChanged) {
+      next = Decoration.none;
+    }
+    return next;
+  },
+  provide: field => EditorView.decorations.from(field)
+});
 
 @Component({
   selector: 'app-cql-editor',
-  imports: [FormsModule],
+  imports: [FormsModule, RenameSymbolModalComponent],
   templateUrl: './cql-editor.component.html',
 
   styleUrls: ['./cql-editor.component.scss']
@@ -47,6 +103,9 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   cursorChange = output<{ line: number; column: number }>();
   editorStateChange = output<IdeEditorState>();
   syntaxErrors = output<string[]>();
+  /** Prefer template bindings so zoneless CD schedules like Problems. */
+  findReferencesResultChange = output<IdeFindReferencesResult | null>();
+  valuesetPeekResultChange = output<IdeValuesetPeekResult | null>();
   executeLibrary = output<void>();
   reloadLibrary = output<void>();
   formatCql = output<void>();
@@ -86,9 +145,20 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
   private definitionIndexService = inject(CqlDefinitionIndexService);
   private libraryOpenerService = inject(CqlIdeLibraryOpenerService);
+  private terminologyExistence = inject(CqlTerminologyExistenceService);
+  private terminologyOpener = inject(TerminologyResourceOpenerService);
+  private terminologyService = inject(TerminologyService);
+  private libraryService = inject(LibraryService);
   private readonly destroyRef = inject(DestroyRef);
 
   private definitionIndex: CqlDefinitionIndex | null = null;
+  /** True after edits until the next successful ELM index rebuild. */
+  private definitionIndexDirty = false;
+  private terminologyIndex: CqlTerminologySymbolIndex = buildTerminologySymbolIndex('');
+  private hoverTypeInfos = new Map<string, ElmHoverTypeInfo[]>();
+  protected readonly renameModalOpen = signal(false);
+  protected readonly renameOldName = signal('');
+  private renameKind: 'expression' | 'function' | undefined;
 
   // Debouncing for validation
   private validationDebounceFrame?: number;
@@ -124,6 +194,18 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
           )
         });
       }
+    });
+
+    effect(() => {
+      const request = this.ideStateService.renameSymbolRequest();
+      if (!request || request.libraryId !== this.libraryId()) {
+        return;
+      }
+      const consumed = this.ideStateService.consumeRenameSymbolRequest();
+      if (!consumed) {
+        return;
+      }
+      this.openRenameModal(consumed.oldName, consumed.kind ?? 'expression');
     });
 
     // When contentLoading or contentLoadError is set, destroy editor; when both clear, init editor if container is present
@@ -271,12 +353,18 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       // Get content for this specific library
       const initialContent = this.getLibraryContent();
       this._value = initialContent; // Sync _value with the actual content
+      this.rebuildTerminologyIndex(initialContent);
+      const includeCompletion = createIncludeLibraryCompletionSource({
+        searchLibraries: term => this.libraryService.searchPaginated(term, 1, 50, 'name', 'asc'),
+        listLibraries: () => this.libraryService.getAll(1, 50, 'name', 'asc')
+      });
       const startState = EditorState.create({
         doc: initialContent,
         extensions: [
           ...createCqlEditorBaseExtensions(),
-          ...this.grammarManager.createExtensions(),
-          ...createGoToDefinitionExtension(this.createGoToDefinitionHandlers()),
+          ...this.grammarManager.createExtensions([includeCompletion]),
+          ...createEditorActionsExtension(this.createEditorActionsHandlers()),
+          referenceHighlightField,
           lintGutter(),
           linter(this.createLintSource()),
           keymap.of([
@@ -309,6 +397,16 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
                 this.clearCode();
                 return true;
               }
+            },
+            {
+              key: 'Shift-F12',
+              run: (view) => {
+                const pos = view.state.selection.main.head;
+                const lineInfo = view.state.doc.lineAt(pos);
+                const column = pos - lineInfo.from;
+                this.findReferencesAt(lineInfo.number, column);
+                return true;
+              }
             }
           ]),
           this.themeCompartment.of(
@@ -321,6 +419,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
             if (update.docChanged) {
               const newValue = update.state.doc.toString();
               this._value = newValue;
+              this.invalidateElmDerivedNavigation(newValue);
               
               // Update form validity signal
               this._isFormValidSignal.set(newValue.trim().length > 0);
@@ -366,6 +465,11 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
           }),
           EditorView.domEventHandlers({
             focus: () => {}
+          }),
+          EditorView.theme({
+            '.cm-cql-reference-highlight': {
+              backgroundColor: 'rgba(255, 193, 7, 0.35)'
+            }
           })
         ]
       });
@@ -613,36 +717,494 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       return;
     }
 
-    this.emitValidationUi(diagnostics.compilerResult);
+    this.emitValidationUi(diagnostics.compilerResult, diagnostics.charDiagnostics);
     this.updateDefinitionIndex(diagnostics.compilerResult);
     this.editor.dispatch({ effects: [] });
   }
 
   private updateDefinitionIndex(full: FullValidationResult): void {
     this.definitionIndex = this.definitionIndexService.buildIndex(full.raw.elmXml);
+    this.definitionIndexDirty = this.definitionIndex == null;
+    this.hoverTypeInfos = extractElmHoverTypeInfos(full.raw.elmXml ?? '');
+    if (this.definitionIndex) {
+      this.applyTerminologyIndex(
+        buildTerminologySymbolIndexFromElm(this.definitionIndex, this.getValue()),
+        true
+      );
+    } else {
+      // Failed/incomplete translation: keep declaration hits from source, drop stale ELM uses.
+      this.applyTerminologyIndex(buildTerminologySymbolIndex(this.getValue()), false);
+    }
     if (this.editor) {
       reconfigureDefinitionIndex(this.editor, this.definitionIndex);
     }
   }
 
-  private createGoToDefinitionHandlers() {
+  /**
+   * Edits invalidate ELM locators for rename, but keep the last index for find-refs/go-to
+   * until the next validation pass (stale-while-revalidate).
+   * Must not synchronously EditorView.dispatch from a docChanged updateListener.
+   */
+  private invalidateElmDerivedNavigation(source: string): void {
+    this.definitionIndexDirty = true;
+    this.applyTerminologyIndex(buildTerminologySymbolIndex(source), false);
+    if (this.renameModalOpen()) {
+      this.renameModalOpen.set(false);
+    }
+    // Peek is terminology data (not ELM locators); keep it across edits.
+    this.findReferencesResultChange.emit(null);
+    queueMicrotask(() => {
+      if (this.editor && this.definitionIndexDirty) {
+        reconfigureDefinitionIndex(this.editor, this.definitionIndex);
+      }
+    });
+  }
+
+  private rebuildTerminologyIndex(source: string): void {
+    // Doc edits invalidate ELM locators; use source declarations until the next successful validation.
+    this.applyTerminologyIndex(buildTerminologySymbolIndex(source), false);
+  }
+
+  private applyTerminologyIndex(
+    index: CqlTerminologySymbolIndex,
+    prefetchExistence: boolean
+  ): void {
+    this.terminologyIndex = index;
+    if (!prefetchExistence) {
+      return;
+    }
+    for (const declaration of this.terminologyIndex.declarations) {
+      if (!declaration.url.trim()) {
+        continue;
+      }
+      void this.terminologyExistence.resolve(declaration.kind, declaration.url);
+    }
+  }
+
+  private createEditorActionsHandlers() {
     return {
-      findReferenceAt: (line: number, column: number): CqlReferenceMatch | null => {
-        if (!this.definitionIndex) {
-          return null;
-        }
-        return this.definitionIndexService.findReferenceAt(this.definitionIndex, line, column);
+      findActionsAt: (line: number, column: number): CqlEditorAction[] => {
+        return this.collectActionsAt(line, column);
       },
-      isResolvableSync: (match: CqlReferenceMatch): boolean => {
-        if (!this.definitionIndex) {
-          return false;
-        }
-        return isReferenceResolvableSync(match, this.definitionIndex);
+      getHoverInfoAt: (line: number, column: number): string | null => {
+        return this.getHoverInfoText(line, column);
       },
-      goToDefinitionAt: async (line: number, column: number): Promise<void> => {
-        await this.handleGoToDefinition(line, column);
+      findUnderlineSpanAt: (line: number, column: number) => {
+        return this.findUnderlineSpanAt(line, column);
       }
     };
+  }
+
+  private collectActionsAt(line: number, column: number): CqlEditorAction[] {
+    const actions: CqlEditorAction[] = [];
+
+    if (this.definitionIndex) {
+      const match = this.definitionIndexService.findReferenceAt(this.definitionIndex, line, column);
+      if (match && isReferenceResolvableSync(match, this.definitionIndex)) {
+        actions.push({
+          id: 'go-to-definition',
+          label: 'Go to Definition',
+          run: () => this.handleGoToDefinition(line, column)
+        });
+      }
+
+      const symbol = this.resolveLocalSymbolAt(line, column);
+      if (symbol) {
+        actions.push({
+          id: 'find-references',
+          label: 'Find All References',
+          run: () => this.findReferencesForSymbol(symbol.name, symbol.kind)
+        });
+        if (symbol.kind === 'expression' || symbol.kind === 'function') {
+          actions.push({
+            id: 'rename-symbol',
+            label: 'Rename Symbol',
+            run: () => this.openRenameModal(symbol.name, symbol.kind)
+          });
+        }
+      }
+    }
+
+    const terminology = findTerminologySymbolAt(this.terminologyIndex, line, column);
+    if (terminology) {
+      const cached = this.terminologyExistence.getCached(
+        terminology.declaration.kind,
+        terminology.declaration.url
+      );
+      // Prefetch existence for hover status / underline, but do not gate actions on it.
+      if (cached === undefined) {
+        void this.terminologyExistence.resolve(
+          terminology.declaration.kind,
+          terminology.declaration.url
+        );
+      }
+      const resourceId = cached?.id || provisionalFhirIdFromUrl(terminology.declaration.url);
+      const resourceUrl = cached?.url || terminology.declaration.url;
+      const knownLocalId = cached?.id ?? null;
+
+      actions.push({
+        id: 'open-terminology',
+        label: 'Open in Terminology Browser',
+        run: () => this.openTerminology(terminology.declaration.kind, resourceId, resourceUrl)
+      });
+      if (terminology.declaration.kind === 'ValueSet') {
+        actions.push({
+          id: 'peek-valueset',
+          label: 'Peek ValueSet Expansion',
+          run: () => this.peekValueset(terminology.declaration.name, knownLocalId, resourceUrl)
+        });
+      }
+
+      if (!actions.some(a => a.id === 'find-references')) {
+        actions.push({
+          id: 'find-references',
+          label: 'Find All References',
+          run: () => this.findTerminologyReferences(terminology.declaration.name)
+        });
+      }
+    }
+
+    return actions;
+  }
+
+  private findUnderlineSpanAt(line: number, column: number): { from: number; to: number } | null {
+    if (!this.editor) {
+      return null;
+    }
+    if (this.definitionIndex) {
+      const match = this.definitionIndexService.findReferenceAt(this.definitionIndex, line, column);
+      if (match && isReferenceResolvableSync(match, this.definitionIndex)) {
+        return this.spanToOffsets(match.reference.span);
+      }
+    }
+    const terminology = findTerminologySymbolAt(this.terminologyIndex, line, column);
+    if (terminology) {
+      return this.spanToOffsets(terminology.span);
+    }
+    return null;
+  }
+
+  private spanToOffsets(span: { startLine: number; startColumn: number; endLine: number; endColumn: number }): { from: number; to: number } | null {
+    if (!this.editor) {
+      return null;
+    }
+    try {
+      const startLine = this.editor.state.doc.line(span.startLine);
+      const endLine = this.editor.state.doc.line(span.endLine);
+      const from = startLine.from + Math.min(Math.max(0, span.startColumn - 1), startLine.length);
+      const to = endLine.from + Math.min(Math.max(0, span.endColumn), endLine.length);
+      if (from >= to) {
+        return null;
+      }
+      return { from, to };
+    } catch {
+      return null;
+    }
+  }
+
+  private resolveLocalSymbolAt(
+    line: number,
+    column: number
+  ): { name: string; kind: 'expression' | 'function' | 'context' } | null {
+    if (!this.definitionIndex) {
+      return null;
+    }
+    const match = this.definitionIndexService.findReferenceAt(this.definitionIndex, line, column);
+    if (match?.reference.name && !match.reference.libraryName) {
+      if (match.reference.kind === 'functionRef') {
+        return { name: match.reference.name, kind: 'function' };
+      }
+      if (match.reference.kind === 'expressionRef') {
+        return { name: match.reference.name, kind: 'expression' };
+      }
+    }
+
+    const source = this.getValue();
+    for (const defs of this.definitionIndex.definitions.values()) {
+      for (const def of defs) {
+        if (def.kind !== 'expression' && def.kind !== 'function') {
+          continue;
+        }
+        const nameSpan = findDefineNameTokenSpan(source, def);
+        if (nameSpan && positionContains(nameSpan, line, column)) {
+          return { name: def.name, kind: def.kind };
+        }
+      }
+    }
+    return null;
+  }
+
+  private getHoverInfoText(line: number, column: number): string | null {
+    const terminology = findTerminologySymbolAt(this.terminologyIndex, line, column);
+    if (terminology) {
+      const exists = this.terminologyExistence.getCached(
+        terminology.declaration.kind,
+        terminology.declaration.url
+      );
+      const status =
+        exists === undefined ? 'checking…' : exists ? 'available on terminology server' : 'not found on terminology server';
+      return `${terminology.declaration.kind} ${terminology.declaration.name}\n${terminology.declaration.url}\n(${status})`;
+    }
+
+    const symbol = this.resolveLocalSymbolAt(line, column);
+    if (!symbol) {
+      return null;
+    }
+    const infos = this.hoverTypeInfos.get(symbol.name) ?? [];
+    const info = infos.find(i => i.kind === symbol.kind) ?? infos[0];
+    if (info) {
+      return formatHoverTypeInfo(info);
+    }
+    return `${symbol.kind} ${symbol.name}`;
+  }
+
+  private findReferencesAt(line: number, column: number): void {
+    const symbol = this.resolveLocalSymbolAt(line, column);
+    if (symbol) {
+      this.findReferencesForSymbol(symbol.name, symbol.kind);
+      return;
+    }
+    const terminology = findTerminologySymbolAt(this.terminologyIndex, line, column);
+    if (terminology) {
+      this.findTerminologyReferences(terminology.declaration.name);
+    }
+  }
+
+  private findReferencesForSymbol(name: string, kind?: 'expression' | 'function' | 'context'): void {
+    if (!this.editor) {
+      return;
+    }
+    if (!this.definitionIndex) {
+      this.publishFindReferencesResult({
+        symbolName: name,
+        locations: []
+      });
+      return;
+    }
+    const source = this.getValue();
+    const locations: Array<{
+      line: number;
+      column: number;
+      endLine: number;
+      endColumn: number;
+      preview: string;
+      kind: string;
+    }> = [];
+
+    const def = findDefinition(this.definitionIndex, name, kind === 'context' ? undefined : kind);
+    if (def && def.kind !== 'context') {
+      const nameSpan = findDefineNameTokenSpan(source, def);
+      if (nameSpan) {
+        locations.push({
+          line: nameSpan.startLine,
+          column: elmColumnToCodeMirror(nameSpan.startColumn),
+          endLine: nameSpan.endLine,
+          endColumn: nameSpan.endColumn,
+          preview: this.previewAtLine(nameSpan.startLine),
+          kind: 'definition'
+        });
+      }
+    }
+
+    for (const ref of this.definitionIndex.references) {
+      if (ref.libraryName || ref.name !== name) {
+        continue;
+      }
+      if (kind === 'function' && ref.kind !== 'functionRef') {
+        continue;
+      }
+      if (kind === 'expression' && ref.kind !== 'expressionRef') {
+        continue;
+      }
+      locations.push({
+        line: ref.span.startLine,
+        column: elmColumnToCodeMirror(ref.span.startColumn),
+        endLine: ref.span.endLine,
+        endColumn: ref.span.endColumn,
+        preview: this.previewAtLine(ref.span.startLine),
+        kind: ref.kind
+      });
+    }
+
+    this.publishFindReferencesResult({ symbolName: name, locations });
+    this.applyReferenceHighlights(locations.map(l => ({
+      startLine: l.line,
+      startColumn: l.column + 1,
+      endLine: l.endLine,
+      endColumn: l.endColumn
+    })));
+  }
+
+  private findTerminologyReferences(name: string): void {
+    const declaration = this.terminologyIndex.byName.get(name);
+    if (!declaration) {
+      this.publishFindReferencesResult({
+        symbolName: name,
+        locations: []
+      });
+      return;
+    }
+    const locations = [
+      {
+        line: declaration.nameSpan.startLine,
+        column: elmColumnToCodeMirror(declaration.nameSpan.startColumn),
+        endLine: declaration.nameSpan.endLine,
+        endColumn: declaration.nameSpan.endColumn,
+        preview: this.previewAtLine(declaration.nameSpan.startLine),
+        kind: 'declaration'
+      },
+      ...this.terminologyIndex.nameUses
+        .filter(u => u.name === name)
+        .map(u => ({
+          line: u.span.startLine,
+          column: elmColumnToCodeMirror(u.span.startColumn),
+          endLine: u.span.endLine,
+          endColumn: u.span.endColumn,
+          preview: this.previewAtLine(u.span.startLine),
+          kind: 'use'
+        }))
+    ];
+    this.publishFindReferencesResult({ symbolName: name, locations });
+    this.applyReferenceHighlights([
+      declaration.nameSpan,
+      ...this.terminologyIndex.nameUses.filter(u => u.name === name).map(u => u.span)
+    ]);
+  }
+
+  private publishFindReferencesResult(result: IdeFindReferencesResult): void {
+    // Angular output bindings schedule zoneless CD (same path as syntaxErrors).
+    this.findReferencesResultChange.emit(result);
+  }
+
+  private applyReferenceHighlights(
+    spans: Array<{ startLine: number; startColumn: number; endLine: number; endColumn: number }>
+  ): void {
+    if (!this.editor) {
+      return;
+    }
+    const decorations = [];
+    for (const span of spans) {
+      const offsets = this.spanToOffsets(span);
+      if (!offsets) {
+        continue;
+      }
+      decorations.push(Decoration.mark({ class: 'cm-cql-reference-highlight' }).range(offsets.from, offsets.to));
+    }
+    this.editor.dispatch({
+      effects: setReferenceHighlightEffect.of(Decoration.set(decorations, true))
+    });
+  }
+
+  private previewAtLine(lineNumber: number): string {
+    try {
+      return this.editor?.state.doc.line(lineNumber).text.trim() ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  private async openTerminology(
+    resourceType: 'ValueSet' | 'CodeSystem',
+    id: string,
+    url: string
+  ): Promise<void> {
+    await this.terminologyOpener.requestOpen({
+      resourceType,
+      id: id || provisionalFhirIdFromUrl(url),
+      url
+    });
+  }
+
+  private async peekValueset(name: string, id: string | null, url: string): Promise<void> {
+    const peekLimit = 50;
+    try {
+      const expanded = await firstValueFrom(
+        this.terminologyService.expandValueSet({
+          // Only use a server id when existence confirmed it; OID path segments fail $expand.
+          id: id || undefined,
+          url,
+          count: peekLimit
+        })
+      );
+      const contains = expanded.expansion?.contains ?? [];
+      const codes = contains.slice(0, peekLimit);
+      const total = expanded.expansion?.total;
+      this.publishValuesetPeekResult({
+        name,
+        url,
+        id: expanded.id || id || provisionalFhirIdFromUrl(url),
+        codes: codes.map(c => ({
+          system: c.system,
+          code: c.code,
+          display: c.display
+        })),
+        truncated: total != null ? total > codes.length : contains.length >= peekLimit
+      });
+    } catch (error) {
+      this.publishValuesetPeekResult({
+        name,
+        url,
+        id: id || provisionalFhirIdFromUrl(url),
+        codes: [],
+        truncated: false,
+        error: describeFhirHttpFailure(error) || 'Failed to expand ValueSet'
+      });
+    }
+  }
+
+  private publishValuesetPeekResult(result: IdeValuesetPeekResult): void {
+    this.valuesetPeekResultChange.emit(result);
+  }
+
+  private openRenameModal(oldName: string, kind: 'expression' | 'function' | 'context'): void {
+    if (kind === 'context' || this.readonly()) {
+      return;
+    }
+    this.renameKind = kind;
+    this.renameOldName.set(oldName);
+    this.renameModalOpen.set(true);
+  }
+
+  protected onRenameCancel(): void {
+    this.renameModalOpen.set(false);
+  }
+
+  protected onRenameConfirm(newName: string): void {
+    this.renameModalOpen.set(false);
+    this.applyRename(this.renameOldName(), newName, this.renameKind);
+  }
+
+  private applyRename(
+    oldName: string,
+    newName: string,
+    kind?: 'expression' | 'function'
+  ): void {
+    if (!this.editor || !this.definitionIndex || this.definitionIndexDirty || this.readonly()) {
+      return;
+    }
+    const source = this.getValue();
+    const spans = collectLocalRenameSpans(source, this.definitionIndex, oldName, kind);
+    if (spans.length === 0) {
+      return;
+    }
+
+    const changes = spans
+      .map(span => {
+        const offsets = this.spanToOffsets(span);
+        if (!offsets) {
+          return null;
+        }
+        const slice = this.editor!.state.doc.sliceString(offsets.from, offsets.to);
+        return {
+          from: offsets.from,
+          to: offsets.to,
+          insert: formatRenameReplacement(oldName, newName, slice)
+        };
+      })
+      .filter((c): c is { from: number; to: number; insert: string } => c != null)
+      .sort((a, b) => b.from - a.from);
+
+    this.editor.dispatch({ changes });
   }
 
   private async handleGoToDefinition(line: number, column: number): Promise<void> {
@@ -704,13 +1266,14 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private async collectLintDiagnosticsAsync(
     code: string,
     doc: { line: (lineNumber: number) => { from: number; to: number }; lineAt: (pos: number) => { number: number } }
-  ): Promise<{ all: Diagnostic[]; compilerResult: FullValidationResult }> {
+  ): Promise<{ all: Diagnostic[]; compilerResult: FullValidationResult; charDiagnostics: Diagnostic[] }> {
     const charDiagnostics = scanInvalidCqlCharacters(code, doc);
     const full = await this.cqlValidationService.runFullValidationAsync(code, doc, this.getLibraryTranslationContext());
     const compilerDiagnostics = this.compilerValidationToDiagnostics(full.validation);
     return {
       all: [...charDiagnostics, ...compilerDiagnostics],
-      compilerResult: full
+      compilerResult: full,
+      charDiagnostics
     };
   }
 
@@ -777,7 +1340,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         return;
       }
 
-      this.emitValidationUi(diagnostics.compilerResult);
+      this.emitValidationUi(diagnostics.compilerResult, diagnostics.charDiagnostics);
       this.updateDefinitionIndex(diagnostics.compilerResult);
 
       const resolvers = this.pendingLintResolvers;
@@ -791,18 +1354,23 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
     }
   }
 
-  private emitValidationUi(full: FullValidationResult): void {
+  private emitValidationUi(full: FullValidationResult, charDiagnostics: Diagnostic[] = []): void {
     if (!this.canEmitOutputs()) {
       return;
     }
-    this.currentValidationErrors = this.cqlValidationService.formatProblemsPanelMessages(full);
+    const compilerMessages = this.cqlValidationService.formatProblemsPanelMessages(full);
+    const characterMessages = formatCharacterDiagnosticsForProblems(
+      charDiagnostics,
+      this.editor?.state.doc ?? { lineAt: () => ({ number: 1 }) }
+    );
+    this.currentValidationErrors = [...compilerMessages, ...characterMessages];
     this.syntaxErrors.emit(this.currentValidationErrors);
     if (this.editor) {
       this.editorStateChange.emit({
         cursorPosition: this.getCursorPosition(),
         wordCount: this.getWordCount(),
         syntaxErrors: this.currentValidationErrors,
-        isValidSyntax: full.validation.errors.length === 0
+        isValidSyntax: problemsIndicateValidSyntax(this.currentValidationErrors)
       });
     }
   }
@@ -962,8 +1530,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   private getIsValidSyntax(): boolean {
-    // Check if there are any errors (warnings don't count as invalid)
-    return !this.currentValidationErrors.some(err => err.startsWith('Error:'));
+    return problemsIndicateValidSyntax(this.currentValidationErrors);
   }
 
   // Toolbar methods

@@ -1,9 +1,44 @@
 // Author: Preston Lee
 
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { IdePanel, IdePanelTab, IdePanelState } from '../components/cql-ide/panels/ide-panel-tab.interface';
 import { LibraryResource, EditorFile, ExecutionResult, OutputSection, OutputType } from '../components/cql-ide/shared/ide-types';
 import { Library, Patient, Parameters } from 'fhir/r4';
+
+export interface IdeFindReferenceLocation {
+  line: number;
+  column: number;
+  endLine: number;
+  endColumn: number;
+  preview: string;
+  kind: string;
+}
+
+export interface IdeFindReferencesResult {
+  symbolName: string;
+  locations: IdeFindReferenceLocation[];
+}
+
+export interface IdeValuesetPeekCode {
+  system?: string;
+  code?: string;
+  display?: string;
+}
+
+export interface IdeValuesetPeekResult {
+  name: string;
+  url: string;
+  id: string;
+  codes: IdeValuesetPeekCode[];
+  truncated: boolean;
+  error?: string;
+}
+
+export interface IdeRenameSymbolRequest {
+  libraryId: string;
+  oldName: string;
+  kind?: 'expression' | 'function';
+}
 
 /** Scopes for tab data invalidation. When data changes (e.g. library deleted from server), call invalidateTabData(scope) so tabs that display that data can refresh. Tabs subscribe via effect(() => tabDataInvalidation()[scope]). */
 export const TabDataScope = {
@@ -110,6 +145,10 @@ export class IdeStateService {
     column: number;
   } | null>(null);
 
+  private _findReferencesResult = signal<IdeFindReferencesResult | null>(null);
+  private _valuesetPeekResult = signal<IdeValuesetPeekResult | null>(null);
+  private _renameSymbolRequest = signal<IdeRenameSymbolRequest | null>(null);
+
   /** Per-scope invalidation counts. Tabs use effect(() => this.tabDataInvalidation()[scope]) and refresh when their scope's count increases. */
   private _tabDataInvalidation = signal<Record<string, number>>({});
 
@@ -141,6 +180,16 @@ export class IdeStateService {
   public navigateToLineRequest = computed(() => this._navigateToLineRequest());
   public formatCodeRequest = computed(() => this._formatCodeRequest());
   public pendingEditorNavigation = computed(() => this._pendingEditorNavigation());
+  /** Prefer asReadonly so tab templates subscribe to the same producer CodeMirror writers update. */
+  public findReferencesResult = this._findReferencesResult.asReadonly();
+  public valuesetPeekResult = this._valuesetPeekResult.asReadonly();
+  /**
+   * Monotonic revision bumped when IDE chrome must refresh under zoneless CD
+   * (CodeMirror actions are outside Angular's event system).
+   */
+  private _uiRevision = signal(0);
+  public uiRevision = this._uiRevision.asReadonly();
+  public renameSymbolRequest = computed(() => this._renameSymbolRequest());
   /** Per-scope invalidation counts. Tabs subscribe in an effect and refresh when their scope's count increases (see invalidateTabData). */
   public tabDataInvalidation = computed(() => this._tabDataInvalidation());
   public activeLibraryIsReadOnly = computed(() => this.getActiveLibraryResource()?.isReadOnly ?? false);
@@ -164,7 +213,8 @@ export class IdeStateService {
       const updatedPanel = {
         ...panel,
         tabs: [...panel.tabs, tab],
-        activeTabId: tab.id
+        // Keep the existing active tab; only default when the panel was empty.
+        activeTabId: panel.activeTabId ?? tab.id
       };
       return { ...state, [panelId]: updatedPanel };
     });
@@ -513,7 +563,12 @@ export class IdeStateService {
   }
 
   selectLibraryResource(libraryId: string | null): void {
+    const previousId = this._activeLibraryId();
     this._activeLibraryId.set(libraryId || null);
+    if (previousId !== (libraryId || null)) {
+      this._findReferencesResult.set(null);
+      this._valuesetPeekResult.set(null);
+    }
   }
 
   getActiveLibraryResource(): LibraryResource | null {
@@ -593,6 +648,66 @@ export class IdeStateService {
     this._navigateToLineRequest.set(lineNumber);
     // Clear after a tick to allow component to react
     queueMicrotask(() => this._navigateToLineRequest.set(null));
+  }
+
+  requestNavigateToPosition(line: number, column = 0): void {
+    const libraryId = this._activeLibraryId();
+    if (!libraryId) {
+      this.requestNavigateToLine(line);
+      return;
+    }
+    this.requestNavigateToDefinition({ libraryId, line, column });
+  }
+
+  setFindReferencesResult(result: IdeFindReferencesResult | null): void {
+    if (result == null && this._findReferencesResult() == null) {
+      return;
+    }
+    this._findReferencesResult.set(result);
+    if (result) {
+      this.ensureTabActive('references-tab');
+    }
+    this.bumpUiRevision();
+  }
+
+  setValuesetPeekResult(result: IdeValuesetPeekResult | null): void {
+    if (result == null && this._valuesetPeekResult() == null) {
+      return;
+    }
+    this._valuesetPeekResult.set(result);
+    if (result) {
+      this.ensureTabActive('valueset-peek-tab');
+    }
+    this.bumpUiRevision();
+  }
+
+  /** Notify zoneless change detection that IDE chrome should re-check. */
+  bumpUiRevision(): void {
+    this._uiRevision.update(v => v + 1);
+  }
+
+  requestRenameSymbol(request: IdeRenameSymbolRequest | null): void {
+    this._renameSymbolRequest.set(request);
+  }
+
+  consumeRenameSymbolRequest(): IdeRenameSymbolRequest | null {
+    const current = this._renameSymbolRequest();
+    this._renameSymbolRequest.set(null);
+    return current;
+  }
+
+  private ensureTabActive(tabId: string): void {
+    for (const panelId of ['bottom', 'left', 'right'] as const) {
+      const panel = this.getPanel(panelId);
+      if (!panel?.tabs.some(t => t.id === tabId)) {
+        continue;
+      }
+      if (!panel.isVisible) {
+        this.togglePanel(panelId);
+      }
+      this.setActiveTab(panelId, tabId);
+      return;
+    }
   }
 
   requestNavigateToDefinition(request: {

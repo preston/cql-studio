@@ -50,4 +50,12 @@
   <div #editorContainer class="cql-editor"></div>
   }
   }
+
+  @if (renameModalOpen()) {
+    <app-rename-symbol-modal
+      [oldName]="renameOldName()"
+      (confirm)="onRenameConfirm($event)"
+      (cancel)="onRenameCancel()">
+    </app-rename-symbol-modal>
+  }
 </div>

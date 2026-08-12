@@ -1,0 +1,75 @@
+<div class="valueset-peek-panel p-2" id="valueset-peek-tab-panel">
+  @if (result(); as peek) {
+    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+      <div class="min-w-0">
+        <div class="fw-semibold text-truncate" id="valueset-peek-name">{{ peek.name }}</div>
+        <div class="small text-muted text-truncate" id="valueset-peek-url" [title]="peek.url">{{ peek.url }}</div>
+      </div>
+      <div class="d-flex gap-1 flex-shrink-0">
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary"
+          id="valueset-peek-open-terminology"
+          (click)="onOpenInTerminology()">
+          Open in Terminology
+        </button>
+        <button type="button" class="btn btn-sm btn-link text-body-secondary" id="valueset-peek-clear" (click)="onClear()">
+          Clear
+        </button>
+      </div>
+    </div>
+
+    @if (peek.error) {
+      <div class="alert alert-warning py-2 small mb-0" id="valueset-peek-error">{{ peek.error }}</div>
+    } @else {
+      @if (peek.codes.length > 0) {
+        <div class="mb-2">
+          <input
+            type="text"
+            class="form-control form-control-sm"
+            id="valueset-peek-filter"
+            placeholder="Filter codes..."
+            [ngModel]="filterTerm()"
+            (ngModelChange)="filterTerm.set($event)" />
+        </div>
+      }
+      <div class="table-responsive">
+        <table class="table table-sm table-striped mb-1" id="valueset-peek-table">
+          <thead>
+            <tr>
+              <th scope="col">System</th>
+              <th scope="col">Code</th>
+              <th scope="col">Display</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (code of filteredCodes(); track $index) {
+              <tr>
+                <td class="small text-truncate" style="max-width: 12rem;">{{ code.system || '—' }}</td>
+                <td class="small"><code>{{ code.code || '—' }}</code></td>
+                <td class="small">{{ code.display || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (peek.truncated && !filterTerm().trim()) {
+        <div class="small text-muted" id="valueset-peek-truncated">Showing first {{ peek.codes.length }} codes. Open in Terminology for the full expansion.</div>
+      }
+      @if (filterTerm().trim() && filteredCodes().length !== peek.codes.length) {
+        <div class="small text-muted" id="valueset-peek-filter-count">
+          Showing {{ filteredCodes().length }} of {{ peek.codes.length }} codes.
+        </div>
+      }
+      @if (peek.codes.length === 0) {
+        <div class="text-muted small py-2">No codes in expansion.</div>
+      } @else if (filteredCodes().length === 0) {
+        <div class="text-muted small py-2" id="valueset-peek-filter-empty">No matching codes.</div>
+      }
+    }
+  } @else {
+    <div class="d-flex align-items-center justify-content-center py-4 text-muted">
+      <span>Hover or right-click a valueset name/URL, then choose Peek ValueSet Expansion.</span>
+    </div>
+  }
+</div>

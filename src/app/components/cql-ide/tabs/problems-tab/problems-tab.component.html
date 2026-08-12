@@ -1,18 +1,22 @@
 <div class="problems-panel">
   <div class="p-2">
     @for (error of syntaxErrors; track $index; let i = $index) {
-      <div class="d-flex align-items-start p-2 border-bottom">
-        <i class="bi bi-exclamation-triangle text-danger me-2 mt-1"></i>
-        <div class="flex-fill">
-          <div class="fw-medium text-body-secondary">{{ getErrorMessage(error) }}</div>
-          @if (getErrorLine(error)) {
-            <div class="small text-muted">Line {{ getErrorLine(error) }}</div>
+      <button
+        type="button"
+        class="d-flex align-items-start p-2 border-0 border-bottom bg-transparent w-100 text-start problems-item"
+        [id]="'problems-tab-item-' + i"
+        (click)="onProblemClick(error)">
+        <i [class]="iconClass(error) + ' me-2 mt-1'"></i>
+        <div class="flex-fill min-w-0">
+          <div class="fw-medium text-body-secondary text-break">{{ getErrorMessage(error) }}</div>
+          @if (getErrorLine(error); as line) {
+            <div class="small text-muted">Line {{ line }}</div>
           }
         </div>
-      </div>
+      </button>
     }
     @if (syntaxErrors.length === 0) {
-      <div class="d-flex align-items-center justify-content-center py-4 text-muted">
+      <div class="d-flex align-items-center justify-content-center py-4 text-muted" id="problems-tab-empty">
         <i class="bi bi-check me-2"></i>
         <span>No problems found</span>
       </div>
