@@ -35,6 +35,23 @@ export interface WorkspaceEnvironmentCatalogEntry {
   environments: SharedEnvironmentDto[];
 }
 
+/** Personal publish/copy target: `personal:{environmentId}`. Workspace targets use {@link workspaceEnvironmentSyntheticId}. */
+export function personalPublishTargetKey(environmentId: string): string {
+  return `personal:${environmentId}`;
+}
+
+export function isPersonalPublishTargetKey(key: string): boolean {
+  return key.startsWith('personal:');
+}
+
+export interface ExportPublishTargetOption {
+  key: string;
+  name: string;
+  group: 'personal' | 'workspace';
+  workspaceId?: string;
+  workspaceName?: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -249,7 +266,10 @@ export class EnvironmentService {
   }
 
   getEndpointConfiguration(role: EndpointRole): EndpointConfiguration {
-    const env = this.activeEnvironment();
+    return this.getEndpointConfigurationForEnvironment(this.activeEnvironment(), role);
+  }
+
+  getEndpointConfigurationForEnvironment(env: CqlEnvironment, role: EndpointRole): EndpointConfiguration {
     switch (role) {
       case 'evaluation':
         return env.evaluationServer;
@@ -263,7 +283,10 @@ export class EnvironmentService {
   }
 
   getEffectiveAddressForRole(role: EndpointRole): string {
-    const env = this.activeEnvironment();
+    return this.getEffectiveAddressForRoleOnEnvironment(this.activeEnvironment(), role);
+  }
+
+  getEffectiveAddressForRoleOnEnvironment(env: CqlEnvironment, role: EndpointRole): string {
     const evaluationAddress = this.getDeployDefaultEvaluationServerUrl();
     switch (role) {
       case 'evaluation':
@@ -287,8 +310,16 @@ export class EnvironmentService {
   }
 
   getEndpointHttpContext(role: EndpointRole, baseHeaders?: Record<string, string>): EndpointHttpContext {
-    const config = this.getEndpointConfiguration(role);
-    const address = this.getEffectiveAddressForRole(role);
+    return this.getEndpointHttpContextForEnvironment(this.activeEnvironment(), role, baseHeaders);
+  }
+
+  getEndpointHttpContextForEnvironment(
+    env: CqlEnvironment,
+    role: EndpointRole,
+    baseHeaders?: Record<string, string>
+  ): EndpointHttpContext {
+    const config = this.getEndpointConfigurationForEnvironment(env, role);
+    const address = this.getEffectiveAddressForRoleOnEnvironment(env, role);
     const headers = buildHttpHeaders({ ...config, address }, baseHeaders);
     const headerRecord: Record<string, string> = {};
     headers.keys().forEach(key => {
@@ -298,6 +329,75 @@ export class EnvironmentService {
       }
     });
     return { address, headers: headerRecord };
+  }
+
+  /** Flat list of personal + workspace profiles for export copy/publish target pickers. */
+  listExportPublishTargetOptions(): ExportPublishTargetOption[] {
+    const options: ExportPublishTargetOption[] = [];
+    for (const env of this._environments()) {
+      options.push({
+        key: personalPublishTargetKey(env.id),
+        name: env.name,
+        group: 'personal'
+      });
+    }
+    for (const section of this.workspaceCatalogWithEnvironments()) {
+      for (const shared of section.environments) {
+        options.push({
+          key: workspaceEnvironmentSyntheticId(section.workspaceId, shared.id),
+          name: shared.name,
+          group: 'workspace',
+          workspaceId: section.workspaceId,
+          workspaceName: section.workspaceName
+        });
+      }
+    }
+    return options;
+  }
+
+  resolveEnvironmentByPublishKey(key: string): CqlEnvironment | null {
+    const trimmed = key?.trim() ?? '';
+    if (!trimmed) {
+      return null;
+    }
+    if (isPersonalPublishTargetKey(trimmed)) {
+      const id = trimmed.slice('personal:'.length);
+      const env = this._environments().find(e => e.id === id);
+      return env ? this.cloneEnvironment(env) : null;
+    }
+    if (trimmed.startsWith('ws:')) {
+      const rest = trimmed.slice('ws:'.length);
+      const sep = rest.indexOf(':');
+      if (sep <= 0 || sep === rest.length - 1) {
+        return null;
+      }
+      const workspaceId = rest.slice(0, sep);
+      const environmentId = rest.slice(sep + 1);
+      const mapped = this.mapWorkspaceEnvironment(workspaceId, environmentId);
+      return mapped ? this.cloneEnvironment(mapped) : null;
+    }
+    return null;
+  }
+
+  /** True when `key` refers to the currently active personal or workspace environment. */
+  isPublishTargetKeyActive(key: string): boolean {
+    const trimmed = key?.trim() ?? '';
+    if (!trimmed) {
+      return false;
+    }
+    if (isPersonalPublishTargetKey(trimmed)) {
+      const id = trimmed.slice('personal:'.length);
+      return this.isPersonalEnvironmentSelected(id);
+    }
+    if (trimmed.startsWith('ws:')) {
+      const rest = trimmed.slice('ws:'.length);
+      const sep = rest.indexOf(':');
+      if (sep <= 0 || sep === rest.length - 1) {
+        return false;
+      }
+      return this.isWorkspaceEnvironmentSelected(rest.slice(0, sep), rest.slice(sep + 1));
+    }
+    return false;
   }
 
   scrubbedConfigFromEnvironment(env: CqlEnvironment): SharedEnvironmentConfig {

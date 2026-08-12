@@ -105,12 +105,15 @@
           </ul>
         </li>
 
+
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="terminologyDropdown" role="button" data-bs-toggle="dropdown"
+          <a class="nav-link dropdown-toggle" href="#" id="toolsDropdown" role="button" data-bs-toggle="dropdown"
             aria-expanded="false">
-            Terminology
+            <!-- <i class="bi bi-tools me-1"></i> -->
+            Tools
           </a>
-          <ul class="dropdown-menu" aria-labelledby="terminologyDropdown">
+          <ul class="dropdown-menu" aria-labelledby="toolsDropdown">
+            <h6 class="dropdown-header">Terminology</h6>
             <li>
               <a id="terminology-nav-link" class="dropdown-item" routerLink="/terminology" routerLinkActive="active">
                 <i class="bi bi-book me-2"></i>Terminology Browser
@@ -121,15 +124,9 @@
                 <i class="bi bi-cloud-download me-2"></i>VSAC Browser
               </a>
             </li>
-          </ul>
-        </li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="toolsDropdown" role="button" data-bs-toggle="dropdown"
-            aria-expanded="false">
-            <!-- <i class="bi bi-tools me-1"></i> -->
-            Tools
-          </a>
-          <ul class="dropdown-menu" aria-labelledby="toolsDropdown">
+            <li>
+              <hr class="dropdown-divider">
+            </li>
             <h6 class="dropdown-header">Import</h6>
 
             <li>
@@ -168,28 +165,28 @@
       </ul>
       <ul class="navbar-nav">
         @if (authService.ssoEnabled() && authService.isAuthenticated()) {
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="teamDropdown" role="button" data-bs-toggle="dropdown"
-              aria-expanded="false">
-              Team
-            </a>
-            <ul class="dropdown-menu" aria-labelledby="teamDropdown">
-              <li>
-                <a id="team-dashboard-nav-link" class="dropdown-item" routerLink="/team/dashboard"
-                  routerLinkActive="active">
-                  <!-- <i class="bi bi-speedometer2 me-2"></i> -->
-                  Dashboard
-                </a>
-              </li>
-              <li>
-                <a id="team-workspaces-nav-link" class="dropdown-item" routerLink="/team/workspaces"
-                  routerLinkActive="active">
-                  <!-- <i class="bi bi-people me-2"></i> -->
-                  Workspaces
-                </a>
-              </li>
-            </ul>
-          </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="teamDropdown" role="button" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            Team
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="teamDropdown">
+            <li>
+              <a id="team-dashboard-nav-link" class="dropdown-item" routerLink="/team/dashboard"
+                routerLinkActive="active">
+                <!-- <i class="bi bi-speedometer2 me-2"></i> -->
+                Dashboard
+              </a>
+            </li>
+            <li>
+              <a id="team-workspaces-nav-link" class="dropdown-item" routerLink="/team/workspaces"
+                routerLinkActive="active">
+                <!-- <i class="bi bi-people me-2"></i> -->
+                Workspaces
+              </a>
+            </li>
+          </ul>
+        </li>
         }
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="learningDropdown" role="button" data-bs-toggle="dropdown"
@@ -277,24 +274,25 @@
             </li>
             }
             @if (authService.isAuthenticated()) {
-              @for (section of workspaceEnvironmentSections(); track section.workspaceId) {
-              <li>
-                <hr class="dropdown-divider">
-              </li>
-              <h6 class="dropdown-header" [id]="'environment-switcher-workspace-' + section.workspaceId">{{ section.workspaceName }}</h6>
-              @for (env of section.environments; track env.id) {
-              <li>
-                <button type="button" class="dropdown-item d-flex justify-content-between align-items-center"
-                  [id]="'environment-switcher-ws-' + section.workspaceId + '-' + env.id"
-                  (click)="activateWorkspaceEnvironment(section.workspaceId, env.id)">
-                  <span class="text-truncate">{{ env.name }}</span>
-                  @if (isWorkspaceEnvironmentSelected(section.workspaceId, env.id)) {
-                  <span class="bi bi-check-lg ms-2"></span>
-                  }
-                </button>
-              </li>
-              }
-              }
+            @for (section of workspaceEnvironmentSections(); track section.workspaceId) {
+            <li>
+              <hr class="dropdown-divider">
+            </li>
+            <h6 class="dropdown-header" [id]="'environment-switcher-workspace-' + section.workspaceId">{{
+              section.workspaceName }}</h6>
+            @for (env of section.environments; track env.id) {
+            <li>
+              <button type="button" class="dropdown-item d-flex justify-content-between align-items-center"
+                [id]="'environment-switcher-ws-' + section.workspaceId + '-' + env.id"
+                (click)="activateWorkspaceEnvironment(section.workspaceId, env.id)">
+                <span class="text-truncate">{{ env.name }}</span>
+                @if (isWorkspaceEnvironmentSelected(section.workspaceId, env.id)) {
+                <span class="bi bi-check-lg ms-2"></span>
+                }
+              </button>
+            </li>
+            }
+            }
             }
             <li>
               <hr class="dropdown-divider">

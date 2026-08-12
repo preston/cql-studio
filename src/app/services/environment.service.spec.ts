@@ -143,4 +143,87 @@ describe('EnvironmentService', () => {
     expect(service.activeEnvironmentSource()).toBe('personal');
     expect(service.activeEnvironment().id).toBe(BUILT_IN_ENVIRONMENT_ID);
   });
+
+  it('resolves effective addresses for a non-active environment', () => {
+    const copy = service.duplicateEnvironment(BUILT_IN_ENVIRONMENT_ID)!;
+    service.updateEnvironment({
+      ...copy,
+      evaluationServer: { address: 'http://other/eval' },
+      dataEndpoint: { address: '' },
+      terminologyEndpoint: { address: 'http://other/term' },
+      contentEndpoint: { address: '' }
+    });
+    const resolved = service.environments().find(e => e.id === copy.id)!;
+    expect(service.getEffectiveAddressForRoleOnEnvironment(resolved, 'data')).toBe('http://other/eval');
+    expect(service.getEffectiveAddressForRoleOnEnvironment(resolved, 'terminology')).toBe(
+      'http://other/term'
+    );
+    // Active env still uses built-in defaults / prior addresses
+    expect(service.getEffectiveAddressForRole('data')).not.toBe('http://other/eval');
+  });
+
+  it('resolves publish target keys for personal and workspace environments', () => {
+    const copy = service.duplicateEnvironment(BUILT_IN_ENVIRONMENT_ID)!;
+    service.setWorkspaceCatalog([
+      {
+        workspaceId: 'ws-1',
+        workspaceName: 'Team Alpha',
+        environments: [
+          {
+            id: 'env-1',
+            workspaceId: 'ws-1',
+            name: 'Shared HAPI',
+            config: {
+              evaluationServer: { address: 'http://shared/fhir' },
+              dataEndpoint: { address: 'http://shared/data' },
+              terminologyEndpoint: { address: '' },
+              contentEndpoint: { address: '' },
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    ]);
+
+    const personal = service.resolveEnvironmentByPublishKey(`personal:${copy.id}`);
+    expect(personal?.id).toBe(copy.id);
+
+    const workspace = service.resolveEnvironmentByPublishKey('ws:ws-1:env-1');
+    expect(workspace?.evaluationServer.address).toBe('http://shared/fhir');
+    expect(workspace?.dataEndpoint.address).toBe('http://shared/data');
+
+    expect(service.resolveEnvironmentByPublishKey('personal:missing')).toBeNull();
+    expect(service.isPublishTargetKeyActive(`personal:${BUILT_IN_ENVIRONMENT_ID}`)).toBe(true);
+    expect(service.isPublishTargetKeyActive(`personal:${copy.id}`)).toBe(false);
+  });
+
+  it('lists personal and workspace export publish targets', () => {
+    service.setWorkspaceCatalog([
+      {
+        workspaceId: 'ws-1',
+        workspaceName: 'Team Alpha',
+        environments: [
+          {
+            id: 'env-1',
+            workspaceId: 'ws-1',
+            name: 'Shared HAPI',
+            config: {
+              evaluationServer: { address: 'http://shared/fhir' },
+              dataEndpoint: { address: '' },
+              terminologyEndpoint: { address: '' },
+              contentEndpoint: { address: '' },
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    ]);
+    const options = service.listExportPublishTargetOptions();
+    expect(options.some(o => o.key === `personal:${BUILT_IN_ENVIRONMENT_ID}` && o.group === 'personal')).toBe(
+      true
+    );
+    expect(options.some(o => o.key === 'ws:ws-1:env-1' && o.group === 'workspace')).toBe(true);
+  });
 });

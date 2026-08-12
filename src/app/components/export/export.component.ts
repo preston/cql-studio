@@ -23,7 +23,14 @@ import {
   validateFhirPackageManifestInput
 } from '../../services/fhir-package-manifest.lib';
 import { CrmiArtifactPackageService } from '../../services/crmi-artifact-package.service';
-import { ExportPublishService } from '../../services/export-publish.service';
+import {
+  ExportPublishService,
+  ExportPublishTarget
+} from '../../services/export-publish.service';
+import {
+  EnvironmentService,
+  ExportPublishTargetOption
+} from '../../services/environment.service';
 import { downloadBytes, downloadJson } from '../../services/download-blob.lib';
 import { buildTransactionBundle } from '../../services/fhir-bundle-transaction.lib';
 import { resourceTypeOf, isResourceType } from '../../services/fhir-resource-type.lib';
@@ -65,6 +72,12 @@ interface ExportDestinationMeta {
   help: string;
 }
 
+interface ExportPublishTargetGroup {
+  id: string;
+  label: string;
+  options: ExportPublishTargetOption[];
+}
+
 const EXPORT_WIZARD_STEPS: readonly ExportWizardStepMeta[] = [
   { id: 'destination', label: 'Destination' },
   { id: 'libraries', label: 'Libraries' },
@@ -88,15 +101,15 @@ const EXPORT_DESTINATIONS: readonly ExportDestinationMeta[] = [
   },
   {
     id: 'fhir-server',
-    label: 'Publish to FHIR server',
+    label: 'Copy to target environment',
     icon: 'bi-cloud-upload',
-    help: 'POST selected Libraries and terminology to your configured FHIR endpoints.'
+    help: 'Copy selected Libraries and terminology to another environment profile (not the active source environment).'
   },
   {
     id: 'crmi',
     label: 'CRMI artifact package',
     icon: 'bi-diagram-3',
-    help: 'Build a CRMI artifact Bundle for download or publish. Local packaging only.'
+    help: 'Build a CRMI artifact Bundle for download, or copy the packaged resources to another environment.'
   }
 ];
 
@@ -113,6 +126,7 @@ export class ExportComponent implements OnInit {
   private readonly crmiPackageService = inject(CrmiArtifactPackageService);
   private readonly publishService = inject(ExportPublishService);
   private readonly dataSearchService = inject(ExportDataSearchService);
+  private readonly environmentService = inject(EnvironmentService);
 
   readonly steps = EXPORT_WIZARD_STEPS;
   readonly destinations = EXPORT_DESTINATIONS;
@@ -146,6 +160,8 @@ export class ExportComponent implements OnInit {
   readonly conditionalCreate = signal(true);
   readonly crmiBundleType = signal<'transaction' | 'collection'>('transaction');
   readonly crmiAction = signal<'download-bundle' | 'download-tgz' | 'publish'>('download-bundle');
+  /** Selected personal/workspace environment key for copy destinations. */
+  readonly publishTargetKey = signal<string>('');
 
   readonly packageName = signal('org.example.cql-export');
   readonly packageVersion = signal('0.1.0');
@@ -170,6 +186,65 @@ export class ExportComponent implements OnInit {
   readonly selectedDestinationMeta = computed(() => {
     const id = this.destination();
     return id ? (this.destinations.find((d) => d.id === id) ?? null) : null;
+  });
+
+  readonly requiresPublishTarget = computed(() => {
+    const dest = this.destination();
+    return dest === 'fhir-server' || (dest === 'crmi' && this.crmiAction() === 'publish');
+  });
+
+  readonly publishTargetOptions = computed(() => this.environmentService.listExportPublishTargetOptions());
+
+  readonly publishTargetGroups = computed((): ExportPublishTargetGroup[] => {
+    const options = this.publishTargetOptions();
+    const groups: ExportPublishTargetGroup[] = [];
+    const personal = options.filter((o) => o.group === 'personal');
+    if (personal.length > 0) {
+      groups.push({ id: 'personal', label: 'Personal', options: personal });
+    }
+    const byWorkspace = new Map<string, ExportPublishTargetGroup>();
+    for (const opt of options) {
+      if (opt.group !== 'workspace' || !opt.workspaceId) {
+        continue;
+      }
+      let group = byWorkspace.get(opt.workspaceId);
+      if (!group) {
+        group = {
+          id: `workspace:${opt.workspaceId}`,
+          label: opt.workspaceName ?? 'Workspace',
+          options: []
+        };
+        byWorkspace.set(opt.workspaceId, group);
+        groups.push(group);
+      }
+      group.options.push(opt);
+    }
+    return groups;
+  });
+
+  readonly selectedPublishTargetEnv = computed(() => {
+    const key = this.publishTargetKey().trim();
+    if (!key || !this.requiresPublishTarget()) {
+      return null;
+    }
+    return this.environmentService.resolveEnvironmentByPublishKey(key);
+  });
+
+  readonly selectedPublishTargetPreview = computed(() => {
+    const env = this.selectedPublishTargetEnv();
+    if (!env) {
+      return null;
+    }
+    return {
+      name: env.name,
+      data: this.environmentService.getEffectiveAddressForRoleOnEnvironment(env, 'data'),
+      terminology: this.environmentService.getEffectiveAddressForRoleOnEnvironment(env, 'terminology')
+    };
+  });
+
+  readonly publishTargetIsActiveEnvironment = computed(() => {
+    const key = this.publishTargetKey().trim();
+    return !!key && this.environmentService.isPublishTargetKeyActive(key);
   });
 
   readonly sortedDependencyNodes = computed(() => {
@@ -285,11 +360,17 @@ export class ExportComponent implements OnInit {
       return false;
     }
     const dest = this.destination();
-    if (
-      (dest === 'fhir-server' || (dest === 'crmi' && this.crmiAction() === 'publish')) &&
-      g.hasBlockingMissing
-    ) {
-      return false;
+    if (this.requiresPublishTarget()) {
+      if (g.hasBlockingMissing) {
+        return false;
+      }
+      if (!this.publishTargetKey().trim() || !this.selectedPublishTargetEnv()) {
+        return false;
+      }
+      const preview = this.selectedPublishTargetPreview();
+      if (!preview?.data && !preview?.terminology) {
+        return false;
+      }
     }
     if (dest === 'fhir-package' || (dest === 'crmi' && this.crmiAction() === 'download-tgz')) {
       return this.packageValidation().valid;
@@ -309,7 +390,17 @@ export class ExportComponent implements OnInit {
     } else if (dest === 'fhir-server') {
       this.conditionalCreate.set(false);
     }
+    if (dest !== 'fhir-server' && dest !== 'crmi') {
+      this.publishTargetKey.set('');
+    }
     this.activeStep.set('libraries');
+  }
+
+  onCrmiActionChange(action: 'download-bundle' | 'download-tgz' | 'publish'): void {
+    this.crmiAction.set(action);
+    if (action !== 'publish') {
+      this.publishTargetKey.set('');
+    }
   }
 
   isLibrarySelected(lib: Library): boolean {
@@ -798,12 +889,13 @@ export class ExportComponent implements OnInit {
   }
 
   private async executeFhirServer(graph: ExportDependencyGraph): Promise<void> {
-    this.progressMessage.set('Publishing to FHIR server…');
+    this.progressMessage.set('Copying to target environment…');
+    const target = this.resolvePublishTarget();
     const resources = this.selectedResources(graph);
     const roots = this.selectedPrimaryLibraries(graph);
     if (this.conditionalCreate() && roots.length === 0) {
       throw new Error(
-        'Select at least one root library in the dependency table for conditional-create publish.'
+        'Select at least one root library in the dependency table for conditional-create copy.'
       );
     }
 
@@ -822,9 +914,11 @@ export class ExportComponent implements OnInit {
         packageName: this.packageName(),
         packageVersion: this.packageVersion()
       });
-      outcomes = await this.publishService.publishBundle(bundle, (m) => this.progressMessage.set(m));
+      outcomes = await this.publishService.publishBundle(bundle, target, (m) =>
+        this.progressMessage.set(m)
+      );
     } else {
-      outcomes = await this.publishService.publishResources(resources, (m) =>
+      outcomes = await this.publishService.publishResources(resources, target, (m) =>
         this.progressMessage.set(m)
       );
     }
@@ -832,7 +926,7 @@ export class ExportComponent implements OnInit {
     const ok = outcomes.every((o) => o.success);
     this.toastService.show({
       type: ok ? 'success' : 'error',
-      message: ok ? 'Publish completed.' : 'Publish completed with errors.'
+      message: ok ? 'Copy completed.' : 'Copy completed with errors.'
     });
   }
 
@@ -874,14 +968,37 @@ export class ExportComponent implements OnInit {
       return;
     }
 
-    this.progressMessage.set('Publishing CRMI package…');
-    const outcomes = await this.publishService.publishBundle(bundle, (m) => this.progressMessage.set(m));
+    this.progressMessage.set('Copying CRMI package to target environment…');
+    const target = this.resolvePublishTarget();
+    const outcomes = await this.publishService.publishBundle(bundle, target, (m) =>
+      this.progressMessage.set(m)
+    );
     this.lastOutcomes.set(outcomes.map((o) => o.message));
     const ok = outcomes.every((o) => o.success);
     this.toastService.show({
       type: ok ? 'success' : 'error',
-      message: ok ? 'CRMI publish completed.' : 'CRMI publish completed with errors.'
+      message: ok ? 'CRMI copy completed.' : 'CRMI copy completed with errors.'
     });
+  }
+
+  private resolvePublishTarget(): ExportPublishTarget {
+    const key = this.publishTargetKey().trim();
+    const env = this.environmentService.resolveEnvironmentByPublishKey(key);
+    if (!env) {
+      throw new Error('Select a target environment profile before copying.');
+    }
+    const fhirHeaders = {
+      'Content-Type': 'application/fhir+json',
+      Accept: 'application/fhir+json'
+    };
+    return {
+      data: this.environmentService.getEndpointHttpContextForEnvironment(env, 'data', fhirHeaders),
+      terminology: this.environmentService.getEndpointHttpContextForEnvironment(
+        env,
+        'terminology',
+        fhirHeaders
+      )
+    };
   }
 
   private manifestInput(): FhirPackageManifestInput {

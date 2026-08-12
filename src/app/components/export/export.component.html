@@ -452,9 +452,6 @@
               CRMI conditional create (<code>ifNoneExist</code> on url+version)
             </label>
           </div>
-          <p class="form-text text-muted mb-0" id="export-endpoint-note">
-            Publish uses the active environment’s terminology and data FHIR endpoints (Libraries → data; ValueSets/CodeSystems → terminology).
-          </p>
         </div>
       }
 
@@ -480,15 +477,49 @@
                 id="export-crmi-action"
                 class="form-select"
                 [ngModel]="crmiAction()"
-                (ngModelChange)="crmiAction.set($event)"
+                (ngModelChange)="onCrmiActionChange($event)"
                 aria-label="Action">
                 <option value="download-bundle">Download Bundle JSON</option>
                 <option value="download-tgz">Download FHIR package (.tgz)</option>
-                <option value="publish">Publish to FHIR server</option>
+                <option value="publish">Copy to target environment</option>
               </select>
               <label for="export-crmi-action">Action</label>
             </div>
           </div>
+        </div>
+      }
+
+      @if (requiresPublishTarget()) {
+        <div class="mb-3" id="export-publish-target-section">
+          <div class="form-floating">
+            <select
+              id="export-publish-target"
+              class="form-select"
+              [ngModel]="publishTargetKey()"
+              (ngModelChange)="publishTargetKey.set($event)"
+              aria-label="Target environment">
+              <option value="">Select a target environment…</option>
+              @for (group of publishTargetGroups(); track group.id) {
+                <optgroup [label]="group.label">
+                  @for (opt of group.options; track opt.key) {
+                    <option [value]="opt.key">{{ opt.name }}</option>
+                  }
+                </optgroup>
+              }
+            </select>
+            <label for="export-publish-target">Target environment</label>
+          </div>
+          @if (selectedPublishTargetPreview(); as preview) {
+            <p class="form-text text-muted mb-0 mt-2" id="export-publish-target-preview">
+              Data: <code>{{ preview.data || '—' }}</code>
+              · Terminology: <code>{{ preview.terminology || '—' }}</code>
+            </p>
+          }
+          @if (publishTargetIsActiveEnvironment()) {
+            <div class="alert alert-warning mt-2 mb-0" id="export-publish-target-same-warning" role="alert">
+              The selected target is the same as the active source environment.
+            </div>
+          }
         </div>
       }
 
@@ -500,8 +531,8 @@
         (click)="execute()">
         @if (busy()) {
           Working…
-        } @else if (destination() === 'fhir-server' || (destination() === 'crmi' && crmiAction() === 'publish')) {
-          Publish
+        } @else if (requiresPublishTarget()) {
+          Copy
         } @else {
           Download
         }

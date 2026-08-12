@@ -1,18 +1,18 @@
 // Author: Preston Lee
 
 import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom, Observable } from 'rxjs';
 import { Bundle, Resource } from 'fhir/r4';
-import { FhirClientService } from './fhir-client.service';
-import { TerminologyService } from './terminology.service';
-import { SettingsService } from './settings.service';
+import { EndpointHttpContext } from '../models/environment.model';
 import { resourceTypeOf } from './fhir-resource-type.lib';
-import { collectionBundleToTransaction } from './fhir-bundle-transaction.lib';
+import { collectionBundleToTransaction, normalizeBundleForBasePost } from './fhir-bundle-transaction.lib';
 import {
   cloneBundleEntriesWithHapiSafeClientIds,
   cloneResourcesWithHapiSafeClientIds
 } from './fhir-hapi-client-id.lib';
 import { describeFhirHttpFailure } from './fhir-http-error.lib';
+import { normalizeFhirBaseUrlForBundlePost } from './fhir-server-base.lib';
 
 const TERMINOLOGY_TYPES = new Set(['CodeSystem', 'ValueSet', 'ConceptMap', 'NamingSystem']);
 
@@ -30,13 +30,17 @@ export interface ExportPublishOutcome {
   response?: Bundle;
 }
 
+/** Explicit copy/publish destination; not the active/effective environment. */
+export interface ExportPublishTarget {
+  data: EndpointHttpContext;
+  terminology: EndpointHttpContext;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class ExportPublishService {
-  private readonly fhirClient = inject(FhirClientService);
-  private readonly terminologyService = inject(TerminologyService);
-  private readonly settingsService = inject(SettingsService);
+  private readonly http = inject(HttpClient);
 
   partitionResources(resources: Resource[]): { termRes: Resource[]; dataRes: Resource[] } {
     const termRes: Resource[] = [];
@@ -62,6 +66,7 @@ export class ExportPublishService {
    */
   async publishBundle(
     bundle: Bundle,
+    target: ExportPublishTarget,
     onProgress?: (message: string) => void
   ): Promise<ExportPublishOutcome[]> {
     const resources = (bundle.entry ?? [])
@@ -77,10 +82,10 @@ export class ExportPublishService {
               ...bundle,
               type: 'transaction'
             };
-      return this.publishPartitionedBundles(resources, transactionBundle, onProgress);
+      return this.publishPartitionedBundles(resources, transactionBundle, target, onProgress);
     }
 
-    return this.publishResources(resources, onProgress);
+    return this.publishResources(resources, target, onProgress);
   }
 
   /**
@@ -89,39 +94,39 @@ export class ExportPublishService {
    */
   async publishResources(
     resources: Resource[],
+    target: ExportPublishTarget,
     onProgress?: (message: string) => void
   ): Promise<ExportPublishOutcome[]> {
     const { termRes, dataRes } = this.partitionResources(resources);
+    this.assertTargetConfigured(target, termRes, dataRes);
     const outcomes: ExportPublishOutcome[] = [];
-    const tu = this.settingsService.getEffectiveTerminologyEndpointAddress().replace(/\/+$/, '');
-    const fu = this.settingsService.getEffectiveDataEndpointAddress().replace(/\/+$/, '');
+    const tu = target.terminology.address.replace(/\/+$/, '');
+    const fu = target.data.address.replace(/\/+$/, '');
     const merged = termRes.length > 0 && dataRes.length > 0 && tu === fu;
 
     if (merged) {
-      onProgress?.(`Publishing ${termRes.length + dataRes.length} resources (merged endpoint)…`);
+      onProgress?.(`Copying ${termRes.length + dataRes.length} resources (merged endpoint)…`);
       const bundle = this.toUnconditionalTransaction([...termRes, ...dataRes]);
-      outcomes.push(await this.postChannel(bundle, 'merged', (b) => this.terminologyService.postBundle(b)));
+      outcomes.push(await this.postChannel(bundle, 'merged', target.terminology));
       return outcomes;
     }
 
     if (termRes.length > 0) {
-      onProgress?.(`Publishing ${termRes.length} terminology resources…`);
+      onProgress?.(`Copying ${termRes.length} terminology resources…`);
       const bundle = this.toUnconditionalTransaction(termRes);
-      outcomes.push(
-        await this.postChannel(bundle, 'terminology', (b) => this.terminologyService.postBundle(b))
-      );
+      outcomes.push(await this.postChannel(bundle, 'terminology', target.terminology));
     }
     if (dataRes.length > 0) {
-      onProgress?.(`Publishing ${dataRes.length} data resources…`);
+      onProgress?.(`Copying ${dataRes.length} data resources…`);
       const bundle = this.toUnconditionalTransaction(dataRes);
-      outcomes.push(await this.postChannel(bundle, 'data', (b) => this.fhirClient.postBundle(b)));
+      outcomes.push(await this.postChannel(bundle, 'data', target.data));
     }
 
     if (outcomes.length === 0) {
       outcomes.push({
         channel: 'data',
         success: false,
-        message: 'No resources to publish.'
+        message: 'No resources to copy.'
       });
     }
     return outcomes;
@@ -130,9 +135,11 @@ export class ExportPublishService {
   private async publishPartitionedBundles(
     resources: Resource[],
     fullBundle: Bundle,
+    target: ExportPublishTarget,
     onProgress?: (message: string) => void
   ): Promise<ExportPublishOutcome[]> {
     const { termRes, dataRes } = this.partitionResources(resources);
+    this.assertTargetConfigured(target, termRes, dataRes);
     const entryByKey = new Map<string, NonNullable<Bundle['entry']>[number]>();
     for (const e of fullBundle.entry ?? []) {
       if (e.resource) {
@@ -146,42 +153,59 @@ export class ExportPublishService {
         .filter((e): e is NonNullable<Bundle['entry']>[number] => !!e);
 
     const outcomes: ExportPublishOutcome[] = [];
-    const tu = this.settingsService.getEffectiveTerminologyEndpointAddress().replace(/\/+$/, '');
-    const fu = this.settingsService.getEffectiveDataEndpointAddress().replace(/\/+$/, '');
+    const tu = target.terminology.address.replace(/\/+$/, '');
+    const fu = target.data.address.replace(/\/+$/, '');
     const merged = termRes.length > 0 && dataRes.length > 0 && tu === fu;
 
     if (merged) {
-      onProgress?.('Publishing CRMI transaction (merged endpoint)…');
+      onProgress?.('Copying transaction (merged endpoint)…');
       const bundle: Bundle = {
         resourceType: 'Bundle',
         type: 'transaction',
         entry: cloneBundleEntriesWithHapiSafeClientIds(pickEntries([...termRes, ...dataRes]))
       };
-      outcomes.push(await this.postChannel(bundle, 'merged', (b) => this.terminologyService.postBundle(b)));
+      outcomes.push(await this.postChannel(bundle, 'merged', target.terminology));
       return outcomes;
     }
 
     if (termRes.length > 0) {
-      onProgress?.('Publishing terminology CRMI transaction…');
+      onProgress?.('Copying terminology transaction…');
       const bundle: Bundle = {
         resourceType: 'Bundle',
         type: 'transaction',
         entry: cloneBundleEntriesWithHapiSafeClientIds(pickEntries(termRes))
       };
-      outcomes.push(
-        await this.postChannel(bundle, 'terminology', (b) => this.terminologyService.postBundle(b))
-      );
+      outcomes.push(await this.postChannel(bundle, 'terminology', target.terminology));
     }
     if (dataRes.length > 0) {
-      onProgress?.('Publishing data CRMI transaction…');
+      onProgress?.('Copying data transaction…');
       const bundle: Bundle = {
         resourceType: 'Bundle',
         type: 'transaction',
         entry: cloneBundleEntriesWithHapiSafeClientIds(pickEntries(dataRes))
       };
-      outcomes.push(await this.postChannel(bundle, 'data', (b) => this.fhirClient.postBundle(b)));
+      outcomes.push(await this.postChannel(bundle, 'data', target.data));
     }
     return outcomes;
+  }
+
+  private assertTargetConfigured(
+    target: ExportPublishTarget,
+    termRes: Resource[],
+    dataRes: Resource[]
+  ): void {
+    if (termRes.length > 0 && !target.terminology.address.trim()) {
+      throw new Error('Target environment has no terminology FHIR endpoint configured.');
+    }
+    if (dataRes.length > 0 && !target.data.address.trim()) {
+      throw new Error('Target environment has no data FHIR endpoint configured.');
+    }
+    if (termRes.length === 0 && dataRes.length === 0) {
+      return;
+    }
+    if (!target.data.address.trim() && !target.terminology.address.trim()) {
+      throw new Error('Target environment has no data or terminology FHIR endpoint configured.');
+    }
   }
 
   private toUnconditionalTransaction(resources: Resource[]): Bundle {
@@ -195,24 +219,40 @@ export class ExportPublishService {
     });
   }
 
+  private postBundleToContext(bundle: Bundle, ctx: EndpointHttpContext): Observable<Bundle> {
+    const baseUrl = normalizeFhirBaseUrlForBundlePost(ctx.address);
+    if (!baseUrl) {
+      return new Observable((subscriber) => {
+        subscriber.error(new Error('FHIR endpoint is not configured for the target environment'));
+      });
+    }
+    const payload = normalizeBundleForBasePost(bundle);
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/fhir+json',
+      Accept: 'application/fhir+json',
+      ...ctx.headers
+    });
+    return this.http.post<Bundle>(baseUrl, payload, { headers });
+  }
+
   private async postChannel(
     bundle: Bundle,
     channel: ExportPublishOutcome['channel'],
-    poster: (b: Bundle) => Observable<Bundle>
+    ctx: EndpointHttpContext
   ): Promise<ExportPublishOutcome> {
     try {
-      const response = await firstValueFrom(poster(bundle));
+      const response = await firstValueFrom(this.postBundleToContext(bundle, ctx));
       return {
         channel,
         success: true,
-        message: `Published ${bundle.entry?.length ?? 0} resources via ${channel}.`,
+        message: `Copied ${bundle.entry?.length ?? 0} resources via ${channel}.`,
         response
       };
     } catch (err) {
       return {
         channel,
         success: false,
-        message: `Publish failed (${channel}): ${describeFhirHttpFailure(err)}`
+        message: `Copy failed (${channel}): ${describeFhirHttpFailure(err)}`
       };
     }
   }
