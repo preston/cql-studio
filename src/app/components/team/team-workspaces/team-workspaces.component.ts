@@ -28,7 +28,7 @@ import {
   WorkspaceVisibility,
 } from '../../../models/team.model';
 
-type WorkspaceTab = 'resources' | 'access' | 'environments' | 'activity';
+type WorkspaceTab = 'resources' | 'environments' | 'activity' | 'settings';
 
 const RESOURCE_TYPE_OPTIONS = [
   'Library',
@@ -75,10 +75,14 @@ export class TeamWorkspacesComponent implements OnInit {
   readonly detailError = signal('');
   readonly activeTab = signal<WorkspaceTab>('resources');
   readonly showCreateModal = signal(false);
+  readonly showDeleteModal = signal(false);
 
   readonly newName = signal('');
   readonly newDescription = signal('');
   readonly newVisibility = signal<WorkspaceVisibility>('PRIVATE');
+
+  readonly editName = signal('');
+  readonly editDescription = signal('');
 
   readonly grantType = signal<WorkspacePrincipalType>('USER');
   readonly grantPrincipal = signal('');
@@ -133,6 +137,7 @@ export class TeamWorkspacesComponent implements OnInit {
         await this.loadDetail(id);
       } else {
         this.selected.set(null);
+        this.closeDeleteModal();
       }
     });
   }
@@ -143,6 +148,14 @@ export class TeamWorkspacesComponent implements OnInit {
 
   closeCreateModal(): void {
     this.showCreateModal.set(false);
+  }
+
+  openDeleteModal(): void {
+    this.showDeleteModal.set(true);
+  }
+
+  closeDeleteModal(): void {
+    this.showDeleteModal.set(false);
   }
 
   setTab(tab: WorkspaceTab): void {
@@ -177,6 +190,9 @@ export class TeamWorkspacesComponent implements OnInit {
         return;
       }
       this.selected.set(workspace);
+      this.editName.set(workspace.name);
+      this.editDescription.set(workspace.description ?? '');
+      this.closeDeleteModal();
       const [grants, environments, resources, activity] = await Promise.all([
         this.workspaceService.listGrants(id),
         this.workspaceService.listEnvironments(id),
@@ -237,6 +253,46 @@ export class TeamWorkspacesComponent implements OnInit {
       this.activity.set(await this.workspaceService.activity(ws.id, 50));
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to update visibility');
+    }
+  }
+
+  async saveWorkspaceDetails(): Promise<void> {
+    const ws = this.selected();
+    const name = this.editName().trim();
+    if (!ws || !name) {
+      return;
+    }
+    try {
+      const updated = await this.workspaceService.update(ws.id, {
+        name,
+        description: this.editDescription().trim() || null,
+      });
+      this.selected.set(updated);
+      this.editName.set(updated.name);
+      this.editDescription.set(updated.description ?? '');
+      await this.reloadList();
+      await this.environmentSwitchService.reloadWorkspaceCatalog();
+      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+    } catch (e) {
+      this.detailError.set((e as Error).message || 'Failed to update workspace');
+    }
+  }
+
+  async confirmDeleteWorkspace(): Promise<void> {
+    const ws = this.selected();
+    if (!ws) {
+      return;
+    }
+    try {
+      await this.workspaceService.delete(ws.id);
+      this.closeDeleteModal();
+      this.selected.set(null);
+      await this.reloadList();
+      await this.environmentSwitchService.reloadWorkspaceCatalog();
+      await this.router.navigate(['/team/workspaces']);
+    } catch (e) {
+      this.closeDeleteModal();
+      this.detailError.set((e as Error).message || 'Failed to delete workspace');
     }
   }
 

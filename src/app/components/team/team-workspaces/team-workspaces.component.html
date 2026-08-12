@@ -66,16 +66,6 @@
               <button
                 type="button"
                 class="nav-link"
-                id="team-workspace-tab-access"
-                [class.active]="activeTab() === 'access'"
-                (click)="setTab('access')">
-                Access
-              </button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button
-                type="button"
-                class="nav-link"
                 id="team-workspace-tab-environments"
                 [class.active]="activeTab() === 'environments'"
                 (click)="setTab('environments')">
@@ -90,6 +80,16 @@
                 [class.active]="activeTab() === 'activity'"
                 (click)="setTab('activity')">
                 Activity
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link"
+                id="team-workspace-tab-settings"
+                [class.active]="activeTab() === 'settings'"
+                (click)="setTab('settings')">
+                Settings
               </button>
             </li>
           </ul>
@@ -265,9 +265,39 @@
             </div>
           }
 
-          @if (activeTab() === 'access') {
-            <div id="team-workspace-panel-access">
+          @if (activeTab() === 'settings') {
+            <div id="team-workspace-panel-settings">
               @if (isOwner()) {
+                <div class="d-flex flex-column gap-3 mb-4">
+                  <div class="form-floating">
+                    <input
+                      id="team-workspace-edit-name"
+                      class="form-control"
+                      placeholder="Name"
+                      [ngModel]="editName()"
+                      (ngModelChange)="editName.set($event)" />
+                    <label for="team-workspace-edit-name">Name</label>
+                  </div>
+                  <div class="form-floating">
+                    <input
+                      id="team-workspace-edit-description"
+                      class="form-control"
+                      placeholder="Description"
+                      [ngModel]="editDescription()"
+                      (ngModelChange)="editDescription.set($event)" />
+                    <label for="team-workspace-edit-description">Description</label>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      id="team-workspace-settings-save"
+                      class="btn btn-primary"
+                      (click)="saveWorkspaceDetails()">
+                      Save
+                    </button>
+                  </div>
+                </div>
+
                 <div class="form-floating mb-4" style="max-width: 12rem;">
                   <select
                     id="team-workspace-visibility"
@@ -369,6 +399,17 @@
                   }
                 </ul>
                 <p class="form-text">Use a team id when granting Team access on a workspace.</p>
+              }
+
+              @if (isOwner()) {
+                <hr class="my-4" />
+                <button
+                  type="button"
+                  id="team-workspace-delete-button"
+                  class="btn btn-outline-danger"
+                  (click)="openDeleteModal()">
+                  Delete Workspace
+                </button>
               }
             </div>
           }
@@ -572,6 +613,49 @@
           <button type="button" class="btn btn-secondary" id="team-workspace-create-cancel" (click)="closeCreateModal()">Cancel</button>
           <button type="button" id="team-workspace-create-button" class="btn btn-primary" (click)="createWorkspace()">
             Create
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showDeleteModal()) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1" role="dialog" id="team-workspace-delete-modal" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="team-workspace-delete-modal-title">Delete workspace</h5>
+          <button
+            type="button"
+            class="btn-close"
+            id="team-workspace-delete-modal-close"
+            aria-label="Close"
+            (click)="closeDeleteModal()"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">Are you sure you want to delete this workspace? This action cannot be undone.</p>
+          @if (selected(); as ws) {
+            <p class="small text-body-secondary mb-0">
+              Workspace: <strong>{{ ws.name }}</strong>
+            </p>
+          }
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="team-workspace-delete-cancel"
+            (click)="closeDeleteModal()">
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            id="team-workspace-delete-confirm"
+            (click)="confirmDeleteWorkspace()">
+            Delete Workspace
           </button>
         </div>
       </div>
