@@ -28,6 +28,11 @@ export function fhirOutcomeSummary(outcome: OperationOutcome | undefined): strin
  */
 export function describeFhirHttpFailure(e: unknown): string {
   if (e instanceof HttpErrorResponse) {
+    // status 0: browser blocked the request (offline, CORS, DNS, refused connection, etc.)
+    if (e.status === 0) {
+      const url = e.url ? ` (${e.url})` : '';
+      return `Unable to connect to the FHIR server${url}`;
+    }
     const errBody = e.error;
     if (errBody != null && typeof errBody === 'object' && 'issue' in errBody) {
       const msg = fhirOutcomeSummary(errBody as OperationOutcome).replace(/^\s*—\s*/, '');

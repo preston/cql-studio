@@ -3,7 +3,11 @@
   <div class="mb-3">
 
     <div class="px-3 mb-3 mt-3">
-      <button class="btn btn-primary btn-sm w-100" (click)="createNewLibraryResource()" title="Create New Library">
+      <button
+        id="ide-create-new-library"
+        class="btn btn-primary btn-sm w-100"
+        (click)="openNewLibraryModal()"
+        title="Create New Library">
         <i class="bi bi-plus me-1"></i>
         Create New Library
       </button>
@@ -234,3 +238,10 @@
     }
   </div>
 </div>
+
+@if (showNewLibraryModal()) {
+  <app-new-library-modal
+    (create)="onNewLibraryCreate($event)"
+    (cancel)="onNewLibraryModalCancel()">
+  </app-new-library-modal>
+}

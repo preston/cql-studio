@@ -10,12 +10,14 @@ import { IdeContextService } from '../../../../services/ide-context.service';
 import { IdeContextType } from '../../../../models/ide-context.model';
 import { IdeStateService, TabDataScope } from '../../../../services/ide-state.service';
 import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
-import { SettingsService } from '../../../../services/settings.service';
 import { isResourceType } from '../../../../services/fhir-resource-type.lib';
+import { describeFhirHttpFailure } from '../../../../services/fhir-http-error.lib';
+import { buildNewLibraryCql } from '../../../../services/new-cql-library.lib';
+import { NewLibraryModalComponent } from '../../new-library-modal/new-library-modal.component';
 
 @Component({
   selector: 'app-navigation-tab',
-  imports: [FormsModule],
+  imports: [FormsModule, NewLibraryModalComponent],
   templateUrl: './navigation-tab.component.html',
 
   styleUrls: ['./navigation-tab.component.scss']
@@ -27,7 +29,6 @@ export class NavigationTabComponent implements OnInit {
   protected readonly ideContextService = inject(IdeContextService);
   private readonly ideStateService = inject(IdeStateService);
   private readonly libraryOpenerService = inject(CqlIdeLibraryOpenerService);
-  private readonly settingsService = inject(SettingsService);
 
   protected readonly paginatedLibraries = signal<Library[]>([]);
   protected readonly currentPage = signal(1);
@@ -50,6 +51,7 @@ export class NavigationTabComponent implements OnInit {
   protected readonly showGroupSearchResults = signal(false);
 
   protected readonly contextType = this.ideContextService.contextType;
+  protected readonly showNewLibraryModal = signal(false);
 
   public Math = Math;
 
@@ -70,27 +72,34 @@ export class NavigationTabComponent implements OnInit {
     this.loadPaginatedLibraries();
   }
 
-  createNewLibraryResource(): void {
-    const newId = `new-library-${Date.now()}`;
-    const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
-    const canonicalUrl = `${effectiveFhirBaseUrl}/Library/${newId}`;
-    
+  openNewLibraryModal(): void {
+    this.showNewLibraryModal.set(true);
+  }
+
+  onNewLibraryModalCancel(): void {
+    this.showNewLibraryModal.set(false);
+  }
+
+  onNewLibraryCreate(title: string): void {
+    this.showNewLibraryModal.set(false);
+
+    const cqlContent = buildNewLibraryCql(title);
     const libraryResource = {
-      id: newId,
-      name: 'NewLibrary',
-      title: 'New Library',
+      id: title,
+      name: title,
+      title,
       version: '1.0.0',
       description: 'New library',
-      url: canonicalUrl,
-      cqlContent: '',
-      originalContent: '',
+      url: this.libraryService.urlFor(title),
+      cqlContent,
+      originalContent: cqlContent,
       isActive: false,
       isDirty: false,
       library: null
     };
-    
+
     this.ideStateService.addLibraryResource(libraryResource);
-    this.ideStateService.selectLibraryResource(newId);
+    this.ideStateService.selectLibraryResource(title);
   }
 
   loadPaginatedLibraries(): void {
@@ -123,13 +132,11 @@ export class NavigationTabComponent implements OnInit {
           this.totalPages.set(this.currentPage());
         }
       },
-      error: (error: any) => {
+      error: (error: unknown) => {
         this.isLoadingLibraries.set(false);
-        console.error('Error loading paginated libraries:', error);
-        const errorMessage = error?.message || error?.error?.message || 'Unable to connect to server';
         this.ideStateService.addErrorOutput(
           'Library List Error',
-          `Failed to load libraries from server: ${errorMessage}`
+          `Failed to load libraries from server: ${describeFhirHttpFailure(error)}`
         );
         this.paginatedLibraries.set([]);
         this.totalPages.set(0);
@@ -228,9 +235,12 @@ export class NavigationTabComponent implements OnInit {
           this.totalPages.set(this.currentPage());
         }
       },
-      error: (error: any) => {
+      error: (error: unknown) => {
         this.isLoadingLibraries.set(false);
-        console.error('Error searching libraries:', error);
+        this.ideStateService.addErrorOutput(
+          'Library List Error',
+          `Failed to search libraries on server: ${describeFhirHttpFailure(error)}`
+        );
         this.paginatedLibraries.set([]);
         this.totalPages.set(0);
         this.totalLibraries.set(0);

@@ -1,0 +1,88 @@
+<div class="modal-backdrop fade show"></div>
+<div
+  class="modal fade show d-block"
+  tabindex="-1"
+  role="dialog"
+  id="new-library-modal"
+  aria-modal="true"
+  aria-labelledby="new-library-modal-title">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="new-library-modal-title">Create New Library</h5>
+        <button
+          type="button"
+          class="btn-close"
+          id="new-library-modal-close"
+          (click)="onCancel()"
+          aria-label="Close"
+          [disabled]="isValidating()">
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="new-library-title-input" class="form-label">
+            Title <span class="text-danger">*</span>
+          </label>
+          <input
+            type="text"
+            class="form-control"
+            id="new-library-title-input"
+            [class.is-invalid]="!!errorMessage()"
+            [ngModel]="title()"
+            (ngModelChange)="onTitleModelChange($event)"
+            (input)="onTitleInput($event)"
+            name="title"
+            required
+            autocomplete="off"
+            placeholder="e.g., MyLibrary"
+            [disabled]="isValidating()"
+            aria-describedby="new-library-title-help"
+          />
+          @if (errorMessage()) {
+            <div class="invalid-feedback d-block" id="new-library-title-error">
+              {{ errorMessage() }}
+            </div>
+          } @else {
+            <div class="form-text" id="new-library-title-help">
+              Must start with a letter and contain only letters, numbers, and underscores.
+              Used as Library ID, Name, and Title.
+            </div>
+          }
+        </div>
+
+        @if (previewUrl()) {
+          <div class="mb-0 small text-body-secondary">
+            <div><span class="fw-semibold">Library ID:</span> {{ title() }}</div>
+            <div class="text-truncate" [title]="previewUrl()">
+              <span class="fw-semibold">URL:</span> {{ previewUrl() }}
+            </div>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          id="new-library-modal-cancel"
+          (click)="onCancel()"
+          [disabled]="isValidating()">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          id="new-library-modal-submit"
+          (click)="onValidateAndCreate()"
+          [disabled]="!canSubmit()">
+          @if (isValidating()) {
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            Validating...
+          } @else {
+            Validate and Create
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
