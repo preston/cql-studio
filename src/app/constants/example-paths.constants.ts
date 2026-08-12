@@ -17,7 +17,7 @@ export class ExamplePaths {
   /** Built-in FHIR NPM packages under public/examples/packages. */
   static readonly PACKAGES_BASE = '/examples/packages';
   static readonly LIPID_MANAGEMENT_PACKAGE =
-    `${ExamplePaths.PACKAGES_BASE}/com.prestonlee.fhir.lipid-management-0.1.1.tgz`;
+    `${ExamplePaths.PACKAGES_BASE}/com.prestonlee.fhir.lipid-management-0.2.0.tgz`;
 }
 
 /** FHIR bundle and CQL examples under public/fhir. Update when adding/removing files in public/fhir/bundles or public/fhir/cql. */
