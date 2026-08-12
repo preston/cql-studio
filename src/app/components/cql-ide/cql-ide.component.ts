@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy, HostListener, viewChild, effect, inject, ElementRef, untracked } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, viewChild, viewChildren, effect, inject, ElementRef, untracked } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { IdeStateService } from '../../services/ide-state.service';
 import { IdeTabRegistryService } from '../../services/ide-tab-registry.service';
@@ -45,7 +45,7 @@ import { EditorTabsComponent } from './editors/editor-tabs/editor-tabs.component
 export class CqlIdeComponent implements OnInit, OnDestroy {
   private static readonly MAIN_CONTENT_MIN_WIDTH_PX = 200;
 
-  cqlEditor = viewChild(CqlEditorComponent);
+  cqlEditors = viewChildren(CqlEditorComponent);
   ideLayoutRef = viewChild<ElementRef<HTMLElement>>('ideLayout');
   
   // Simple state properties
@@ -331,6 +331,14 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   onLibraryIdChange(libraryId: string): void {
     this.activeLibraryId = libraryId;
     this.ideStateService.selectLibraryResource(libraryId);
+    queueMicrotask(() => {
+      const editor = this.activeCqlEditor();
+      if (!editor) {
+        return;
+      }
+      editor.refreshLayout();
+      this.onEditorSyntaxErrors(editor.getCurrentSyntaxErrors(), libraryId);
+    });
   }
 
 
@@ -521,10 +529,19 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     });
   }
 
+  private activeCqlEditor(): CqlEditorComponent | undefined {
+    const activeId = this.ideStateService.activeLibraryId();
+    if (!activeId) {
+      return undefined;
+    }
+    return this.cqlEditors().find((editor) => editor.libraryId() === activeId);
+  }
+
   onNavigateToLine(lineNumber: number): void {
     // Navigate to the specified line in the active CQL editor
-    if (this.cqlEditor()) {
-      this.cqlEditor()!.navigateToLine(lineNumber);
+    const editor = this.activeCqlEditor();
+    if (editor) {
+      editor.navigateToLine(lineNumber);
     } else {
       console.warn('CQL editor not available for navigation');
     }
@@ -561,16 +578,18 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   onInsertCqlCode(code: string): void {
-    if (this.cqlEditor()) {
-      this.cqlEditor()!.insertText(code);
+    const editor = this.activeCqlEditor();
+    if (editor) {
+      editor.insertText(code);
     } else {
       console.warn('CQL editor not available for code insertion');
     }
   }
 
   onReplaceCqlCode(code: string): void {
-    if (this.cqlEditor()) {
-      this.cqlEditor()!.setValue(code);
+    const editor = this.activeCqlEditor();
+    if (editor) {
+      editor.setValue(code);
     } else {
       console.warn('CQL editor not available for code replacement');
     }
@@ -596,7 +615,10 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     }
   }
 
-  onEditorSyntaxErrors(errors: string[]): void {
+  onEditorSyntaxErrors(errors: string[], libraryId: string): void {
+    if (this.ideStateService.activeLibraryId() !== libraryId) {
+      return;
+    }
     this.ideStateService.updateEditorState({
       syntaxErrors: errors,
       isValidSyntax: errors.length === 0
@@ -770,7 +792,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   async onValidateCql(): Promise<void> {
-    const editor = this.cqlEditor();
+    const editor = this.activeCqlEditor();
     if (!editor) {
       this.toastService.showWarning('Open a library to validate.', 'Validate CQL');
       return;

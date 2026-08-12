@@ -34,7 +34,10 @@
       <!-- CQL Editor -->
       <div class="editor-area">
         @for (library of ideStateService.libraryResources(); track library.id) {
-          @if (library.id === ideStateService.activeLibraryId()) {
+          <div
+            class="editor-wrapper"
+            [class.hidden]="library.id !== ideStateService.activeLibraryId()"
+            [attr.aria-hidden]="library.id !== ideStateService.activeLibraryId()">
             <app-cql-editor
               [libraryId]="library.id"
               [editorState]="ideStateService.editorState()"
@@ -45,14 +48,14 @@
               [contentLoadError]="library.contentLoadError ?? null"
               [isNewLibrary]="!library.library"
               (contentChange)="onEditorContentChange($event, library.id)"
-              (syntaxErrors)="onEditorSyntaxErrors($event)"
+              (syntaxErrors)="onEditorSyntaxErrors($event, library.id)"
               (executeLibrary)="onExecuteLibrary()"
               (reloadLibrary)="onReloadLibrary()"
               (formatCql)="onFormatCql()"
               (validateCql)="onValidateCql()"
               (saveLibrary)="onSaveLibrary()">
             </app-cql-editor>
-          }
+          </div>
         }
         @if (ideStateService.activeLibraryId() == null) {
           <div class="d-flex align-items-center justify-content-center h-100 p-4">

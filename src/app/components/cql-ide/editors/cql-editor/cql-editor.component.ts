@@ -354,16 +354,15 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
             const text = update.state.doc.toString();
             const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
             
-            // Note: Validation is handled automatically by CodeMirror's lint extension
-            // The lint source function will be called automatically when the document changes
-            
-            // Emit editor state change
-            this.editorStateChange.emit({
-              cursorPosition: this.getCursorPosition(),
-              wordCount: wordCount,
-              syntaxErrors: this.getSyntaxErrors(),
-              isValidSyntax: this.getIsValidSyntax()
-            });
+            // Emit editor state change only for document edits (not cursor-only updates)
+            if (update.docChanged) {
+              this.editorStateChange.emit({
+                cursorPosition: this.getCursorPosition(),
+                wordCount: wordCount,
+                syntaxErrors: this.getSyntaxErrors(),
+                isValidSyntax: this.getIsValidSyntax()
+              });
+            }
           }),
           EditorView.domEventHandlers({
             focus: () => {}
@@ -949,6 +948,17 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
   private getSyntaxErrors(): string[] {
     return this.currentValidationErrors;
+  }
+
+  getCurrentSyntaxErrors(): string[] {
+    return this.currentValidationErrors;
+  }
+
+  refreshLayout(): void {
+    if (!this.editor || this.viewDestroyed) {
+      return;
+    }
+    this.editor.requestMeasure();
   }
 
   private getIsValidSyntax(): boolean {
