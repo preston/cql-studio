@@ -5,7 +5,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from './settings.service';
 import { BaseService } from './base.service';
-import { buildHttpHeaders } from './endpoint-config.lib';';
+import { buildHttpHeaders } from './endpoint-config.lib';
 
 export interface CapabilitySearchParam {
   name: string;
