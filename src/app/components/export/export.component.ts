@@ -97,13 +97,13 @@ const EXPORT_DESTINATIONS: readonly ExportDestinationMeta[] = [
     id: 'fhir-package',
     label: 'FHIR NPM package (.tgz)',
     icon: 'bi-box-seam',
-    help: 'Download a FHIR Packages–conformant Conformance .tgz with package.json and .index.json.'
+    help: 'Download a conformant FHIR Package .tgz with included package.json and .index.json manifests.'
   },
   {
     id: 'fhir-server',
     label: 'Copy to target environment',
     icon: 'bi-cloud-upload',
-    help: 'Copy selected Libraries and terminology to another environment profile (not the active source environment).'
+    help: 'Replicate selected Library and other FHIR resources to another configured environment profile.'
   },
   {
     id: 'crmi',
