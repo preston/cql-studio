@@ -677,6 +677,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         'Save the library before executing. Execution uses the saved version on the server.',
         'pending'
       );
+      this.ideStateService.activateOutputTab();
       return;
     }
 
@@ -1057,6 +1058,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         index => `output_${index}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
       );
       this.ideStateService.addOutputSections(sections);
+      this.ideStateService.activateOutputTab();
       return;
     }
 
@@ -1075,6 +1077,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       expanded: true,
       timestamp: new Date()
     });
+    this.ideStateService.activateOutputTab();
   }
 
   private addErrorToOutput(title: string, error: any): void {
@@ -1090,6 +1093,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       expanded: false,
       timestamp: new Date()
     });
+    this.ideStateService.activateOutputTab();
   }
 
   private formatExecutionResults(results: any[]): string {

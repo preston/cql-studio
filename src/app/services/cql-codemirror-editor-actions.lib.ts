@@ -12,6 +12,7 @@ import {
 } from '@codemirror/view';
 import { Extension, StateEffect, StateField, Transaction } from '@codemirror/state';
 import { CqlDefinitionIndex, CqlReferenceMatch } from './elm-locator.lib';
+import { isCqlIdentPart } from './cql-identifier.lib';
 
 export type CqlEditorActionId =
   | 'go-to-definition'
@@ -99,6 +100,78 @@ function primaryAction(actions: CqlEditorAction[]): CqlEditorAction | null {
   );
 }
 
+function enclosingQuoteRangeOnLine(
+  line: string,
+  localPos: number,
+  lineStart: number
+): { from: number; to: number } | null {
+  for (const quote of ['"', "'"] as const) {
+    let i = 0;
+    while (i < line.length) {
+      if (line[i] !== quote) {
+        i += 1;
+        continue;
+      }
+      const start = i;
+      i += 1;
+      while (i < line.length) {
+        if (line[i] === '\\' && i + 1 < line.length) {
+          i += 2;
+          continue;
+        }
+        if (line[i] === quote) {
+          const end = i + 1;
+          if (localPos >= start && localPos <= end) {
+            return { from: lineStart + start, to: lineStart + end };
+          }
+          i += 1;
+          break;
+        }
+        i += 1;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Document range that should keep a hover tooltip open while the pointer stays over the token.
+ * Without `end`, CodeMirror closes as soon as the mouse leaves the exact `pos`.
+ */
+function hoverKeepAliveRange(
+  view: EditorView,
+  pos: number,
+  handlers: EditorActionsHandlers
+): { from: number; to: number } {
+  const { line, column } = posToLineColumn(view, pos);
+  const underline = handlers.findUnderlineSpanAt?.(line, column);
+  if (underline && underline.from <= pos && pos <= underline.to) {
+    return underline;
+  }
+
+  const text = view.state.doc.toString();
+  const clamped = Math.max(0, Math.min(pos, text.length));
+  const lineInfo = view.state.doc.lineAt(clamped);
+  const local = clamped - lineInfo.from;
+  const quoted = enclosingQuoteRangeOnLine(lineInfo.text, local, lineInfo.from);
+  if (quoted) {
+    return quoted;
+  }
+
+  let from = clamped;
+  let to = clamped;
+  while (from > lineInfo.from && isCqlIdentPart(text[from - 1])) {
+    from -= 1;
+  }
+  while (to < lineInfo.to && isCqlIdentPart(text[to])) {
+    to += 1;
+  }
+  if (from < to) {
+    return { from, to };
+  }
+  return { from: clamped, to: Math.min(clamped + 1, lineInfo.to) };
+}
+
 function buildHoverPanelDom(
   view: EditorView,
   infoText: string | null,
@@ -158,17 +231,23 @@ function createUnifiedHoverTooltip(handlers: EditorActionsHandlers): Extension &
       if (!infoText && actions.length === 0) {
         return null;
       }
+      const range = hoverKeepAliveRange(view, pos, handlers);
       return {
-        pos,
+        pos: range.from,
+        end: range.to,
+        // Arrow hit-tests as part of the tooltip, bridging the gap to the text.
+        arrow: true,
         above: true,
         create() {
           return {
-            dom: buildHoverPanelDom(view, infoText, actions)
+            dom: buildHoverPanelDom(view, infoText, actions),
+            // Keep the panel snug to the arrow/text so the pointer can reach it.
+            offset: { x: 0, y: 0 }
           };
         }
       };
     },
-    { hoverTime: 100 }
+    { hoverTime: 250 }
   );
 }
 
@@ -272,6 +351,18 @@ export function createEditorActionsExtension(handlers: EditorActionsHandlers): E
         boxShadow: '0 0.5rem 1rem rgba(0, 0, 0, 0.15)',
         maxWidth: '28rem',
         padding: '0'
+      },
+      '.cm-tooltip.cm-tooltip-hover.cm-tooltip-above .cm-tooltip-arrow:before': {
+        borderTopColor: 'var(--bs-border-color, #dee2e6)'
+      },
+      '.cm-tooltip.cm-tooltip-hover.cm-tooltip-above .cm-tooltip-arrow:after': {
+        borderTopColor: 'var(--bs-body-bg, #fff)'
+      },
+      '.cm-tooltip.cm-tooltip-hover.cm-tooltip-below .cm-tooltip-arrow:before': {
+        borderBottomColor: 'var(--bs-border-color, #dee2e6)'
+      },
+      '.cm-tooltip.cm-tooltip-hover.cm-tooltip-below .cm-tooltip-arrow:after': {
+        borderBottomColor: 'var(--bs-body-bg, #fff)'
       },
       '.cm-cql-hover-panel': {
         minWidth: '12rem'

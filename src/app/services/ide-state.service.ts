@@ -696,6 +696,11 @@ export class IdeStateService {
     return current;
   }
 
+  activateOutputTab(): void {
+    this.ensureTabActive('output-tab');
+    this.bumpUiRevision();
+  }
+
   private ensureTabActive(tabId: string): void {
     for (const panelId of ['bottom', 'left', 'right'] as const) {
       const panel = this.getPanel(panelId);
