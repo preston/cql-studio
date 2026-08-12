@@ -35,6 +35,9 @@ import { ExamplesComponent } from './components/examples/examples.component';
 import { GLP1PrescribingExampleComponent } from './components/examples/glp1-prescribing-example/glp1-prescribing-example.component';
 import { LipidManagementExampleComponent } from './components/examples/lipid-management-example/lipid-management-example.component';
 import { HospitalAtHomeExampleComponent } from './components/examples/hospital-at-home-example/hospital-at-home-example.component';
+import { TeamDashboardComponent } from './components/team/team-dashboard/team-dashboard.component';
+import { TeamWorkspacesComponent } from './components/team/team-workspaces/team-workspaces.component';
+import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   // Normal app routes
@@ -56,6 +59,9 @@ export const routes: Routes = [
     ]
   },
   { path: 'dashboard', component: DashboardComponent },
+  { path: 'team/dashboard', component: TeamDashboardComponent, canActivate: [authGuard] },
+  { path: 'team/workspaces', component: TeamWorkspacesComponent, canActivate: [authGuard] },
+  { path: 'team/workspaces/:workspaceId', component: TeamWorkspacesComponent, canActivate: [authGuard] },
   { path: 'runner', component: RunnerComponent },
   { path: 'uploader', component: FhirUploaderComponent },
   { 

@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { ApplicationConfig, Injectable, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
+import { ApplicationConfig, Injectable, inject, provideAppInitializer, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideMarkdown } from 'ngx-markdown';
@@ -8,6 +8,7 @@ import { provideTimeago, TimeagoIntl, TimeagoFormatter, TimeagoCustomFormatter }
 import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 import { routes } from './app.routes';
+import { AuthService } from './services/auth.service';
 
 const timeagoShortStrings = {
   suffixAgo: '',
@@ -45,6 +46,7 @@ export const appConfig: ApplicationConfig = {
     provideTimeago({
       intl: { provide: TimeagoIntl, useClass: TimeagoShortIntl },
       formatter: { provide: TimeagoFormatter, useClass: TimeagoCustomFormatter }
-    })
+    }),
+    provideAppInitializer(() => inject(AuthService).refreshSession())
   ]
 };

@@ -1,0 +1,50 @@
+<div class="container py-4" id="team-dashboard">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Team Dashboard</h1>
+      <p class="text-body-secondary mb-0">Recent activity across workspaces you can access.</p>
+    </div>
+    <a id="team-dashboard-workspaces-link" class="btn btn-outline-primary" routerLink="/team/workspaces">
+      Workspaces
+    </a>
+  </div>
+
+  <div class="mb-3" style="max-width: 20rem;">
+    <label class="form-label" for="team-dashboard-workspace-filter">Filter by workspace</label>
+    <select
+      id="team-dashboard-workspace-filter"
+      class="form-select"
+      [ngModel]="workspaceFilter()"
+      (ngModelChange)="onFilterChange($event)">
+      <option value="">All workspaces</option>
+      @for (ws of workspaces(); track ws.id) {
+        <option [value]="ws.id">{{ ws.name }}</option>
+      }
+    </select>
+  </div>
+
+  @if (loading()) {
+    <div class="text-body-secondary">Loading…</div>
+  } @else if (error()) {
+    <div class="alert alert-danger" id="team-dashboard-error">{{ error() }}</div>
+  } @else if (activity().length === 0) {
+    <div class="text-body-secondary" id="team-dashboard-empty">No activity yet.</div>
+  } @else {
+    <ul class="list-group" id="team-dashboard-activity-list">
+      @for (item of activity(); track item.id) {
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between gap-3">
+            <div>
+              <strong>{{ actorLabel(item) }}</strong>
+              <span class="mx-1">{{ item.verb }}</span>
+              @if (item.workspace) {
+                <a [routerLink]="['/team/workspaces', item.workspace.id]">{{ item.workspace.name }}</a>
+              }
+            </div>
+            <small class="text-body-secondary text-nowrap">{{ item.createdAt | date: 'medium' }}</small>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

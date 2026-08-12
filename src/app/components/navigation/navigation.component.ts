@@ -8,6 +8,7 @@ import { SessionStorageKeys } from '../../constants/session-storage.constants';
 import { SettingsService } from '../../services/settings.service';
 import { EnvironmentService } from '../../services/environment.service';
 import { EnvironmentSwitchService } from '../../services/environment-switch.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-navigation',
@@ -25,6 +26,7 @@ export class NavigationComponent {
   protected readonly settingsService = inject(SettingsService);
   protected readonly environmentService = inject(EnvironmentService);
   private readonly environmentSwitchService = inject(EnvironmentSwitchService);
+  protected readonly authService = inject(AuthService);
 
   readonly activeEnvironmentName = computed(() => this.environmentService.activeEnvironment().name);
 
@@ -91,5 +93,14 @@ export class NavigationComponent {
 
   activateEnvironment(id: string): void {
     this.environmentSwitchService.activateEnvironment(id);
+  }
+
+  signIn(): void {
+    this.authService.login(this.router.url);
+  }
+
+  async signOut(): Promise<void> {
+    await this.authService.logout();
+    await this.router.navigate(['/']);
   }
 }

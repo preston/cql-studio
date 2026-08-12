@@ -48,6 +48,11 @@ npm install
 npm run start
 ```
 
+For a local HAPI FHIR R4 server and Authentik IdP used with SSO development:
+```bash
+docker compose -f docker-compose.development.yml up -d
+```
+
 ## Docker Details
 
 This application uses a multi-stage Docker build:
@@ -69,6 +74,8 @@ The application supports runtime configuration through environment variables. Th
 - **CQL_STUDIO_RUNNER_BASE_URL**: Specifies the base URL for the CQL Tests Runner service. This URL is used to communicate with the runner backend for executing CQL tests and retrieving results. Defaults to `http://localhost:3000`.
 
 - **CQL_STUDIO_FHIR_BASE_URL**: Specifies the base URL for the FHIR server. This URL is used for FHIR resource operations and data retrieval. Defaults to `http://localhost:8080/fhir`.
+
+Team collaboration (SSO, Teams, Workspaces) is configured on **cql-studio-server**. The UI calls that server via `CQL_STUDIO_SERVER_BASE_URL` (same as other Studio APIs). See the server README for `CQL_STUDIO_SERVER_SSO_*` / `CQL_STUDIO_SERVER_DATABASE_URL`.
 
 ### Including other CQL libraries
 

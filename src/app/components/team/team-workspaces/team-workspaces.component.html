@@ -1,0 +1,216 @@
+<div class="container py-4" id="team-workspaces">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Workspaces</h1>
+      <p class="text-body-secondary mb-0">
+        Collaboration containers with owner / editor / viewer grants for users and teams.
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" id="team-create-team-button" class="btn btn-outline-secondary" (click)="createTeam()">
+        New team
+      </button>
+      <a id="team-workspaces-dashboard-link" class="btn btn-outline-primary" routerLink="/team/dashboard">
+        Dashboard
+      </a>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger" id="team-workspaces-error">{{ error() }}</div>
+  }
+
+  <div class="row g-4">
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header">Create workspace</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label" for="team-workspace-new-name">Name</label>
+            <input id="team-workspace-new-name" class="form-control" [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
+          </div>
+          <div class="mb-2">
+            <label class="form-label" for="team-workspace-new-description">Description</label>
+            <input id="team-workspace-new-description" class="form-control" [ngModel]="newDescription()" (ngModelChange)="newDescription.set($event)" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="team-workspace-new-visibility">Visibility</label>
+            <select id="team-workspace-new-visibility" class="form-select" [ngModel]="newVisibility()" (ngModelChange)="newVisibility.set($event)">
+              <option value="PRIVATE">Private</option>
+              <option value="PUBLIC">Public</option>
+            </select>
+          </div>
+          <button type="button" id="team-workspace-create-button" class="btn btn-primary" (click)="createWorkspace()">
+            Create
+          </button>
+        </div>
+      </div>
+
+      <div class="list-group mt-3" id="team-workspaces-list">
+        @if (loading()) {
+          <div class="list-group-item text-body-secondary">Loading…</div>
+        } @else if (workspaces().length === 0) {
+          <div class="list-group-item text-body-secondary">No workspaces yet.</div>
+        } @else {
+          @for (ws of workspaces(); track ws.id) {
+            <a
+              class="list-group-item list-group-item-action"
+              [class.active]="selected()?.id === ws.id"
+              [id]="'team-workspace-list-' + ws.id"
+              [routerLink]="['/team/workspaces', ws.id]">
+              <div class="d-flex justify-content-between">
+                <strong>{{ ws.name }}</strong>
+                <span class="badge text-bg-secondary">{{ ws.visibility }}</span>
+              </div>
+              <small class="text-body-secondary">{{ ws.myRole || 'VIEWER' }}</small>
+            </a>
+          }
+        }
+      </div>
+
+      @if (teams().length) {
+        <div class="mt-3">
+          <h2 class="h6">Your teams</h2>
+          <ul class="list-group" id="team-list">
+            @for (team of teams(); track team.id) {
+              <li class="list-group-item d-flex justify-content-between">
+                <span>{{ team.name }}</span>
+                <code class="small">{{ team.id }}</code>
+              </li>
+            }
+          </ul>
+          <p class="form-text">Use a team id when granting Team access on a workspace.</p>
+        </div>
+      }
+    </div>
+
+    <div class="col-lg-8">
+      @if (detailError()) {
+        <div class="alert alert-danger" id="team-workspace-detail-error">{{ detailError() }}</div>
+      }
+
+      @if (!selected()) {
+        <div class="text-body-secondary" id="team-workspace-detail-empty">Select a workspace to manage grants, share links, and shared environments.</div>
+      } @else {
+        <div id="team-workspace-detail">
+          <h2 class="h4">{{ selected()!.name }}</h2>
+          <p class="text-body-secondary">{{ selected()!.description || 'No description' }}</p>
+          <p>
+            <span class="badge text-bg-primary me-2">{{ selected()!.myRole }}</span>
+            <span class="badge text-bg-secondary">{{ selected()!.visibility }}</span>
+          </p>
+
+          @if (isOwner()) {
+            <div class="mb-4">
+              <label class="form-label" for="team-workspace-visibility">Visibility</label>
+              <select
+                id="team-workspace-visibility"
+                class="form-select"
+                style="max-width: 12rem;"
+                [ngModel]="selected()!.visibility"
+                (ngModelChange)="saveVisibility($event)">
+                <option value="PRIVATE">Private</option>
+                <option value="PUBLIC">Public</option>
+              </select>
+            </div>
+
+            <h3 class="h5">Access grants</h3>
+            <div class="row g-2 align-items-end mb-2">
+              <div class="col-md-3">
+                <label class="form-label" for="team-grant-type">Principal</label>
+                <select id="team-grant-type" class="form-select" [ngModel]="grantType()" (ngModelChange)="grantType.set($event)">
+                  <option value="USER">User</option>
+                  <option value="TEAM">Team</option>
+                </select>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label" for="team-grant-principal-id">Id</label>
+                <input id="team-grant-principal-id" class="form-control" [ngModel]="grantPrincipalId()" (ngModelChange)="grantPrincipalId.set($event)" />
+              </div>
+              <div class="col-md-2">
+                <label class="form-label" for="team-grant-role">Role</label>
+                <select id="team-grant-role" class="form-select" [ngModel]="grantRole()" (ngModelChange)="grantRole.set($event)">
+                  <option value="OWNER">Owner</option>
+                  <option value="EDITOR">Editor</option>
+                  <option value="VIEWER">Viewer</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <button type="button" id="team-grant-add-button" class="btn btn-primary w-100" (click)="addGrant()">Add</button>
+              </div>
+            </div>
+            <ul class="list-group mb-4" id="team-workspace-grants">
+              @for (grant of grants(); track grant.id) {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <span>
+                    <span class="badge text-bg-light me-1">{{ grant.principalType }}</span>
+                    <code>{{ grant.principalId }}</code>
+                    <span class="ms-2">{{ grant.role }}</span>
+                    @if (grant.isGuest) {
+                      <span class="badge text-bg-info ms-1">guest</span>
+                    }
+                  </span>
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeGrant(grant.id)">Remove</button>
+                </li>
+              }
+            </ul>
+
+            <h3 class="h5">Share links</h3>
+            <button type="button" id="team-share-link-create" class="btn btn-outline-primary mb-2" (click)="createShareLink()">
+              Create 7-day viewer link
+            </button>
+            @if (lastShareToken()) {
+              <div class="alert alert-warning" id="team-share-link-token">
+                Copy this token now (shown once): <code>{{ lastShareToken() }}</code>
+              </div>
+            }
+            <ul class="list-group mb-4" id="team-share-links">
+              @for (link of shareLinks(); track link.id) {
+                <li class="list-group-item d-flex justify-content-between">
+                  <span>
+                    uses {{ link.useCount }}
+                    @if (link.revokedAt) {
+                      <span class="badge text-bg-secondary ms-1">revoked</span>
+                    } @else if (link.expiresAt) {
+                      <small class="text-body-secondary ms-2">expires {{ link.expiresAt | date: 'mediumDate' }}</small>
+                    }
+                  </span>
+                  @if (!link.revokedAt) {
+                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="revokeShareLink(link.id)">Revoke</button>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          <h3 class="h5">Shared environments</h3>
+          @if (canEdit()) {
+            <div class="input-group mb-2" style="max-width: 28rem;">
+              <input
+                id="team-shared-env-name"
+                class="form-control"
+                placeholder="Name for active environment"
+                [ngModel]="newEnvName()"
+                (ngModelChange)="newEnvName.set($event)" />
+              <button type="button" id="team-shared-env-share" class="btn btn-primary" (click)="shareActiveEnvironment()">
+                Share active (no secrets)
+              </button>
+            </div>
+          }
+          <ul class="list-group" id="team-shared-environments">
+            @for (env of environments(); track env.id) {
+              <li class="list-group-item d-flex justify-content-between">
+                <span>{{ env.name }}</span>
+                @if (canEdit()) {
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteEnvironment(env.id)">Delete</button>
+                }
+              </li>
+            } @empty {
+              <li class="list-group-item text-body-secondary">No shared environments.</li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+  </div>
+</div>
