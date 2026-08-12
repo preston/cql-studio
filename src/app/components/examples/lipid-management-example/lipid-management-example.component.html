@@ -1,10 +1,11 @@
 <div id="lipid-management-example">
   <h5 class="card-title mb-3">{{ example.title }}</h5>
-  @if (example.packageId) {
+  @if (example.packageId || example.packageUrl) {
     <div class="mb-3">
       <app-example-import-cta
         [packageId]="example.packageId"
         [packageVersion]="example.packageVersion"
+        [packageUrl]="example.packageUrl"
         buttonId="lipid-management-example-import-cta" />
     </div>
   } @else {

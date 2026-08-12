@@ -32,7 +32,6 @@ import { ExportComponent } from './components/export/export.component';
 import { SqlOnFhirComponent } from './components/sql-on-fhir/sql-on-fhir.component';
 import { sqlOnFhirGuard } from './components/sql-on-fhir/sql-on-fhir.guard';
 import { ExamplesComponent } from './components/examples/examples.component';
-import { GLP1PrescribingExampleComponent } from './components/examples/glp1-prescribing-example/glp1-prescribing-example.component';
 import { LipidManagementExampleComponent } from './components/examples/lipid-management-example/lipid-management-example.component';
 import { HospitalAtHomeExampleComponent } from './components/examples/hospital-at-home-example/hospital-at-home-example.component';
 import { TeamDashboardComponent } from './components/team/team-dashboard/team-dashboard.component';
@@ -52,8 +51,7 @@ export const routes: Routes = [
     path: 'examples',
     component: ExamplesComponent,
     children: [
-      { path: '', redirectTo: 'glp1', pathMatch: 'full' },
-      { path: 'glp1', component: GLP1PrescribingExampleComponent },
+      { path: '', redirectTo: 'lipid-management', pathMatch: 'full' },
       { path: 'lipid-management', component: LipidManagementExampleComponent },
       { path: 'hospital-at-home', component: HospitalAtHomeExampleComponent }
     ]

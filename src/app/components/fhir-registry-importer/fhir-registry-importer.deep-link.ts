@@ -15,8 +15,14 @@
  *   /fhir-registry-importer?source=local
  *
  * The tarball bytes are passed via {@link FhirPackageLocalUploadStagingService}, not query params.
+ *
+ * Package from an http(s) or same-origin path URL:
+ *
+ *   /fhir-registry-importer?source=url&url={encodedHttpOrSameOriginPath}
  */
 export const FHIR_REGISTRY_IMPORTER_QUERY_PACKAGE = 'package';
 export const FHIR_REGISTRY_IMPORTER_QUERY_VERSION = 'version';
 export const FHIR_REGISTRY_IMPORTER_QUERY_SOURCE = 'source';
+export const FHIR_REGISTRY_IMPORTER_QUERY_URL = 'url';
 export const FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL = 'local';
+export const FHIR_REGISTRY_IMPORTER_SOURCE_URL = 'url';

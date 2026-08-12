@@ -59,21 +59,36 @@ export class FhirPackageRegistryService {
     return res;
   }
 
-  private assertTarballUrlHttp(tarballUrl: string): void {
+  /**
+   * Resolve relative same-origin paths against the page origin, then require http(s).
+   */
+  resolveTarballUrl(tarballUrl: string): string {
+    const raw = tarballUrl.trim();
+    if (!raw) {
+      throw new Error('Invalid package download URL.');
+    }
     let u: URL;
     try {
-      u = new URL(tarballUrl);
+      u = new URL(raw, typeof window !== 'undefined' ? window.location.origin : undefined);
     } catch {
       throw new Error('Invalid package download URL.');
     }
     if (u.protocol !== 'https:' && u.protocol !== 'http:') {
       throw new Error('Unsupported package download URL scheme.');
     }
+    return u.href;
   }
 
   async fetchTarball(tarballUrl: string): Promise<ArrayBuffer> {
-    this.assertTarballUrlHttp(tarballUrl);
-    const res = await fetch(tarballUrl, { method: 'GET' });
+    const absoluteUrl = this.resolveTarballUrl(tarballUrl);
+    let res: Response;
+    try {
+      res = await fetch(absoluteUrl, { method: 'GET' });
+    } catch {
+      throw new Error(
+        'Package download failed. The host may be unreachable or blocked by CORS.'
+      );
+    }
     if (!res.ok) {
       throw new Error(`Package download failed: HTTP ${res.status}`);
     }

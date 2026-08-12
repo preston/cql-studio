@@ -32,8 +32,10 @@ import { FhirPackageLocalUploadStagingService } from '../../services/fhir-packag
 import {
   FHIR_REGISTRY_IMPORTER_QUERY_PACKAGE,
   FHIR_REGISTRY_IMPORTER_QUERY_SOURCE,
+  FHIR_REGISTRY_IMPORTER_QUERY_URL,
   FHIR_REGISTRY_IMPORTER_QUERY_VERSION,
-  FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL
+  FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL,
+  FHIR_REGISTRY_IMPORTER_SOURCE_URL
 } from './fhir-registry-importer.deep-link';
 import { ImplementationGuidePanelComponent } from '../shared/implementation-guide-panel/implementation-guide-panel.component';
 import { AddToWorkspacesPanelComponent } from '../shared/add-to-workspaces-panel/add-to-workspaces-panel.component';
@@ -132,10 +134,13 @@ export class FhirRegistryImporterComponent {
   protected readonly rootPackageName = signal<string | null>(null);
   protected readonly activePackageName = signal<string | null>(null);
   protected readonly findPackagesExpanded = signal(true);
-  /** When set, root package came from a local `.tgz` (not the registry). */
+  /** When set, root package came from a local `.tgz` or package URL (not the registry). */
   protected readonly localSourceFileName = signal<string | null>(null);
+  /** How a non-registry root was loaded; null when from registry. */
+  protected readonly nonRegistrySourceKind = signal<'file' | 'url' | null>(null);
   protected readonly localPackageLoading = signal(false);
   protected readonly localPackageError = signal<string | null>(null);
+  protected readonly packageUrlInput = signal('');
 
   protected readonly igSanitizeBeforeImport = signal(true);
   /**
@@ -426,7 +431,8 @@ export class FhirRegistryImporterComponent {
 
   /**
    * Deep-link entry point for query params from Examples, Uploader, or external systems.
-   * Supports `package` (+ optional `version`) for registry loads, or `source=local` for staged `.tgz`.
+   * Supports `package` (+ optional `version`) for registry loads, `source=local` for staged
+   * `.tgz`, or `source=url` + `url` for an http(s)/same-origin package archive.
    */
   private applyDeepLinkFromQueryParams(params: ParamMap): void {
     const source = params.get(FHIR_REGISTRY_IMPORTER_QUERY_SOURCE)?.trim();
@@ -455,6 +461,26 @@ export class FhirRegistryImporterComponent {
           },
           { injector: this.injector }
         );
+      });
+      return;
+    }
+
+    if (source === FHIR_REGISTRY_IMPORTER_SOURCE_URL) {
+      const packageUrl = params.get(FHIR_REGISTRY_IMPORTER_QUERY_URL)?.trim() ?? '';
+      const key = `source=url\0${packageUrl}`;
+      if (key === this.lastAppliedDeepLinkKey) {
+        return;
+      }
+      this.lastAppliedDeepLinkKey = key;
+      this.packageUrlInput.set(packageUrl);
+      const generation = ++this.deepLinkGeneration;
+      void this.loadPackageFromUrl(packageUrl).then((ok) => {
+        if (generation !== this.deepLinkGeneration) {
+          return;
+        }
+        if (!ok) {
+          this.lastAppliedDeepLinkKey = null;
+        }
       });
       return;
     }
@@ -497,6 +523,7 @@ export class FhirRegistryImporterComponent {
       );
       return false;
     }
+    this.nonRegistrySourceKind.set('file');
     return this.loadLocalPackageBytes(staged.fileName, staged.bytes);
   }
 
@@ -517,6 +544,7 @@ export class FhirRegistryImporterComponent {
       return false;
     }
     this.localPackageLoading.set(true);
+    this.nonRegistrySourceKind.set('file');
     try {
       const bytes = await file.arrayBuffer();
       const ok = await this.loadLocalPackageBytes(file.name, bytes);
@@ -533,6 +561,72 @@ export class FhirRegistryImporterComponent {
     } finally {
       this.localPackageLoading.set(false);
     }
+  }
+
+  async onPackageUrlLoad(): Promise<void> {
+    await this.loadPackageFromUrl(this.packageUrlInput());
+  }
+
+  async loadPackageFromUrl(rawUrl: string): Promise<boolean> {
+    const trimmed = rawUrl.trim();
+    this.localPackageError.set(null);
+    if (!trimmed) {
+      this.localPackageError.set('Enter an http(s) or same-origin URL to a FHIR package .tgz.');
+      return false;
+    }
+    const previousKind = this.nonRegistrySourceKind();
+    this.localPackageLoading.set(true);
+    this.nonRegistrySourceKind.set('url');
+    try {
+      let absoluteUrl: string;
+      try {
+        absoluteUrl = this.registryService.resolveTarballUrl(trimmed);
+      } catch (e) {
+        this.nonRegistrySourceKind.set(this.localSourceFileName() ? previousKind : null);
+        this.localPackageError.set(
+          e instanceof Error ? e.message : 'Invalid package download URL.'
+        );
+        return false;
+      }
+      const basename = this.tarballBasenameFromUrl(absoluteUrl);
+      const bytes = await this.registryService.fetchTarball(absoluteUrl);
+      const ok = await this.loadLocalPackageBytes(basename, bytes);
+      if (ok) {
+        this.localSourceFileName.set(trimmed);
+        this.findPackagesExpanded.set(false);
+        afterNextRender(
+          () => {
+            this.scrollToImportWorkspace();
+          },
+          { injector: this.injector }
+        );
+      } else if (!this.localSourceFileName()) {
+        this.nonRegistrySourceKind.set(null);
+      }
+      return ok;
+    } catch (e) {
+      this.nonRegistrySourceKind.set(this.localSourceFileName() ? previousKind : null);
+      this.localPackageError.set(
+        e instanceof Error ? e.message : 'Failed to download FHIR package.'
+      );
+      this.packageError.set(this.localPackageError());
+      return false;
+    } finally {
+      this.localPackageLoading.set(false);
+    }
+  }
+
+  private tarballBasenameFromUrl(absoluteUrl: string): string {
+    try {
+      const path = new URL(absoluteUrl).pathname;
+      const segment = path.split('/').filter(Boolean).pop() ?? '';
+      if (segment) {
+        return decodeURIComponent(segment);
+      }
+    } catch {
+      // fall through
+    }
+    return 'package.tgz';
   }
 
   private async loadLocalPackageBytes(fileName: string, bytes: ArrayBuffer): Promise<boolean> {
@@ -605,6 +699,7 @@ export class FhirRegistryImporterComponent {
       return false;
     }
     this.localSourceFileName.set(null);
+    this.nonRegistrySourceKind.set(null);
     this.localPackageError.set(null);
     this.selectedPackageId.set(id);
     this.manifest.set(null);

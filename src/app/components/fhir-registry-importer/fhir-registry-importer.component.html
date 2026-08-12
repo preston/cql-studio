@@ -72,7 +72,7 @@
             accept=".tgz,.tar.gz,application/gzip" (change)="onLocalPackageFileSelect($event)" />
           <label for="fhir-registry-importer-local-package-input" class="btn btn-sm btn-outline-secondary mb-0"
             id="fhir-registry-importer-choose-local-package">
-            @if (localPackageLoading()) {
+            @if (localPackageLoading() && nonRegistrySourceKind() === 'file') {
             <span class="spinner-border spinner-border-sm me-1" role="status"></span>
             } @else {
             <i class="bi bi-folder2-open me-1"></i>
@@ -84,6 +84,36 @@
           Must be a FHIR NPM package (not a generic npm tarball): <code>package/package.json</code> with FHIR name,
           version, author, description, and a core FHIR dependency.
         </small>
+        <div class="mt-3">
+          <label class="form-label fw-medium small mb-1" for="fhir-registry-importer-package-url-input">
+            Or load a FHIR package from URL
+          </label>
+          <div class="input-group">
+            <input
+              id="fhir-registry-importer-package-url-input"
+              type="text"
+              class="form-control"
+              placeholder="https://…/package.tgz or /examples/packages/…"
+              [ngModel]="packageUrlInput()"
+              (ngModelChange)="packageUrlInput.set($event)"
+              [disabled]="localPackageLoading()"
+              (keydown.enter)="$event.preventDefault(); onPackageUrlLoad()" />
+            <button
+              id="fhir-registry-importer-package-url-load"
+              type="button"
+              class="btn btn-outline-secondary"
+              [disabled]="localPackageLoading()"
+              (click)="onPackageUrlLoad()">
+              @if (localPackageLoading() && nonRegistrySourceKind() === 'url') {
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+              }
+              Load
+            </button>
+          </div>
+          <small class="form-text text-muted d-block mt-1">
+            Accepts http(s) or same-origin paths to a <code>.tgz</code>. Third-party hosts may fail CORS in the browser.
+          </small>
+        </div>
         @if (localPackageError()) {
         <div id="fhir-registry-importer-local-package-error" class="alert alert-danger mt-2 mb-0" role="alert">
           {{ localPackageError() }}
@@ -191,8 +221,12 @@
       <span class="bi bi-archive me-2"></span>
       <span class="fw-medium">{{ selectedPackageId() }}</span>
       @if (localSourceFileName()) {
+      @if (nonRegistrySourceKind() === 'url') {
+      <span class="badge text-bg-warning">Package URL</span>
+      } @else {
       <span class="badge text-bg-warning">Local package</span>
-      <span class="small text-muted ms-auto">{{ localSourceFileName() }}</span>
+      }
+      <span class="small text-muted ms-auto text-break">{{ localSourceFileName() }}</span>
       } @else {
       <span class="small text-muted ms-auto">Registry: {{ getEffectiveRegistryBase() }}</span>
       }
@@ -224,7 +258,9 @@
           @if (packageLoading()) {
           <div class="col-md-8 text-muted small">
             <span class="spinner-border spinner-border-sm me-2"></span>
-            @if (localSourceFileName()) {
+            @if (nonRegistrySourceKind() === 'url') {
+            Downloading and unpacking package…
+            } @else if (localSourceFileName()) {
             Unpacking local package…
             } @else {
             Downloading and unpacking package…
