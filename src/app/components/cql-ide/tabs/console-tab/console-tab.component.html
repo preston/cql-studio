@@ -1,26 +1,30 @@
 <div class="console-panel d-flex flex-column bg-body text-body">
-  <div class="console-toolbar d-flex align-items-center gap-2 px-2 border-bottom bg-body-secondary">
-    <button class="btn  btn-sm" (click)="onClearOutput()" title="Clear Console">
-      <i class="bi-trash me-1"></i> Clear
+  <div class="d-flex align-items-center flex-shrink-0 gap-1 px-2 py-1 border-bottom bg-body-secondary">
+    <button type="button" id="console-clear" class="btn btn-sm btn-link text-body-secondary text-decoration-none px-1 py-0"
+      (click)="onClearOutput()" title="Clear Console" aria-label="Clear Console">
+      <i class="bi bi-trash" aria-hidden="true"></i>
     </button>
-    <button class="btn  btn-sm" (click)="onCopyOutput()" title="Copy Console">
-      <i class="bi-copy me-1"></i> Copy
+    <button type="button" id="console-copy" class="btn btn-sm btn-link text-body-secondary text-decoration-none px-1 py-0"
+      (click)="onCopyOutput()" title="Copy Console" aria-label="Copy Console">
+      <i class="bi bi-copy" aria-hidden="true"></i>
     </button>
-    <button class="btn btn-sm" (click)="onExpandAllSections()" title="Expand All">
-      <i class="bi bi-expand me-1"></i> Expand All
+    <button type="button" id="console-expand-all" class="btn btn-sm btn-link text-body-secondary text-decoration-none px-1 py-0"
+      (click)="onExpandAllSections()" title="Expand All" aria-label="Expand All">
+      <i class="bi bi-arrows-expand" aria-hidden="true"></i>
     </button>
-    <button class="btn btn-sm" (click)="onCollapseAllSections()" title="Collapse All">
-      <i class="bi bi-collapse me-1"></i> Collapse All
+    <button type="button" id="console-collapse-all" class="btn btn-sm btn-link text-body-secondary text-decoration-none px-1 py-0"
+      (click)="onCollapseAllSections()" title="Collapse All" aria-label="Collapse All">
+      <i class="bi bi-arrows-collapse" aria-hidden="true"></i>
     </button>
     <div class="d-flex align-items-center gap-3 ms-auto">
-      <div class="form-check d-flex align-items-center gap-2">
+      <div class="form-check d-flex align-items-center gap-1 mb-0">
         <input class="form-check-input" type="checkbox" id="preserveLogs" [ngModel]="preserveLogs()"
           (ngModelChange)="onPreserveLogsChange($event)" title="Preserve logs between executions">
         <label class="form-check-label small text-body-secondary mb-0" for="preserveLogs">
           Preserve Logs
         </label>
       </div>
-      <div class="form-check d-flex align-items-center gap-2">
+      <div class="form-check d-flex align-items-center gap-1 mb-0">
         <input class="form-check-input" type="checkbox" id="autoscroll" [ngModel]="autoscrollEnabled"
           (ngModelChange)="onAutoscrollChange($event)" title="Automatically scroll to bottom when new content is added">
         <label class="form-check-label small text-body-secondary mb-0" for="autoscroll">
@@ -30,75 +34,78 @@
     </div>
   </div>
 
-  <div class="flex-fill overflow-auto" [class.executing]="isEvaluating()" #consoleContent (scroll)="onConsoleScroll($event)">
+  <div class="flex-fill overflow-auto" [class.executing]="isEvaluating()" #consoleContent
+    (scroll)="onConsoleScroll($event)">
     <div class="p-2">
       @for (section of outputSections(); track $index; let i = $index) {
-        <div class="console-section"
-             [class.expanded]="section.expanded"
-             [class.console-section-text]="section.type === 'text'"
-             [class.console-section-json]="section.type === 'json'"
-             [class.console-section-xml]="section.type === 'xml'"
-             [class.console-section-error]="section.type === 'error' || section.status === 'error'"
-             [class.console-section-warning]="section.type === 'warning'"
-             [class.console-section-info]="section.type === 'info'"
-             [class.console-section-custom]="section.type === 'custom'"
-             [class.console-section-cql-execution]="section.type === 'cql-execution'"
-             [class.console-section-cql-translation]="section.type === 'cql-translation'"
-             [class.console-section-cql-validation]="section.type === 'cql-validation'"
-             [class.console-section-success]="section.status === 'success'"
-             [class.console-section-pending]="section.status === 'pending'">
-          <div class="d-flex align-items-center gap-2 p-2 border-bottom console-section-header" (click)="onToggleSection(i)">
-            <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
-            <i class="bi {{ getOutputIcon(section) }} text-muted"></i>
-            <span class="fw-medium flex-fill text-body">{{ section.title }}</span>
-            <span class="badge" [class.bg-success]="section.status === 'success'"
-              [class.bg-danger]="section.status === 'error'"
-              [class.bg-warning]="section.status !== 'success' && section.status !== 'error'">
-              {{ section.status === 'success' ? 'SUCCESS' : section.status === 'error' ? 'ERROR' : 'PENDING' }}
-            </span>
-            @if (section.executionTime) {
-              <span class="small text-muted">{{ section.executionTime }}ms</span>
-            }
-            @if (section.timestamp) {
-              <span class="small text-muted">{{ section.timestamp | date:'HH:mm:ss.SSS' }}</span>
-            }
-          </div>
-          @if (section.expanded) {
-            <div class="p-3 bg-body console-section-content">
-              @switch (section.type) {
-                @case ('custom') {
-                  <!-- Custom output cards for CQL execution functions -->
-                  <app-custom-output-card [section]="section"></app-custom-output-card>
-                }
-                @case ('json') {
-                  <!-- Syntax highlighted output for JSON and XML -->
-                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
-                }
-                @case ('xml') {
-                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
-                }
-                @default {
-                  <!-- Standard syntax highlighted output for other types -->
-                  <app-syntax-highlighter [code]="section.content" [language]="getOutputLanguage(section)"></app-syntax-highlighter>
-                }
-              }
-            </div>
+      <div class="console-section" [class.expanded]="section.expanded"
+        [class.console-section-text]="section.type === 'text'" [class.console-section-json]="section.type === 'json'"
+        [class.console-section-xml]="section.type === 'xml'"
+        [class.console-section-error]="section.type === 'error' || section.status === 'error'"
+        [class.console-section-warning]="section.type === 'warning'"
+        [class.console-section-info]="section.type === 'info'"
+        [class.console-section-custom]="section.type === 'custom'"
+        [class.console-section-cql-execution]="section.type === 'cql-execution'"
+        [class.console-section-cql-translation]="section.type === 'cql-translation'"
+        [class.console-section-cql-validation]="section.type === 'cql-validation'"
+        [class.console-section-success]="section.status === 'success'"
+        [class.console-section-pending]="section.status === 'pending'">
+        <div class="d-flex align-items-center gap-2 p-2 border-bottom console-section-header"
+          (click)="onToggleSection(i)">
+          <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
+          <i class="bi {{ getOutputIcon(section) }} text-muted"></i>
+          <span class="fw-medium flex-fill text-body">{{ section.title }}</span>
+          <span class="badge" [class.bg-success]="section.status === 'success'"
+            [class.bg-danger]="section.status === 'error'"
+            [class.bg-warning]="section.status !== 'success' && section.status !== 'error'">
+            {{ section.status === 'success' ? 'SUCCESS' : section.status === 'error' ? 'ERROR' : 'PENDING' }}
+          </span>
+          @if (section.executionTime) {
+          <span class="small text-muted">{{ section.executionTime }}ms</span>
+          }
+          @if (section.timestamp) {
+          <span class="small text-muted">{{ section.timestamp | date:'HH:mm:ss.SSS' }}</span>
           }
         </div>
+        @if (section.expanded) {
+        <div class="p-3 bg-body console-section-content">
+          @switch (section.type) {
+          @case ('custom') {
+          <!-- Custom output cards for CQL execution functions -->
+          <app-custom-output-card [section]="section"></app-custom-output-card>
+          }
+          @case ('json') {
+          <!-- Syntax highlighted output for JSON and XML -->
+          <app-syntax-highlighter [code]="section.content"
+            [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+          }
+          @case ('xml') {
+          <app-syntax-highlighter [code]="section.content"
+            [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+          }
+          @default {
+          <!-- Standard syntax highlighted output for other types -->
+          <app-syntax-highlighter [code]="section.content"
+            [language]="getOutputLanguage(section)"></app-syntax-highlighter>
+          }
+          }
+        </div>
+        }
+      </div>
       }
     </div>
     @if (outputSections().length === 0 && !isEvaluating()) {
-      <div class="no-console d-flex flex-column align-items-center justify-content-center py-4 text-muted">
-        <span>No console output yet. Click "Execute All" to run open libraries.</span>
-      </div>
+    <div class="no-console d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+      <span>No console output yet. Click "Execute All" to run open libraries.</span>
+    </div>
     }
     @if (isEvaluating()) {
-      <div class="p-3 border-top bg-secondary">
-        <div class="progress mb-2">
-          <div class="progress-bar" [style.width.%]="executionProgress()"></div>
-        </div>
-        <span class="small text-body">{{ executionStatus() }}</span>
+    <div class="p-3 border-top bg-secondary">
+      <div class="progress mb-2">
+        <div class="progress-bar" [style.width.%]="executionProgress()"></div>
       </div>
+      <span class="small text-body">{{ executionStatus() }}</span>
+    </div>
     }
   </div>
 </div>
