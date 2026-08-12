@@ -5,7 +5,8 @@
     </div>
   </div>
 
-  <div class="mb-3" style="max-width: 20rem;">
+  <div class="mb-4" style="max-width: 16rem;">
+    <label for="team-dashboard-workspace-filter" class="form-label small mb-1">Workspace</label>
     <select
       id="team-dashboard-workspace-filter"
       class="form-select"
@@ -18,6 +19,191 @@
     </select>
   </div>
 
+  <div class="row g-3 mb-4" id="team-dashboard-charts">
+    <div class="col-12">
+      <div class="card" id="team-dashboard-series-chart">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-end justify-content-between">
+          <h2 class="h6 mb-0">Activity over time</h2>
+          <div class="d-flex flex-wrap gap-2">
+            <div>
+              <label for="team-dashboard-series-range" class="form-label small mb-1">Range</label>
+              <select
+                id="team-dashboard-series-range"
+                class="form-select form-select-sm"
+                [ngModel]="seriesRange()"
+                (ngModelChange)="onSeriesRangeChange($event)">
+                @for (opt of statsRanges; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label for="team-dashboard-series-interval" class="form-label small mb-1">Bucket</label>
+              <select
+                id="team-dashboard-series-interval"
+                class="form-select form-select-sm"
+                [ngModel]="seriesInterval()"
+                (ngModelChange)="onSeriesIntervalChange($event)">
+                @for (opt of statsIntervals; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          @if (seriesLoading()) {
+            <div class="text-body-secondary small">Loading…</div>
+          } @else if (seriesError()) {
+            <div class="alert alert-danger py-2 mb-0" id="team-dashboard-series-error">{{ seriesError() }}</div>
+          } @else if (seriesBuckets().every((b) => b.count === 0)) {
+            <div class="text-body-secondary small" id="team-dashboard-series-empty">No activity in this range.</div>
+          } @else {
+            <div class="team-dashboard-chart-wrap">
+              <canvas
+                id="team-dashboard-series-canvas"
+                baseChart
+                [data]="seriesChartData()"
+                [options]="seriesChartOptions"
+                type="line">
+              </canvas>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card h-100" id="team-dashboard-actor-chart">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-end justify-content-between">
+          <h2 class="h6 mb-0">Activity by actor</h2>
+          <div class="d-flex flex-wrap gap-2">
+            <div>
+              <label for="team-dashboard-actor-range" class="form-label small mb-1">Range</label>
+              <select
+                id="team-dashboard-actor-range"
+                class="form-select form-select-sm"
+                [ngModel]="actorRange()"
+                (ngModelChange)="onActorRangeChange($event)">
+                @for (opt of statsRanges; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label for="team-dashboard-actor-top" class="form-label small mb-1">Top</label>
+              <select
+                id="team-dashboard-actor-top"
+                class="form-select form-select-sm"
+                [ngModel]="actorTop()"
+                (ngModelChange)="onActorTopChange(+$event)">
+                @for (n of statsTopOptions; track n) {
+                  <option [value]="n">{{ n }}</option>
+                }
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          @if (actorLoading()) {
+            <div class="text-body-secondary small">Loading…</div>
+          } @else if (actorError()) {
+            <div class="alert alert-danger py-2 mb-0" id="team-dashboard-actor-error">{{ actorError() }}</div>
+          } @else if (actorRows().length === 0) {
+            <div class="text-body-secondary small" id="team-dashboard-actor-empty">No activity in this range.</div>
+          } @else {
+            <div class="team-dashboard-chart-wrap">
+              <canvas
+                id="team-dashboard-actor-canvas"
+                baseChart
+                [data]="actorChartData()"
+                [options]="actorChartOptions"
+                type="bar">
+              </canvas>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card h-100" id="team-dashboard-verb-chart">
+        <div class="card-header d-flex flex-wrap gap-2 align-items-end justify-content-between">
+          <h2 class="h6 mb-0">Activity by type</h2>
+          <div>
+            <label for="team-dashboard-verb-range" class="form-label small mb-1">Range</label>
+            <select
+              id="team-dashboard-verb-range"
+              class="form-select form-select-sm"
+              [ngModel]="verbRange()"
+              (ngModelChange)="onVerbRangeChange($event)">
+              @for (opt of statsRanges; track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="card-body">
+          @if (verbLoading()) {
+            <div class="text-body-secondary small">Loading…</div>
+          } @else if (verbError()) {
+            <div class="alert alert-danger py-2 mb-0" id="team-dashboard-verb-error">{{ verbError() }}</div>
+          } @else if (verbRows().length === 0) {
+            <div class="text-body-secondary small" id="team-dashboard-verb-empty">No activity in this range.</div>
+          } @else {
+            <div class="team-dashboard-chart-wrap">
+              <canvas
+                id="team-dashboard-verb-canvas"
+                baseChart
+                [data]="verbChartData()"
+                [options]="verbChartOptions"
+                type="doughnut">
+              </canvas>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 align-items-end mb-3" id="team-dashboard-log-controls">
+    <div style="max-width: 8rem; min-width: 6rem;">
+      <label for="team-dashboard-page-size" class="form-label small mb-1">Per page</label>
+      <select
+        id="team-dashboard-page-size"
+        class="form-select"
+        [ngModel]="pageSize()"
+        (ngModelChange)="onPageSizeChange(+$event)">
+        @for (size of availablePageSizes; track size) {
+          <option [value]="size">{{ size }}</option>
+        }
+      </select>
+    </div>
+    <div style="max-width: 10rem; min-width: 8rem;">
+      <label for="team-dashboard-sort-by" class="form-label small mb-1">Sort by</label>
+      <select
+        id="team-dashboard-sort-by"
+        class="form-select"
+        [ngModel]="sortBy()"
+        (ngModelChange)="onSortByChange($event)">
+        @for (opt of sortByOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+    <div style="max-width: 10rem; min-width: 8rem;">
+      <label for="team-dashboard-sort-order" class="form-label small mb-1">Order</label>
+      <select
+        id="team-dashboard-sort-order"
+        class="form-select"
+        [ngModel]="sortOrder()"
+        (ngModelChange)="onSortOrderChange($event)">
+        <option value="desc">Newest first</option>
+        <option value="asc">Oldest first</option>
+      </select>
+    </div>
+  </div>
+
   @if (loading()) {
     <div class="text-body-secondary">Loading…</div>
   } @else if (error()) {
@@ -25,6 +211,10 @@
   } @else if (activity().length === 0) {
     <div class="text-body-secondary" id="team-dashboard-empty">No activity yet.</div>
   } @else {
+    <div class="d-flex justify-content-between align-items-center mb-2 small text-body-secondary"
+      id="team-dashboard-page-summary">
+      <span>Showing {{ startIndex() }}–{{ endIndex() }} of {{ total() }}</span>
+    </div>
     <ul class="list-group" id="team-dashboard-activity-list">
       @for (item of activity(); track item.id) {
         <li class="list-group-item">
@@ -36,10 +226,47 @@
                 <a [routerLink]="['/team/workspaces', item.workspace.id]">{{ item.workspace.name }}</a>
               }
             </div>
-            <small class="text-body-secondary text-nowrap">{{ item.createdAt | date: 'medium' }}</small>
+            <small class="text-body-secondary text-nowrap">{{
+              (sortBy() === 'updatedAt' ? item.updatedAt : item.createdAt) | date: 'medium'
+            }}</small>
           </div>
         </li>
       }
     </ul>
+    @if (totalPages() > 1) {
+      <nav class="mt-3" aria-label="Activity log pagination" id="team-dashboard-pagination">
+        <ul class="pagination justify-content-center mb-0">
+          <li class="page-item" [class.disabled]="!hasPreviousPage()">
+            <button type="button" class="page-link" id="team-dashboard-pagination-first"
+              (click)="goToPage(1)" [disabled]="!hasPreviousPage()" title="First page">
+              <i class="bi bi-chevron-double-left"></i>
+            </button>
+          </li>
+          <li class="page-item" [class.disabled]="!hasPreviousPage()">
+            <button type="button" class="page-link" id="team-dashboard-pagination-prev"
+              (click)="goToPage(page() - 1)" [disabled]="!hasPreviousPage()" title="Previous">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+          </li>
+          <li class="page-item disabled">
+            <span class="page-link" id="team-dashboard-pagination-status">
+              {{ page() }} / {{ totalPages() }}
+            </span>
+          </li>
+          <li class="page-item" [class.disabled]="!hasNextPage()">
+            <button type="button" class="page-link" id="team-dashboard-pagination-next"
+              (click)="goToPage(page() + 1)" [disabled]="!hasNextPage()" title="Next">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </li>
+          <li class="page-item" [class.disabled]="!hasNextPage()">
+            <button type="button" class="page-link" id="team-dashboard-pagination-last"
+              (click)="goToPage(totalPages())" [disabled]="!hasNextPage()" title="Last page">
+              <i class="bi bi-chevron-double-right"></i>
+            </button>
+          </li>
+        </ul>
+      </nav>
+    }
   }
 </div>

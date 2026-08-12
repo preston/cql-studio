@@ -2,9 +2,10 @@
 
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { SettingsService } from './settings.service';
 import { BaseService } from './base.service';
-import { buildHttpHeaders } from './endpoint-config.lib';
+import { buildHttpHeaders } from './endpoint-config.lib';';
 
 export interface CapabilitySearchParam {
   name: string;
@@ -35,11 +36,14 @@ export class FhirCapabilityService extends BaseService {
 
   private readonly _loading = signal<boolean>(false);
   private readonly _error = signal<string | null>(null);
+  private readonly _loaded = signal<boolean>(false);
   private readonly _resourceTypes = signal<string[]>([]);
   private readonly _searchParamsByType = signal<Map<string, CapabilitySearchParam[]>>(new Map());
+  private loadPromise: Promise<void> | null = null;
 
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
+  readonly loaded = this._loaded.asReadonly();
   readonly resourceTypes = this._resourceTypes.asReadonly();
   readonly searchParamsByType = this._searchParamsByType.asReadonly();
 
@@ -53,8 +57,10 @@ export class FhirCapabilityService extends BaseService {
   clearCache(): void {
     this._loading.set(false);
     this._error.set(null);
+    this._loaded.set(false);
     this._resourceTypes.set([]);
     this._searchParamsByType.set(new Map());
+    this.loadPromise = null;
   }
 
   private metadataHeaders(): HttpHeaders {
@@ -68,30 +74,51 @@ export class FhirCapabilityService extends BaseService {
   }
 
   loadMetadata(): void {
+    void this.loadMetadataAsync();
+  }
+
+  async ensureMetadataLoaded(): Promise<void> {
+    if (this._loaded()) {
+      return;
+    }
+    await this.loadMetadataAsync();
+  }
+
+  loadMetadataAsync(): Promise<void> {
+    if (this.loadPromise) {
+      return this.loadPromise;
+    }
+
     const baseUrl = this.getBaseUrl();
     if (!baseUrl) {
       this._error.set('FHIR data endpoint is not configured. Go to Settings to configure environments.');
       this._resourceTypes.set([]);
       this._searchParamsByType.set(new Map());
-      return;
+      this._loaded.set(true);
+      return Promise.resolve();
     }
 
     this._loading.set(true);
     this._error.set(null);
 
     const metadataUrl = `${baseUrl}/metadata`;
-    this.http.get<CapabilityMetadata>(metadataUrl, { headers: this.metadataHeaders() }).subscribe({
-      next: (body) => {
-        this._loading.set(false);
+    this.loadPromise = firstValueFrom(
+      this.http.get<CapabilityMetadata>(metadataUrl, { headers: this.metadataHeaders() })
+    )
+      .then((body) => {
         this.parseMetadata(body);
-      },
-      error: (err) => {
-        this._loading.set(false);
+      })
+      .catch((err) => {
         this._error.set(this.getErrorMessage(err));
         this._resourceTypes.set([]);
         this._searchParamsByType.set(new Map());
-      }
-    });
+      })
+      .finally(() => {
+        this._loading.set(false);
+        this._loaded.set(true);
+      });
+
+    return this.loadPromise;
   }
 
   private getErrorMessage(err: unknown): string {

@@ -7,7 +7,10 @@ import {
   SharedEnvironmentDto,
   Workspace,
   WorkspaceAccessGrant,
-  WorkspaceActivity,
+  WorkspaceActivityPage,
+  WorkspaceActivityPageQuery,
+  WorkspaceActivityStats,
+  WorkspaceActivityStatsQuery,
   WorkspaceResourceReference,
   WorkspaceRole,
   WorkspaceVisibility,
@@ -183,10 +186,47 @@ export class WorkspaceService {
     }).then((r) => this.json(r));
   }
 
-  activity(workspaceId?: string, limit = 50): Promise<WorkspaceActivity[]> {
-    const base = workspaceId
-      ? this.url(`/${workspaceId}/activity?limit=${limit}`)
-      : `${this.auth.apiBase()}/api/activity?limit=${limit}`;
-    return fetch(base, { credentials: 'include' }).then((r) => this.json(r));
+  activity(query: WorkspaceActivityPageQuery = {}): Promise<WorkspaceActivityPage> {
+    const params = new URLSearchParams();
+    if (query.page != null) {
+      params.set('page', String(query.page));
+    }
+    if (query.pageSize != null) {
+      params.set('pageSize', String(query.pageSize));
+    }
+    if (query.sortBy) {
+      params.set('sortBy', query.sortBy);
+    }
+    if (query.sortOrder) {
+      params.set('sortOrder', query.sortOrder);
+    }
+    const qs = params.toString();
+    const url = query.workspaceId
+      ? this.url(`/${query.workspaceId}/activity${qs ? `?${qs}` : ''}`)
+      : `${this.auth.apiBase()}/api/activity${qs ? `?${qs}` : ''}`;
+    return fetch(url, { credentials: 'include' }).then((r) => this.json(r));
+  }
+
+  activityStats(query: WorkspaceActivityStatsQuery = {}): Promise<WorkspaceActivityStats> {
+    const params = new URLSearchParams();
+    if (query.workspaceId) {
+      params.set('workspaceId', query.workspaceId);
+    }
+    if (query.range) {
+      params.set('range', query.range);
+    }
+    if (query.interval) {
+      params.set('interval', query.interval);
+    }
+    if (query.top != null) {
+      params.set('top', String(query.top));
+    }
+    if (query.metrics?.length) {
+      params.set('metrics', query.metrics.join(','));
+    }
+    const qs = params.toString();
+    return fetch(`${this.auth.apiBase()}/api/activity/stats${qs ? `?${qs}` : ''}`, {
+      credentials: 'include',
+    }).then((r) => this.json(r));
   }
 }

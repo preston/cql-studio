@@ -1,11 +1,6 @@
 <div class="container py-4" id="team-workspaces">
-  <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
-    <div>
-      <h1 class="h3 mb-1">Workspaces</h1>
-    </div>
-    <button type="button" id="team-workspace-new-button" class="btn btn-primary" (click)="openCreateModal()">
-      <span class="bi bi-plus-lg me-1"></span>New workspace
-    </button>
+  <div class="mb-3">
+    <h1 class="h3 mb-1">Workspaces</h1>
   </div>
 
   @if (error()) {
@@ -14,6 +9,9 @@
 
   <div class="row g-4">
     <div class="col-lg-4">
+      <button type="button" id="team-workspace-new-button" class="btn btn-primary btn-sm mb-2" (click)="openCreateModal()">
+        <span class="bi bi-plus-lg me-1"></span>Create
+      </button>
       <div class="list-group" id="team-workspaces-list">
         @if (loading()) {
           <div class="list-group-item text-body-secondary">Loading…</div>
@@ -44,13 +42,6 @@
 
       @if (selected()) {
         <div id="team-workspace-detail">
-          <h2 class="h4 mb-1">{{ selected()!.name }}</h2>
-          <p class="text-body-secondary mb-2">{{ selected()!.description || 'No description' }}</p>
-          <p class="mb-3">
-            <span class="badge text-bg-primary me-2">{{ selected()!.myRole }}</span>
-            <span class="badge text-bg-secondary">{{ selected()!.visibility }}</span>
-          </p>
-
           <ul class="nav nav-tabs mb-3" id="team-workspace-tabs" role="tablist">
             <li class="nav-item" role="presentation">
               <button
@@ -159,7 +150,7 @@
                       <input
                         id="team-workspace-resource-search-query"
                         class="form-control"
-                        placeholder="_text search"
+                        [placeholder]="searchQueryPlaceholder()"
                         [ngModel]="searchQuery()"
                         (ngModelChange)="searchQuery.set($event)" />
                       <label for="team-workspace-resource-search-query">Query</label>

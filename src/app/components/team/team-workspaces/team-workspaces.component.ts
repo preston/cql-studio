@@ -11,6 +11,11 @@ import { TeamService } from '../../../services/team.service';
 import { EnvironmentService } from '../../../services/environment.service';
 import { EnvironmentSwitchService } from '../../../services/environment-switch.service';
 import { FhirSearchService } from '../../../services/fhir-search.service';
+import { FhirCapabilityService } from '../../../services/fhir-capability.service';
+import {
+  buildTextSearchParams,
+  resolveBestTextSearchParam,
+} from '../../../services/fhir-text-search.lib';
 import { SettingsEndpointEditorComponent } from '../../settings/settings-endpoint-editor/settings-endpoint-editor.component';
 import { cloneEndpointConfiguration } from '../../../services/endpoint-config.lib';
 import { workspaceActivityVerbLabel } from '../../../services/workspace-activity.lib';
@@ -55,6 +60,7 @@ export class TeamWorkspacesComponent implements OnInit {
   private readonly environmentService = inject(EnvironmentService);
   private readonly environmentSwitchService = inject(EnvironmentSwitchService);
   private readonly fhirSearch = inject(FhirSearchService);
+  private readonly fhirCapability = inject(FhirCapabilityService);
   private readonly toast = inject(ToastService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -129,7 +135,15 @@ export class TeamWorkspacesComponent implements OnInit {
     });
   });
 
+  readonly searchQueryPlaceholder = computed(() => {
+    const type = this.searchResourceType();
+    const params = this.fhirCapability.getSearchParamsForType(type);
+    const resolved = resolveBestTextSearchParam(type, params);
+    return resolved ? `${resolved.label} search` : 'Search';
+  });
+
   async ngOnInit(): Promise<void> {
+    void this.fhirCapability.ensureMetadataLoaded();
     await this.reloadList();
     this.route.paramMap.subscribe(async (params) => {
       const id = params.get('workspaceId');
@@ -179,6 +193,11 @@ export class TeamWorkspacesComponent implements OnInit {
     }
   }
 
+  private async fetchActivity(workspaceId: string): Promise<WorkspaceActivity[]> {
+    const page = await this.workspaceService.activity({ workspaceId, pageSize: 50 });
+    return page.items;
+  }
+
   async loadDetail(id: string): Promise<void> {
     const token = ++this.detailLoadToken;
     this.detailError.set('');
@@ -197,7 +216,7 @@ export class TeamWorkspacesComponent implements OnInit {
         this.workspaceService.listGrants(id),
         this.workspaceService.listEnvironments(id),
         this.workspaceService.listResources(id),
-        this.workspaceService.activity(id, 50),
+        this.workspaceService.activity({ workspaceId: id, pageSize: 50 }),
       ]);
       if (token !== this.detailLoadToken) {
         return;
@@ -205,7 +224,7 @@ export class TeamWorkspacesComponent implements OnInit {
       this.grants.set(grants);
       this.environments.set(environments);
       this.resources.set(resources);
-      this.activity.set(activity);
+      this.activity.set(activity.items);
       const previousKey = this.environmentSwitchService.currentSelectionKey();
       this.environmentService.replaceWorkspaceEnvironments(id, environments, workspace.name);
       this.environmentSwitchService.afterCatalogMutation(previousKey);
@@ -250,7 +269,7 @@ export class TeamWorkspacesComponent implements OnInit {
       const updated = await this.workspaceService.update(ws.id, { visibility });
       this.selected.set(updated);
       await this.reloadList();
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to update visibility');
     }
@@ -272,7 +291,7 @@ export class TeamWorkspacesComponent implements OnInit {
       this.editDescription.set(updated.description ?? '');
       await this.reloadList();
       await this.environmentSwitchService.reloadWorkspaceCatalog();
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to update workspace');
     }
@@ -335,7 +354,7 @@ export class TeamWorkspacesComponent implements OnInit {
       }
       this.grantPrincipal.set('');
       this.grants.set(await this.workspaceService.listGrants(ws.id));
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
     } catch (e) {
       this.toast.showError((e as Error).message || 'Failed to add grant');
     }
@@ -349,7 +368,7 @@ export class TeamWorkspacesComponent implements OnInit {
     try {
       await this.workspaceService.deleteGrant(ws.id, grantId);
       this.grants.set(await this.workspaceService.listGrants(ws.id));
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to remove grant');
     }
@@ -364,10 +383,12 @@ export class TeamWorkspacesComponent implements OnInit {
     this.searchLoading.set(true);
     this.searchError.set('');
     try {
-      const params: Record<string, string> = {};
-      if (query) {
-        params['_text'] = query;
-      }
+      await this.fhirCapability.ensureMetadataLoaded();
+      const params = buildTextSearchParams(
+        resourceType,
+        query,
+        this.fhirCapability.getSearchParamsForType(resourceType)
+      );
       const bundle = await firstValueFrom(
         this.fhirSearch.search(resourceType, params, { count: 20 })
       );
@@ -401,7 +422,7 @@ export class TeamWorkspacesComponent implements OnInit {
         displayName: displayName ?? null,
       });
       this.resources.set(await this.workspaceService.listResources(ws.id));
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to add resource');
     }
@@ -425,7 +446,7 @@ export class TeamWorkspacesComponent implements OnInit {
       this.manualCanonicalUrl.set('');
       this.manualDisplayName.set('');
       this.resources.set(await this.workspaceService.listResources(ws.id));
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to add resource');
     }
@@ -439,7 +460,7 @@ export class TeamWorkspacesComponent implements OnInit {
     try {
       await this.workspaceService.deleteResource(ws.id, refId);
       this.resources.set(await this.workspaceService.listResources(ws.id));
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to remove resource');
     }
@@ -496,7 +517,7 @@ export class TeamWorkspacesComponent implements OnInit {
       const environments = await this.workspaceService.listEnvironments(ws.id);
       this.environments.set(environments);
       await this.environmentSwitchService.reloadWorkspaceCatalog();
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
       this.cancelEnvEditor();
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to save environment');
@@ -516,7 +537,7 @@ export class TeamWorkspacesComponent implements OnInit {
       this.environmentService.replaceWorkspaceEnvironments(ws.id, environments, ws.name);
       this.environmentSwitchService.afterCatalogMutation(previousKey);
       await this.environmentSwitchService.reloadWorkspaceCatalog();
-      this.activity.set(await this.workspaceService.activity(ws.id, 50));
+      this.activity.set(await this.fetchActivity(ws.id));
       if (this.editingEnvId() === envId) {
         this.cancelEnvEditor();
       }
