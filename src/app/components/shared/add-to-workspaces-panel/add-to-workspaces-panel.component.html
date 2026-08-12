@@ -1,0 +1,55 @@
+<div [attr.id]="idPrefix()">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <span class="bi bi-collection me-1"></span>
+    <span class="fw-medium">Add to workspaces</span>
+    <span class="text-muted small">(optional)</span>
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-primary ms-auto"
+      [attr.id]="idPrefix() + '-create-button'"
+      (click)="openCreateModal()">
+      <span class="bi bi-plus-lg me-1"></span>Create workspace
+    </button>
+  </div>
+  <p class="small text-muted mb-2" [attr.id]="idPrefix() + '-help'">
+    Select 0 or more workspaces. After success, resource references are added automatically.
+  </p>
+
+  @if (error()) {
+    <div class="alert alert-danger py-2 small mb-2" [attr.id]="idPrefix() + '-error'">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="text-muted small" [attr.id]="idPrefix() + '-loading'">Loading workspaces…</div>
+  } @else if (editableWorkspaces().length === 0) {
+    <div class="text-muted small" [attr.id]="idPrefix() + '-empty'">
+      No editable workspaces yet. Create one to attach references after success.
+    </div>
+  } @else {
+    <div class="d-flex flex-column gap-1" [attr.id]="idPrefix() + '-list'">
+      @for (ws of editableWorkspaces(); track ws.id) {
+        <div class="form-check">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            [attr.id]="idPrefix() + '-ws-' + ws.id"
+            [checked]="isSelected(ws.id)"
+            (change)="toggleWorkspace(ws.id, $any($event.target).checked)" />
+          <label class="form-check-label" [attr.for]="idPrefix() + '-ws-' + ws.id">
+            {{ ws.name }}
+            <span class="badge text-bg-secondary ms-1">{{ ws.visibility }}</span>
+            <span class="text-muted small ms-1">{{ ws.myRole }}</span>
+          </label>
+        </div>
+      }
+    </div>
+    <div class="small text-muted mt-2" [attr.id]="idPrefix() + '-selected-count'">
+      {{ selectedCount() }} selected
+    </div>
+  }
+</div>
+
+<app-workspace-create-modal
+  [(open)]="showCreateModal"
+  [idPrefix]="idPrefix() + '-create'"
+  (created)="onWorkspaceCreated($event)" />

@@ -17,6 +17,7 @@ import {
   resolveBestTextSearchParam,
 } from '../../../services/fhir-text-search.lib';
 import { SettingsEndpointEditorComponent } from '../../settings/settings-endpoint-editor/settings-endpoint-editor.component';
+import { WorkspaceCreateModalComponent } from '../../shared/workspace-create-modal/workspace-create-modal.component';
 import { cloneEndpointConfiguration } from '../../../services/endpoint-config.lib';
 import { workspaceActivityVerbLabel } from '../../../services/workspace-activity.lib';
 import { ToastService } from '../../../services/toast.service';
@@ -51,7 +52,13 @@ const RESOURCE_TYPE_OPTIONS = [
 @Component({
   selector: 'app-team-workspaces',
   standalone: true,
-  imports: [DatePipe, FormsModule, RouterLink, SettingsEndpointEditorComponent],
+  imports: [
+    DatePipe,
+    FormsModule,
+    RouterLink,
+    SettingsEndpointEditorComponent,
+    WorkspaceCreateModalComponent,
+  ],
   templateUrl: './team-workspaces.component.html',
 })
 export class TeamWorkspacesComponent implements OnInit {
@@ -82,10 +89,6 @@ export class TeamWorkspacesComponent implements OnInit {
   readonly activeTab = signal<WorkspaceTab>('resources');
   readonly showCreateModal = signal(false);
   readonly showDeleteModal = signal(false);
-
-  readonly newName = signal('');
-  readonly newDescription = signal('');
-  readonly newVisibility = signal<WorkspaceVisibility>('PRIVATE');
 
   readonly editName = signal('');
   readonly editDescription = signal('');
@@ -158,10 +161,6 @@ export class TeamWorkspacesComponent implements OnInit {
 
   openCreateModal(): void {
     this.showCreateModal.set(true);
-  }
-
-  closeCreateModal(): void {
-    this.showCreateModal.set(false);
   }
 
   openDeleteModal(): void {
@@ -237,27 +236,10 @@ export class TeamWorkspacesComponent implements OnInit {
     }
   }
 
-  async createWorkspace(): Promise<void> {
-    const name = this.newName().trim();
-    if (!name) {
-      return;
-    }
-    try {
-      const ws = await this.workspaceService.create({
-        name,
-        description: this.newDescription().trim() || undefined,
-        visibility: this.newVisibility(),
-      });
-      this.newName.set('');
-      this.newDescription.set('');
-      this.newVisibility.set('PRIVATE');
-      this.closeCreateModal();
-      await this.reloadList();
-      await this.environmentSwitchService.reloadWorkspaceCatalog();
-      await this.router.navigate(['/team/workspaces', ws.id]);
-    } catch (e) {
-      this.error.set((e as Error).message || 'Failed to create workspace');
-    }
+  async onWorkspaceCreated(ws: Workspace): Promise<void> {
+    this.showCreateModal.set(false);
+    await this.reloadList();
+    await this.router.navigate(['/team/workspaces', ws.id]);
   }
 
   async saveVisibility(visibility: WorkspaceVisibility): Promise<void> {

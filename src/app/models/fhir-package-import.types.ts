@@ -53,6 +53,8 @@ export interface FhirPackageImportItemOutcome {
   filename: string;
   ok: boolean;
   message: string;
+  canonicalUrl?: string | null;
+  displayName?: string | null;
 }
 
 export interface RegistryImportResultRow extends FhirPackageImportItemOutcome {

@@ -307,6 +307,20 @@
       </div>
       }
 
+      @if (auth.isAuthenticated() && (files().length > 0 || cqlFiles().length > 0)) {
+      <div id="fhir-uploader-add-to-workspaces" class="mb-4">
+        <app-add-to-workspaces-panel
+          idPrefix="fhir-uploader-workspaces"
+          [(selectedWorkspaceIds)]="selectedWorkspaceIds" />
+      </div>
+      }
+
+      @if (workspaceLinkStatus()) {
+      <div class="alert alert-info small mb-4" id="fhir-uploader-workspace-link-status" role="status">
+        {{ workspaceLinkStatus() }}
+      </div>
+      }
+
       <!-- Upload Button -->
       @if (files().length > 0 || cqlFiles().length > 0) {
       <div class="d-grid gap-2 d-md-flex justify-content-md-end">

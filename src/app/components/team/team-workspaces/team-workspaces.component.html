@@ -560,56 +560,10 @@
   </div>
 </div>
 
-@if (showCreateModal()) {
-  <div class="modal-backdrop fade show"></div>
-  <div class="modal fade show d-block" tabindex="-1" role="dialog" id="team-workspace-create-modal" aria-modal="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="team-workspace-create-modal-title">New workspace</h5>
-          <button type="button" class="btn-close" id="team-workspace-create-modal-close" (click)="closeCreateModal()"></button>
-        </div>
-        <div class="modal-body d-flex flex-column gap-3">
-          <div class="form-floating">
-            <input
-              id="team-workspace-new-name"
-              class="form-control"
-              placeholder="Name"
-              [ngModel]="newName()"
-              (ngModelChange)="newName.set($event)" />
-            <label for="team-workspace-new-name">Name</label>
-          </div>
-          <div class="form-floating">
-            <input
-              id="team-workspace-new-description"
-              class="form-control"
-              placeholder="Description"
-              [ngModel]="newDescription()"
-              (ngModelChange)="newDescription.set($event)" />
-            <label for="team-workspace-new-description">Description</label>
-          </div>
-          <div class="form-floating">
-            <select
-              id="team-workspace-new-visibility"
-              class="form-select"
-              [ngModel]="newVisibility()"
-              (ngModelChange)="newVisibility.set($event)">
-              <option value="PRIVATE">Private</option>
-              <option value="PUBLIC">Public</option>
-            </select>
-            <label for="team-workspace-new-visibility">Visibility</label>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="team-workspace-create-cancel" (click)="closeCreateModal()">Cancel</button>
-          <button type="button" id="team-workspace-create-button" class="btn btn-primary" (click)="createWorkspace()">
-            Create
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-}
+<app-workspace-create-modal
+  [(open)]="showCreateModal"
+  idPrefix="team-workspace-create"
+  (created)="onWorkspaceCreated($event)" />
 
 @if (showDeleteModal()) {
   <div class="modal-backdrop fade show"></div>

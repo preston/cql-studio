@@ -36,6 +36,7 @@ import {
   FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL
 } from './fhir-registry-importer.deep-link';
 import { ImplementationGuidePanelComponent } from '../shared/implementation-guide-panel/implementation-guide-panel.component';
+import { AddToWorkspacesPanelComponent } from '../shared/add-to-workspaces-panel/add-to-workspaces-panel.component';
 import { ImplementationGuide } from 'fhir/r4';
 import {
   defaultSelectedIgEntryKeys,
@@ -47,6 +48,9 @@ import {
 } from '../../services/implementation-guide.lib';
 import { IgImportSanitizeOptions } from '../../services/fhir-package-import.service';
 import { isConformanceResourceType } from '../../services/fhir-resource-endpoint.lib';
+import { AuthService } from '../../services/auth.service';
+import { WorkspaceResourceLinkService } from '../../services/workspace-resource-link.service';
+import { WorkspaceResourceLinkInput } from '../../services/workspace-resource-link.lib';
 
 type QuickFilter = 'all' | 'terminology' | 'conformance' | 'examples';
 
@@ -67,7 +71,12 @@ const DOM_PACKAGE_DETAIL = 'fhir-registry-importer-package-detail-panel';
 
 @Component({
   selector: 'app-fhir-registry-importer',
-  imports: [NgTemplateOutlet, FormsModule, ImplementationGuidePanelComponent],
+  imports: [
+    NgTemplateOutlet,
+    FormsModule,
+    ImplementationGuidePanelComponent,
+    AddToWorkspacesPanelComponent,
+  ],
 
   templateUrl: './fhir-registry-importer.component.html'
 })
@@ -88,8 +97,12 @@ export class FhirRegistryImporterComponent {
   private readonly dependencyResolver = inject(FhirPackageDependencyResolverService);
   private readonly packageImportService = inject(FhirPackageImportService);
   private readonly packageStaging = inject(FhirPackageLocalUploadStagingService);
+  private readonly workspaceResourceLink = inject(WorkspaceResourceLinkService);
   private readonly injector = inject(Injector);
   private readonly route = inject(ActivatedRoute);
+  protected readonly auth = inject(AuthService);
+
+  protected readonly selectedWorkspaceIds = signal<string[]>([]);
 
   protected readonly searchQuery = signal('');
   protected readonly catalogFhirVersionFilter = signal<string | null>(null);
@@ -1336,11 +1349,17 @@ export class FhirRegistryImporterComponent {
       }
 
       const errCount = accumulated.filter((r) => !r.ok).length;
-      this.importProgress.set(
+      let progress =
         errCount > 0
           ? `Finished with ${errCount} error(s) of ${accumulated.length} row(s).`
-          : `Import completed (${accumulated.length} row(s)).`
-      );
+          : `Import completed (${accumulated.length} row(s)).`;
+      const linkSummary = await this.linkImportedResourcesToWorkspaces(accumulated, (msg) => {
+        this.importProgress.set(`${progress} ${msg}`);
+      });
+      if (linkSummary) {
+        progress = `${progress} ${linkSummary}`;
+      }
+      this.importProgress.set(progress);
     } catch (e) {
       accumulated.push({
         packageName: '—',
@@ -1352,9 +1371,63 @@ export class FhirRegistryImporterComponent {
         message: e instanceof Error ? e.message : String(e)
       });
       this.importResultsRows.set([...accumulated]);
-      this.importProgress.set('Import failed.');
+      let progress = 'Import failed.';
+      const linkSummary = await this.linkImportedResourcesToWorkspaces(accumulated, (msg) => {
+        this.importProgress.set(`${progress} ${msg}`);
+      });
+      if (linkSummary) {
+        progress = `${progress} ${linkSummary}`;
+      }
+      this.importProgress.set(progress);
     } finally {
       this.importing.set(false);
     }
+  }
+
+  private linkableImportRows(rows: RegistryImportResultRow[]): WorkspaceResourceLinkInput[] {
+    const byKey = new Map<string, WorkspaceResourceLinkInput>();
+    for (const row of rows) {
+      if (!row.ok || !row.resourceId || row.resourceId === '—') {
+        continue;
+      }
+      if (row.message.startsWith('Skipped')) {
+        continue;
+      }
+      const resourceType = row.resourceType?.trim();
+      if (!resourceType || resourceType === '—') {
+        continue;
+      }
+      const key = `${resourceType}|${row.resourceId}`;
+      if (byKey.has(key)) {
+        continue;
+      }
+      byKey.set(key, {
+        resourceType,
+        resourceId: row.resourceId,
+        canonicalUrl: row.canonicalUrl ?? null,
+        displayName: row.displayName ?? null,
+      });
+    }
+    return [...byKey.values()];
+  }
+
+  private async linkImportedResourcesToWorkspaces(
+    rows: RegistryImportResultRow[],
+    onProgress?: (message: string) => void
+  ): Promise<string | null> {
+    const workspaceIds = this.selectedWorkspaceIds();
+    if (!this.auth.isAuthenticated() || workspaceIds.length === 0) {
+      return null;
+    }
+    const resources = this.linkableImportRows(rows);
+    if (resources.length === 0) {
+      return null;
+    }
+    const summary = await this.workspaceResourceLink.linkResourcesToWorkspaces(
+      workspaceIds,
+      resources,
+      onProgress
+    );
+    return summary.message || null;
   }
 }

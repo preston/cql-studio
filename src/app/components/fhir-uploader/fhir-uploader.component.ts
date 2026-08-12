@@ -20,6 +20,7 @@ import {
   FHIR_CQL_EXAMPLE_PATHS
 } from '../../constants/example-paths.constants';
 import { ImplementationGuidePanelComponent } from '../shared/implementation-guide-panel/implementation-guide-panel.component';
+import { AddToWorkspacesPanelComponent } from '../shared/add-to-workspaces-panel/add-to-workspaces-panel.component';
 import {
   defaultSelectedIgEntryKeys,
   enrichIgEntriesForBundle,
@@ -27,6 +28,12 @@ import {
   IgResourceEntryVm,
   parseImplementationGuideEntries
 } from '../../services/implementation-guide.lib';
+import { AuthService } from '../../services/auth.service';
+import { WorkspaceResourceLinkService } from '../../services/workspace-resource-link.service';
+import {
+  WorkspaceResourceLinkInput,
+  workspaceLinkInputFromFhirResource,
+} from '../../services/workspace-resource-link.lib';
 
 function isFhirPackageArchiveName(name: string): boolean {
   const lower = name.toLowerCase();
@@ -78,7 +85,7 @@ interface CqlFile {
 
 @Component({
   selector: 'app-fhir-uploader',
-  imports: [DecimalPipe, FormsModule, ImplementationGuidePanelComponent],
+  imports: [DecimalPipe, FormsModule, ImplementationGuidePanelComponent, AddToWorkspacesPanelComponent],
   templateUrl: './fhir-uploader.component.html',
 
   styleUrl: './fhir-uploader.component.scss'
@@ -90,6 +97,8 @@ export class FhirUploaderComponent implements AfterViewInit {
   protected readonly continueOnError = signal<boolean>(false);
   protected readonly isUploading = signal<boolean>(false);
   protected readonly uploadProgress = signal<number>(0);
+  protected readonly selectedWorkspaceIds = signal<string[]>([]);
+  protected readonly workspaceLinkStatus = signal<string | null>(null);
   protected readonly isDragOver = signal<boolean>(false);
   protected readonly isCqlDragOver = signal<boolean>(false);
   protected readonly isPackageDragOver = signal<boolean>(false);
@@ -117,6 +126,8 @@ export class FhirUploaderComponent implements AfterViewInit {
   resultModalButton = viewChild<ElementRef<HTMLButtonElement>>('resultModalButton');
 
   protected settingsService = inject(SettingsService);
+  protected readonly auth = inject(AuthService);
+  private readonly workspaceResourceLink = inject(WorkspaceResourceLinkService);
   private router = inject(Router);
   private http = inject(HttpClient);
   private injector = inject(Injector);
@@ -728,12 +739,14 @@ export class FhirUploaderComponent implements AfterViewInit {
     this.files.set(this.files().map(f => ({ ...f, uploadResult: undefined })));
     this.cqlFiles.set(this.cqlFiles().map(f => ({ ...f, uploadResult: undefined })));
     this.expandedResult.set(null);
+    this.workspaceLinkStatus.set(null);
 
     this.isUploading.set(true);
     this.uploadProgress.set(0);
 
     const totalFiles = enabledFiles.length + enabledCqlFiles.length;
     let processedFiles = 0;
+    const linkInputs: WorkspaceResourceLinkInput[] = [];
 
     try {
       // Upload JSON bundles first
@@ -742,7 +755,8 @@ export class FhirUploaderComponent implements AfterViewInit {
         this.uploadProgress.set((processedFiles / totalFiles) * 100);
 
         try {
-          const result = await this.uploadSingleBundle(bundleFile);
+          const { result, resources } = await this.uploadSingleBundle(bundleFile);
+          linkInputs.push(...resources);
           // Update the file with success result
           this.updateFileResult(bundleFile.id, {
             success: true,
@@ -769,6 +783,12 @@ export class FhirUploaderComponent implements AfterViewInit {
 
         try {
           const result = await this.uploadSingleCqlFile(cqlFile);
+          const libraryInput = workspaceLinkInputFromFhirResource(
+            (cqlFile.fhirLibrary ?? result) as Resource
+          );
+          if (libraryInput) {
+            linkInputs.push(libraryInput);
+          }
           // Update the file with success result
           this.updateCqlFileResult(cqlFile.id, {
             success: true,
@@ -789,17 +809,44 @@ export class FhirUploaderComponent implements AfterViewInit {
       }
 
       this.uploadProgress.set(100);
+      await this.linkUploadedResourcesToWorkspaces(linkInputs);
     } finally {
       this.isUploading.set(false);
     }
   }
 
-  private async uploadSingleBundle(bundleFile: BundleFile): Promise<any> {
+  private async linkUploadedResourcesToWorkspaces(
+    resources: WorkspaceResourceLinkInput[]
+  ): Promise<void> {
+    const workspaceIds = this.selectedWorkspaceIds();
+    if (!this.auth.isAuthenticated() || workspaceIds.length === 0 || resources.length === 0) {
+      return;
+    }
+    const byKey = new Map<string, WorkspaceResourceLinkInput>();
+    for (const r of resources) {
+      const key = `${r.resourceType}|${r.resourceId}`;
+      if (!byKey.has(key)) {
+        byKey.set(key, r);
+      }
+    }
+    const summary = await this.workspaceResourceLink.linkResourcesToWorkspaces(
+      workspaceIds,
+      [...byKey.values()],
+      (msg) => this.workspaceLinkStatus.set(msg)
+    );
+    if (summary.message) {
+      this.workspaceLinkStatus.set(summary.message);
+    }
+  }
+
+  private async prepareBundleUploadBody(bundleFile: BundleFile): Promise<{
+    body: string;
+    resources: WorkspaceResourceLinkInput[];
+  }> {
     const text = await this.readFileAsText(bundleFile.file);
-    let body = text;
+    let bundle = JSON.parse(text) as Bundle;
     const igStates = bundleFile.igStates;
     if (igStates?.some((s) => s.sanitize)) {
-      const bundle = JSON.parse(text) as Bundle;
       for (const state of igStates) {
         if (!state.sanitize) {
           continue;
@@ -813,8 +860,20 @@ export class FhirUploaderComponent implements AfterViewInit {
           );
         }
       }
-      body = JSON.stringify(bundle);
     }
+    const resources = (bundle.entry ?? [])
+      .map((e) => e.resource)
+      .filter((r): r is Resource => !!r)
+      .map((r) => workspaceLinkInputFromFhirResource(r))
+      .filter((r): r is WorkspaceResourceLinkInput => r != null);
+    return { body: JSON.stringify(bundle), resources };
+  }
+
+  private async uploadSingleBundle(bundleFile: BundleFile): Promise<{
+    result: unknown;
+    resources: WorkspaceResourceLinkInput[];
+  }> {
+    const { body, resources } = await this.prepareBundleUploadBody(bundleFile);
 
     const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
     const response = await fetch(effectiveFhirBaseUrl, {
@@ -830,7 +889,8 @@ export class FhirUploaderComponent implements AfterViewInit {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    return { result, resources };
   }
 
   private async uploadSingleCqlFile(cqlFile: CqlFile): Promise<any> {

@@ -239,6 +239,14 @@
 
       <ng-container *ngTemplateOutlet="importWorkspaceActions; context: { idSuffix: '-top', edgeClass: 'border-bottom' }" />
 
+      @if (auth.isAuthenticated()) {
+      <div id="fhir-registry-importer-add-to-workspaces" class="bg-body px-3 py-3 border-bottom">
+        <app-add-to-workspaces-panel
+          idPrefix="fhir-registry-importer-workspaces"
+          [(selectedWorkspaceIds)]="selectedWorkspaceIds" />
+      </div>
+      }
+
       <div class="row g-0">
         <div class="col-lg-4 border-end align-self-lg-start">
           <div id="fhir-registry-importer-import-plan-panel"

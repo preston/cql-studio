@@ -369,13 +369,31 @@ export class FhirPackageImportService {
     resourceType: string;
     resourceId: string;
     filename: string;
+    canonicalUrl: string | null;
+    displayName: string | null;
   } {
     const fn = (resource as { __filename?: string }).__filename?.trim() ?? '';
     const id = typeof (resource as { id?: string }).id === 'string' ? (resource as { id: string }).id.trim() : '';
+    const withMeta = resource as Resource & {
+      url?: string;
+      name?: string | { text?: string };
+      title?: string;
+    };
+    const url = typeof withMeta.url === 'string' ? withMeta.url.trim() : '';
+    const fromName =
+      typeof withMeta.name === 'string'
+        ? withMeta.name
+        : withMeta.name && typeof withMeta.name === 'object'
+          ? withMeta.name.text
+          : undefined;
+    const displayRaw = fromName || withMeta.title || id || '';
+    const displayName = typeof displayRaw === 'string' ? displayRaw.trim() : '';
     return {
       resourceType: resourceTypeOf(resource) ?? '(missing resourceType)',
       resourceId: id || '—',
-      filename: fn || '—'
+      filename: fn || '—',
+      canonicalUrl: url || null,
+      displayName: displayName || null
     };
   }
 
