@@ -84,29 +84,6 @@
         </li>
 
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="testingDropdown" role="button" data-bs-toggle="dropdown"
-            aria-expanded="false">
-            <!-- <i class="bi bi-clipboard-check me-1"></i> -->
-            Testing
-          </a>
-          <ul class="dropdown-menu" aria-labelledby="testingDropdown">
-            <h6 class="dropdown-header">CQL Engines</h6>
-
-            <li>
-              <a id="runner-nav-link" class="dropdown-item" routerLink="/runner" routerLinkActive="active">
-                <i class="bi bi-play-circle me-2"></i>Test Runner
-              </a>
-            </li>
-            <li>
-              <a id="results-nav-link" class="dropdown-item" routerLink="/results/open" routerLinkActive="active">
-                <i class="bi bi-file-earmark-text me-2"></i>Test Results
-              </a>
-            </li>
-          </ul>
-        </li>
-
-
-        <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" id="toolsDropdown" role="button" data-bs-toggle="dropdown"
             aria-expanded="false">
             <!-- <i class="bi bi-tools me-1"></i> -->
@@ -160,6 +137,30 @@
             </li>
           </ul>
         </li>
+
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="testingDropdown" role="button" data-bs-toggle="dropdown"
+            aria-expanded="false">
+            <!-- <i class="bi bi-clipboard-check me-1"></i> -->
+            Testing
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="testingDropdown">
+            <h6 class="dropdown-header">CQL Engines</h6>
+
+            <li>
+              <a id="runner-nav-link" class="dropdown-item" routerLink="/runner" routerLinkActive="active">
+                <i class="bi bi-play-circle me-2"></i>Test Runner
+              </a>
+            </li>
+            <li>
+              <a id="results-nav-link" class="dropdown-item" routerLink="/results/open" routerLinkActive="active">
+                <i class="bi bi-file-earmark-text me-2"></i>Test Results
+              </a>
+            </li>
+          </ul>
+        </li>
+
       </ul>
       <ul class="navbar-nav">
         @if (authService.ssoEnabled() && authService.isAuthenticated()) {

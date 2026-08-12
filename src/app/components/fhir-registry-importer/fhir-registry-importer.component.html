@@ -2,13 +2,7 @@
   <h1 class="h4 mb-3">
     <span class="bi bi-box-seam me-2"></span>FHIR Registry Importer
   </h1>
-  <p class="text-muted small mb-4">
-    Search FHIR NPM packages from your configured registry, or upload a local FHIR package
-    <code>.tgz</code> (strict FHIR packaging). Resolve transitive <code>dependencies</code> from each
-    package's <code>package/package.json</code>, then import selected resources in dependency order. Example files are
-    determined from <code>directories.example</code> / <code>directories.examples</code> in that manifest (not from
-    hardcoded folder names).
-  </p>
+
 
   <div class="row g-3 mb-4 align-items-start">
     <div class="col-lg-8">
@@ -61,8 +55,7 @@
         </div>
       </div>
       <small class="form-text text-muted d-block mt-2">
-        Filters the registry catalog by package <code>FhirVersion</code>. Use with a name substring, or pick a
-        version alone to list packages for that release line.
+        Filters the registry catalog by package name and FHIR version.
       </small>
       <div class="border-top mt-3 pt-3">
         <div class="d-flex flex-wrap align-items-center gap-2">
@@ -81,8 +74,7 @@
           </label>
         </div>
         <small class="form-text text-muted d-block mt-1">
-          Must be a FHIR NPM package (not a generic npm tarball): <code>package/package.json</code> with FHIR name,
-          version, author, description, and a core FHIR dependency.
+          Must be a FHIR NPM package (not a generic npm tarball).
         </small>
         <div class="mt-3">
           <label class="form-label fw-medium small mb-1" for="fhir-registry-importer-package-url-input">
@@ -111,7 +103,7 @@
             </button>
           </div>
           <small class="form-text text-muted d-block mt-1">
-            Accepts http(s) or same-origin paths to a <code>.tgz</code>. Third-party hosts may fail CORS in the browser.
+            Accepts http(s) or same-origin paths to a <code>.tgz</code>. Third-party hosts without CORS support may require manual upload.
           </small>
         </div>
         @if (localPackageError()) {
@@ -157,8 +149,7 @@
         <div class="card-body small">
           @if (planList().length === 0) {
           <p class="text-muted mb-0" id="fhir-registry-importer-import-summary-empty">
-            Search and open a package, then choose a version. After the tarball loads, resolved packages and
-            selection counts appear here with links to configure each one below.
+            Search and open a package. After it downloads, It will be unpacked prior to import for custom configuration.
           </p>
           } @else {
           <p class="text-muted mb-2" id="fhir-registry-importer-import-summary-intro">
