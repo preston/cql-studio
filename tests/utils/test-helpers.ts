@@ -261,6 +261,8 @@ export class TestHelpers {
    * Navigate to settings page
    */
   async goToSettings() {
+    await this.page.click('#accountDropdown');
+    await this.page.locator('#settings-nav-link').waitFor({ state: 'visible' });
     await this.page.click('#settings-nav-link');
     await this.page.waitForSelector('#settings', { timeout: 10000 });
   }
