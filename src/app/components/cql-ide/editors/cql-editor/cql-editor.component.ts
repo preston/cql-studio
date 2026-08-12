@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject } from '@angular/core';
+import { Component, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EditorView } from '@codemirror/view';
 import { Compartment, EditorState } from '@codemirror/state';
@@ -61,6 +61,8 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private initializationRetries: number = 0;
   private maxRetries: number = 10;
   private resizeObserver?: ResizeObserver;
+  private viewDestroyed = false;
+  private suppressOutputEmits = false;
 
   // Toolbar properties
   isExecuting: boolean = false;
@@ -84,6 +86,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
   private definitionIndexService = inject(CqlDefinitionIndexService);
   private libraryOpenerService = inject(CqlIdeLibraryOpenerService);
+  private readonly destroyRef = inject(DestroyRef);
 
   private definitionIndex: CqlDefinitionIndex | null = null;
 
@@ -99,6 +102,9 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
   constructor() {
     this.grammarManager = new CqlGrammarManager();
+    this.destroyRef.onDestroy(() => {
+      this.viewDestroyed = true;
+    });
     
     // Watch for libraryId changes
     effect(() => {
@@ -125,10 +131,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       const loading = this.contentLoading();
       const loadError = this.contentLoadError();
       if ((loading || loadError) && this.editor) {
-        this.resizeObserver?.disconnect();
-        this.resizeObserver = undefined;
-        this.editor.destroy();
-        this.editor = undefined;
+        this.teardownEditor();
       }
       if (!loading && !loadError && this.editorContainer()?.nativeElement && !this.editor && !this.isInitializing) {
         this.initializeEditor();
@@ -208,9 +211,27 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   ngOnDestroy(): void {
+    this.viewDestroyed = true;
     this.cancelValidationDebounce();
-    this.editor?.destroy();
-    this.resizeObserver?.disconnect();
+    this.teardownEditor();
+  }
+
+  private canEmitOutputs(): boolean {
+    return !this.viewDestroyed && !this.suppressOutputEmits;
+  }
+
+  private teardownEditor(): void {
+    this.suppressOutputEmits = true;
+    try {
+      this.resizeObserver?.disconnect();
+      this.resizeObserver = undefined;
+      if (this.editor) {
+        this.editor.destroy();
+        this.editor = undefined;
+      }
+    } finally {
+      this.suppressOutputEmits = false;
+    }
   }
 
   private initializeEditor(): void {
@@ -294,6 +315,9 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
             createCqlEditorThemeExtensions(this.settingsService.theme_effective(), this.height())
           ),
           EditorView.updateListener.of((update) => {
+            if (!this.canEmitOutputs()) {
+              return;
+            }
             if (update.docChanged) {
               const newValue = update.state.doc.toString();
               this._value = newValue;
@@ -769,6 +793,9 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   private emitValidationUi(full: FullValidationResult): void {
+    if (!this.canEmitOutputs()) {
+      return;
+    }
     this.currentValidationErrors = this.cqlValidationService.formatProblemsPanelMessages(full);
     this.syntaxErrors.emit(this.currentValidationErrors);
     if (this.editor) {
@@ -812,8 +839,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private reinitializeEditor(): void {
     if (this.editor && !this.isInitializing) {
       const currentValue = this.getValue();
-      this.editor.destroy();
-      this.editor = undefined;
+      this.teardownEditor();
       this.isInitializing = false; // Reset flag
       this.initializeEditor();
       // Set value immediately after initialization

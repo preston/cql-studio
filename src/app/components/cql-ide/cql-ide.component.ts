@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy, HostListener, viewChild, effect, inject, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, viewChild, effect, inject, ElementRef, untracked } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { IdeStateService } from '../../services/ide-state.service';
 import { IdeTabRegistryService } from '../../services/ide-tab-registry.service';
@@ -13,6 +13,7 @@ import { SettingsService } from '../../services/settings.service';
 import { AiService } from '../../services/ai.service';
 import { CqlValidationService } from '../../services/cql-validation.service';
 import { ToastService } from '../../services/toast.service';
+import { CqlIdeLibraryOpenerService } from '../../services/cql-ide-library-opener.service';
 import { Library } from 'fhir/r4';
 import { IdeExecutionSubject } from '../../models/ide-context.model';
 import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
@@ -67,6 +68,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   private aiService = inject(AiService);
   private cqlValidationService = inject(CqlValidationService);
   private toastService = inject(ToastService);
+  private libraryOpenerService = inject(CqlIdeLibraryOpenerService);
 
   constructor() {
     // Watch for editor action requests from tool orchestrator (effect must be in constructor)
@@ -83,6 +85,30 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
         this.onFormatCql();
       }
     });
+
+    effect(() => {
+      const pending = this.libraryOpenerService.pendingOpen();
+      if (!pending) {
+        return;
+      }
+      untracked(() => {
+        const library = this.libraryOpenerService.consumePendingOpen();
+        if (!library) {
+          return;
+        }
+        void this.openPendingLibrary(library);
+      });
+    });
+  }
+
+  private async openPendingLibrary(library: Library): Promise<void> {
+    const opened = await this.libraryOpenerService.openLibraryFromServer(library);
+    if (!opened) {
+      this.toastService.showError(
+        `Could not open Library/${library.id} in the CQL IDE.`,
+        'Open Failed'
+      );
+    }
   }
 
   ngOnInit(): void {

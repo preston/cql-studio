@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, effect, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
@@ -10,6 +10,7 @@ import { ValueSet, Bundle } from 'fhir/r4';
 import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { ValueSetDetailsPaneComponent } from '../valueset-details-pane/valueset-details-pane.component';
 import { ClipboardService } from '../../../services/clipboard.service';
+import { TerminologyResourceOpenerService } from '../../../services/terminology-resource-opener.service';
 
 @Component({
   selector: 'app-valuesets-tab',
@@ -116,11 +117,61 @@ export class ValueSetsTabComponent implements OnInit {
   private terminologyService = inject(TerminologyService);
   private toastService = inject(ToastService);
   private clipboardService = inject(ClipboardService);
+  private terminologyOpener = inject(TerminologyResourceOpenerService);
+
+  constructor() {
+    effect(() => {
+      const pending = this.terminologyOpener.pending();
+      if (!pending || pending.resourceType !== 'ValueSet') {
+        return;
+      }
+      untracked(() => {
+        const request = this.terminologyOpener.consumePending('ValueSet');
+        if (!request) {
+          return;
+        }
+        void this.openFromExternalRequest(request.id, request.url);
+      });
+    });
+  }
 
   ngOnInit(): void {
     // Auto-load ValueSets when component is initialized
     if (this.hasValidConfiguration() && !this.valuesetLoading()) {
       this.searchValueSets();
+    }
+  }
+
+  private async openFromExternalRequest(id: string, url?: string): Promise<void> {
+    if (!this.hasValidConfiguration()) {
+      this.toastService.showWarning(
+        'Please configure terminology service settings first.',
+        'Configuration Required'
+      );
+      return;
+    }
+    try {
+      let valueset: ValueSet | null = null;
+      try {
+        valueset = await firstValueFrom(this.terminologyService.getValueSet(id));
+      } catch {
+        if (url) {
+          const bundle = await firstValueFrom(
+            this.terminologyService.searchValueSets({ url, _count: 1 })
+          );
+          const found = bundle.entry
+            ?.map((e) => e.resource)
+            .find((r): r is ValueSet => isResourceType(r, 'ValueSet'));
+          valueset = found ?? null;
+        }
+      }
+      if (!valueset) {
+        this.toastService.showError(`ValueSet "${id}" was not found.`, 'Open Failed');
+        return;
+      }
+      await this.selectValueSet(valueset);
+    } catch (error) {
+      this.toastService.showError(this.getErrorMessage(error), 'Open Failed');
     }
   }
 

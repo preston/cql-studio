@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { Library } from 'fhir/r4';
 import { LibraryService } from './library.service';
@@ -13,6 +13,32 @@ import { ElmIncludeRef } from './elm-include.lib';
 export class CqlIdeLibraryOpenerService {
   private readonly libraryService = inject(LibraryService);
   private readonly ideStateService = inject(IdeStateService);
+
+  private readonly _pendingOpen = signal<Library | null>(null);
+
+  readonly pendingOpen = this._pendingOpen.asReadonly();
+
+  /**
+   * Queue a library to open after navigating to the IDE.
+   * Prefer this over calling openLibraryFromServer across a route change
+   * (avoids continuing async work on a destroyed source component).
+   */
+  requestOpenFromServer(library: Library): void {
+    if (!library.id?.trim()) {
+      return;
+    }
+    this._pendingOpen.set(library);
+  }
+
+  consumePendingOpen(): Library | null {
+    const pending = this._pendingOpen();
+    this._pendingOpen.set(null);
+    return pending;
+  }
+
+  clearPendingOpen(): void {
+    this._pendingOpen.set(null);
+  }
 
   findOpenLibraryTabId(library: Library): string | null {
     if (!library.id) {

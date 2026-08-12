@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, effect, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
@@ -9,6 +9,7 @@ import { ToastService } from '../../../services/toast.service';
 import { CodeSystem } from 'fhir/r4';
 import { ClipboardService } from '../../../services/clipboard.service';
 import { isResourceType } from '../../../services/fhir-resource-type.lib';
+import { TerminologyResourceOpenerService } from '../../../services/terminology-resource-opener.service';
 
 @Component({
   selector: 'app-codesystems-tab',
@@ -46,11 +47,65 @@ export class CodeSystemsTabComponent implements OnInit {
   private terminologyService = inject(TerminologyService);
   private toastService = inject(ToastService);
   private clipboardService = inject(ClipboardService);
+  private terminologyOpener = inject(TerminologyResourceOpenerService);
+
+  constructor() {
+    effect(() => {
+      const pending = this.terminologyOpener.pending();
+      if (!pending || pending.resourceType !== 'CodeSystem') {
+        return;
+      }
+      untracked(() => {
+        const request = this.terminologyOpener.consumePending('CodeSystem');
+        if (!request) {
+          return;
+        }
+        void this.openFromExternalRequest(request.id, request.url);
+      });
+    });
+  }
 
   ngOnInit(): void {
     // Auto-load Code Systems when component is initialized
     if (this.hasValidConfiguration() && !this.codeSystemsLoading()) {
       this.loadCodeSystems();
+    }
+  }
+
+  private async openFromExternalRequest(id: string, url?: string): Promise<void> {
+    if (!this.hasValidConfiguration()) {
+      this.toastService.showWarning(
+        'Please configure terminology service settings first.',
+        'Configuration Required'
+      );
+      return;
+    }
+    try {
+      let codeSystem: CodeSystem | null = null;
+      try {
+        codeSystem = await firstValueFrom(this.terminologyService.getCodeSystem(id));
+      } catch {
+        if (url) {
+          try {
+            codeSystem = await firstValueFrom(this.terminologyService.getCodeSystemByUrl(url));
+          } catch {
+            const bundle = await firstValueFrom(
+              this.terminologyService.searchCodeSystems({ url, _count: 1 })
+            );
+            const found = bundle.entry
+              ?.map((e) => e.resource)
+              .find((r): r is CodeSystem => isResourceType(r, 'CodeSystem'));
+            codeSystem = found ?? null;
+          }
+        }
+      }
+      if (!codeSystem) {
+        this.toastService.showError(`CodeSystem "${id}" was not found.`, 'Open Failed');
+        return;
+      }
+      this.selectCodeSystem(codeSystem);
+    } catch (error) {
+      this.toastService.showError(this.getErrorMessage(error), 'Open Failed');
     }
   }
 

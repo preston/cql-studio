@@ -5,7 +5,7 @@ import { DatePipe } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
-import { Resource } from 'fhir/r4';
+import { Library, Resource } from 'fhir/r4';
 import { WorkspaceService } from '../../../services/workspace.service';
 import { TeamService } from '../../../services/team.service';
 import { EnvironmentService } from '../../../services/environment.service';
@@ -21,6 +21,9 @@ import { WorkspaceCreateModalComponent } from '../../shared/workspace-create-mod
 import { cloneEndpointConfiguration } from '../../../services/endpoint-config.lib';
 import { workspaceActivityVerbLabel } from '../../../services/workspace-activity.lib';
 import { ToastService } from '../../../services/toast.service';
+import { ClipboardService } from '../../../services/clipboard.service';
+import { CqlIdeLibraryOpenerService } from '../../../services/cql-ide-library-opener.service';
+import { TerminologyResourceOpenerService } from '../../../services/terminology-resource-opener.service';
 import {
   SharedEnvironmentConfig,
   SharedEnvironmentDto,
@@ -69,6 +72,9 @@ export class TeamWorkspacesComponent implements OnInit {
   private readonly fhirSearch = inject(FhirSearchService);
   private readonly fhirCapability = inject(FhirCapabilityService);
   private readonly toast = inject(ToastService);
+  private readonly clipboardService = inject(ClipboardService);
+  private readonly libraryOpener = inject(CqlIdeLibraryOpenerService);
+  private readonly terminologyOpener = inject(TerminologyResourceOpenerService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -89,6 +95,8 @@ export class TeamWorkspacesComponent implements OnInit {
   readonly activeTab = signal<WorkspaceTab>('resources');
   readonly showCreateModal = signal(false);
   readonly showDeleteModal = signal(false);
+  readonly showRemoveAllResourcesModal = signal(false);
+  readonly removingAllResources = signal(false);
 
   readonly editName = signal('');
   readonly editDescription = signal('');
@@ -138,6 +146,18 @@ export class TeamWorkspacesComponent implements OnInit {
     });
   });
 
+  readonly manualResourceTypeOptions = computed(() => {
+    const types = new Set<string>([
+      ...RESOURCE_TYPE_OPTIONS,
+      ...this.fhirCapability.resourceTypes(),
+    ]);
+    const current = this.manualResourceType().trim();
+    if (current) {
+      types.add(current);
+    }
+    return Array.from(types).sort((a, b) => a.localeCompare(b));
+  });
+
   readonly searchQueryPlaceholder = computed(() => {
     const type = this.searchResourceType();
     const params = this.fhirCapability.getSearchParamsForType(type);
@@ -155,6 +175,7 @@ export class TeamWorkspacesComponent implements OnInit {
       } else {
         this.selected.set(null);
         this.closeDeleteModal();
+        this.closeRemoveAllResourcesModal();
       }
     });
   }
@@ -169,6 +190,17 @@ export class TeamWorkspacesComponent implements OnInit {
 
   closeDeleteModal(): void {
     this.showDeleteModal.set(false);
+  }
+
+  openRemoveAllResourcesModal(): void {
+    if (this.resources().length === 0) {
+      return;
+    }
+    this.showRemoveAllResourcesModal.set(true);
+  }
+
+  closeRemoveAllResourcesModal(): void {
+    this.showRemoveAllResourcesModal.set(false);
   }
 
   setTab(tab: WorkspaceTab): void {
@@ -211,6 +243,7 @@ export class TeamWorkspacesComponent implements OnInit {
       this.editName.set(workspace.name);
       this.editDescription.set(workspace.description ?? '');
       this.closeDeleteModal();
+      this.closeRemoveAllResourcesModal();
       const [grants, environments, resources, activity] = await Promise.all([
         this.workspaceService.listGrants(id),
         this.workspaceService.listEnvironments(id),
@@ -445,6 +478,118 @@ export class TeamWorkspacesComponent implements OnInit {
       this.activity.set(await this.fetchActivity(ws.id));
     } catch (e) {
       this.detailError.set((e as Error).message || 'Failed to remove resource');
+    }
+  }
+
+  private resourceStubFromRef(ref: WorkspaceResourceReference): Resource {
+    const stub: Record<string, unknown> = {
+      resourceType: ref.resourceType,
+      id: ref.resourceId,
+    };
+    if (ref.canonicalUrl) {
+      stub['url'] = ref.canonicalUrl;
+    }
+    if (ref.displayName) {
+      stub['name'] = ref.displayName;
+      stub['title'] = ref.displayName;
+    }
+    return stub as unknown as Resource;
+  }
+
+  addResourceToClipboard(ref: WorkspaceResourceReference): void {
+    try {
+      this.clipboardService.addResource(this.resourceStubFromRef(ref));
+      this.toast.showSuccess(
+        `${ref.resourceType}/${ref.resourceId} added to clipboard.`,
+        'Clipboard Updated'
+      );
+    } catch (e) {
+      this.toast.showError((e as Error).message || 'Failed to add to clipboard.', 'Clipboard Error');
+    }
+  }
+
+  addAllResourcesToClipboard(): void {
+    const items = this.resources();
+    if (items.length === 0) {
+      return;
+    }
+    try {
+      for (const ref of items) {
+        this.clipboardService.addResource(this.resourceStubFromRef(ref));
+      }
+      this.toast.showSuccess(
+        `${items.length} resource reference${items.length === 1 ? '' : 's'} added to clipboard.`,
+        'Clipboard Updated'
+      );
+    } catch (e) {
+      this.toast.showError((e as Error).message || 'Failed to add to clipboard.', 'Clipboard Error');
+    }
+  }
+
+  async confirmRemoveAllResources(): Promise<void> {
+    const ws = this.selected();
+    const items = this.resources();
+    if (!ws || items.length === 0) {
+      this.closeRemoveAllResourcesModal();
+      return;
+    }
+    this.removingAllResources.set(true);
+    try {
+      for (const ref of items) {
+        await this.workspaceService.deleteResource(ws.id, ref.id);
+      }
+      this.resources.set(await this.workspaceService.listResources(ws.id));
+      this.activity.set(await this.fetchActivity(ws.id));
+      this.closeRemoveAllResourcesModal();
+      this.toast.showSuccess(
+        `Removed ${items.length} resource reference${items.length === 1 ? '' : 's'}.`,
+        'Resources Cleared'
+      );
+    } catch (e) {
+      this.resources.set(await this.workspaceService.listResources(ws.id).catch(() => this.resources()));
+      this.toast.showError((e as Error).message || 'Failed to remove all resources');
+      this.closeRemoveAllResourcesModal();
+    } finally {
+      this.removingAllResources.set(false);
+    }
+  }
+
+  async openLibraryInIde(ref: WorkspaceResourceReference): Promise<void> {
+    if (ref.resourceType !== 'Library' || !ref.resourceId.trim()) {
+      this.toast.showError('Library reference is missing an id.', 'Open Failed');
+      return;
+    }
+    const library = {
+      resourceType: 'Library',
+      id: ref.resourceId,
+      status: 'active',
+      type: { text: 'logic-library' },
+      ...(ref.canonicalUrl ? { url: ref.canonicalUrl } : {}),
+      ...(ref.displayName ? { name: ref.displayName, title: ref.displayName } : {}),
+    } as Library;
+    this.libraryOpener.requestOpenFromServer(library);
+    const navigated = await this.router.navigate(['/ide']);
+    if (!navigated) {
+      this.libraryOpener.clearPendingOpen();
+      this.toast.showError('Could not navigate to the CQL IDE.', 'Open Failed');
+    }
+  }
+
+  async openTerminologyResource(ref: WorkspaceResourceReference): Promise<void> {
+    if (ref.resourceType !== 'ValueSet' && ref.resourceType !== 'CodeSystem') {
+      return;
+    }
+    if (!ref.resourceId.trim()) {
+      this.toast.showError(`${ref.resourceType} reference is missing an id.`, 'Open Failed');
+      return;
+    }
+    const ok = await this.terminologyOpener.requestOpen({
+      resourceType: ref.resourceType,
+      id: ref.resourceId,
+      url: ref.canonicalUrl ?? undefined,
+    });
+    if (!ok) {
+      this.toast.showError(`Could not open ${ref.resourceType} in terminology browser.`, 'Open Failed');
     }
   }
 

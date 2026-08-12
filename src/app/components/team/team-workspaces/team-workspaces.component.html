@@ -87,14 +87,37 @@
 
           @if (activeTab() === 'resources') {
             <div id="team-workspace-panel-resources">
-              <div class="form-floating mb-3">
-                <input
-                  id="team-workspace-resource-filter"
-                  class="form-control"
-                  placeholder="Search saved references…"
-                  [ngModel]="resourceFilter()"
-                  (ngModelChange)="resourceFilter.set($event)" />
-                <label for="team-workspace-resource-filter">Filter</label>
+              <div class="d-flex flex-wrap align-items-stretch gap-2 mb-3">
+                <div class="form-floating flex-grow-1">
+                  <input
+                    id="team-workspace-resource-filter"
+                    class="form-control"
+                    placeholder="Search saved references…"
+                    [ngModel]="resourceFilter()"
+                    (ngModelChange)="resourceFilter.set($event)" />
+                  <label for="team-workspace-resource-filter">Filter</label>
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                  <button
+                    type="button"
+                    id="team-workspace-resources-add-all-clipboard"
+                    class="btn btn-sm btn-outline-secondary"
+                    [disabled]="resources().length === 0"
+                    title="Add all resource references to clipboard"
+                    (click)="addAllResourcesToClipboard()">
+                    <i class="bi bi-clipboard-plus me-1" aria-hidden="true"></i>Add all to clipboard
+                  </button>
+                  @if (canEdit()) {
+                    <button
+                      type="button"
+                      id="team-workspace-resources-remove-all"
+                      class="btn btn-sm btn-outline-danger"
+                      [disabled]="resources().length === 0"
+                      (click)="openRemoveAllResourcesModal()">
+                      Remove all
+                    </button>
+                  }
+                </div>
               </div>
 
               <ul class="list-group mb-4" id="team-workspace-resources">
@@ -106,21 +129,52 @@
                         <strong>{{ ref.displayName || ref.resourceId }}</strong>
                       </div>
                       <small class="text-body-secondary">
-                        id: <code>{{ ref.resourceId }}</code>
-                        @if (ref.canonicalUrl) {
+                        <code>{{ ref.resourceId }}</code>
+                        <!-- @if (ref.canonicalUrl) {
                           · <span class="text-break">{{ ref.canonicalUrl }}</span>
-                        }
+                        } -->
                       </small>
                     </div>
-                    @if (canEdit()) {
+                    <div class="d-flex flex-wrap gap-2 justify-content-end">
+                      @if (ref.resourceType === 'Library') {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary"
+                          [id]="'team-workspace-resource-open-ide-' + ref.id"
+                          title="Open in CQL IDE"
+                          (click)="openLibraryInIde(ref)">
+                          <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>IDE
+                        </button>
+                      }
+                      @if (ref.resourceType === 'ValueSet' || ref.resourceType === 'CodeSystem') {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-primary"
+                          [id]="'team-workspace-resource-open-terminology-' + ref.id"
+                          title="Open in terminology browser"
+                          (click)="openTerminologyResource(ref)">
+                          <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Terminology
+                        </button>
+                      }
                       <button
                         type="button"
-                        class="btn btn-sm btn-outline-danger"
-                        [id]="'team-workspace-resource-delete-' + ref.id"
-                        (click)="deleteResource(ref.id)">
-                        Remove
+                        class="btn btn-sm btn-outline-secondary"
+                        [id]="'team-workspace-resource-clipboard-' + ref.id"
+                        title="Add to clipboard"
+                        (click)="addResourceToClipboard(ref)">
+                        <i class="bi bi-clipboard-plus" aria-hidden="true"></i>
+                        <span class="visually-hidden">Add to clipboard</span>
                       </button>
-                    }
+                      @if (canEdit()) {
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger"
+                          [id]="'team-workspace-resource-delete-' + ref.id"
+                          (click)="deleteResource(ref.id)">
+                          Remove
+                        </button>
+                      }
+                    </div>
                   </li>
                 } @empty {
                   <li class="list-group-item text-body-secondary">No resource references yet.</li>
@@ -202,7 +256,7 @@
                         class="form-select"
                         [ngModel]="manualResourceType()"
                         (ngModelChange)="manualResourceType.set($event)">
-                        @for (type of resourceTypeOptions; track type) {
+                        @for (type of manualResourceTypeOptions(); track type) {
                           <option [value]="type">{{ type }}</option>
                         }
                       </select>
@@ -601,6 +655,54 @@
             id="team-workspace-delete-confirm"
             (click)="confirmDeleteWorkspace()">
             Delete Workspace
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showRemoveAllResourcesModal()) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1" role="dialog" id="team-workspace-remove-all-resources-modal" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="team-workspace-remove-all-resources-modal-title">Remove all resource references</h5>
+          <button
+            type="button"
+            class="btn-close"
+            id="team-workspace-remove-all-resources-modal-close"
+            aria-label="Close"
+            (click)="closeRemoveAllResourcesModal()"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">
+            Remove all {{ resources().length }} resource reference{{ resources().length === 1 ? '' : 's' }} from this
+            workspace? This cannot be undone.
+          </p>
+          @if (selected(); as ws) {
+            <p class="small text-body-secondary mb-0">
+              Workspace: <strong>{{ ws.name }}</strong>
+            </p>
+          }
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            id="team-workspace-remove-all-resources-cancel"
+            [disabled]="removingAllResources()"
+            (click)="closeRemoveAllResourcesModal()">
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-danger"
+            id="team-workspace-remove-all-resources-confirm"
+            [disabled]="removingAllResources()"
+            (click)="confirmRemoveAllResources()">
+            {{ removingAllResources() ? 'Removing…' : 'Remove all' }}
           </button>
         </div>
       </div>
