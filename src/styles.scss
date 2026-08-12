@@ -1,58 +1,15 @@
 // Import color variables
 @use 'app/styles/_colors' as colors;
 
-// Bootstrap is loaded via Bootswatch litera theme in angular.json
-// No need to import Bootstrap SCSS here
-
 // Import PrismJS theme overrides
 @use 'app/styles/prism-theme';
 
 body:has([data-bs-theme=light]) {
   background: url("/images/textures/crossword.png") repeat;
-
-  // Ensure proper text contrast in light theme
-  .navbar {
-    .navbar-brand,
-    .nav-link {
-      // color: white !important;
-    }
-    
-    .navbar-brand:hover,
-    .nav-link:hover {
-      // color: rgba(255, 255, 255, 0.8) !important;
-    }
-    
-    .nav-link.active {
-      // color: white !important;
-    }
-  }
 }
 
 body:has([data-bs-theme=dark]) {
   background: url("/images/textures/binding_dark.png") repeat;
-
-  .h1,
-  .h2,
-  .h3,
-  .h4,
-  .h5,
-  .h6,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  label,
-  p,
-  li,
-  b,
-  span:not(.cm-editor span):not(.cm-editor *):not(.icon):not([class*="bi-"]), // Exclude CodeMirror spans and icons
-  // a,
-  .lead {
-    // Simplex override for the default font color that's way too dark.
-    // color: colors.$color-text-muted;
-  }
 }
 
 // Ensure icons are not italicized
