@@ -3,13 +3,13 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthService } from './auth.service';
 import {
+  SharedEnvironmentConfig,
   SharedEnvironmentDto,
   Workspace,
   WorkspaceAccessGrant,
   WorkspaceActivity,
-  WorkspacePrincipalType,
+  WorkspaceResourceReference,
   WorkspaceRole,
-  WorkspaceShareLink,
   WorkspaceVisibility,
 } from '../models/team.model';
 
@@ -82,7 +82,9 @@ export class WorkspaceService {
 
   upsertGrant(
     workspaceId: string,
-    principal: { type: WorkspacePrincipalType; id: string; role: WorkspaceRole }
+    principal:
+      | { type: 'USER'; email: string; role: WorkspaceRole }
+      | { type: 'TEAM'; id: string; role: WorkspaceRole }
   ): Promise<WorkspaceAccessGrant> {
     return fetch(this.url(`/${workspaceId}/grants`), {
       method: 'POST',
@@ -112,38 +114,6 @@ export class WorkspaceService {
     }).then((r) => this.json(r));
   }
 
-  createShareLink(
-    workspaceId: string,
-    opts?: { expiresInDays?: number; maxUses?: number }
-  ): Promise<WorkspaceShareLink> {
-    return fetch(this.url(`/${workspaceId}/share-links`), {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(opts ?? {}),
-    }).then((r) => this.json(r));
-  }
-
-  listShareLinks(workspaceId: string): Promise<WorkspaceShareLink[]> {
-    return fetch(this.url(`/${workspaceId}/share-links`), { credentials: 'include' }).then((r) =>
-      this.json(r)
-    );
-  }
-
-  revokeShareLink(workspaceId: string, linkId: string): Promise<void> {
-    return fetch(this.url(`/${workspaceId}/share-links/${linkId}`), {
-      method: 'DELETE',
-      credentials: 'include',
-    }).then((r) => this.json(r));
-  }
-
-  redeemShareLink(token: string): Promise<{ workspaceId: string }> {
-    return fetch(this.url(`/redeem/${encodeURIComponent(token)}`), {
-      method: 'POST',
-      credentials: 'include',
-    }).then((r) => this.json(r));
-  }
-
   listEnvironments(workspaceId: string): Promise<SharedEnvironmentDto[]> {
     return fetch(this.url(`/${workspaceId}/environments`), { credentials: 'include' }).then((r) =>
       this.json(r)
@@ -153,7 +123,7 @@ export class WorkspaceService {
   createEnvironment(
     workspaceId: string,
     name: string,
-    config: unknown
+    config: SharedEnvironmentConfig
   ): Promise<SharedEnvironmentDto> {
     return fetch(this.url(`/${workspaceId}/environments`), {
       method: 'POST',
@@ -166,7 +136,7 @@ export class WorkspaceService {
   updateEnvironment(
     workspaceId: string,
     envId: string,
-    input: { name?: string; config?: unknown }
+    input: { name?: string; config?: SharedEnvironmentConfig }
   ): Promise<SharedEnvironmentDto> {
     return fetch(this.url(`/${workspaceId}/environments/${envId}`), {
       method: 'PATCH',
@@ -178,6 +148,36 @@ export class WorkspaceService {
 
   deleteEnvironment(workspaceId: string, envId: string): Promise<void> {
     return fetch(this.url(`/${workspaceId}/environments/${envId}`), {
+      method: 'DELETE',
+      credentials: 'include',
+    }).then((r) => this.json(r));
+  }
+
+  listResources(workspaceId: string): Promise<WorkspaceResourceReference[]> {
+    return fetch(this.url(`/${workspaceId}/resources`), { credentials: 'include' }).then((r) =>
+      this.json(r)
+    );
+  }
+
+  addResource(
+    workspaceId: string,
+    input: {
+      resourceType: string;
+      resourceId: string;
+      canonicalUrl?: string | null;
+      displayName?: string | null;
+    }
+  ): Promise<WorkspaceResourceReference> {
+    return fetch(this.url(`/${workspaceId}/resources`), {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }).then((r) => this.json(r));
+  }
+
+  deleteResource(workspaceId: string, refId: string): Promise<void> {
+    return fetch(this.url(`/${workspaceId}/resources/${refId}`), {
       method: 'DELETE',
       credentials: 'include',
     }).then((r) => this.json(r));

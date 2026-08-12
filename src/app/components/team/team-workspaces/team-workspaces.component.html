@@ -1,19 +1,11 @@
 <div class="container py-4" id="team-workspaces">
-  <div class="d-flex justify-content-between align-items-center mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
     <div>
       <h1 class="h3 mb-1">Workspaces</h1>
-      <p class="text-body-secondary mb-0">
-        Collaboration containers with owner / editor / viewer grants for users and teams.
-      </p>
     </div>
-    <div class="d-flex gap-2">
-      <button type="button" id="team-create-team-button" class="btn btn-outline-secondary" (click)="createTeam()">
-        New team
-      </button>
-      <a id="team-workspaces-dashboard-link" class="btn btn-outline-primary" routerLink="/team/dashboard">
-        Dashboard
-      </a>
-    </div>
+    <button type="button" id="team-workspace-new-button" class="btn btn-primary" (click)="openCreateModal()">
+      <span class="bi bi-plus-lg me-1"></span>New workspace
+    </button>
   </div>
 
   @if (error()) {
@@ -22,31 +14,7 @@
 
   <div class="row g-4">
     <div class="col-lg-4">
-      <div class="card">
-        <div class="card-header">Create workspace</div>
-        <div class="card-body">
-          <div class="mb-2">
-            <label class="form-label" for="team-workspace-new-name">Name</label>
-            <input id="team-workspace-new-name" class="form-control" [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
-          </div>
-          <div class="mb-2">
-            <label class="form-label" for="team-workspace-new-description">Description</label>
-            <input id="team-workspace-new-description" class="form-control" [ngModel]="newDescription()" (ngModelChange)="newDescription.set($event)" />
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="team-workspace-new-visibility">Visibility</label>
-            <select id="team-workspace-new-visibility" class="form-select" [ngModel]="newVisibility()" (ngModelChange)="newVisibility.set($event)">
-              <option value="PRIVATE">Private</option>
-              <option value="PUBLIC">Public</option>
-            </select>
-          </div>
-          <button type="button" id="team-workspace-create-button" class="btn btn-primary" (click)="createWorkspace()">
-            Create
-          </button>
-        </div>
-      </div>
-
-      <div class="list-group mt-3" id="team-workspaces-list">
+      <div class="list-group" id="team-workspaces-list">
         @if (loading()) {
           <div class="list-group-item text-body-secondary">Loading…</div>
         } @else if (workspaces().length === 0) {
@@ -67,21 +35,6 @@
           }
         }
       </div>
-
-      @if (teams().length) {
-        <div class="mt-3">
-          <h2 class="h6">Your teams</h2>
-          <ul class="list-group" id="team-list">
-            @for (team of teams(); track team.id) {
-              <li class="list-group-item d-flex justify-content-between">
-                <span>{{ team.name }}</span>
-                <code class="small">{{ team.id }}</code>
-              </li>
-            }
-          </ul>
-          <p class="form-text">Use a team id when granting Team access on a workspace.</p>
-        </div>
-      }
     </div>
 
     <div class="col-lg-8">
@@ -89,128 +42,539 @@
         <div class="alert alert-danger" id="team-workspace-detail-error">{{ detailError() }}</div>
       }
 
-      @if (!selected()) {
-        <div class="text-body-secondary" id="team-workspace-detail-empty">Select a workspace to manage grants, share links, and shared environments.</div>
-      } @else {
+      @if (selected()) {
         <div id="team-workspace-detail">
-          <h2 class="h4">{{ selected()!.name }}</h2>
-          <p class="text-body-secondary">{{ selected()!.description || 'No description' }}</p>
-          <p>
+          <h2 class="h4 mb-1">{{ selected()!.name }}</h2>
+          <p class="text-body-secondary mb-2">{{ selected()!.description || 'No description' }}</p>
+          <p class="mb-3">
             <span class="badge text-bg-primary me-2">{{ selected()!.myRole }}</span>
             <span class="badge text-bg-secondary">{{ selected()!.visibility }}</span>
           </p>
 
-          @if (isOwner()) {
-            <div class="mb-4">
-              <label class="form-label" for="team-workspace-visibility">Visibility</label>
-              <select
-                id="team-workspace-visibility"
-                class="form-select"
-                style="max-width: 12rem;"
-                [ngModel]="selected()!.visibility"
-                (ngModelChange)="saveVisibility($event)">
-                <option value="PRIVATE">Private</option>
-                <option value="PUBLIC">Public</option>
-              </select>
-            </div>
-
-            <h3 class="h5">Access grants</h3>
-            <div class="row g-2 align-items-end mb-2">
-              <div class="col-md-3">
-                <label class="form-label" for="team-grant-type">Principal</label>
-                <select id="team-grant-type" class="form-select" [ngModel]="grantType()" (ngModelChange)="grantType.set($event)">
-                  <option value="USER">User</option>
-                  <option value="TEAM">Team</option>
-                </select>
-              </div>
-              <div class="col-md-5">
-                <label class="form-label" for="team-grant-principal-id">Id</label>
-                <input id="team-grant-principal-id" class="form-control" [ngModel]="grantPrincipalId()" (ngModelChange)="grantPrincipalId.set($event)" />
-              </div>
-              <div class="col-md-2">
-                <label class="form-label" for="team-grant-role">Role</label>
-                <select id="team-grant-role" class="form-select" [ngModel]="grantRole()" (ngModelChange)="grantRole.set($event)">
-                  <option value="OWNER">Owner</option>
-                  <option value="EDITOR">Editor</option>
-                  <option value="VIEWER">Viewer</option>
-                </select>
-              </div>
-              <div class="col-md-2">
-                <button type="button" id="team-grant-add-button" class="btn btn-primary w-100" (click)="addGrant()">Add</button>
-              </div>
-            </div>
-            <ul class="list-group mb-4" id="team-workspace-grants">
-              @for (grant of grants(); track grant.id) {
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                  <span>
-                    <span class="badge text-bg-light me-1">{{ grant.principalType }}</span>
-                    <code>{{ grant.principalId }}</code>
-                    <span class="ms-2">{{ grant.role }}</span>
-                    @if (grant.isGuest) {
-                      <span class="badge text-bg-info ms-1">guest</span>
-                    }
-                  </span>
-                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeGrant(grant.id)">Remove</button>
-                </li>
-              }
-            </ul>
-
-            <h3 class="h5">Share links</h3>
-            <button type="button" id="team-share-link-create" class="btn btn-outline-primary mb-2" (click)="createShareLink()">
-              Create 7-day viewer link
-            </button>
-            @if (lastShareToken()) {
-              <div class="alert alert-warning" id="team-share-link-token">
-                Copy this token now (shown once): <code>{{ lastShareToken() }}</code>
-              </div>
-            }
-            <ul class="list-group mb-4" id="team-share-links">
-              @for (link of shareLinks(); track link.id) {
-                <li class="list-group-item d-flex justify-content-between">
-                  <span>
-                    uses {{ link.useCount }}
-                    @if (link.revokedAt) {
-                      <span class="badge text-bg-secondary ms-1">revoked</span>
-                    } @else if (link.expiresAt) {
-                      <small class="text-body-secondary ms-2">expires {{ link.expiresAt | date: 'mediumDate' }}</small>
-                    }
-                  </span>
-                  @if (!link.revokedAt) {
-                    <button type="button" class="btn btn-sm btn-outline-danger" (click)="revokeShareLink(link.id)">Revoke</button>
-                  }
-                </li>
-              }
-            </ul>
-          }
-
-          <h3 class="h5">Shared environments</h3>
-          @if (canEdit()) {
-            <div class="input-group mb-2" style="max-width: 28rem;">
-              <input
-                id="team-shared-env-name"
-                class="form-control"
-                placeholder="Name for active environment"
-                [ngModel]="newEnvName()"
-                (ngModelChange)="newEnvName.set($event)" />
-              <button type="button" id="team-shared-env-share" class="btn btn-primary" (click)="shareActiveEnvironment()">
-                Share active (no secrets)
+          <ul class="nav nav-tabs mb-3" id="team-workspace-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link"
+                id="team-workspace-tab-resources"
+                [class.active]="activeTab() === 'resources'"
+                (click)="setTab('resources')">
+                Resources
               </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link"
+                id="team-workspace-tab-access"
+                [class.active]="activeTab() === 'access'"
+                (click)="setTab('access')">
+                Access
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link"
+                id="team-workspace-tab-environments"
+                [class.active]="activeTab() === 'environments'"
+                (click)="setTab('environments')">
+                Environments
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button
+                type="button"
+                class="nav-link"
+                id="team-workspace-tab-activity"
+                [class.active]="activeTab() === 'activity'"
+                (click)="setTab('activity')">
+                Activity
+              </button>
+            </li>
+          </ul>
+
+          @if (activeTab() === 'resources') {
+            <div id="team-workspace-panel-resources">
+              <div class="form-floating mb-3">
+                <input
+                  id="team-workspace-resource-filter"
+                  class="form-control"
+                  placeholder="Search saved references…"
+                  [ngModel]="resourceFilter()"
+                  (ngModelChange)="resourceFilter.set($event)" />
+                <label for="team-workspace-resource-filter">Filter</label>
+              </div>
+
+              <ul class="list-group mb-4" id="team-workspace-resources">
+                @for (ref of filteredResources(); track ref.id) {
+                  <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div>
+                        <span class="badge text-bg-light me-1">{{ ref.resourceType }}</span>
+                        <strong>{{ ref.displayName || ref.resourceId }}</strong>
+                      </div>
+                      <small class="text-body-secondary">
+                        id: <code>{{ ref.resourceId }}</code>
+                        @if (ref.canonicalUrl) {
+                          · <span class="text-break">{{ ref.canonicalUrl }}</span>
+                        }
+                      </small>
+                    </div>
+                    @if (canEdit()) {
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        [id]="'team-workspace-resource-delete-' + ref.id"
+                        (click)="deleteResource(ref.id)">
+                        Remove
+                      </button>
+                    }
+                  </li>
+                } @empty {
+                  <li class="list-group-item text-body-secondary">No resource references yet.</li>
+                }
+              </ul>
+
+              @if (canEdit()) {
+                <h3 class="h6">Search FHIR server</h3>
+                <p class="form-text">Uses the currently active environment’s data endpoint.</p>
+                <div class="row g-2 align-items-stretch mb-2">
+                  <div class="col-md-3">
+                    <div class="form-floating">
+                      <select
+                        id="team-workspace-resource-search-type"
+                        class="form-select"
+                        [ngModel]="searchResourceType()"
+                        (ngModelChange)="searchResourceType.set($event)">
+                        @for (type of resourceTypeOptions; track type) {
+                          <option [value]="type">{{ type }}</option>
+                        }
+                      </select>
+                      <label for="team-workspace-resource-search-type">Type</label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-floating">
+                      <input
+                        id="team-workspace-resource-search-query"
+                        class="form-control"
+                        placeholder="_text search"
+                        [ngModel]="searchQuery()"
+                        (ngModelChange)="searchQuery.set($event)" />
+                      <label for="team-workspace-resource-search-query">Query</label>
+                    </div>
+                  </div>
+                  <div class="col-md-3 d-flex">
+                    <button
+                      type="button"
+                      id="team-workspace-resource-search-button"
+                      class="btn btn-outline-primary w-100"
+                      [disabled]="searchLoading()"
+                      (click)="searchResources()">
+                      {{ searchLoading() ? 'Searching…' : 'Search' }}
+                    </button>
+                  </div>
+                </div>
+                @if (searchError()) {
+                  <div class="alert alert-warning py-2" id="team-workspace-resource-search-error">{{ searchError() }}</div>
+                }
+                <ul class="list-group mb-4" id="team-workspace-resource-search-results">
+                  @for (resource of searchResults(); track resource.id) {
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                      <span>
+                        <span class="badge text-bg-light me-1">{{ resource.resourceType }}</span>
+                        {{ resourceLabel(resource) }}
+                        <code class="small ms-1">{{ resource.id }}</code>
+                      </span>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-primary"
+                        [id]="'team-workspace-resource-add-search-' + resource.id"
+                        (click)="addResourceFromSearch(resource)">
+                        Add
+                      </button>
+                    </li>
+                  } @empty {
+                    @if (!searchLoading()) {
+                      <li class="list-group-item text-body-secondary">No search results.</li>
+                    }
+                  }
+                </ul>
+
+                <h3 class="h6">Add manually</h3>
+                <div class="row g-2 align-items-stretch mb-2">
+                  <div class="col-md-3">
+                    <div class="form-floating">
+                      <select
+                        id="team-workspace-resource-manual-type"
+                        class="form-select"
+                        [ngModel]="manualResourceType()"
+                        (ngModelChange)="manualResourceType.set($event)">
+                        @for (type of resourceTypeOptions; track type) {
+                          <option [value]="type">{{ type }}</option>
+                        }
+                      </select>
+                      <label for="team-workspace-resource-manual-type">Type</label>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="form-floating">
+                      <input
+                        id="team-workspace-resource-manual-id"
+                        class="form-control"
+                        placeholder="Id"
+                        [ngModel]="manualResourceId()"
+                        (ngModelChange)="manualResourceId.set($event)" />
+                      <label for="team-workspace-resource-manual-id">Id</label>
+                    </div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="form-floating">
+                      <input
+                        id="team-workspace-resource-manual-name"
+                        class="form-control"
+                        placeholder="Display name"
+                        [ngModel]="manualDisplayName()"
+                        (ngModelChange)="manualDisplayName.set($event)" />
+                      <label for="team-workspace-resource-manual-name">Display name</label>
+                    </div>
+                  </div>
+                  <div class="col-md-3 d-flex">
+                    <button
+                      type="button"
+                      id="team-workspace-resource-manual-add"
+                      class="btn btn-primary w-100"
+                      (click)="addManualResource()">
+                      Add
+                    </button>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-floating">
+                      <input
+                        id="team-workspace-resource-manual-canonical"
+                        class="form-control"
+                        placeholder="Canonical URL (optional)"
+                        [ngModel]="manualCanonicalUrl()"
+                        (ngModelChange)="manualCanonicalUrl.set($event)" />
+                      <label for="team-workspace-resource-manual-canonical">Canonical URL (optional)</label>
+                    </div>
+                  </div>
+                </div>
+              }
             </div>
           }
-          <ul class="list-group" id="team-shared-environments">
-            @for (env of environments(); track env.id) {
-              <li class="list-group-item d-flex justify-content-between">
-                <span>{{ env.name }}</span>
+
+          @if (activeTab() === 'access') {
+            <div id="team-workspace-panel-access">
+              @if (isOwner()) {
+                <div class="form-floating mb-4" style="max-width: 12rem;">
+                  <select
+                    id="team-workspace-visibility"
+                    class="form-select"
+                    [ngModel]="selected()!.visibility"
+                    (ngModelChange)="saveVisibility($event)">
+                    <option value="PRIVATE">Private</option>
+                    <option value="PUBLIC">Public</option>
+                  </select>
+                  <label for="team-workspace-visibility">Visibility</label>
+                </div>
+
+                <h3 class="h5">Access grants</h3>
+                <div class="row g-2 align-items-stretch mb-2">
+                  <div class="col-md-3">
+                    <div class="form-floating">
+                      <select id="team-grant-type" class="form-select" [ngModel]="grantType()" (ngModelChange)="setGrantType($event)">
+                        <option value="USER">User</option>
+                        <option value="TEAM">Team</option>
+                      </select>
+                      <label for="team-grant-type">Principal</label>
+                    </div>
+                  </div>
+                  <div class="col-md-5">
+                    <div class="form-floating">
+                      @if (grantType() === 'USER') {
+                        <input
+                          id="team-grant-principal-email"
+                          type="email"
+                          class="form-control"
+                          placeholder="Email"
+                          [ngModel]="grantPrincipal()"
+                          (ngModelChange)="grantPrincipal.set($event)" />
+                        <label for="team-grant-principal-email">Email</label>
+                      } @else {
+                        <input
+                          id="team-grant-principal-id"
+                          class="form-control"
+                          placeholder="Team id"
+                          [ngModel]="grantPrincipal()"
+                          (ngModelChange)="grantPrincipal.set($event)" />
+                        <label for="team-grant-principal-id">Team id</label>
+                      }
+                    </div>
+                  </div>
+                  <div class="col-md-2">
+                    <div class="form-floating">
+                      <select id="team-grant-role" class="form-select" [ngModel]="grantRole()" (ngModelChange)="grantRole.set($event)">
+                        <option value="OWNER">Owner</option>
+                        <option value="EDITOR">Editor</option>
+                        <option value="VIEWER">Viewer</option>
+                      </select>
+                      <label for="team-grant-role">Role</label>
+                    </div>
+                  </div>
+                  <div class="col-md-2 d-flex">
+                    <button type="button" id="team-grant-add-button" class="btn btn-primary w-100" (click)="addGrant()">Add</button>
+                  </div>
+                </div>
+                <ul class="list-group mb-4" id="team-workspace-grants">
+                  @for (grant of grants(); track grant.id) {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                      <span>
+                        <span class="badge text-bg-light me-1">{{ grant.principalType }}</span>
+                        {{ grantLabel(grant) }}
+                        <span class="ms-2">{{ grant.role }}</span>
+                      </span>
+                      <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeGrant(grant.id)">Remove</button>
+                    </li>
+                  } @empty {
+                    <li class="list-group-item text-body-secondary">No grants yet.</li>
+                  }
+                </ul>
+              } @else {
+                <p class="text-body-secondary" id="team-workspace-access-readonly">
+                  Only workspace owners can manage visibility and grants.
+                </p>
+                <ul class="list-group mb-4" id="team-workspace-grants-readonly">
+                  @for (grant of grants(); track grant.id) {
+                    <li class="list-group-item">
+                      <span class="badge text-bg-light me-1">{{ grant.principalType }}</span>
+                      {{ grantLabel(grant) }}
+                      <span class="ms-2">{{ grant.role }}</span>
+                    </li>
+                  } @empty {
+                    <li class="list-group-item text-body-secondary">No grants listed.</li>
+                  }
+                </ul>
+              }
+
+              @if (teams().length) {
+                <h3 class="h6">Your teams</h3>
+                <ul class="list-group" id="team-list">
+                  @for (team of teams(); track team.id) {
+                    <li class="list-group-item d-flex justify-content-between">
+                      <span>{{ team.name }}</span>
+                      <code class="small">{{ team.id }}</code>
+                    </li>
+                  }
+                </ul>
+                <p class="form-text">Use a team id when granting Team access on a workspace.</p>
+              }
+            </div>
+          }
+
+          @if (activeTab() === 'environments') {
+            <div id="team-workspace-panel-environments">
+              <div class="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
+                <h3 class="h5 mb-0">Shared environments</h3>
                 @if (canEdit()) {
-                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteEnvironment(env.id)">Delete</button>
+                  <button
+                    type="button"
+                    id="team-shared-env-create"
+                    class="btn btn-sm btn-primary"
+                    (click)="startCreateEnvironment()">
+                    New environment
+                  </button>
                 }
-              </li>
-            } @empty {
-              <li class="list-group-item text-body-secondary">No shared environments.</li>
-            }
-          </ul>
+              </div>
+
+              <ul class="list-group mb-3" id="team-shared-environments">
+                @for (env of environments(); track env.id) {
+                  <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                    <span>{{ env.name }}</span>
+                    @if (canEdit()) {
+                      <span class="d-flex gap-2">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-secondary"
+                          [id]="'team-shared-env-edit-' + env.id"
+                          (click)="startEditEnvironment(env)">
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger"
+                          [id]="'team-shared-env-delete-' + env.id"
+                          (click)="deleteEnvironment(env.id)">
+                          Delete
+                        </button>
+                      </span>
+                    }
+                  </li>
+                } @empty {
+                  <li class="list-group-item text-body-secondary">No shared environments.</li>
+                }
+              </ul>
+
+                  @if (canEdit() && envEditorMode() !== 'idle') {
+                <div class="card" id="team-shared-env-editor">
+                  <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <strong>{{ envEditorMode() === 'edit' ? 'Edit environment' : 'Create environment' }}</strong>
+                    <div class="d-flex gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        id="team-shared-env-copy-active"
+                        class="btn btn-sm btn-outline-secondary"
+                        (click)="copyActiveIntoEditor()">
+                        Copy from active
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelEnvEditor()">Cancel</button>
+                      <button type="button" id="team-shared-env-save" class="btn btn-sm btn-primary" (click)="saveEnvironment()">
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                  <div class="card-body d-flex flex-column gap-3">
+                    <div class="form-floating">
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="team-shared-env-name"
+                        placeholder="Name"
+                        [ngModel]="editingEnvName()"
+                        (ngModelChange)="editingEnvName.set($event)" />
+                      <label for="team-shared-env-name">Name</label>
+                    </div>
+
+                    @if (editingEnvConfig(); as envConfig) {
+                      <div class="card border">
+                        <div class="card-header py-2">
+                          <h6 class="card-title mb-0">Evaluation server</h6>
+                        </div>
+                        <div class="card-body pt-2">
+                          <app-settings-endpoint-editor
+                            idPrefix="team-shared-evaluation-server"
+                            label="Evaluation server URL"
+                            [(endpoint)]="envConfig.evaluationServer" />
+                        </div>
+                      </div>
+
+                      <div class="card border">
+                        <div class="card-header py-2">
+                          <h6 class="card-title mb-0">Data endpoint</h6>
+                        </div>
+                        <div class="card-body pt-2">
+                          <app-settings-endpoint-editor
+                            idPrefix="team-shared-data-endpoint"
+                            label="Data endpoint URL"
+                            [(endpoint)]="envConfig.dataEndpoint" />
+                        </div>
+                      </div>
+
+                      <div class="card border">
+                        <div class="card-header py-2">
+                          <h6 class="card-title mb-0">Terminology endpoint</h6>
+                        </div>
+                        <div class="card-body pt-2">
+                          <app-settings-endpoint-editor
+                            idPrefix="team-shared-terminology-endpoint"
+                            label="Terminology endpoint URL"
+                            [(endpoint)]="envConfig.terminologyEndpoint" />
+                        </div>
+                      </div>
+
+                      <div class="card border">
+                        <div class="card-header py-2">
+                          <h6 class="card-title mb-0">Content endpoint</h6>
+                        </div>
+                        <div class="card-body pt-2">
+                          <app-settings-endpoint-editor
+                            idPrefix="team-shared-content-endpoint"
+                            label="Content endpoint URL"
+                            [(endpoint)]="envConfig.contentEndpoint" />
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          @if (activeTab() === 'activity') {
+            <div id="team-workspace-panel-activity">
+              @if (activity().length === 0) {
+                <div class="text-body-secondary" id="team-workspace-activity-empty">No activity yet.</div>
+              } @else {
+                <ul class="list-group" id="team-workspace-activity-list">
+                  @for (item of activity(); track item.id) {
+                    <li class="list-group-item">
+                      <div class="d-flex justify-content-between gap-3">
+                        <div>
+                          <strong>{{ actorLabel(item) }}</strong>
+                          <span class="mx-1">{{ verbLabel(item.verb) }}</span>
+                        </div>
+                        <small class="text-body-secondary text-nowrap">{{ item.createdAt | date: 'medium' }}</small>
+                      </div>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
         </div>
       }
     </div>
   </div>
 </div>
+
+@if (showCreateModal()) {
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal fade show d-block" tabindex="-1" role="dialog" id="team-workspace-create-modal" aria-modal="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="team-workspace-create-modal-title">New workspace</h5>
+          <button type="button" class="btn-close" id="team-workspace-create-modal-close" (click)="closeCreateModal()"></button>
+        </div>
+        <div class="modal-body d-flex flex-column gap-3">
+          <div class="form-floating">
+            <input
+              id="team-workspace-new-name"
+              class="form-control"
+              placeholder="Name"
+              [ngModel]="newName()"
+              (ngModelChange)="newName.set($event)" />
+            <label for="team-workspace-new-name">Name</label>
+          </div>
+          <div class="form-floating">
+            <input
+              id="team-workspace-new-description"
+              class="form-control"
+              placeholder="Description"
+              [ngModel]="newDescription()"
+              (ngModelChange)="newDescription.set($event)" />
+            <label for="team-workspace-new-description">Description</label>
+          </div>
+          <div class="form-floating">
+            <select
+              id="team-workspace-new-visibility"
+              class="form-select"
+              [ngModel]="newVisibility()"
+              (ngModelChange)="newVisibility.set($event)">
+              <option value="PRIVATE">Private</option>
+              <option value="PUBLIC">Public</option>
+            </select>
+            <label for="team-workspace-new-visibility">Visibility</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="team-workspace-create-cancel" (click)="closeCreateModal()">Cancel</button>
+          <button type="button" id="team-workspace-create-button" class="btn btn-primary" (click)="createWorkspace()">
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}

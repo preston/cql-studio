@@ -5,6 +5,7 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { WorkspaceService } from '../../../services/workspace.service';
+import { workspaceActivityVerbLabel } from '../../../services/workspace-activity.lib';
 import { Workspace, WorkspaceActivity } from '../../../models/team.model';
 
 @Component({
@@ -53,5 +54,9 @@ export class TeamDashboardComponent implements OnInit {
 
   actorLabel(item: WorkspaceActivity): string {
     return item.actor?.displayName || item.actor?.email || item.actorUserId;
+  }
+
+  verbLabel(verb: string): string {
+    return workspaceActivityVerbLabel(verb);
   }
 }

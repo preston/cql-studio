@@ -8,6 +8,13 @@ export enum ThemeType {
     DARK = 'dark'
 }
 
+export type ActiveEnvironmentSource = 'personal' | 'workspace';
+
+export interface ActiveWorkspaceEnvironmentRef {
+    workspaceId: string;
+    environmentId: string;
+}
+
 export class Settings {
     public settingsVersion: number = 2;
     public experimental: boolean = false;
@@ -19,6 +26,8 @@ export class Settings {
     public defaultTestResultsIndexUrl: string = '';
     public environments: CqlEnvironment[] = [];
     public activeEnvironmentId: string = 'default';
+    public activeEnvironmentSource: ActiveEnvironmentSource = 'personal';
+    public activeWorkspaceEnvironment: ActiveWorkspaceEnvironmentRef | null = null;
 
     /** FHIR NPM package registry (normative default https://packages.fhir.org). */
     public fhirPackageRegistryBaseUrl: string = '';

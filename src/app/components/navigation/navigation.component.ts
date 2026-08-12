@@ -29,6 +29,7 @@ export class NavigationComponent {
   protected readonly authService = inject(AuthService);
 
   readonly activeEnvironmentName = computed(() => this.environmentService.activeEnvironment().name);
+  readonly workspaceEnvironmentSections = this.environmentService.workspaceCatalogWithEnvironments;
 
   constructor() {
     // Listen to route changes to update the signal
@@ -95,11 +96,24 @@ export class NavigationComponent {
     this.environmentSwitchService.activateEnvironment(id);
   }
 
+  activateWorkspaceEnvironment(workspaceId: string, environmentId: string): void {
+    this.environmentSwitchService.activateWorkspaceEnvironment(workspaceId, environmentId);
+  }
+
+  isPersonalEnvironmentSelected(id: string): boolean {
+    return this.environmentService.isPersonalEnvironmentSelected(id);
+  }
+
+  isWorkspaceEnvironmentSelected(workspaceId: string, environmentId: string): boolean {
+    return this.environmentService.isWorkspaceEnvironmentSelected(workspaceId, environmentId);
+  }
+
   signIn(): void {
     this.authService.login(this.router.url);
   }
 
   async signOut(): Promise<void> {
+    this.environmentSwitchService.clearWorkspaceCatalog();
     await this.authService.logout();
     await this.router.navigate(['/']);
   }

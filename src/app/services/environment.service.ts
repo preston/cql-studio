@@ -6,8 +6,14 @@ import {
   CqlEnvironment,
   EndpointConfiguration,
   EndpointHttpContext,
-  EndpointRole
+  EndpointRole,
+  workspaceEnvironmentSyntheticId
 } from '../models/environment.model';
+import {
+  ActiveEnvironmentSource,
+  ActiveWorkspaceEnvironmentRef
+} from '../models/settings.model';
+import { SharedEnvironmentConfig, SharedEnvironmentDto } from '../models/team.model';
 import {
   buildHttpHeaders,
   emptyEndpointConfiguration,
@@ -23,24 +29,62 @@ export interface LegacyEnvironmentFields {
   terminologyBasicAuthPassword?: string;
 }
 
+export interface WorkspaceEnvironmentCatalogEntry {
+  workspaceId: string;
+  workspaceName: string;
+  environments: SharedEnvironmentDto[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class EnvironmentService {
   private readonly _environments = signal<CqlEnvironment[]>([]);
   private readonly _activeEnvironmentId = signal<string>(BUILT_IN_ENVIRONMENT_ID);
+  private readonly _activeEnvironmentSource = signal<ActiveEnvironmentSource>('personal');
+  private readonly _activeWorkspaceEnvironment = signal<ActiveWorkspaceEnvironmentRef | null>(null);
+  private readonly _workspaceCatalog = signal<WorkspaceEnvironmentCatalogEntry[]>([]);
 
   readonly environments = this._environments.asReadonly();
   readonly activeEnvironmentId = this._activeEnvironmentId.asReadonly();
+  readonly activeEnvironmentSource = this._activeEnvironmentSource.asReadonly();
+  readonly activeWorkspaceEnvironment = this._activeWorkspaceEnvironment.asReadonly();
+  readonly workspaceCatalog = this._workspaceCatalog.asReadonly();
+
+  readonly workspaceCatalogWithEnvironments = computed(() =>
+    this._workspaceCatalog().filter(entry => entry.environments.length > 0)
+  );
+
   readonly activeEnvironment = computed(() => {
+    if (this._activeEnvironmentSource() === 'workspace') {
+      const ref = this._activeWorkspaceEnvironment();
+      const mapped = ref ? this.mapWorkspaceEnvironment(ref.workspaceId, ref.environmentId) : null;
+      if (mapped) {
+        return mapped;
+      }
+    }
     const id = this._activeEnvironmentId();
     return this._environments().find(env => env.id === id) ?? this._environments()[0] ?? this.seedBuiltInEnvironment();
   });
 
-  syncFromSettings(environments: CqlEnvironment[], activeEnvironmentId: string): void {
+  readonly isPersonalEnvironmentActive = computed(() => this._activeEnvironmentSource() === 'personal');
+
+  syncFromSettings(
+    environments: CqlEnvironment[],
+    activeEnvironmentId: string,
+    activeEnvironmentSource: ActiveEnvironmentSource = 'personal',
+    activeWorkspaceEnvironment: ActiveWorkspaceEnvironmentRef | null = null
+  ): void {
     const normalized = this.normalizeEnvironments(environments);
     this._environments.set(normalized);
     this._activeEnvironmentId.set(this.resolveActiveEnvironmentId(activeEnvironmentId, normalized));
+    if (activeEnvironmentSource === 'workspace' && activeWorkspaceEnvironment) {
+      this._activeEnvironmentSource.set('workspace');
+      this._activeWorkspaceEnvironment.set(activeWorkspaceEnvironment);
+    } else {
+      this._activeEnvironmentSource.set('personal');
+      this._activeWorkspaceEnvironment.set(null);
+    }
   }
 
   getEnvironmentsSnapshot(): CqlEnvironment[] {
@@ -51,8 +95,74 @@ export class EnvironmentService {
     return this._activeEnvironmentId();
   }
 
+  getActiveEnvironmentSourceSnapshot(): ActiveEnvironmentSource {
+    return this._activeEnvironmentSource();
+  }
+
+  getActiveWorkspaceEnvironmentSnapshot(): ActiveWorkspaceEnvironmentRef | null {
+    const ref = this._activeWorkspaceEnvironment();
+    return ref ? { ...ref } : null;
+  }
+
   resolveActiveEnvironmentIdForImport(id: string | undefined, environments: CqlEnvironment[]): string {
     return this.resolveActiveEnvironmentId(id ?? '', environments);
+  }
+
+  setWorkspaceCatalog(entries: WorkspaceEnvironmentCatalogEntry[]): boolean {
+    this._workspaceCatalog.set(entries.map(entry => ({
+      workspaceId: entry.workspaceId,
+      workspaceName: entry.workspaceName,
+      environments: entry.environments.map(env => ({ ...env, config: this.normalizeSharedConfig(env.config) })),
+    })));
+    return this.ensureActiveWorkspaceStillValid();
+  }
+
+  clearWorkspaceCatalog(): boolean {
+    this._workspaceCatalog.set([]);
+    return this.ensureActiveWorkspaceStillValid();
+  }
+
+  replaceWorkspaceEnvironments(workspaceId: string, environments: SharedEnvironmentDto[], workspaceName?: string): boolean {
+    this._workspaceCatalog.update(entries => {
+      const normalized = environments.map(env => ({
+        ...env,
+        config: this.normalizeSharedConfig(env.config),
+      }));
+      const idx = entries.findIndex(entry => entry.workspaceId === workspaceId);
+      if (idx >= 0) {
+        return entries.map((entry, i) =>
+          i === idx
+            ? {
+                ...entry,
+                workspaceName: workspaceName ?? entry.workspaceName,
+                environments: normalized,
+              }
+            : entry
+        );
+      }
+      return [
+        ...entries,
+        {
+          workspaceId,
+          workspaceName: workspaceName ?? 'Workspace',
+          environments: normalized,
+        },
+      ];
+    });
+    return this.ensureActiveWorkspaceStillValid();
+  }
+
+  /** Fall back to personal if a workspace selection cannot be resolved from the catalog. */
+  ensureActiveWorkspaceStillValid(): boolean {
+    if (this._activeEnvironmentSource() !== 'workspace') {
+      return false;
+    }
+    const ref = this._activeWorkspaceEnvironment();
+    if (!ref || !this.mapWorkspaceEnvironment(ref.workspaceId, ref.environmentId)) {
+      this.fallBackToPersonal();
+      return true;
+    }
+    return false;
   }
 
   setActiveEnvironment(id: string): CqlEnvironment | null {
@@ -61,7 +171,33 @@ export class EnvironmentService {
       return null;
     }
     this._activeEnvironmentId.set(id);
+    this._activeEnvironmentSource.set('personal');
+    this._activeWorkspaceEnvironment.set(null);
     return env;
+  }
+
+  setActiveWorkspaceEnvironment(workspaceId: string, environmentId: string): CqlEnvironment | null {
+    const mapped = this.mapWorkspaceEnvironment(workspaceId, environmentId);
+    if (!mapped) {
+      return null;
+    }
+    this._activeEnvironmentSource.set('workspace');
+    this._activeWorkspaceEnvironment.set({ workspaceId, environmentId });
+    return mapped;
+  }
+
+  isPersonalEnvironmentSelected(id: string): boolean {
+    return this._activeEnvironmentSource() === 'personal' && this._activeEnvironmentId() === id;
+  }
+
+  isWorkspaceEnvironmentSelected(workspaceId: string, environmentId: string): boolean {
+    const ref = this._activeWorkspaceEnvironment();
+    return (
+      this._activeEnvironmentSource() === 'workspace' &&
+      !!ref &&
+      ref.workspaceId === workspaceId &&
+      ref.environmentId === environmentId
+    );
   }
 
   updateEnvironment(updated: CqlEnvironment): void {
@@ -89,7 +225,7 @@ export class EnvironmentService {
       return false;
     }
     this._environments.update(envs => envs.filter(env => env.id !== id));
-    if (this._activeEnvironmentId() === id) {
+    if (this._activeEnvironmentId() === id && this._activeEnvironmentSource() === 'personal') {
       this._activeEnvironmentId.set(BUILT_IN_ENVIRONMENT_ID);
     }
     return true;
@@ -162,6 +298,67 @@ export class EnvironmentService {
       }
     });
     return { address, headers: headerRecord };
+  }
+
+  scrubbedConfigFromEnvironment(env: CqlEnvironment): SharedEnvironmentConfig {
+    return {
+      evaluationServer: this.scrubEndpoint(env.evaluationServer),
+      dataEndpoint: this.scrubEndpoint(env.dataEndpoint),
+      terminologyEndpoint: this.scrubEndpoint(env.terminologyEndpoint),
+      contentEndpoint: this.scrubEndpoint(env.contentEndpoint),
+    };
+  }
+
+  emptySharedConfig(): SharedEnvironmentConfig {
+    return {
+      evaluationServer: emptyEndpointConfiguration(),
+      dataEndpoint: emptyEndpointConfiguration(),
+      terminologyEndpoint: emptyEndpointConfiguration(),
+      contentEndpoint: emptyEndpointConfiguration(),
+    };
+  }
+
+  private scrubEndpoint(endpoint: EndpointConfiguration): EndpointConfiguration {
+    return {
+      address: endpoint.address ?? '',
+      headers: [...(endpoint.headers ?? [])],
+    };
+  }
+
+  private mapWorkspaceEnvironment(workspaceId: string, environmentId: string): CqlEnvironment | null {
+    const entry = this._workspaceCatalog().find(item => item.workspaceId === workspaceId);
+    const shared = entry?.environments.find(env => env.id === environmentId);
+    if (!shared) {
+      return null;
+    }
+    const config = this.normalizeSharedConfig(shared.config);
+    return {
+      id: workspaceEnvironmentSyntheticId(workspaceId, environmentId),
+      name: `${shared.name} (${entry!.workspaceName})`,
+      builtIn: false,
+      evaluationServer: normalizeEndpointConfiguration(config.evaluationServer),
+      dataEndpoint: normalizeEndpointConfiguration(config.dataEndpoint),
+      terminologyEndpoint: normalizeEndpointConfiguration(config.terminologyEndpoint),
+      contentEndpoint: normalizeEndpointConfiguration(config.contentEndpoint),
+    };
+  }
+
+  private normalizeSharedConfig(config: SharedEnvironmentConfig | unknown): SharedEnvironmentConfig {
+    const raw = (config && typeof config === 'object' ? config : {}) as Partial<SharedEnvironmentConfig>;
+    return {
+      evaluationServer: normalizeEndpointConfiguration(raw.evaluationServer ?? emptyEndpointConfiguration()),
+      dataEndpoint: normalizeEndpointConfiguration(raw.dataEndpoint ?? emptyEndpointConfiguration()),
+      terminologyEndpoint: normalizeEndpointConfiguration(raw.terminologyEndpoint ?? emptyEndpointConfiguration()),
+      contentEndpoint: normalizeEndpointConfiguration(raw.contentEndpoint ?? emptyEndpointConfiguration()),
+    };
+  }
+
+  private fallBackToPersonal(): void {
+    this._activeEnvironmentSource.set('personal');
+    this._activeWorkspaceEnvironment.set(null);
+    this._activeEnvironmentId.set(
+      this.resolveActiveEnvironmentId(this._activeEnvironmentId(), this._environments())
+    );
   }
 
   private buildBuiltInFromLegacy(legacy: LegacyEnvironmentFields): CqlEnvironment {

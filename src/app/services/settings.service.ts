@@ -109,14 +109,18 @@ export class SettingsService {
       ...current,
       settingsVersion: 2,
       environments: this.environmentService.getEnvironmentsSnapshot(),
-      activeEnvironmentId: this.environmentService.getActiveEnvironmentIdSnapshot()
+      activeEnvironmentId: this.environmentService.getActiveEnvironmentIdSnapshot(),
+      activeEnvironmentSource: this.environmentService.getActiveEnvironmentSourceSnapshot(),
+      activeWorkspaceEnvironment: this.environmentService.getActiveWorkspaceEnvironmentSnapshot(),
     }));
   }
 
   syncEnvironmentFromSettings(settings: Settings): void {
     this.environmentService.syncFromSettings(
       settings.environments ?? [],
-      settings.activeEnvironmentId ?? BUILT_IN_ENVIRONMENT_ID
+      settings.activeEnvironmentId ?? BUILT_IN_ENVIRONMENT_ID,
+      settings.activeEnvironmentSource === 'workspace' ? 'workspace' : 'personal',
+      settings.activeWorkspaceEnvironment ?? null
     );
   }
 
@@ -361,6 +365,8 @@ export class SettingsService {
     settings.settingsVersion = 2;
     settings.environments = migrated.environments;
     settings.activeEnvironmentId = migrated.activeEnvironmentId;
+    settings.activeEnvironmentSource = 'personal';
+    settings.activeWorkspaceEnvironment = null;
     return settings;
   }
 
@@ -404,6 +410,18 @@ export class SettingsService {
         migrated = true;
       }
       merged.activeEnvironmentId = resolvedId;
+    }
+
+    if (merged.activeEnvironmentSource !== 'workspace') {
+      merged.activeEnvironmentSource = 'personal';
+      merged.activeWorkspaceEnvironment = null;
+    } else if (
+      !merged.activeWorkspaceEnvironment?.workspaceId ||
+      !merged.activeWorkspaceEnvironment?.environmentId
+    ) {
+      merged.activeEnvironmentSource = 'personal';
+      merged.activeWorkspaceEnvironment = null;
+      migrated = true;
     }
 
     return { settings: merged, migrated };

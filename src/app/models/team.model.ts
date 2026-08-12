@@ -1,5 +1,7 @@
 // Author: Preston Lee
 
+import { EndpointConfiguration } from './environment.model';
+
 export interface AuthUser {
   id: string;
   email: string | null;
@@ -38,22 +40,11 @@ export interface WorkspaceAccessGrant {
   principalType: WorkspacePrincipalType;
   principalId: string;
   role: WorkspaceRole;
-  isGuest: boolean;
   grantedByUserId: string | null;
   createdAt: string;
-}
-
-export interface WorkspaceShareLink {
-  id: string;
-  workspaceId: string;
-  tokenHash: string;
-  createdByUserId: string;
-  expiresAt: string | null;
-  revokedAt: string | null;
-  useCount: number;
-  maxUses: number | null;
-  createdAt: string;
-  token?: string;
+  principalEmail?: string | null;
+  principalDisplayName?: string | null;
+  principalName?: string | null;
 }
 
 export interface WorkspaceActivity {
@@ -69,11 +60,30 @@ export interface WorkspaceActivity {
   workspace?: { id: string; name: string; slug: string };
 }
 
+export interface SharedEnvironmentConfig {
+  evaluationServer: EndpointConfiguration;
+  dataEndpoint: EndpointConfiguration;
+  terminologyEndpoint: EndpointConfiguration;
+  contentEndpoint: EndpointConfiguration;
+}
+
 export interface SharedEnvironmentDto {
   id: string;
   workspaceId: string;
   name: string;
-  config: unknown;
+  config: SharedEnvironmentConfig;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkspaceResourceReference {
+  id: string;
+  workspaceId: string;
+  resourceType: string;
+  resourceId: string;
+  canonicalUrl: string | null;
+  displayName: string | null;
+  createdByUserId: string;
   createdAt: string;
   updatedAt: string;
 }

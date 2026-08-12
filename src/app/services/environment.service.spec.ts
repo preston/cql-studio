@@ -77,4 +77,70 @@ describe('EnvironmentService', () => {
     expect(ctx.address).toBe('http://term/fhir');
     expect(ctx.headers['Authorization']).toBe(`Basic ${btoa('u:p')}`);
   });
+
+  it('activates a workspace shared environment as first-class selection', () => {
+    service.setWorkspaceCatalog([
+      {
+        workspaceId: 'ws-1',
+        workspaceName: 'Team Alpha',
+        environments: [
+          {
+            id: 'env-1',
+            workspaceId: 'ws-1',
+            name: 'Shared HAPI',
+            config: {
+              evaluationServer: { address: 'http://shared/fhir' },
+              dataEndpoint: { address: 'http://shared/data' },
+              terminologyEndpoint: { address: '' },
+              contentEndpoint: { address: '' },
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    ]);
+
+    const activated = service.setActiveWorkspaceEnvironment('ws-1', 'env-1');
+    expect(activated).not.toBeNull();
+    expect(service.activeEnvironmentSource()).toBe('workspace');
+    expect(service.isWorkspaceEnvironmentSelected('ws-1', 'env-1')).toBe(true);
+    expect(service.isPersonalEnvironmentSelected(BUILT_IN_ENVIRONMENT_ID)).toBe(false);
+    expect(service.activeEnvironment().evaluationServer.address).toBe('http://shared/fhir');
+    expect(service.activeEnvironment().name).toContain('Shared HAPI');
+  });
+
+  it('falls back to personal when active workspace environment disappears', () => {
+    service.setWorkspaceCatalog([
+      {
+        workspaceId: 'ws-1',
+        workspaceName: 'Team Alpha',
+        environments: [
+          {
+            id: 'env-1',
+            workspaceId: 'ws-1',
+            name: 'Shared HAPI',
+            config: {
+              evaluationServer: { address: 'http://shared/fhir' },
+              dataEndpoint: { address: '' },
+              terminologyEndpoint: { address: '' },
+              contentEndpoint: { address: '' },
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    ]);
+    service.setActiveWorkspaceEnvironment('ws-1', 'env-1');
+    service.setWorkspaceCatalog([
+      {
+        workspaceId: 'ws-1',
+        workspaceName: 'Team Alpha',
+        environments: [],
+      },
+    ]);
+    expect(service.activeEnvironmentSource()).toBe('personal');
+    expect(service.activeEnvironment().id).toBe(BUILT_IN_ENVIRONMENT_ID);
+  });
 });

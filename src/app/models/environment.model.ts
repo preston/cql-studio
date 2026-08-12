@@ -28,3 +28,7 @@ export interface EndpointHttpContext {
   address: string;
   headers: Record<string, string>;
 }
+
+export function workspaceEnvironmentSyntheticId(workspaceId: string, environmentId: string): string {
+  return `ws:${workspaceId}:${environmentId}`;
+}

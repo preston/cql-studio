@@ -11,7 +11,7 @@
             @if (env.builtIn) {
               <span class="badge text-bg-secondary">built-in</span>
             }
-            @if (env.id === activeEnvironmentId()) {
+            @if (env.id === activeEnvironmentId() && environmentService.isPersonalEnvironmentActive()) {
               <span class="badge text-bg-primary">active</span>
             }
           </span>

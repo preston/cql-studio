@@ -9,6 +9,7 @@ import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 import { routes } from './app.routes';
 import { AuthService } from './services/auth.service';
+import { EnvironmentSwitchService } from './services/environment-switch.service';
 
 const timeagoShortStrings = {
   suffixAgo: '',
@@ -47,6 +48,13 @@ export const appConfig: ApplicationConfig = {
       intl: { provide: TimeagoIntl, useClass: TimeagoShortIntl },
       formatter: { provide: TimeagoFormatter, useClass: TimeagoCustomFormatter }
     }),
-    provideAppInitializer(() => inject(AuthService).refreshSession())
+    provideAppInitializer(async () => {
+      const auth = inject(AuthService);
+      const environmentSwitch = inject(EnvironmentSwitchService);
+      await auth.refreshSession();
+      if (auth.isAuthenticated()) {
+        await environmentSwitch.reloadWorkspaceCatalog();
+      }
+    })
   ]
 };

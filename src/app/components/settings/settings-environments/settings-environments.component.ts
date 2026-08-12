@@ -15,9 +15,9 @@ import { SettingsEndpointEditorComponent } from '../settings-endpoint-editor/set
   templateUrl: './settings-environments.component.html'
 })
 export class SettingsEnvironmentsComponent {
-  private readonly environmentService = inject(EnvironmentService);
   private readonly environmentSwitchService = inject(EnvironmentSwitchService);
   protected readonly settingsService = inject(SettingsService);
+  protected readonly environmentService = inject(EnvironmentService);
 
   readonly environments = this.environmentService.environments;
   readonly activeEnvironmentId = this.environmentService.activeEnvironmentId;
@@ -37,7 +37,7 @@ export class SettingsEnvironmentsComponent {
 
   readonly isActiveSelected = computed(() => {
     const env = this.selectedEnvironment();
-    return !!env && env.id === this.activeEnvironmentId();
+    return !!env && this.environmentService.isPersonalEnvironmentSelected(env.id);
   });
 
   constructor() {
