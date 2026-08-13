@@ -9,14 +9,14 @@
   [class.custom-card-cql-execution]="section().type === 'cql-execution'"
   [class.custom-card-cql-translation]="section().type === 'cql-translation'"
   [class.custom-card-cql-validation]="section().type === 'cql-validation'">
-  <div class="card-header d-flex align-items-center gap-2">
+  <div class="custom-output-card-header d-flex align-items-center gap-2">
     <i class="bi {{ getCardIcon() }}"></i>
-    <span class="card-title">{{ section().title }}</span>
+    <span class="custom-output-card-title text-body">{{ section().title }}</span>
     <span class="badge ms-auto" [class]="getStatusBadgeClass()">
       {{ section().status.toUpperCase() }}
     </span>
   </div>
-  <div class="card-body">
+  <div class="custom-output-card-body text-body">
     @switch (getCardType()) {
       @case ('cql-execution') {
         <!-- CQL Execution Result Card -->

@@ -8,19 +8,20 @@
   overflow: hidden;
 }
 
-.card-header {
+.custom-output-card-header {
   padding: 8px 12px;
   background-color: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
   border-bottom: 1px solid var(--bs-border-color);
   font-weight: 500;
 }
 
-.card-title {
+.custom-output-card-title {
   flex: 1;
   font-size: 13px;
 }
 
-.card-body {
+.custom-output-card-body {
   padding: 12px;
 }
 

@@ -55,9 +55,9 @@
           <i class="bi-{{ section.expanded ? 'chevron-down' : 'chevron-right' }}"></i>
           <i class="bi {{ getOutputIcon(section) }} text-muted"></i>
           <span class="fw-medium flex-fill text-body">{{ section.title }}</span>
-          <span class="badge" [class.bg-success]="section.status === 'success'"
-            [class.bg-danger]="section.status === 'error'"
-            [class.bg-warning]="section.status !== 'success' && section.status !== 'error'">
+          <span class="badge" [class.text-bg-success]="section.status === 'success'"
+            [class.text-bg-danger]="section.status === 'error'"
+            [class.text-bg-warning]="section.status !== 'success' && section.status !== 'error'">
             {{ section.status === 'success' ? 'SUCCESS' : section.status === 'error' ? 'ERROR' : 'PENDING' }}
           </span>
           @if (section.executionTime) {
@@ -100,11 +100,12 @@
     </div>
     }
     @if (isEvaluating()) {
-    <div class="p-3 border-top bg-secondary">
-      <div class="progress mb-2">
+    <div class="execution-progress">
+      <div class="progress mb-2" role="progressbar" [attr.aria-valuenow]="executionProgress()"
+        aria-valuemin="0" aria-valuemax="100">
         <div class="progress-bar" [style.width.%]="executionProgress()"></div>
       </div>
-      <span class="small text-body">{{ executionStatus() }}</span>
+      <span class="progress-text">{{ executionStatus() }}</span>
     </div>
     }
   </div>

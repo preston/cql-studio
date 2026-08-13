@@ -31,13 +31,13 @@ export class CustomOutputCardComponent {
   getStatusBadgeClass(): string {
     switch (this.section().status) {
       case 'success':
-        return 'bg-success';
+        return 'text-bg-success';
       case 'error':
-        return 'bg-danger';
+        return 'text-bg-danger';
       case 'pending':
-        return 'bg-warning';
+        return 'text-bg-warning';
       default:
-        return 'bg-secondary';
+        return 'text-bg-secondary';
     }
   }
 
