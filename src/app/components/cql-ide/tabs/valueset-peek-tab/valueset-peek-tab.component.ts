@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, computed, inject, input, linkedSignal } from '@angular/core';
+import {Component, ChangeDetectionStrategy, computed, inject, input, linkedSignal} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IdeStateService, IdeValuesetPeekResult } from '../../../../services/ide-state.service';
 import { TerminologyResourceOpenerService } from '../../../../services/terminology-resource-opener.service';
@@ -9,7 +9,8 @@ import { TerminologyResourceOpenerService } from '../../../../services/terminolo
   selector: 'app-valueset-peek-tab',
   imports: [FormsModule],
   templateUrl: './valueset-peek-tab.component.html',
-  styleUrls: ['./valueset-peek-tab.component.scss']
+  styleUrls: ['./valueset-peek-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ValuesetPeekTabComponent {
   private readonly ideStateService = inject(IdeStateService);

@@ -1,9 +1,11 @@
 // Author: Preston Lee
 
-import { Component, OnInit, signal, viewChild, inject, DestroyRef } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, signal, viewChild, inject, effect, untracked, ChangeDetectionStrategy } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Router, ActivatedRoute, NavigationEnd } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 import { GuidelinesBrowserComponent } from './guidelines-browser/guidelines-browser.component';
 import { GuidelineEditorComponent } from './guideline-editor/guideline-editor.component';
 import { GuidelineTestingComponent } from './guideline-testing/guideline-testing.component';
@@ -15,8 +17,10 @@ import { GuidelinesStateService } from '../../services/guidelines-state.service'
 import { GuidelineValidationService } from '../../services/guideline-validation.service';
 import { TranslationService } from '../../services/translation.service';
 import { CqlGenerationService } from '../../services/cql-generation.service';
+import { ToastService } from '../../services/toast.service';
 import { Library } from 'fhir/r4';
 import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
+import { describeFhirHttpFailure } from '../../services/fhir-http-error.lib';
 
 @Component({
   selector: 'app-guidelines',
@@ -30,9 +34,10 @@ import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
   ],
   templateUrl: './guidelines.component.html',
 
-  styleUrl: './guidelines.component.scss'
+  styleUrl: './guidelines.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class GuidelinesComponent implements OnInit {
+export class GuidelinesComponent {
   browserComponent = viewChild(GuidelinesBrowserComponent);
   
   protected readonly showBrowser = signal<boolean>(true);
@@ -43,7 +48,6 @@ export class GuidelinesComponent implements OnInit {
   protected readonly currentLibrary = signal<Library | null>(null);
   protected readonly conversionIssues = signal<string[]>([]);
 
-  private readonly destroyRef = inject(DestroyRef);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   public libraryService = inject(LibraryService);
@@ -52,43 +56,60 @@ export class GuidelinesComponent implements OnInit {
   private guidelineValidationService = inject(GuidelineValidationService);
   private translationService = inject(TranslationService);
   private cqlGenerationService = inject(CqlGenerationService);
+  private toastService = inject(ToastService);
+  private loadGeneration = 0;
 
-  ngOnInit(): void {
-    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
-      const libraryId = params.get('id');
-      const urlSegments = this.route.snapshot.url;
-      const isTestingRoute = urlSegments.length > 2 && urlSegments[urlSegments.length - 1].path === 'testing';
-      
-      if (libraryId) {
-        if (isTestingRoute) {
-          // Load library for testing
-          this.libraryService.get(libraryId).subscribe({
-            next: (library: Library) => {
-              this.currentLibrary.set(library);
-              this.showBrowser.set(false);
-              this.showEditor.set(false);
-              this.showTesting.set(true);
-            },
-            error: (error: any) => {
-              console.error('Error loading library for testing:', error);
-              // Stay on browser view
-            }
-          });
-        } else {
-          // Load library for editing
-          this.loadAndOpenLibrary(libraryId);
+  private readonly libraryId = toSignal(
+    this.route.paramMap.pipe(map(params => params.get('id'))),
+    { initialValue: this.route.snapshot.paramMap.get('id') }
+  );
+
+  private readonly routeUrl = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects)
+    ),
+    { initialValue: this.router.url }
+  );
+
+  constructor() {
+    effect(() => {
+      const id = this.libraryId();
+      const url = this.routeUrl();
+      const isTestingRoute = /\/guidelines\/[^/]+\/testing(?:\?|$)/.test(url);
+
+      // Only react to route changes; UI signal writes must not re-enter this effect.
+      untracked(() => {
+        if (!id) {
+          this.loadGeneration++;
+          this.showBrowser.set(true);
+          this.showEditor.set(false);
+          this.showTesting.set(false);
+          return;
         }
-      } else {
-        // No library ID, show browser
-        this.showBrowser.set(true);
-        this.showEditor.set(false);
-        this.showTesting.set(false);
-      }
+
+        if (isTestingRoute) {
+          if (this.showTesting() && this.currentLibrary()?.id === id) {
+            return;
+          }
+          void this.loadLibraryForTesting(id);
+          return;
+        }
+
+        if (
+          (this.showEditor() && this.currentLibrary()?.id === id) ||
+          (this.showConversionModal() && this.currentLibrary()?.id === id)
+        ) {
+          return;
+        }
+
+        void this.loadAndOpenLibrary(id);
+      });
     });
   }
 
   onOpenLibrary(library: Library): void {
-    this.loadAndOpenLibrary(library.id!);
+    void this.loadAndOpenLibrary(library.id!);
   }
 
   onTestLibrary(library: Library): void {
@@ -103,48 +124,83 @@ export class GuidelinesComponent implements OnInit {
     }
   }
 
-  private loadAndOpenLibrary(libraryId: string): void {
-    this.libraryService.get(libraryId).subscribe({
-      next: (library: Library) => {
-        const validation = this.guidelineValidationService.validateGuidelineFormat(library);
-        const canCleanlyOpen = this.guidelineValidationService.canCleanlyOpen(library);
-
-        if (canCleanlyOpen) {
-          // Cleanly open the library
-          this.openLibrary(library);
-        } else {
-          // Show conversion modal
-          this.currentLibrary.set(library);
-          this.conversionIssues.set(validation.issues);
-          this.showConversionModal.set(true);
-        }
-      },
-      error: (error) => {
-        console.error('Error loading library:', error);
-        // Stay on browser view
+  private async loadLibraryForTesting(libraryId: string): Promise<void> {
+    const generation = ++this.loadGeneration;
+    try {
+      const library = await firstValueFrom(this.libraryService.get(libraryId));
+      if (generation !== this.loadGeneration) {
+        return;
       }
-    });
+      this.currentLibrary.set(library);
+      this.showBrowser.set(false);
+      this.showEditor.set(false);
+      this.showTesting.set(true);
+    } catch (error: any) {
+      if (generation !== this.loadGeneration) {
+        return;
+      }
+      console.error('Error loading library for testing:', error);
+      // Stay on browser view
+    }
+  }
+
+  private async loadAndOpenLibrary(libraryId: string): Promise<void> {
+    const generation = ++this.loadGeneration;
+    try {
+      const library = await firstValueFrom(this.libraryService.get(libraryId));
+      if (generation !== this.loadGeneration) {
+        return;
+      }
+      const validation = this.guidelineValidationService.validateGuidelineFormat(library);
+      const canCleanlyOpen = this.guidelineValidationService.canCleanlyOpen(library);
+      const skipConversion = this.guidelinesStateService.consumeSkipConversion(libraryId);
+
+      if (canCleanlyOpen || skipConversion) {
+        this.openLibrary(library);
+      } else {
+        // Show conversion modal
+        this.currentLibrary.set(library);
+        this.conversionIssues.set(validation.issues);
+        this.showConversionModal.set(true);
+      }
+    } catch (error) {
+      if (generation !== this.loadGeneration) {
+        return;
+      }
+      console.error('Error loading library:', error);
+      // Stay on browser view
+    }
   }
 
   onProceedWithConversion(): void {
     const library = this.currentLibrary();
-    if (library) {
-      this.openLibrary(library);
+    if (library?.id) {
+      // Survives route remount when navigating to /guidelines/:id
+      this.guidelinesStateService.markSkipConversion(library.id);
       this.showConversionModal.set(false);
+      this.openLibrary(library);
     }
   }
 
   onCancelConversion(): void {
+    this.loadGeneration++;
     this.showConversionModal.set(false);
     this.currentLibrary.set(null);
     this.conversionIssues.set([]);
+    this.router.navigate(['/guidelines'], { replaceUrl: true });
   }
 
   private openLibrary(library: Library): void {
     this.currentLibrary.set(library);
     this.showBrowser.set(false);
     this.showEditor.set(true);
-    this.router.navigate(['/guidelines', library.id], { replaceUrl: true });
+    this.showTesting.set(false);
+    this.showConversionModal.set(false);
+    const id = library.id;
+    // Avoid remount loops when already on /guidelines/:id (e.g. after conversion Proceed).
+    if (id && !this.router.url.split('?')[0].endsWith(`/guidelines/${id}`)) {
+      this.router.navigate(['/guidelines', id], { replaceUrl: true });
+    }
   }
 
   onCreateNew(): void {
@@ -152,15 +208,10 @@ export class GuidelinesComponent implements OnInit {
   }
 
   async onNewGuidelineCreate(libraryData: Partial<Library>): Promise<void> {
-    this.showNewModal.set(false);
-
-    // Create the library resource first
-    // Use same ID generation as IDE
+    // Keep modal open until create succeeds so failures are visible.
     const libraryId = libraryData.name!.replace(/[^a-zA-Z0-9-]/g, '-');
 
-    // Initialize empty artifact
     this.guidelinesStateService.initializeEmptyArtifact();
-    // Use libraryService.urlFor to generate URL (same as IDE)
     const libraryUrl = this.libraryService.urlFor(libraryId);
     this.guidelinesStateService.updateMetadata({
       name: libraryData.name!,
@@ -172,24 +223,30 @@ export class GuidelinesComponent implements OnInit {
 
     const artifact = this.guidelinesStateService.artifact();
     if (!artifact) {
+      this.toastService.showError('Failed to initialize guideline artifact.', 'Create Guideline');
       return;
     }
 
-    // Generate initial CQL
     const cqlContent = this.cqlGenerationService.generateCql(artifact);
 
-    // Translate to ELM (ensure translation assets are ready)
-    const translationResult = await this.translationService.translateCqlToElmAsync(cqlContent);
-    
-    if (translationResult.hasErrors) {
-      console.error('Translation failed:', translationResult.errors);
-      // Show error to user - you may want to add error handling UI here
+    let translationResult;
+    try {
+      translationResult = await this.translationService.translateCqlToElmAsync(cqlContent);
+    } catch (error) {
+      this.toastService.showError(describeFhirHttpFailure(error), 'Create Guideline');
       return;
     }
-    
+
+    if (translationResult.hasErrors) {
+      this.toastService.showError(
+        translationResult.errors.join('; ') || 'Translation failed',
+        'Create Guideline'
+      );
+      return;
+    }
+
     const elmXml = translationResult.elmXml || '';
-    
-    // Reuse libraryUrl from above (already set using libraryService.urlFor)
+
     const newLibrary: Library = {
       resourceType: 'Library' as const,
       id: libraryId,
@@ -197,7 +254,7 @@ export class GuidelinesComponent implements OnInit {
       title: libraryData.title || libraryData.name!,
       version: libraryData.version || '1.0.0',
       status: 'active' as const,
-      url: libraryUrl, // Use libraryService.urlFor to match IDE behavior
+      url: libraryUrl,
       type: {
         coding: [
           {
@@ -226,14 +283,14 @@ export class GuidelinesComponent implements OnInit {
       ]
     };
 
-    this.libraryService.post(newLibrary).subscribe({
-      next: (library: Library) => {
-        this.openLibrary(library);
-      },
-      error: (error) => {
-        console.error('Error creating library:', error);
-      }
-    });
+    try {
+      const library = await firstValueFrom(this.libraryService.post(newLibrary));
+      this.showNewModal.set(false);
+      this.openLibrary(library);
+    } catch (error) {
+      console.error('Error creating library:', error);
+      this.toastService.showError(describeFhirHttpFailure(error), 'Create Guideline');
+    }
   }
 
   onNewGuidelineCancel(): void {
@@ -256,36 +313,33 @@ export class GuidelinesComponent implements OnInit {
     this.router.navigate(['/guidelines'], { replaceUrl: true });
   }
 
-  onDeleteLibrary(library: Library): void {
+  async onDeleteLibrary(library: Library): Promise<void> {
     if (!library.id) {
       console.error('Cannot delete library: no ID');
       return;
     }
 
-    this.libraryService.delete(library).subscribe({
-      next: () => {
-        // If we're currently viewing/editing this library, close it first
-        if (this.currentLibrary()?.id === library.id) {
-          this.showEditor.set(false);
-          this.showTesting.set(false);
-          this.currentLibrary.set(null);
-          this.guidelinesStateService.reset();
-        }
-        
-        // Reload the browser to refresh the list
-        if (this.browserComponent()) {
-          this.browserComponent()!.loadLibraries();
-        } else {
-          // Fallback: navigate to trigger reload
-          this.router.navigate(['/guidelines'], { replaceUrl: true });
-        }
-      },
-      error: (error: any) => {
-        console.error('Error deleting library:', error);
-        const errorMessage = error?.message || error?.error?.message || 'Unknown error';
-        alert(`Failed to delete library: ${errorMessage}`);
+    try {
+      await firstValueFrom(this.libraryService.delete(library));
+      // If we're currently viewing/editing this library, close it first
+      if (this.currentLibrary()?.id === library.id) {
+        this.showEditor.set(false);
+        this.showTesting.set(false);
+        this.currentLibrary.set(null);
+        this.guidelinesStateService.reset();
       }
-    });
+      
+      // Reload the browser to refresh the list
+      if (this.browserComponent()) {
+        this.browserComponent()!.loadLibraries();
+      } else {
+        // Fallback: navigate to trigger reload
+        this.router.navigate(['/guidelines'], { replaceUrl: true });
+      }
+    } catch (error: any) {
+      console.error('Error deleting library:', error);
+      const errorMessage = error?.message || error?.error?.message || 'Unknown error';
+      alert(`Failed to delete library: ${errorMessage}`);
+    }
   }
 }
-

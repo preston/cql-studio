@@ -77,7 +77,6 @@ export class TerminologyService extends BaseService {
       resolvedUrl = cleanBaseUrl + cleanRelativeUrl;
     }
     
-    console.log('Fetching from Bundle link:', { originalUrl: url, resolvedUrl });
     return this.http.get<T>(resolvedUrl, { headers: this.getAuthHeaders() });
   }
 
@@ -309,7 +308,6 @@ export class TerminologyService extends BaseService {
     queryParams.append('url', systemUrl);
     
     const url = `${this.getTerminologyBaseUrl()}/CodeSystem?${queryParams.toString()}`;
-    console.log('Getting CodeSystem by URL:', url);
     
     return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() })
       .pipe(
@@ -527,7 +525,6 @@ export class TerminologyService extends BaseService {
     // If no text provided, get available CodeSystems first
     if (!params.text && !params.code) {
       const url = `${this.getTerminologyBaseUrl()}/CodeSystem`;
-      console.log('Getting all CodeSystems with URL:', url);
       return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() });
     }
 
@@ -545,8 +542,6 @@ export class TerminologyService extends BaseService {
     }
 
     const url = `${this.getTerminologyBaseUrl()}/CodeSystem?${queryParams.toString()}`;
-    console.log('Searching CodeSystems with URL:', url);
-    console.log('Search parameters:', params);
     
     return this.http.get<Bundle>(url, { headers: this.getAuthHeaders() });
   }
@@ -555,7 +550,6 @@ export class TerminologyService extends BaseService {
   // Test what resources are available on the server
   testServerResources(): Observable<any> {
     const url = `${this.getTerminologyBaseUrl()}/metadata`;
-    console.log('Testing server resources at:', url);
     return this.http.get(url, { headers: this.getAuthHeaders() });
   }
 

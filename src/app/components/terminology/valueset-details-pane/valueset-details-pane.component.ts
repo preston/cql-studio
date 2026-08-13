@@ -1,17 +1,20 @@
 // Author: Preston Lee
 
-import { Component, input, computed, signal, effect, inject } from '@angular/core';
+import { Component, input, computed, signal, effect, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ValueSet, Coding } from 'fhir/r4';
 import { ToastService } from '../../../services/toast.service';
 import { ClipboardService } from '../../../services/clipboard.service';
+import { downloadJson } from '../../../services/download-blob.lib';
+import { formatFhirDate, terminologyDownloadFilename } from '../../../services/terminology-ui.lib';
 
 @Component({
   selector: 'app-valueset-details-pane',
   imports: [FormsModule],
   templateUrl: './valueset-details-pane.component.html',
 
-  styleUrl: './valueset-details-pane.component.scss'
+  styleUrl: './valueset-details-pane.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ValueSetDetailsPaneComponent {
   // Inputs
@@ -77,15 +80,6 @@ export class ValueSetDetailsPaneComponent {
     return Math.min(end, total);
   });
 
-  // Getter/setter for pageSize binding with ngModel
-  get currentPageSize(): number {
-    return this.pageSize();
-  }
-
-  set currentPageSize(value: number) {
-    this.setPageSize(value);
-  }
-
   // Methods
   setPageSize(size: number): void {
     const currentPage = this.currentPage();
@@ -135,16 +129,7 @@ export class ValueSetDetailsPaneComponent {
     return this.expandedCodeDetails().get(codeKey);
   }
 
-  formatDate(dateString?: string): string {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      return date.toLocaleString();
-    } catch {
-      return dateString;
-    }
-  }
+  protected readonly formatFhirDate = formatFhirDate;
 
   handleRowClick(code: any): void {
     const handler = this.onRowToggle();
@@ -160,23 +145,7 @@ export class ValueSetDetailsPaneComponent {
     }
 
     try {
-      const jsonString = JSON.stringify(valueSet, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const filename = valueSet.id 
-        ? `ValueSet-${valueSet.id}.json`
-        : valueSet.url 
-          ? `ValueSet-${valueSet.url.replace(/[^a-zA-Z0-9]/g, '_')}.json`
-          : 'ValueSet.json';
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadJson(valueSet, terminologyDownloadFilename('ValueSet', valueSet));
     } catch (error) {
       console.error('Failed to download ValueSet:', error);
       this.toastService.showError('Failed to download ValueSet', 'Download Error');

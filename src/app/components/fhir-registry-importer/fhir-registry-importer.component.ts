@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { afterNextRender, Component, computed, inject, Injector, signal } from '@angular/core';
+import {afterNextRender, Component, ChangeDetectionStrategy, computed, inject, Injector, signal} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -24,10 +24,12 @@ import {
   PackageImportState,
   PackageLoadStatus,
   RegistryImportResultRow,
-  RegistryImportResultSortColumn,
   ResolvedPackageNode
 } from '../../models/fhir-package-import.types';
-import { packageInstanceKey } from '../../services/fhir-package-dependency-resolver.lib';
+import {
+  compareResolvedVersions,
+  packageInstanceKey
+} from '../../services/fhir-package-dependency-resolver.lib';
 import { FhirPackageLocalUploadStagingService } from '../../services/fhir-package-local-upload-staging.service';
 import {
   FHIR_REGISTRY_IMPORTER_QUERY_PACKAGE,
@@ -37,6 +39,9 @@ import {
   FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL,
   FHIR_REGISTRY_IMPORTER_SOURCE_URL
 } from './fhir-registry-importer.deep-link';
+import { linkableImportRows as buildLinkableImportRows } from './registry-import-linkable-rows.lib';
+import { RegistryImporterFindPackagesPanelComponent } from './registry-importer-find-packages-panel/registry-importer-find-packages-panel.component';
+import { RegistryImporterImportResultsPanelComponent } from './registry-importer-import-results-panel/registry-importer-import-results-panel.component';
 import { ImplementationGuidePanelComponent } from '../shared/implementation-guide-panel/implementation-guide-panel.component';
 import { AddToWorkspacesPanelComponent } from '../shared/add-to-workspaces-panel/add-to-workspaces-panel.component';
 import { ImplementationGuide } from 'fhir/r4';
@@ -52,14 +57,9 @@ import { IgImportSanitizeOptions } from '../../services/fhir-package-import.serv
 import { isConformanceResourceType } from '../../services/fhir-resource-endpoint.lib';
 import { AuthService } from '../../services/auth.service';
 import { WorkspaceResourceLinkService } from '../../services/workspace-resource-link.service';
-import { WorkspaceResourceLinkInput } from '../../services/workspace-resource-link.lib';
+import { isFhirPackageArchiveName } from '../../services/fhir-package-archive-path.lib';
 
 type QuickFilter = 'all' | 'terminology' | 'conformance' | 'examples';
-
-function isFhirPackageArchiveName(name: string): boolean {
-  const lower = name.toLowerCase();
-  return lower.endsWith('.tgz') || lower.endsWith('.tar.gz');
-}
 
 const LOAD_STATUS_LABEL: Record<PackageLoadStatus, string> = {
   pending: 'Not loaded',
@@ -78,20 +78,14 @@ const DOM_PACKAGE_DETAIL = 'fhir-registry-importer-package-detail-panel';
     FormsModule,
     ImplementationGuidePanelComponent,
     AddToWorkspacesPanelComponent,
+    RegistryImporterFindPackagesPanelComponent,
+    RegistryImporterImportResultsPanelComponent,
   ],
 
-  templateUrl: './fhir-registry-importer.component.html'
+  templateUrl: './fhir-registry-importer.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FhirRegistryImporterComponent {
-  protected readonly catalogFhirVersionOptions: { label: string; value: string | null }[] = [
-    { label: 'Any', value: null },
-    { label: 'R4', value: 'R4' },
-    { label: 'R5', value: 'R5' },
-    { label: 'R6', value: 'R6' },
-    { label: 'STU3', value: 'STU3' },
-    { label: 'DSTU2', value: 'DSTU2' }
-  ];
-
   private readonly settingsService = inject(SettingsService);
   private readonly registryService = inject(FhirPackageRegistryService);
   private readonly metadataService = inject(FhirPackageMetadataService);
@@ -105,12 +99,6 @@ export class FhirRegistryImporterComponent {
   protected readonly auth = inject(AuthService);
 
   protected readonly selectedWorkspaceIds = signal<string[]>([]);
-
-  protected readonly searchQuery = signal('');
-  protected readonly catalogFhirVersionFilter = signal<string | null>(null);
-  protected readonly searchLoading = signal(false);
-  protected readonly searchError = signal<string | null>(null);
-  protected readonly catalogResults = signal<FhirPackageCatalogEntry[]>([]);
 
   protected readonly manifestLoading = signal(false);
   protected readonly manifestError = signal<string | null>(null);
@@ -181,56 +169,6 @@ export class FhirRegistryImporterComponent {
   protected readonly importing = signal(false);
   protected readonly importProgress = signal<string | null>(null);
   protected readonly importResultsRows = signal<RegistryImportResultRow[]>([]);
-  protected readonly importResultOutcomeFilter = signal<'all' | 'errors' | 'success'>('all');
-  protected readonly importResultSearch = signal('');
-  protected readonly importResultSortColumn = signal<RegistryImportResultSortColumn>('packageName');
-  protected readonly importResultSortAsc = signal(true);
-
-  protected readonly importResultsFilteredSorted = computed(() => {
-    let rows = [...this.importResultsRows()];
-    const f = this.importResultOutcomeFilter();
-    if (f === 'errors') {
-      rows = rows.filter((r) => !r.ok);
-    } else if (f === 'success') {
-      rows = rows.filter((r) => r.ok);
-    }
-    const q = this.importResultSearch().trim().toLowerCase();
-    if (q) {
-      rows = rows.filter((r) =>
-        [
-          r.packageName,
-          r.channel,
-          r.resourceType,
-          r.resourceId,
-          r.filename,
-          r.message,
-          r.ok ? 'ok' : 'error'
-        ].some((s) => s.toLowerCase().includes(q))
-      );
-    }
-    const col = this.importResultSortColumn();
-    const asc = this.importResultSortAsc();
-    const dir = asc ? 1 : -1;
-    rows.sort((a, b) => {
-      let cmp = 0;
-      if (col === 'ok') {
-        cmp = (a.ok ? 1 : 0) - (b.ok ? 1 : 0);
-      } else {
-        const sa = this.importResultSortValue(a, col);
-        const sb = this.importResultSortValue(b, col);
-        cmp = sa.localeCompare(sb, undefined, { sensitivity: 'base' });
-      }
-      return cmp * dir;
-    });
-    return rows;
-  });
-
-  protected readonly importResultCounts = computed(() => {
-    const rows = this.importResultsRows();
-    const ok = rows.filter((r) => r.ok).length;
-    const bad = rows.length - ok;
-    return { total: rows.length, ok, errors: bad };
-  });
 
   protected readonly activePackage = computed(() => {
     const n = this.activePackageName();
@@ -390,42 +328,7 @@ export class FhirRegistryImporterComponent {
     document.getElementById(elementId)?.scrollIntoView(options);
   }
 
-  setCatalogFhirVersion(value: string | null): void {
-    this.catalogFhirVersionFilter.set(value);
-  }
-
-  toggleFindPackagesExpanded(): void {
-    this.findPackagesExpanded.update((v) => !v);
-  }
-
-  async onSearch(): Promise<void> {
-    const q = this.searchQuery().trim();
-    const fv = this.catalogFhirVersionFilter();
-    if (!q && !fv) {
-      this.searchError.set(
-        'Enter a package name substring and/or choose a FHIR version filter (registry catalog API).'
-      );
-      return;
-    }
-    this.searchLoading.set(true);
-    this.searchError.set(null);
-    this.catalogResults.set([]);
-    try {
-      const list = await this.registryService.searchCatalog(q, fv);
-      this.catalogResults.set(list);
-      if (list.length === 0) {
-        this.searchError.set(
-          'No packages found. Try a shorter substring, another FHIR version, or browse registry.fhir.org.'
-        );
-      }
-    } catch (e) {
-      this.searchError.set(e instanceof Error ? e.message : 'Search failed.');
-    } finally {
-      this.searchLoading.set(false);
-    }
-  }
-
-  async selectCatalogEntry(entry: FhirPackageCatalogEntry): Promise<void> {
+  async onCatalogEntrySelected(entry: FhirPackageCatalogEntry): Promise<void> {
     await this.openPackage(entry.Name);
   }
 
@@ -527,16 +430,6 @@ export class FhirRegistryImporterComponent {
     return this.loadLocalPackageBytes(staged.fileName, staged.bytes);
   }
 
-  async onLocalPackageFileSelect(event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) {
-      return;
-    }
-    input.value = '';
-    await this.loadLocalPackageFile(file);
-  }
-
   async loadLocalPackageFile(file: File): Promise<boolean> {
     this.localPackageError.set(null);
     if (!isFhirPackageArchiveName(file.name)) {
@@ -561,10 +454,6 @@ export class FhirRegistryImporterComponent {
     } finally {
       this.localPackageLoading.set(false);
     }
-  }
-
-  async onPackageUrlLoad(): Promise<void> {
-    await this.loadPackageFromUrl(this.packageUrlInput());
   }
 
   async loadPackageFromUrl(rawUrl: string): Promise<boolean> {
@@ -722,7 +611,7 @@ export class FhirRegistryImporterComponent {
       this.manifest.set(m);
       const requested = version?.trim() || null;
       const latest = m['dist-tags']?.latest;
-      const versions = Object.keys(m.versions ?? {}).sort((a, b) => this.compareSemver(a, b));
+      const versions = Object.keys(m.versions ?? {}).sort((a, b) => compareResolvedVersions(a, b));
       const pick =
         requested && m.versions?.[requested]
           ? requested
@@ -822,26 +711,12 @@ export class FhirRegistryImporterComponent {
     };
   }
 
-  private compareSemver(a: string, b: string): number {
-    const pa = a.split(/[.\-]/).map((x) => parseInt(x, 10) || 0);
-    const pb = b.split(/[.\-]/).map((x) => parseInt(x, 10) || 0);
-    const len = Math.max(pa.length, pb.length);
-    for (let i = 0; i < len; i++) {
-      const da = pa[i] ?? 0;
-      const db = pb[i] ?? 0;
-      if (da !== db) {
-        return da - db;
-      }
-    }
-    return a.localeCompare(b);
-  }
-
   protected versionKeys(): string[] {
     const m = this.manifest();
     if (!m?.versions) {
       return [];
     }
-    return Object.keys(m.versions).sort((a, b) => this.compareSemver(a, b));
+    return Object.keys(m.versions).sort((a, b) => compareResolvedVersions(a, b));
   }
 
   async resolveDependencyChain(): Promise<void> {
@@ -1227,54 +1102,9 @@ export class FhirRegistryImporterComponent {
     }
   }
 
-  protected setImportResultOutcomeFilter(value: 'all' | 'errors' | 'success'): void {
-    this.importResultOutcomeFilter.set(value);
-  }
-
-  protected toggleImportResultSort(column: RegistryImportResultSortColumn): void {
-    if (this.importResultSortColumn() === column) {
-      this.importResultSortAsc.update((v) => !v);
-    } else {
-      this.importResultSortColumn.set(column);
-      this.importResultSortAsc.set(true);
-    }
-  }
-
-  protected importResultSortChevron(column: RegistryImportResultSortColumn): string {
-    if (this.importResultSortColumn() !== column) {
-      return '';
-    }
-    return this.importResultSortAsc() ? ' ▲' : ' ▼';
-  }
-
   protected clearImportResults(): void {
     this.importResultsRows.set([]);
     this.importProgress.set(null);
-    this.importResultSearch.set('');
-    this.importResultOutcomeFilter.set('all');
-  }
-
-  protected trackImportResultRow(_index: number, row: RegistryImportResultRow): string {
-    return `${row.packageName}\u0000${row.channel}\u0000${row.resourceType}\u0000${row.resourceId}\u0000${row.filename}\u0000${row.ok}\u0000${row.message}`;
-  }
-
-  private importResultSortValue(row: RegistryImportResultRow, col: Exclude<RegistryImportResultSortColumn, 'ok'>): string {
-    switch (col) {
-      case 'packageName':
-        return row.packageName;
-      case 'channel':
-        return row.channel;
-      case 'resourceType':
-        return row.resourceType;
-      case 'resourceId':
-        return row.resourceId;
-      case 'filename':
-        return row.filename;
-      case 'message':
-        return row.message;
-      default:
-        return '';
-    }
   }
 
   private importResultRowValidation(message: string): RegistryImportResultRow {
@@ -1479,33 +1309,6 @@ export class FhirRegistryImporterComponent {
     }
   }
 
-  private linkableImportRows(rows: RegistryImportResultRow[]): WorkspaceResourceLinkInput[] {
-    const byKey = new Map<string, WorkspaceResourceLinkInput>();
-    for (const row of rows) {
-      if (!row.ok || !row.resourceId || row.resourceId === '—') {
-        continue;
-      }
-      if (row.message.startsWith('Skipped')) {
-        continue;
-      }
-      const resourceType = row.resourceType?.trim();
-      if (!resourceType || resourceType === '—') {
-        continue;
-      }
-      const key = `${resourceType}|${row.resourceId}`;
-      if (byKey.has(key)) {
-        continue;
-      }
-      byKey.set(key, {
-        resourceType,
-        resourceId: row.resourceId,
-        canonicalUrl: row.canonicalUrl ?? null,
-        displayName: row.displayName ?? null,
-      });
-    }
-    return [...byKey.values()];
-  }
-
   private async linkImportedResourcesToWorkspaces(
     rows: RegistryImportResultRow[],
     onProgress?: (message: string) => void
@@ -1514,7 +1317,7 @@ export class FhirRegistryImporterComponent {
     if (!this.auth.isAuthenticated() || workspaceIds.length === 0) {
       return null;
     }
-    const resources = this.linkableImportRows(rows);
+    const resources = buildLinkableImportRows(rows);
     if (resources.length === 0) {
       return null;
     }

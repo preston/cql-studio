@@ -1,7 +1,8 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnInit, effect, untracked } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
@@ -10,106 +11,83 @@ import { CodeSystem } from 'fhir/r4';
 import { ClipboardService } from '../../../services/clipboard.service';
 import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { TerminologyResourceOpenerService } from '../../../services/terminology-resource-opener.service';
+import {
+  bindTerminologyTabDeepLinks,
+  openTerminologyFromExternalRequest,
+} from '../../../services/terminology-external-open.lib';
+import {
+  hasTerminologyConfigured,
+  terminologyHttpErrorMessage,
+  terminologyResourceTrackId,
+} from '../../../services/terminology-ui.lib';
+import { BootstrapPaginationComponent } from '../../shared/bootstrap-pagination/bootstrap-pagination.component';
+import { CodeSystemDetailsPaneComponent } from '../codesystem-details-pane/codesystem-details-pane.component';
+import { TerminologyResourceListItemComponent } from '../terminology-resource-list-item/terminology-resource-list-item.component';
 
 @Component({
   selector: 'app-codesystems-tab',
-  imports: [FormsModule],
+  imports: [FormsModule, BootstrapPaginationComponent, CodeSystemDetailsPaneComponent, TerminologyResourceListItemComponent],
   templateUrl: './codesystems-tab.component.html',
-
-  styleUrl: './codesystems-tab.component.scss'
+  styleUrl: './codesystems-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CodeSystemsTabComponent implements OnInit {
-
-  // Code Systems tab
   protected readonly codeSystemsResults = signal<CodeSystem[]>([]);
   protected readonly codeSystemsLoading = signal<boolean>(false);
   protected readonly codeSystemsError = signal<string | null>(null);
   protected readonly codeSystemsFilter = signal<string>('');
   protected readonly codeSystemsSortBy = signal<'name' | 'url' | 'title' | 'version' | 'status'>('name');
   protected readonly codeSystemsSortOrder = signal<'asc' | 'desc'>('asc');
-  protected readonly codeSystemsDeleting = signal<Set<string>>(new Set());
 
-  // Pagination for Code Systems
   protected readonly codeSystemsCurrentPage = signal<number>(1);
   protected readonly codeSystemsPageSize = signal<number>(5);
   protected readonly codeSystemsAvailablePageSizes = [5, 10, 20, 50];
 
-  // CodeSystem selection state
   protected readonly selectedCodeSystem = signal<CodeSystem | null>(null);
 
-  // Configuration status
-  protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
-    return baseUrl.trim() !== '';
-  });
+  protected readonly hasValidConfiguration = computed(() =>
+    hasTerminologyConfigured(this.settingsService.getEffectiveTerminologyEndpointAddress())
+  );
 
   protected settingsService = inject(SettingsService);
   private terminologyService = inject(TerminologyService);
   private toastService = inject(ToastService);
   private clipboardService = inject(ClipboardService);
   private terminologyOpener = inject(TerminologyResourceOpenerService);
+  private route = inject(ActivatedRoute);
+
+  private handledOpenKey: string | null = null;
 
   constructor() {
-    effect(() => {
-      const pending = this.terminologyOpener.pending();
-      if (!pending || pending.resourceType !== 'CodeSystem') {
-        return;
-      }
-      untracked(() => {
-        const request = this.terminologyOpener.consumePending('CodeSystem');
-        if (!request) {
-          return;
-        }
-        void this.openFromExternalRequest(request.id, request.url);
-      });
+    bindTerminologyTabDeepLinks('CodeSystem', {
+      opener: this.terminologyOpener,
+      route: this.route,
+      open: (id, url) => void this.openFromExternalRequest(id, url),
     });
   }
 
   ngOnInit(): void {
-    // Auto-load Code Systems when component is initialized
     if (this.hasValidConfiguration() && !this.codeSystemsLoading()) {
       this.loadCodeSystems();
     }
   }
 
   private async openFromExternalRequest(id: string, url?: string): Promise<void> {
-    if (!this.hasValidConfiguration()) {
-      this.toastService.showWarning(
-        'Please configure terminology service settings first.',
-        'Configuration Required'
-      );
-      return;
-    }
-    try {
-      let codeSystem: CodeSystem | null = null;
-      try {
-        codeSystem = await firstValueFrom(this.terminologyService.getCodeSystem(id));
-      } catch {
-        if (url) {
-          try {
-            codeSystem = await firstValueFrom(this.terminologyService.getCodeSystemByUrl(url));
-          } catch {
-            const bundle = await firstValueFrom(
-              this.terminologyService.searchCodeSystems({ url, _count: 1 })
-            );
-            const found = bundle.entry
-              ?.map((e) => e.resource)
-              .find((r): r is CodeSystem => isResourceType(r, 'CodeSystem'));
-            codeSystem = found ?? null;
-          }
-        }
-      }
-      if (!codeSystem) {
-        this.toastService.showError(`CodeSystem "${id}" was not found.`, 'Open Failed');
-        return;
-      }
-      this.selectCodeSystem(codeSystem);
-    } catch (error) {
-      this.toastService.showError(this.getErrorMessage(error), 'Open Failed');
-    }
+    await openTerminologyFromExternalRequest({
+      resourceType: 'CodeSystem',
+      id,
+      url,
+      getHandledKey: () => this.handledOpenKey,
+      setHandledKey: (key) => {
+        this.handledOpenKey = key;
+      },
+      hasValidConfiguration: () => this.hasValidConfiguration(),
+      opener: this.terminologyOpener,
+      toast: this.toastService,
+      onOpened: (resource) => this.selectCodeSystem(resource),
+    });
   }
 
-  // Code Systems operations
   async loadCodeSystems(): Promise<void> {
     if (!this.hasValidConfiguration()) {
       const errorMessage = 'Please configure terminology service settings first.';
@@ -122,17 +100,15 @@ export class CodeSystemsTabComponent implements OnInit {
     this.codeSystemsError.set(null);
 
     try {
-      // Request a large count to get all code systems for client-side pagination
       const result = await firstValueFrom(this.terminologyService.searchCodeSystems({ _count: 1000 }));
-      const codeSystems = result?.entry
-        ?.map(e => e.resource)
-        .filter((resource): resource is CodeSystem => isResourceType(resource, 'CodeSystem')) || [];
+      const codeSystems =
+        result?.entry
+          ?.map((e) => e.resource)
+          .filter((resource): resource is CodeSystem => isResourceType(resource, 'CodeSystem')) || [];
       this.codeSystemsResults.set(codeSystems);
-      
-      // Reset to first page when loading new data
       this.codeSystemsCurrentPage.set(1);
     } catch (error) {
-      const errorMessage = this.getErrorMessage(error);
+      const errorMessage = terminologyHttpErrorMessage(error);
       this.codeSystemsError.set(errorMessage);
       this.toastService.showError(errorMessage, 'Code Systems Load Failed');
     } finally {
@@ -148,15 +124,10 @@ export class CodeSystemsTabComponent implements OnInit {
     this.codeSystemsSortOrder.set(this.codeSystemsSortOrder() === 'asc' ? 'desc' : 'asc');
   }
 
-  // Handle column header clicks for sorting
   onCodeSystemColumnClick(column: 'name' | 'url' | 'title' | 'version' | 'status'): void {
-    const currentSortBy = this.codeSystemsSortBy();
-
-    if (currentSortBy === column) {
-      // Same column clicked - toggle sort order
+    if (this.codeSystemsSortBy() === column) {
       this.toggleCodeSystemsSortOrder();
     } else {
-      // Different column clicked - set new column and default to ascending
       this.codeSystemsSortBy.set(column);
       this.codeSystemsSortOrder.set('asc');
     }
@@ -164,59 +135,28 @@ export class CodeSystemsTabComponent implements OnInit {
 
   getFilteredAndSortedCodeSystems(): CodeSystem[] {
     let results = this.codeSystemsResults();
-
-    // Apply filter
     const filter = this.codeSystemsFilter().toLowerCase();
     if (filter) {
-      results = results.filter(cs =>
-        cs.name?.toLowerCase().includes(filter) ||
-        cs.title?.toLowerCase().includes(filter) ||
-        cs.url?.toLowerCase().includes(filter)
+      results = results.filter(
+        (cs) =>
+          cs.name?.toLowerCase().includes(filter) ||
+          cs.title?.toLowerCase().includes(filter) ||
+          cs.url?.toLowerCase().includes(filter)
       );
     }
 
-    // Apply sorting
     const sortBy = this.codeSystemsSortBy();
     const sortOrder = this.codeSystemsSortOrder();
-
     results.sort((a, b) => {
-      let aValue = '';
-      let bValue = '';
-
-      switch (sortBy) {
-        case 'name':
-          aValue = a.name || '';
-          bValue = b.name || '';
-          break;
-        case 'url':
-          aValue = a.url || '';
-          bValue = b.url || '';
-          break;
-        case 'title':
-          aValue = a.title || '';
-          bValue = b.title || '';
-          break;
-        case 'version':
-          aValue = a.version || '';
-          bValue = b.version || '';
-          break;
-        case 'status':
-          aValue = a.status || '';
-          bValue = b.status || '';
-          break;
-      }
-
+      const aValue = (a[sortBy] as string | undefined) || '';
+      const bValue = (b[sortBy] as string | undefined) || '';
       const comparison = aValue.localeCompare(bValue);
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-
     return results;
   }
 
-  // Pagination computed properties for Code Systems
-  protected readonly codeSystemsTotalCount = computed(() => {
-    return this.getFilteredAndSortedCodeSystems().length;
-  });
+  protected readonly codeSystemsTotalCount = computed(() => this.getFilteredAndSortedCodeSystems().length);
 
   protected readonly codeSystemsTotalPages = computed(() => {
     const total = this.codeSystemsTotalCount();
@@ -224,17 +164,15 @@ export class CodeSystemsTabComponent implements OnInit {
     return Math.max(1, Math.ceil(total / size));
   });
 
-  protected readonly codeSystemsHasPreviousPage = computed(() => {
-    return this.codeSystemsCurrentPage() > 1;
-  });
+  protected readonly codeSystemsHasPreviousPage = computed(() => this.codeSystemsCurrentPage() > 1);
 
-  protected readonly codeSystemsHasNextPage = computed(() => {
-    return this.codeSystemsCurrentPage() < this.codeSystemsTotalPages();
-  });
+  protected readonly codeSystemsHasNextPage = computed(
+    () => this.codeSystemsCurrentPage() < this.codeSystemsTotalPages()
+  );
 
-  protected readonly codeSystemsStartIndex = computed(() => {
-    return (this.codeSystemsCurrentPage() - 1) * this.codeSystemsPageSize() + 1;
-  });
+  protected readonly codeSystemsStartIndex = computed(
+    () => (this.codeSystemsCurrentPage() - 1) * this.codeSystemsPageSize() + 1
+  );
 
   protected readonly codeSystemsEndIndex = computed(() => {
     const total = this.codeSystemsTotalCount();
@@ -247,11 +185,9 @@ export class CodeSystemsTabComponent implements OnInit {
     const page = this.codeSystemsCurrentPage();
     const size = this.codeSystemsPageSize();
     const startIndex = (page - 1) * size;
-    const endIndex = startIndex + size;
-    return allResults.slice(startIndex, endIndex);
+    return allResults.slice(startIndex, startIndex + size);
   });
 
-  // Pagination methods for Code Systems
   codeSystemsPreviousPage(): void {
     const currentPage = this.codeSystemsCurrentPage();
     if (currentPage > 1) {
@@ -261,8 +197,7 @@ export class CodeSystemsTabComponent implements OnInit {
 
   codeSystemsNextPage(): void {
     const currentPage = this.codeSystemsCurrentPage();
-    const totalPages = this.codeSystemsTotalPages();
-    if (currentPage < totalPages) {
+    if (currentPage < this.codeSystemsTotalPages()) {
       this.codeSystemsCurrentPage.set(currentPage + 1);
     }
   }
@@ -285,7 +220,6 @@ export class CodeSystemsTabComponent implements OnInit {
     this.codeSystemsCurrentPage.set(1);
   }
 
-  // CodeSystem selection method
   selectCodeSystem(codeSystem: CodeSystem): void {
     this.selectedCodeSystem.set(codeSystem);
   }
@@ -300,63 +234,7 @@ export class CodeSystemsTabComponent implements OnInit {
     }
   }
 
-  // CodeSystem Download Method
-  downloadCodeSystem(codeSystem: CodeSystem): void {
-    try {
-      const jsonString = JSON.stringify(codeSystem, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const filename = codeSystem.id 
-        ? `CodeSystem-${codeSystem.id}.json`
-        : codeSystem.url 
-          ? `CodeSystem-${codeSystem.url.replace(/[^a-zA-Z0-9]/g, '_')}.json`
-          : 'CodeSystem.json';
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to download CodeSystem:', error);
-      this.toastService.showError('Failed to download CodeSystem', 'Download Error');
-    }
-  }
-
-  // Helper methods
-  formatDate(dateString?: string): string {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString();
-  }
-
   getCodeSystemTrackId(codeSystem: CodeSystem, index: number): string {
-    // Prioritize id (should be unique in FHIR), then url, then index with prefix
-    // Use nullish coalescing to handle empty strings properly
-    // Always include index to ensure uniqueness even if id/url are duplicated or empty
-    const id = codeSystem.id?.trim();
-    const url = codeSystem.url?.trim();
-    if (id) {
-      return `codesystem-id-${id}-${index}`;
-    } else if (url) {
-      return `codesystem-url-${url}-${index}`;
-    } else {
-      return `codesystem-${index}`;
-    }
-  }
-
-  private getErrorMessage(error: any): string {
-    if (error?.status === 401 || error?.status === 403) {
-      return 'Authentication failed. The terminology server may require authentication. Please check your authorization bearer token in Settings.';
-    }
-    if (error?.status === 404) {
-      return 'Server responded with 404 error: not found.';
-    }
-    if (error?.status >= 500) {
-      return 'Server error. Please try again later.';
-    }
-    return error?.message || 'An unexpected error occurred.';
+    return terminologyResourceTrackId('codesystem', codeSystem, index);
   }
 }

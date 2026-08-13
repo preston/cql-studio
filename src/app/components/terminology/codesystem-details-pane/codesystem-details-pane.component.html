@@ -1,0 +1,136 @@
+@if (selectedCodeSystem(); as codeSystem) {
+<div class="card" id="codesystem-details-pane">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">{{ codeSystem.name || 'Unnamed CodeSystem' }}</h5>
+    @if (codeSystem.id || codeSystem.url) {
+    <button
+      type="button"
+      class="btn btn-sm btn-outline-primary"
+      id="codesystem-details-download"
+      (click)="downloadCodeSystem(codeSystem)"
+      title="Download CodeSystem JSON">
+      <i class="bi bi-download me-1"></i>
+      Download
+    </button>
+    }
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="small">
+          @if (codeSystem.description) {
+          <div class="mb-2">
+            <strong>Description:</strong>
+            <p class="mt-1">{{ codeSystem.description }}</p>
+          </div>
+          }
+          @if (codeSystem.publisher) {
+          <div class="mb-1">
+            <strong>Publisher:</strong> {{ codeSystem.publisher }}
+          </div>
+          }
+          @if (codeSystem.date) {
+          <div class="mb-1">
+            <strong>Date:</strong> {{ formatFhirDate(codeSystem.date) }}
+          </div>
+          }
+          @if (codeSystem.version) {
+          <div class="mb-1">
+            <strong>Version:</strong> {{ codeSystem.version }}
+          </div>
+          }
+          @if (codeSystem.purpose) {
+          <div class="mb-1">
+            <strong>Purpose:</strong> {{ codeSystem.purpose }}
+          </div>
+          }
+          @if (codeSystem.copyright) {
+          <div class="mb-1">
+            <strong>Copyright:</strong> {{ codeSystem.copyright }}
+          </div>
+          }
+          @if (codeSystem.url) {
+          <div class="mb-1">
+            <strong>URL:</strong>
+            <a [href]="codeSystem.url" target="_blank" rel="noopener noreferrer" class="ms-1">
+              <code class="small">{{ codeSystem.url }}</code>
+            </a>
+          </div>
+          }
+          @if (codeSystem.status) {
+          <div class="mb-1">
+            <strong>Status:</strong>
+            <span
+              class="badge ms-1"
+              [class.bg-success]="codeSystem.status === 'active'"
+              [class.bg-warning]="codeSystem.status === 'draft'"
+              [class.bg-danger]="codeSystem.status === 'retired'">
+              {{ codeSystem.status }}
+            </span>
+          </div>
+          }
+        </div>
+      </div>
+      <div class="col-md-6">
+        <h6 class="small mb-2">Additional Information</h6>
+        <div class="small">
+          @if (codeSystem.experimental !== undefined) {
+          <div class="mb-1">
+            <strong>Experimental:</strong>
+            <span
+              class="badge ms-1"
+              [class.bg-warning]="codeSystem.experimental"
+              [class.bg-success]="!codeSystem.experimental">
+              {{ codeSystem.experimental ? 'Yes' : 'No' }}
+            </span>
+          </div>
+          }
+          @if (codeSystem.caseSensitive !== undefined) {
+          <div class="mb-1">
+            <strong>Case Sensitive:</strong>
+            <span
+              class="badge ms-1"
+              [class.bg-info]="codeSystem.caseSensitive"
+              [class.bg-secondary]="!codeSystem.caseSensitive">
+              {{ codeSystem.caseSensitive ? 'Yes' : 'No' }}
+            </span>
+          </div>
+          }
+          @if (codeSystem.content) {
+          <div class="mb-1">
+            <strong>Content:</strong> {{ codeSystem.content }}
+          </div>
+          }
+          @if (codeSystem.count) {
+          <div class="mb-1">
+            <strong>Code Count:</strong> {{ codeSystem.count }}
+          </div>
+          }
+          @if (codeSystem.contact && codeSystem.contact.length > 0) {
+          <div class="mb-1">
+            <strong>Contact:</strong>
+            <ul class="list-unstyled mt-1">
+              @for (contact of codeSystem.contact; track $index) {
+              <li class="small">
+                @if (contact.name) {
+                {{ contact.name }}
+                }
+                @if (contact.telecom && contact.telecom.length > 0) {
+                <br /><small class="text-muted">{{ contact.telecom[0].value }}</small>
+                }
+              </li>
+              }
+            </ul>
+          </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+} @else {
+<div class="text-center text-muted py-5" id="codesystem-details-empty">
+  <i class="bi bi-info-circle display-4"></i>
+  <p class="mt-2">Select a CodeSystem from the list to view details.</p>
+</div>
+}

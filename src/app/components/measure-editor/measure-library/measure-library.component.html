@@ -15,7 +15,8 @@
     <div class="col-12">
       <div class="input-group input-group-sm mb-3">
         <div class="form-floating flex-grow-1">
-          <input type="text" class="form-control form-control-sm" id="measureSearch" [(ngModel)]="searchTerm"
+          <input type="text" class="form-control form-control-sm" id="measureSearch"
+            [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)"
             (keydown.enter)="onSearch()" placeholder="Name or title">
           <label for="measureSearch">Search measures</label>
         </div>

@@ -1,4 +1,4 @@
-<div class="modal fade show d-block" [class.show]="isVisible" tabindex="-1" role="dialog" id="conversionModal">
+<div class="modal fade show d-block" [class.show]="isVisible()" tabindex="-1" role="dialog" id="conversionModal">
   <div class="modal-dialog modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -51,5 +51,5 @@
     </div>
   </div>
 </div>
-<div class="modal-backdrop fade show" [class.show]="isVisible"></div>
+<div class="modal-backdrop fade show" [class.show]="isVisible()"></div>
 

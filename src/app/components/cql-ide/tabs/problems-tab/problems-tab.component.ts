@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, inject } from '@angular/core';
+import {Component, ChangeDetectionStrategy, computed, inject} from '@angular/core';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import {
   parseProblemMessage,
@@ -12,29 +12,22 @@ import {
   imports: [],
   templateUrl: './problems-tab.component.html',
 
-  styleUrls: ['./problems-tab.component.scss']
+  styleUrls: ['./problems-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProblemsTabComponent {
   protected readonly ideStateService = inject(IdeStateService);
 
-  get syntaxErrors() {
-    return this.ideStateService.editorState().syntaxErrors;
-  }
+  protected readonly syntaxErrors = computed(
+    () => this.ideStateService.editorState().syntaxErrors
+  );
 
-  get isValidSyntax() {
-    return this.ideStateService.editorState().isValidSyntax;
-  }
+  protected readonly isValidSyntax = computed(
+    () => this.ideStateService.editorState().isValidSyntax
+  );
 
   parse(error: string): ParsedProblemMessage {
     return parseProblemMessage(error);
-  }
-
-  getErrorMessage(error: string): string {
-    return this.parse(error).message;
-  }
-
-  getErrorLine(error: string): number | null {
-    return this.parse(error).line;
   }
 
   iconClass(error: string): string {

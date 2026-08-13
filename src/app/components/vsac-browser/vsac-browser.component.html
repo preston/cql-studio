@@ -379,7 +379,7 @@
                 <td class="small">{{ vs.version || '—' }}</td>
                 <td class="small text-break">{{ vs.publisher || '—' }}</td>
                 <td class="small text-nowrap">{{ formatVsacDate(vs.date) }}</td>
-                <td class="small text-nowrap">{{ formatVsacDate($safeNavigationMigration(vs.meta?.lastUpdated)) }}</td>
+                <td class="small text-nowrap">{{ formatVsacDate(vs.meta?.lastUpdated) }}</td>
                 <td class="small text-end text-nowrap">{{ vs.expansion?.total ?? '—' }}</td>
                 <td class="small text-nowrap">{{ vs.immutable ? 'Yes' : '—' }}</td>
                 <td class="small text-break"><code class="small">{{ vs.url || '—' }}</code></td>
@@ -558,7 +558,9 @@
         @if (expandedValueSet()?.expansion) {
         <div
           class="border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2 py-2 px-3 bg-body-tertiary">
-          <ng-container *ngTemplateOutlet="vsacExpandPagination; context: {
+          <ng-container
+            [ngTemplateOutlet]="vsacExpandPagination"
+            [ngTemplateOutletContext]="{
               prevId: 'vsac-expand-page-prev-top',
               nextId: 'vsac-expand-page-next-top'
             }" />
@@ -597,7 +599,9 @@
         </div>
         @if (expandedValueSet()?.expansion) {
         <div class="card-footer d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
-          <ng-container *ngTemplateOutlet="vsacExpandPagination; context: {
+          <ng-container
+            [ngTemplateOutlet]="vsacExpandPagination"
+            [ngTemplateOutletContext]="{
               prevId: 'vsac-expand-page-prev',
               nextId: 'vsac-expand-page-next'
             }" />

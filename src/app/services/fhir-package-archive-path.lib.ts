@@ -40,3 +40,8 @@ export function resolvePackageArchiveKey(
   }
   return null;
 }
+
+export function isFhirPackageArchiveName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.endsWith('.tgz') || lower.endsWith('.tar.gz');
+}

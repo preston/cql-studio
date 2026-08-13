@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, computed, signal, inject } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output, computed, signal, inject} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Library } from 'fhir/r4';
 import { SettingsService } from '../../../services/settings.service';
@@ -11,7 +11,8 @@ import { LibraryService } from '../../../services/library.service';
   imports: [FormsModule],
   templateUrl: './new-guideline-modal.component.html',
 
-  styleUrl: './new-guideline-modal.component.scss'
+  styleUrl: './new-guideline-modal.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NewGuidelineModalComponent {
   settingsService = input<SettingsService>();
@@ -19,37 +20,35 @@ export class NewGuidelineModalComponent {
   create = output<Partial<Library>>();
   cancel = output<void>();
 
-  protected library: Partial<Library> = {
+  protected readonly library = signal<Partial<Library>>({
     name: '',
     title: '',
     version: '1.0.0',
     description: '',
     status: 'active'
-  };
+  });
 
-  protected isVisible = true;
+  protected readonly isVisible = signal(true);
   protected readonly errors = signal<{ [key: string]: string }>({});
 
-  private defaultSettingsService = inject(SettingsService);
   private defaultLibraryService = inject(LibraryService);
 
-  constructor() {
-    this.isVisible = true;
-    // URL is computed, so it will update automatically when name changes
-  }
-
   protected readonly previewUrl = computed(() => {
-    if (!this.library.name) {
+    const name = this.library().name;
+    if (!name) {
       return '';
     }
-    const libraryId = this.library.name.replace(/[^a-zA-Z0-9-]/g, '-');
+    const libraryId = name.replace(/[^a-zA-Z0-9-]/g, '-');
     const service = this.libraryService() || this.defaultLibraryService;
     return service.urlFor(libraryId);
   });
 
+  patchLibrary(patch: Partial<Library>): void {
+    this.library.update((current) => ({ ...current, ...patch }));
+  }
+
   onNameChange(): void {
     this.validateName();
-    this.updatePreviewUrl();
   }
 
   onVersionChange(): void {
@@ -57,7 +56,7 @@ export class NewGuidelineModalComponent {
   }
 
   private validateName(): void {
-    const name = this.library.name?.trim() || '';
+    const name = this.library().name?.trim() || '';
     const errors = { ...this.errors() };
     
     if (!name) {
@@ -72,7 +71,7 @@ export class NewGuidelineModalComponent {
   }
 
   private validateVersion(): void {
-    const version = this.library.version?.trim() || '';
+    const version = this.library().version?.trim() || '';
     const errors = { ...this.errors() };
     
     if (!version) {
@@ -86,18 +85,13 @@ export class NewGuidelineModalComponent {
     this.errors.set(errors);
   }
 
-  private updatePreviewUrl(): void {
-    // URL is computed, so it will update automatically
-  }
-
   protected isValid(): boolean {
-    const name = this.library.name?.trim() || '';
-    const version = this.library.version?.trim() || '';
+    const name = this.library().name?.trim() || '';
+    const version = this.library().version?.trim() || '';
     return name.length > 0 && version.length > 0 && Object.keys(this.errors()).length === 0;
   }
 
   onCreate(): void {
-    // Validate all fields
     this.validateName();
     this.validateVersion();
     
@@ -105,23 +99,20 @@ export class NewGuidelineModalComponent {
       return;
     }
 
-    // Ensure version is not null/empty
-    if (!this.library.version || !this.library.version.trim()) {
-      this.library.version = '1.0.0';
+    const draft = { ...this.library() };
+    if (!draft.version?.trim()) {
+      draft.version = '1.0.0';
     }
-
-    // Ensure name is not null/empty
-    if (!this.library.name || !this.library.name.trim()) {
+    if (!draft.name?.trim()) {
       return;
     }
 
-    this.create.emit(this.library);
-    this.isVisible = false;
+    this.create.emit(draft);
+    this.isVisible.set(false);
   }
 
   onCancel(): void {
     this.cancel.emit();
-    this.isVisible = false;
+    this.isVisible.set(false);
   }
 }
-

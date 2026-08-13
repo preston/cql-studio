@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output} from '@angular/core';
 
 export interface CodeDiff {
   before: string;
@@ -14,7 +14,8 @@ export interface CodeDiff {
   imports: [],
   templateUrl: './code-diff-preview.component.html',
 
-  styleUrls: ['./code-diff-preview.component.scss']
+  styleUrls: ['./code-diff-preview.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CodeDiffPreviewComponent {
   diff = input.required<CodeDiff>();

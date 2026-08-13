@@ -1,14 +1,12 @@
 // Author: Preston Lee
 // Demo wiring contributions: Eugene Vestel
 
-import { Component, OnInit, inject, signal, computed, effect } from '@angular/core';
+import {Component, ChangeDetectionStrategy, inject, signal, computed, effect} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, firstValueFrom, of } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs/operators';
-import { FormsModule } from '@angular/forms';
 import { Bundle, Library, MeasureReport, Patient, ValueSet } from 'fhir/r4';
 import type { PopulationCounts } from './elm-to-sql';
-import { extractValueSets } from './elm-to-sql';
 import { LibraryService } from '../../services/library.service';
 import { SqlOnFhirPipelineService, type GenerateSqlResult } from '../../services/sql-on-fhir/sql-on-fhir-pipeline.service';
 import { SqlOnFhirDemoService, decodeLibraryCql, CMS125_DATA_KEY } from '../../services/sql-on-fhir/sql-on-fhir-demo.service';
@@ -18,10 +16,6 @@ import {
   resourceTypesInBundle,
   summarizeBundleResources,
 } from '../../services/sql-on-fhir/sql-on-fhir-execution-data.service';
-import {
-  bundledValueSetsForServerPublish,
-  expandValueSetsForServerPublish,
-} from '../../services/sql-on-fhir/sql-on-fhir-value-set-publish.lib';
 import { PatientService } from '../../services/patient.service';
 import { TranslationService } from '../../services/translation.service';
 import { ToastService } from '../../services/toast.service';
@@ -38,20 +32,39 @@ import {
   hasBlockingCompatibilityIssues,
 } from './measure-library-compatibility.lib';
 import { resolveExecutionResourceTypes } from './measure-resource-types.lib';
+import {
+  ensureCms125ValueSetsOnServer,
+  publishCms125DemoToServerInitial,
+  publishCms125ValueSetsToServer,
+  resolveCms125BundledValueSets,
+} from './sql-cms125-publish.lib';
+import {
+  SQL_WORKFLOW_ORDER,
+  canNavigateToWorkflowStep,
+  firstIncompleteWorkflowStep,
+  isCqlStepComplete,
+  isElmStepComplete,
+  isLibraryStepComplete,
+  isSqlGenStepComplete,
+  workflowStepIconClasses as workflowStepIconClassesForStatus,
+  workflowStepLabel as workflowStepLabelForStep,
+  workflowStepStatus as workflowStepStatusForProgress,
+  type SqlWorkflowProgress,
+  type SqlWorkflowStep,
+} from './sql-workflow.lib';
+import { SqlLibraryListPanelComponent } from './sql-library-list-panel/sql-library-list-panel.component';
 import { SqlPipelineCqlStepComponent } from './pipeline-steps/sql-pipeline-cql-step.component';
 import { SqlPipelineElmStepComponent } from './pipeline-steps/sql-pipeline-elm-step.component';
 import { SqlPipelineExecuteStepComponent } from './pipeline-steps/sql-pipeline-execute-step.component';
 import { SqlPipelineLibraryStepComponent } from './pipeline-steps/sql-pipeline-library-step.component';
 import { SqlPipelineSqlGenStepComponent } from './pipeline-steps/sql-pipeline-sql-gen-step.component';
 
-export type SqlWorkflowStep = 'library' | 'cql' | 'elm' | 'sqlGen' | 'execute';
-
-const SQL_WORKFLOW_ORDER: SqlWorkflowStep[] = ['library', 'cql', 'elm', 'sqlGen', 'execute'];
+export type { SqlWorkflowStep };
 
 @Component({
   selector: 'app-sql-on-fhir',
   imports: [
-    FormsModule,
+    SqlLibraryListPanelComponent,
     SqlPipelineLibraryStepComponent,
     SqlPipelineCqlStepComponent,
     SqlPipelineElmStepComponent,
@@ -60,9 +73,10 @@ const SQL_WORKFLOW_ORDER: SqlWorkflowStep[] = ['library', 'cql', 'elm', 'sqlGen'
   ],
   templateUrl: './sql-on-fhir.component.html',
 
-  styleUrl: './sql-on-fhir.component.scss'
+  styleUrl: './sql-on-fhir.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SqlOnFhirComponent implements OnInit {
+export class SqlOnFhirComponent {
   private readonly libraryService = inject(LibraryService);
   private readonly pipeline = inject(SqlOnFhirPipelineService);
   private readonly translationService = inject(TranslationService);
@@ -87,17 +101,6 @@ export class SqlOnFhirComponent implements OnInit {
   /** Avoid duplicate CMS125 ValueSet publish runs for the same ELM + bundled content. */
   private cms125ValueSetPublishToken: string | null = null;
   private readonly patientSearchTrigger = new Subject<string>();
-
-  protected readonly paginatedLibraries = signal<Library[]>([]);
-  protected readonly currentPage = signal(1);
-  protected readonly totalPages = signal(0);
-  protected readonly totalLibraries = signal(0);
-  protected readonly pageSize = signal(5);
-  protected readonly librarySortBy = signal<'name' | 'version' | 'date'>('name');
-  protected readonly librarySortOrder = signal<'asc' | 'desc'>('asc');
-  protected readonly isLoadingLibraries = signal(false);
-  protected readonly libraryListSearchTerm = signal('');
-  protected readonly listError = signal<string | null>(null);
 
   protected readonly selectedLibrary = signal<Library | null>(null);
   protected readonly selectedLibraryJson = signal('');
@@ -235,6 +238,7 @@ export class SqlOnFhirComponent implements OnInit {
         return;
       }
       if (!cql) {
+        this.elmRunId++;
         this.elmXmlRaw.set(null);
         this.elmJsonRaw.set(null);
         this.elmTranslationErrors.set([]);
@@ -333,16 +337,16 @@ export class SqlOnFhirComponent implements OnInit {
         return;
       }
       const runId = ++this.sqlRunId;
-      this.pipeline.generateSql(elmJson, lib, params).subscribe({
-        next: result => {
+      void (async () => {
+        try {
+          const result = await firstValueFrom(this.pipeline.generateSql(elmJson, lib, params));
           if (runId !== this.sqlRunId) {
             return;
           }
           this.sqlText.set(result.sql);
           this.generateSqlResult.set(result);
           this.generateSqlError.set(null);
-        },
-        error: (err: unknown) => {
+        } catch (err: unknown) {
           if (runId !== this.sqlRunId) {
             return;
           }
@@ -350,15 +354,15 @@ export class SqlOnFhirComponent implements OnInit {
           this.generateSqlResult.set(null);
           const msg = err instanceof Error ? err.message : String(err);
           this.generateSqlError.set(msg);
-        },
-      });
+        }
+      })();
     });
 
     effect(() => {
       if (!this.selectedLibrary()) {
         return;
       }
-      const first = this.firstIncompleteStep();
+      const first = firstIncompleteWorkflowStep(this.workflowProgress());
       if (first == null) {
         return;
       }
@@ -383,7 +387,7 @@ export class SqlOnFhirComponent implements OnInit {
         return;
       }
       this.cms125ValueSetPublishToken = token;
-      void this.publishCms125ValueSetsToServer(elmJson, bundled, token);
+      void this.runPublishCms125ValueSetsToServer(elmJson, bundled, token);
     });
 
     this.patientSearchTrigger.pipe(
@@ -421,151 +425,7 @@ export class SqlOnFhirComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void {
-    this.loadPaginatedLibraries();
-  }
-
-  protected loadPaginatedLibraries(): void {
-    this.isLoadingLibraries.set(true);
-    this.listError.set(null);
-    this.libraryService
-      .getAll(this.currentPage(), this.pageSize(), this.librarySortBy(), this.librarySortOrder())
-      .subscribe({
-        next: (bundle: Bundle) => {
-          this.isLoadingLibraries.set(false);
-          this.paginatedLibraries.set(
-            bundle.entry
-              ? bundle.entry
-                  .map(e => e.resource)
-                  .filter((resource): resource is Library => isResourceType(resource, 'Library'))
-              : []
-          );
-          this.applyBundlePagination(bundle);
-        },
-        error: (err: unknown) => {
-          this.isLoadingLibraries.set(false);
-          const msg = this.errorMessage(err);
-          this.listError.set(msg);
-          this.paginatedLibraries.set([]);
-          this.totalPages.set(0);
-          this.totalLibraries.set(0);
-        }
-      });
-  }
-
-  private applyBundlePagination(bundle: Bundle): void {
-    const entries = bundle.entry?.length ?? 0;
-    const hasNextPage = bundle.link?.some(l => l.relation === 'next');
-    if (bundle.total != null && bundle.total > 0) {
-      this.totalLibraries.set(bundle.total);
-      this.totalPages.set(Math.ceil(bundle.total / this.pageSize()));
-    } else if (hasNextPage) {
-      this.totalLibraries.set(this.currentPage() * this.pageSize() + 1);
-      this.totalPages.set(this.currentPage() + 1);
-    } else {
-      this.totalLibraries.set((this.currentPage() - 1) * this.pageSize() + entries);
-      this.totalPages.set(this.currentPage());
-    }
-  }
-
-  protected loadLibraries(): void {
-    if (this.libraryListSearchTerm().trim()) {
-      this.loadSearchedLibraries();
-    } else {
-      this.loadPaginatedLibraries();
-    }
-  }
-
-  protected loadSearchedLibraries(): void {
-    this.isLoadingLibraries.set(true);
-    this.listError.set(null);
-    this.libraryService
-      .searchPaginated(
-        this.libraryListSearchTerm(),
-        this.currentPage(),
-        this.pageSize(),
-        this.librarySortBy(),
-        this.librarySortOrder()
-      )
-      .subscribe({
-        next: (bundle: Bundle) => {
-          this.isLoadingLibraries.set(false);
-          this.paginatedLibraries.set(
-            bundle.entry
-              ? bundle.entry
-                  .map(e => e.resource)
-                  .filter((resource): resource is Library => isResourceType(resource, 'Library'))
-              : []
-          );
-          this.applyBundlePagination(bundle);
-        },
-        error: (err: unknown) => {
-          this.isLoadingLibraries.set(false);
-          this.listError.set(this.errorMessage(err));
-          this.paginatedLibraries.set([]);
-          this.totalPages.set(0);
-          this.totalLibraries.set(0);
-        }
-      });
-  }
-
-  private errorMessage(err: unknown): string {
-    if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
-      return (err as { message: string }).message;
-    }
-    return 'Unable to load libraries from server';
-  }
-
-  protected onLibraryListSearch(): void {
-    this.currentPage.set(1);
-    if (this.libraryListSearchTerm().trim()) {
-      this.loadSearchedLibraries();
-    } else {
-      this.loadPaginatedLibraries();
-    }
-  }
-
-  protected goToPage(page: number): void {
-    if (page >= 1 && page <= this.totalPages() && page !== this.currentPage()) {
-      this.currentPage.set(page);
-      this.loadLibraries();
-    }
-  }
-
-  protected nextPage(): void {
-    if (this.currentPage() < this.totalPages()) {
-      this.goToPage(this.currentPage() + 1);
-    }
-  }
-
-  protected previousPage(): void {
-    if (this.currentPage() > 1) {
-      this.goToPage(this.currentPage() - 1);
-    }
-  }
-
-  protected changePageSize(newPageSize: number): void {
-    this.pageSize.set(Number(newPageSize));
-    this.currentPage.set(1);
-    this.loadLibraries();
-  }
-
-  protected changeSortField(value: string): void {
-    this.changeSorting(value as 'name' | 'version' | 'date');
-  }
-
-  protected changeSorting(sortBy: 'name' | 'version' | 'date'): void {
-    if (this.librarySortBy() === sortBy) {
-      this.librarySortOrder.update(o => (o === 'asc' ? 'desc' : 'asc'));
-    } else {
-      this.librarySortBy.set(sortBy);
-      this.librarySortOrder.set('asc');
-    }
-    this.currentPage.set(1);
-    this.loadLibraries();
-  }
-
-  protected selectLibraryFromList(library: Library): void {
+  protected async selectLibraryFromList(library: Library): Promise<void> {
     if (!library.id) {
       return;
     }
@@ -577,41 +437,43 @@ export class SqlOnFhirComponent implements OnInit {
     this.clearExecuteStepStatus();
     const gen = ++this.libraryLoadGeneration;
 
-    this.libraryService.get(library.id).subscribe({
-      next: fresh => {
-        if (gen !== this.libraryLoadGeneration) {
-          return;
-        }
-        if (!fresh.id) {
-          return;
-        }
-        this.clearPipelineOutputs();
-        this.selectedLibrary.set(fresh);
-        this.selectedLibraryJson.set(JSON.stringify(fresh, null, 2));
-        this.libraryService.getCqlContent(fresh).subscribe({
-          next: ({ cqlContent }) => {
-            if (gen !== this.libraryLoadGeneration) {
-              return;
-            }
-            this.cqlPreview.set(cqlContent ?? '');
-          },
-          error: () => {
-            if (gen !== this.libraryLoadGeneration) {
-              return;
-            }
-            this.cqlPreview.set('');
-          }
-        });
-      },
-      error: (err: unknown) => {
-        if (gen !== this.libraryLoadGeneration) {
-          return;
-        }
-        this.listError.set(this.errorMessage(err));
-        this.selectedLibrary.set(null);
-        this.selectedLibraryJson.set('');
+    try {
+      const fresh = await firstValueFrom(this.libraryService.get(library.id));
+      if (gen !== this.libraryLoadGeneration) {
+        return;
       }
-    });
+      if (!fresh.id) {
+        return;
+      }
+      this.clearPipelineOutputs();
+      this.selectedLibrary.set(fresh);
+      this.selectedLibraryJson.set(JSON.stringify(fresh, null, 2));
+      try {
+        const { cqlContent } = await firstValueFrom(this.libraryService.getCqlContent(fresh));
+        if (gen !== this.libraryLoadGeneration) {
+          return;
+        }
+        this.cqlPreview.set(cqlContent ?? '');
+      } catch {
+        if (gen !== this.libraryLoadGeneration) {
+          return;
+        }
+        this.cqlPreview.set('');
+      }
+    } catch (err: unknown) {
+      if (gen !== this.libraryLoadGeneration) {
+        return;
+      }
+      const msg =
+        err &&
+        typeof err === 'object' &&
+        'message' in err &&
+        typeof (err as { message: unknown }).message === 'string'
+          ? (err as { message: string }).message
+          : 'Unable to load library from server';
+      this.toastService.showError(msg, 'Library');
+      // Keep the previously selected library; only toast the failure.
+    }
   }
 
   private clearLibrarySelection(): void {
@@ -666,7 +528,7 @@ export class SqlOnFhirComponent implements OnInit {
     this.measureReportStatus.set(null);
   }
 
-  protected executeSql(): void {
+  protected async executeSql(): Promise<void> {
     if (!this.canExecuteSql()) {
       return;
     }
@@ -680,35 +542,25 @@ export class SqlOnFhirComponent implements OnInit {
     this.sqlExecuteFailed.set(false);
     this.isExecutingSql.set(true);
 
-    void this.prepareExecutionSeedData(elmJson)
-      .then(seedData => {
-        if (!seedData) {
-          this.isExecutingSql.set(false);
-          return;
-        }
-        this.pipeline.executeSql(this.sqlText(), seedData).subscribe({
-          next: result => {
-            this.isExecutingSql.set(false);
-            this.sqlResultsRaw.set(result.raw);
-            this.latestPopulationCounts = result.counts;
-            this.sqlExecuteFailed.set(false);
-            this.toastService.showSuccess(`SQL executed in ${result.durationMs.toFixed(0)} ms.`, 'Execute SQL');
-            this.generateMeasureReport();
-          },
-          error: (err: unknown) => {
-            this.isExecutingSql.set(false);
-            this.sqlExecuteFailed.set(true);
-            const msg = err instanceof Error ? err.message : String(err);
-            this.sqlExecutionStatus.set(`SQL execution failed: ${msg}`);
-          },
-        });
-      })
-      .catch((err: unknown) => {
+    try {
+      const seedData = await this.prepareExecutionSeedData(elmJson);
+      if (!seedData) {
         this.isExecutingSql.set(false);
-        this.sqlExecuteFailed.set(true);
-        const msg = err instanceof Error ? err.message : String(err);
-        this.sqlExecutionStatus.set(`SQL execution failed: ${msg}`);
-      });
+        return;
+      }
+      const result = await firstValueFrom(this.pipeline.executeSql(this.sqlText(), seedData));
+      this.isExecutingSql.set(false);
+      this.sqlResultsRaw.set(result.raw);
+      this.latestPopulationCounts = result.counts;
+      this.sqlExecuteFailed.set(false);
+      this.toastService.showSuccess(`SQL executed in ${result.durationMs.toFixed(0)} ms.`, 'Execute SQL');
+      void this.generateMeasureReport();
+    } catch (err: unknown) {
+      this.isExecutingSql.set(false);
+      this.sqlExecuteFailed.set(true);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.sqlExecutionStatus.set(`SQL execution failed: ${msg}`);
+    }
   }
 
   private async prepareExecutionSeedData(elmJson: string) {
@@ -723,8 +575,8 @@ export class SqlOnFhirComponent implements OnInit {
     let bundledForRows = this.bundledValueSets();
     if (this.executionDataKey() === CMS125_DATA_KEY) {
       try {
-        await this.ensureCms125ValueSetsOnServer(elmJson);
-        bundledForRows = await this.resolveCms125BundledValueSets();
+        await ensureCms125ValueSetsOnServer(elmJson, this.cms125PublishDeps());
+        bundledForRows = await resolveCms125BundledValueSets(this.cms125PublishDeps());
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         this.sqlExecutionStatus.set(`Value set loading failed: ${msg}`);
@@ -760,39 +612,45 @@ export class SqlOnFhirComponent implements OnInit {
     this.sqlExecuteFailed.set(false);
     this.measureReport.set(null);
     this.latestPopulationCounts = null;
+    // Allow parameter/resource-type defaults to re-derive from the new ELM.
+    this.parameterDefaultsLibraryId = null;
+    this.resourceTypesDefaultsLibraryId = null;
     this.cqlPreview.set(newCql);
   }
 
-  protected loadCms125Demo(): void {
+  protected async loadCms125Demo(): Promise<void> {
     this.isLoadingDemo.set(true);
     this.demoLoadError.set(null);
     this.clearExecuteStepStatus();
-    this.demoService.loadCms125().subscribe({
-      next: content => {
-        this.libraryLoadGeneration++;
-        this.patientDataFetchGeneration++;
-        this.clearPipelineOutputs(false);
-        this.usingCms125Preset.set(true);
-        this.selectedLibrary.set(content.library);
-        this.selectedLibraryJson.set(JSON.stringify(content.library, null, 2));
-        this.cqlPreview.set(content.cqlSource || decodeLibraryCql(content.library));
-        this.executionBundle.set(content.bundle);
-        this.executionDataKey.set(content.dataKey);
-        this.bundledValueSets.set(content.valueSets);
-        this.executionResourceTypes.set(resourceTypesInBundle(content.bundle));
-        this.resourceTypesDefaultsLibraryId = content.library.id ?? null;
-        this.selectedPatients.set([]);
-        this.patientDataFetchGeneration++;
-        void this.publishCms125DemoToServerInitial(content.valueSets, content.bundle).finally(() => {
-          this.isLoadingDemo.set(false);
-        });
-      },
-      error: (err: unknown) => {
+    try {
+      const content = await firstValueFrom(this.demoService.loadCms125());
+      this.libraryLoadGeneration++;
+      this.patientDataFetchGeneration++;
+      this.clearPipelineOutputs(false);
+      this.usingCms125Preset.set(true);
+      this.selectedLibrary.set(content.library);
+      this.selectedLibraryJson.set(JSON.stringify(content.library, null, 2));
+      this.cqlPreview.set(content.cqlSource || decodeLibraryCql(content.library));
+      this.executionBundle.set(content.bundle);
+      this.executionDataKey.set(content.dataKey);
+      this.bundledValueSets.set(content.valueSets);
+      this.executionResourceTypes.set(resourceTypesInBundle(content.bundle));
+      this.resourceTypesDefaultsLibraryId = content.library.id ?? null;
+      this.selectedPatients.set([]);
+      this.patientDataFetchGeneration++;
+      void publishCms125DemoToServerInitial(content.valueSets, content.bundle, {
+        publishValueSetsToServer: vs => this.executionDataService.publishValueSetsToServer(vs),
+        publishBundleToServer: b => this.executionDataService.publishBundleToServer(b),
+        setOnServer: v => this.cms125ValueSetsOnServer.set(v),
+        setDemoLoadError: msg => this.demoLoadError.set(msg),
+      }).finally(() => {
         this.isLoadingDemo.set(false);
-        const msg = err instanceof Error ? err.message : String(err);
-        this.demoLoadError.set(`Failed to load CMS125 demo: ${msg}`);
-      }
-    });
+      });
+    } catch (err: unknown) {
+      this.isLoadingDemo.set(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.demoLoadError.set(`Failed to load CMS125 demo: ${msg}`);
+    }
   }
 
   protected selectWorkflowStep(step: SqlWorkflowStep): void {
@@ -802,136 +660,61 @@ export class SqlOnFhirComponent implements OnInit {
     this.activeStep.set(step);
   }
 
-  protected canNavigateToStep(step: SqlWorkflowStep): boolean {
-    const i = SQL_WORKFLOW_ORDER.indexOf(step);
-    if (i <= 0) {
-      return this.selectedLibrary() != null;
-    }
-    for (let j = 0; j < i; j++) {
-      if (!this.stepSatisfied(SQL_WORKFLOW_ORDER[j])) {
-        return false;
-      }
-    }
-    return this.selectedLibrary() != null;
+  private workflowProgress(): SqlWorkflowProgress {
+    return {
+      hasSelectedLibrary: this.selectedLibrary() != null,
+      libraryComplete:
+        !!this.selectedLibrary()?.id && this.selectedLibraryJson().trim().length > 0,
+      cqlPreview: this.cqlPreview(),
+      isTranslatingElm: this.isTranslatingElm(),
+      hasElmTranslationErrors: this.hasElmTranslationErrors(),
+      hasElmTranslationWarnings: this.hasElmTranslationWarnings(),
+      elmXmlRaw: this.elmXmlRaw(),
+      formattedElmXml: this.formattedElmXml(),
+      sqlText: this.sqlText(),
+      sqlExecuteFailed: this.sqlExecuteFailed(),
+      sqlResultsRaw: this.sqlResultsRaw(),
+    };
   }
 
-  private stepSatisfied(step: SqlWorkflowStep): boolean {
-    switch (step) {
-      case 'library':
-        return this.libraryStepComplete();
-      case 'cql':
-        return this.cqlStepComplete();
-      case 'elm':
-        return this.elmStepComplete();
-      case 'sqlGen':
-        return this.sqlGenStepComplete();
-      case 'execute':
-        return this.sqlGenStepComplete();
-      default:
-        return false;
-    }
+  protected canNavigateToStep(step: SqlWorkflowStep): boolean {
+    return canNavigateToWorkflowStep(step, this.workflowProgress());
   }
 
   protected libraryStepComplete(): boolean {
-    return !!this.selectedLibrary()?.id && this.selectedLibraryJson().trim().length > 0;
+    return isLibraryStepComplete(this.workflowProgress());
   }
 
   protected cqlStepComplete(): boolean {
-    return this.libraryStepComplete() && this.cqlPreview().trim().length > 0;
+    return isCqlStepComplete(this.workflowProgress());
   }
 
   protected elmStepComplete(): boolean {
-    return (
-      this.cqlStepComplete() &&
-      !this.isTranslatingElm() &&
-      !this.hasElmTranslationErrors() &&
-      (this.elmXmlRaw()?.trim() ?? '').length > 0
-    );
+    return isElmStepComplete(this.workflowProgress());
   }
 
   protected sqlGenStepComplete(): boolean {
-    return this.elmStepComplete() && this.sqlText().trim().length > 0;
+    return isSqlGenStepComplete(this.workflowProgress());
   }
 
   /** First step whose prerequisites are not fully satisfied (where the user should resume). */
   protected firstIncompleteStep(): SqlWorkflowStep | null {
-    if (!this.libraryStepComplete()) {
-      return 'library';
-    }
-    if (!this.cqlStepComplete()) {
-      return 'cql';
-    }
-    if (!this.elmStepComplete()) {
-      return 'elm';
-    }
-    if (!this.sqlGenStepComplete()) {
-      return 'sqlGen';
-    }
-    return null;
+    return firstIncompleteWorkflowStep(this.workflowProgress());
   }
 
   protected workflowStepLabel(step: SqlWorkflowStep): string {
-    const labels: Record<SqlWorkflowStep, string> = {
-      library: 'FHIR Library',
-      cql: 'Decoded CQL',
-      elm: 'ELM Translation',
-      sqlGen: 'Generated SQL',
-      execute: 'Execute SQL'
-    };
-    return labels[step];
+    return workflowStepLabelForStep(step);
   }
 
   protected workflowStepStatus(step: SqlWorkflowStep): 'locked' | 'loading' | 'ok' | 'warn' | 'error' {
-    if (!this.canNavigateToStep(step)) {
-      return 'locked';
-    }
-    switch (step) {
-      case 'library':
-        return this.libraryStepComplete() ? 'ok' : 'warn';
-      case 'cql':
-        return this.cqlPreview().trim() ? 'ok' : 'warn';
-      case 'elm':
-        if (this.isTranslatingElm()) {
-          return 'loading';
-        }
-        if (this.hasElmTranslationErrors()) {
-          return 'error';
-        }
-        if (!this.formattedElmXml()) {
-          return this.cqlPreview().trim() ? 'warn' : 'warn';
-        }
-        return this.hasElmTranslationWarnings() ? 'warn' : 'ok';
-      case 'sqlGen':
-        return this.sqlText().trim() ? 'ok' : 'warn';
-      case 'execute':
-        if (this.sqlExecuteFailed()) {
-          return 'error';
-        }
-        return this.sqlResultsRaw().trim() ? 'ok' : 'warn';
-      default:
-        return 'warn';
-    }
+    return workflowStepStatusForProgress(step, this.workflowProgress());
   }
 
   protected workflowStepIconClasses(step: SqlWorkflowStep): string {
-    const s = this.workflowStepStatus(step);
-    switch (s) {
-      case 'locked':
-        return 'bi bi-lock-fill text-muted';
-      case 'loading':
-        return 'bi bi-hourglass-split text-primary';
-      case 'ok':
-        return 'bi bi-check-circle-fill text-success';
-      case 'warn':
-        return 'bi bi-exclamation-triangle-fill text-warning';
-      case 'error':
-        return 'bi bi-x-circle-fill text-danger';
-      default:
-        return 'bi bi-circle text-muted';
-    }
+    return workflowStepIconClassesForStatus(this.workflowStepStatus(step));
   }
 
-  protected generateMeasureReport(): void {
+  protected async generateMeasureReport(): Promise<void> {
     const lib = this.selectedLibrary();
     const counts = this.latestPopulationCounts;
     if (!counts) {
@@ -939,93 +722,44 @@ export class SqlOnFhirComponent implements OnInit {
       return;
     }
     this.measureReportStatus.set(null);
-    this.pipeline.generateMeasureReport(counts, lib, this.executionParameters()).subscribe({
-      next: r => {
-        this.measureReport.set(r);
-      },
-      error: (err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.measureReportStatus.set(`MeasureReport generation failed: ${msg}`);
-      }
-    });
+    try {
+      const r = await firstValueFrom(
+        this.pipeline.generateMeasureReport(counts, lib, this.executionParameters()),
+      );
+      this.measureReport.set(r);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.measureReportStatus.set(`MeasureReport generation failed: ${msg}`);
+    }
   }
 
-  protected saveMeasureReport(): void {
+  protected async saveMeasureReport(): Promise<void> {
     const r = this.measureReport();
     if (!r) {
       this.measureReportStatus.set('Nothing to save.');
       return;
     }
     this.measureReportStatus.set(null);
-    this.pipeline.saveMeasureReport(
-      r,
-      this.persistedMeasureReportId(),
-      this.persistedMeasureReportMeta(),
-    ).subscribe({
-      next: saved => {
-        this.measureReport.set(saved);
-        if (saved.id) {
-          this.persistedMeasureReportId.set(saved.id);
-        }
-        if (saved.meta) {
-          this.persistedMeasureReportMeta.set(saved.meta);
-        }
-        this.toastService.showSuccess(`MeasureReport saved (id: ${saved.id ?? 'unknown'}).`, 'Save');
-      },
-      error: (err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.measureReportStatus.set(`MeasureReport save failed: ${msg}`);
+    try {
+      const saved = await firstValueFrom(
+        this.pipeline.saveMeasureReport(
+          r,
+          this.persistedMeasureReportId(),
+          this.persistedMeasureReportMeta(),
+        ),
+      );
+      this.measureReport.set(saved);
+      if (saved.id) {
+        this.persistedMeasureReportId.set(saved.id);
       }
-    });
-  }
-
-  protected getLibraryDisplayName(library: Library): string {
-    return library.name || library.id || 'Unknown';
-  }
-
-  protected getLibraryVersion(library: Library): string {
-    return library.version || 'N/A';
-  }
-
-  protected getPageNumbers(): (number | string)[] {
-    const totalPages = this.totalPages();
-    const currentPage = this.currentPage();
-    const pages: (number | string)[] = [];
-    const maxVisiblePages = 5;
-    if (totalPages <= maxVisiblePages) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
+      if (saved.meta) {
+        this.persistedMeasureReportMeta.set(saved.meta);
       }
-    } else {
-      pages.push(1);
-      if (currentPage > 3) {
-        pages.push('...');
-      }
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = start; i <= end; i++) {
-        if (i !== 1 && i !== totalPages) {
-          pages.push(i);
-        }
-      }
-      if (currentPage < totalPages - 2) {
-        pages.push('...');
-      }
-      if (totalPages > 1) {
-        pages.push(totalPages);
-      }
+      this.toastService.showSuccess(`MeasureReport saved (id: ${saved.id ?? 'unknown'}).`, 'Save');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.measureReportStatus.set(`MeasureReport save failed: ${msg}`);
     }
-    return pages;
-  }
-
-  protected onPageClick(page: number | string): void {
-    if (typeof page === 'number') {
-      this.goToPage(page);
-    }
-  }
-
-  protected trackByLibraryId(_index: number, library: Library): string {
-    return library.id ?? _index.toString();
   }
 
   protected readonly hasElmTranslationErrors = computed(() => this.elmTranslationErrors().length > 0);
@@ -1038,7 +772,7 @@ export class SqlOnFhirComponent implements OnInit {
     this.patientSearchTrigger.next(term);
   }
 
-  protected onPatientSearchNow(): void {
+  protected async onPatientSearchNow(): Promise<void> {
     const term = this.patientSearchTerm().trim();
     if (term.length === 0) {
       this.patientSearchResults.set([]);
@@ -1047,22 +781,20 @@ export class SqlOnFhirComponent implements OnInit {
     }
     this.isLoadingPatients.set(true);
     this.patientSearchError.set(null);
-    this.patientService.search(term).subscribe({
-      next: bundle => {
-        this.isLoadingPatients.set(false);
-        const patients =
-          bundle.entry
-            ?.map(e => e.resource)
-            .filter((r): r is Patient => isResourceType(r, 'Patient')) ?? [];
-        this.patientSearchResults.set(patients);
-      },
-      error: (err: unknown) => {
-        this.isLoadingPatients.set(false);
-        const msg = err instanceof Error ? err.message : String(err);
-        this.patientSearchError.set(msg);
-        this.patientSearchResults.set([]);
-      },
-    });
+    try {
+      const bundle = await firstValueFrom(this.patientService.search(term));
+      this.isLoadingPatients.set(false);
+      const patients =
+        bundle.entry
+          ?.map(e => e.resource)
+          .filter((r): r is Patient => isResourceType(r, 'Patient')) ?? [];
+      this.patientSearchResults.set(patients);
+    } catch (err: unknown) {
+      this.isLoadingPatients.set(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.patientSearchError.set(msg);
+      this.patientSearchResults.set([]);
+    }
   }
 
   protected togglePatient(patient: Patient): void {
@@ -1253,71 +985,31 @@ export class SqlOnFhirComponent implements OnInit {
     return v?.kind === 'dateTime' ? v.value : '';
   }
 
-  private async resolveCms125BundledValueSets(): Promise<ValueSet[]> {
-    const bundled = this.bundledValueSets();
-    if (bundled.length > 0) {
-      return bundled;
-    }
-    const loaded = await firstValueFrom(this.demoService.loadCms125ValueSets());
-    this.bundledValueSets.set(loaded);
-    return loaded;
+  private cms125PublishDeps() {
+    return {
+      getBundled: () => this.bundledValueSets(),
+      setBundled: (vs: ValueSet[]) => this.bundledValueSets.set(vs),
+      loadCms125ValueSets: () => this.demoService.loadCms125ValueSets(),
+      alreadyOnServer: () => this.cms125ValueSetsOnServer(),
+      setOnServer: (v: boolean) => this.cms125ValueSetsOnServer.set(v),
+      publishValueSetsToServer: (vs: ValueSet[]) =>
+        this.executionDataService.publishValueSetsToServer(vs),
+    };
   }
 
-  private buildCms125ValueSetsForServer(elmJson: string, bundled: ValueSet[]): ValueSet[] {
-    const parsed = JSON.parse(elmJson) as { library?: unknown };
-    const wrapper = 'library' in parsed ? parsed : { library: parsed };
-    const refs = extractValueSets(wrapper as Parameters<typeof extractValueSets>[0]);
-    return expandValueSetsForServerPublish(refs, bundled);
-  }
-
-  private async ensureCms125ValueSetsOnServer(elmJson: string): Promise<void> {
-    if (this.cms125ValueSetsOnServer()) {
-      return;
-    }
-    const bundled = await this.resolveCms125BundledValueSets();
-    const toPublish = this.buildCms125ValueSetsForServer(elmJson, bundled);
-    if (toPublish.length === 0) {
-      throw new Error('No CMS125 value sets matched the translated ELM library');
-    }
-    await this.executionDataService.publishValueSetsToServer(toPublish);
-    this.cms125ValueSetsOnServer.set(true);
-  }
-
-  private async publishCms125DemoToServerInitial(bundled: ValueSet[], bundle: Bundle): Promise<void> {
-    try {
-      const toPublish = bundledValueSetsForServerPublish(bundled);
-      await this.executionDataService.publishValueSetsToServer(toPublish);
-      await this.executionDataService.publishBundleToServer(bundle);
-      this.cms125ValueSetsOnServer.set(true);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.demoLoadError.set(
-        `CMS125 demo loaded locally, but upload to the FHIR server failed: ${msg}`,
-      );
-    }
-  }
-
-  private async publishCms125ValueSetsToServer(
+  private async runPublishCms125ValueSetsToServer(
     elmJson: string,
     bundled: ValueSet[],
     token: string,
   ): Promise<void> {
-    try {
-      const toPublish = this.buildCms125ValueSetsForServer(elmJson, bundled);
-      if (toPublish.length === 0) {
-        this.cms125ValueSetPublishToken = null;
-        return;
-      }
-      await this.executionDataService.publishValueSetsToServer(toPublish);
-      this.cms125ValueSetsOnServer.set(true);
-    } catch (err: unknown) {
-      this.cms125ValueSetPublishToken = null;
-      const msg = err instanceof Error ? err.message : String(err);
-      this.demoLoadError.set(`CMS125 ValueSet upload failed after ELM translation: ${msg}`);
-    } finally {
-      if (this.cms125ValueSetPublishToken !== token) {
-        return;
-      }
-    }
+    await publishCms125ValueSetsToServer(elmJson, bundled, token, {
+      getPublishToken: () => this.cms125ValueSetPublishToken,
+      setPublishToken: t => {
+        this.cms125ValueSetPublishToken = t;
+      },
+      setOnServer: v => this.cms125ValueSetsOnServer.set(v),
+      setDemoLoadError: msg => this.demoLoadError.set(msg),
+      publishValueSetsToServer: vs => this.executionDataService.publishValueSetsToServer(vs),
+    });
   }
 }

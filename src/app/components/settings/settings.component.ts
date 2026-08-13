@@ -29,7 +29,9 @@ export class SettingsComponent implements OnInit {
   readonly activeSection = signal<SettingsSectionId>('environments');
 
   ngOnInit() {
-    this.reload();
+    // Do not reload from localStorage on every visit — that discarded live
+    // patchSettings edits that had not been Saved yet. Import/Restore still reload.
+    this.settingsService.setEffectiveTheme();
     const section = this.route.snapshot.queryParamMap.get('section');
     if (this.isValidSection(section)) {
       this.activeSection.set(section);
@@ -48,8 +50,14 @@ export class SettingsComponent implements OnInit {
     this.settingsService.setEffectiveTheme();
   }
 
-  onValidateSchemaChange(): void {
-    this.settingsService.saveSettings();
+  onThemePreferredChange(value: ThemeType): void {
+    // Theme takes effect immediately; persist like validateSchema.
+    this.settingsService.updateSettings({ theme_preferred: value });
+    this.themePreferenceChanged();
+  }
+
+  onValidateSchemaChange(value: boolean): void {
+    this.settingsService.updateSettings({ validateSchema: value });
   }
 
   onSectionChange(section: SettingsSectionId): void {

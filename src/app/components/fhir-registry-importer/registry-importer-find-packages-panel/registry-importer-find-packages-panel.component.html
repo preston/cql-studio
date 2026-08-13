@@ -1,0 +1,128 @@
+<div class="card mb-0">
+  <div class="card-header d-flex align-items-center gap-2">
+    <span class="bi bi-search me-2"></span>
+    <span class="fw-medium">Find FHIR packages</span>
+    @if (hasImportWorkspace()) {
+    <button id="fhir-registry-importer-toggle-search" type="button" class="btn btn-sm btn-outline-secondary ms-auto"
+      (click)="toggleFindPackagesExpanded()">
+      {{ findPackagesExpanded() ? 'Hide' : 'Show' }}
+    </button>
+    }
+  </div>
+  @if (!hasImportWorkspace() || findPackagesExpanded()) {
+  <div class="card-body" id="fhir-registry-importer-find-packages-body">
+    <div id="fhir-registry-importer-toolbar"
+      class="d-flex flex-column flex-md-row flex-md-nowrap gap-2 align-items-stretch align-items-md-end">
+      <span id="fhir-registry-importer-catalog-version-label" class="visually-hidden">FHIR version (optional)</span>
+      <div class="order-1 flex-grow-1 min-w-0">
+        <div class="form-floating">
+          <input id="fhir-registry-importer-search-input" type="text" class="form-control" [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)" (keyup.enter)="onSearch()" placeholder="hl7.fhir.us.core"
+            autofocus />
+          <label for="fhir-registry-importer-search-input">name</label>
+        </div>
+      </div>
+      <div class="order-2 flex-shrink-0">
+        <div id="fhir-registry-importer-catalog-version-group" class="btn-group" role="group"
+          aria-labelledby="fhir-registry-importer-catalog-version-label">
+          @for (opt of catalogFhirVersionOptions; track opt.label) {
+          <button type="button" class="btn btn-md"
+            [id]="'fhir-registry-importer-catalog-version-' + opt.label.toLowerCase()"
+            [class.btn-primary]="catalogFhirVersionFilter() === opt.value"
+            [class.btn-outline-primary]="catalogFhirVersionFilter() !== opt.value"
+            (click)="setCatalogFhirVersion(opt.value)">
+            {{ opt.label }}
+          </button>
+          }
+        </div>
+      </div>
+      <div class="order-3 flex-shrink-0">
+        <button id="fhir-registry-importer-search-button" type="button" class="btn btn-primary w-100 w-md-auto"
+          [disabled]="searchLoading()" (click)="onSearch()">
+          @if (searchLoading()) {
+          <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+          }
+          Search
+        </button>
+      </div>
+    </div>
+    <small class="form-text text-muted d-block mt-2">
+      Filters the registry catalog by package name and FHIR version.
+    </small>
+    <div class="border-top mt-3 pt-3">
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <span class="bi bi-upload me-1"></span>
+        <span class="fw-medium small">Or upload a local FHIR package</span>
+        <input type="file" id="fhir-registry-importer-local-package-input" class="d-none"
+          accept=".tgz,.tar.gz,application/gzip" (change)="onLocalPackageFileSelect($event)" />
+        <label for="fhir-registry-importer-local-package-input" class="btn btn-sm btn-outline-secondary mb-0"
+          id="fhir-registry-importer-choose-local-package">
+          @if (localPackageLoading() && nonRegistrySourceKind() === 'file') {
+          <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+          } @else {
+          <i class="bi bi-folder2-open me-1"></i>
+          }
+          Choose .tgz
+        </label>
+      </div>
+      <small class="form-text text-muted d-block mt-1">
+        Must be a FHIR NPM package (not a generic npm tarball).
+      </small>
+      <div class="mt-3">
+        <label class="form-label fw-medium small mb-1" for="fhir-registry-importer-package-url-input">
+          Or load a FHIR package from URL
+        </label>
+        <div class="input-group">
+          <input
+            id="fhir-registry-importer-package-url-input"
+            type="text"
+            class="form-control"
+            placeholder="https://…/package.tgz or /examples/packages/…"
+            [ngModel]="packageUrlInput()"
+            (ngModelChange)="packageUrlInput.set($event)"
+            [disabled]="localPackageLoading()"
+            (keydown.enter)="$event.preventDefault(); onPackageUrlLoad()" />
+          <button
+            id="fhir-registry-importer-package-url-load"
+            type="button"
+            class="btn btn-outline-secondary"
+            [disabled]="localPackageLoading()"
+            (click)="onPackageUrlLoad()">
+            @if (localPackageLoading() && nonRegistrySourceKind() === 'url') {
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+            }
+            Load
+          </button>
+        </div>
+        <small class="form-text text-muted d-block mt-1">
+          Accepts http(s) or same-origin paths to a <code>.tgz</code>. Third-party hosts without CORS support may require manual upload.
+        </small>
+      </div>
+      @if (localPackageError()) {
+      <div id="fhir-registry-importer-local-package-error" class="alert alert-danger mt-2 mb-0" role="alert">
+        {{ localPackageError() }}
+      </div>
+      }
+    </div>
+    @if (searchError()) {
+    <div class="alert alert-warning mt-3 mb-0" role="alert">{{ searchError() }}</div>
+    }
+    @if (catalogResults().length > 0) {
+    <div class="list-group mt-3">
+      @for (entry of catalogResults(); track entry.Name) {
+      <button type="button" class="list-group-item list-group-item-action text-start"
+        [class.active]="selectedPackageId() === entry.Name" (click)="selectCatalogEntry(entry)">
+        <div class="fw-medium">{{ entry.Name }}</div>
+        <div class="small text-muted">FHIR {{ entry.FhirVersion }}</div>
+        @if (entry.Description) {
+        <div class="small mt-1">
+          {{ entry.Description!.length > 280 ? (entry.Description!.slice(0, 280) + '…') : entry.Description }}
+        </div>
+        }
+      </button>
+      }
+    </div>
+    }
+  </div>
+  }
+</div>

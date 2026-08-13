@@ -25,7 +25,7 @@
         </label>
       </div>
       <div class="form-check d-flex align-items-center gap-1 mb-0">
-        <input class="form-check-input" type="checkbox" id="autoscroll" [ngModel]="autoscrollEnabled"
+        <input class="form-check-input" type="checkbox" id="autoscroll" [ngModel]="autoscrollEnabled()"
           (ngModelChange)="onAutoscrollChange($event)" title="Automatically scroll to bottom when new content is added">
         <label class="form-check-label small text-body-secondary mb-0" for="autoscroll">
           Autoscroll

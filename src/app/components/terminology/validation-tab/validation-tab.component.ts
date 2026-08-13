@@ -1,14 +1,19 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnDestroy, afterNextRender, Injector } from '@angular/core';
+import { Component, signal, computed, inject, afterNextRender, Injector, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
-import { takeUntil, catchError } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
 import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ValueSet, CodeSystem, Parameters } from 'fhir/r4';
 import { isResourceType } from '../../../services/fhir-resource-type.lib';
+import {
+  hasTerminologyConfigured,
+  terminologyHttpErrorMessage,
+} from '../../../services/terminology-ui.lib';
 
 interface ValidationResult {
   valid: boolean;
@@ -22,9 +27,10 @@ interface ValidationResult {
   imports: [FormsModule],
   templateUrl: './validation-tab.component.html',
 
-  styleUrl: './validation-tab.component.scss'
+  styleUrl: './validation-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ValidationTabComponent implements OnDestroy {
+export class ValidationTabComponent {
 
   // Code validation
   protected readonly validationCode = signal<string>('');
@@ -52,13 +58,11 @@ export class ValidationTabComponent implements OnDestroy {
 
   private readonly valuesetSearchSubject = new Subject<string>();
   private readonly codesystemSearchSubject = new Subject<string>();
-  private readonly destroy$ = new Subject<void>();
 
   // Configuration status
-  protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
-    return baseUrl.trim() !== '';
-  });
+  protected readonly hasValidConfiguration = computed(() =>
+    hasTerminologyConfigured(this.settingsService.getEffectiveTerminologyEndpointAddress())
+  );
 
   protected settingsService = inject(SettingsService);
   private terminologyService = inject(TerminologyService);
@@ -82,7 +86,7 @@ export class ValidationTabComponent implements OnDestroy {
         }).catch(() => []);
       }),
       catchError(() => of([])),
-      takeUntil(this.destroy$)
+      takeUntilDestroyed()
     ).subscribe();
 
     // Set up debounced CodeSystem search
@@ -101,13 +105,8 @@ export class ValidationTabComponent implements OnDestroy {
         }).catch(() => []);
       }),
       catchError(() => of([])),
-      takeUntil(this.destroy$)
+      takeUntilDestroyed()
     ).subscribe();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   // Code validation operations
@@ -157,7 +156,7 @@ export class ValidationTabComponent implements OnDestroy {
         parameters: result
       });
     } catch (error) {
-      const errorMessage = this.getErrorMessage(error);
+      const errorMessage = terminologyHttpErrorMessage(error);
       this.validationError.set(errorMessage);
       this.toastService.showError(errorMessage, 'Code Validation Failed');
     } finally {
@@ -526,16 +525,4 @@ export class ValidationTabComponent implements OnDestroy {
     return displayNames[name] || name.charAt(0).toUpperCase() + name.slice(1);
   }
 
-  private getErrorMessage(error: any): string {
-    if (error?.status === 401 || error?.status === 403) {
-      return 'Authentication failed. The terminology server may require authentication. Please check your authorization bearer token in Settings.';
-    }
-    if (error?.status === 404) {
-      return 'Server responded with 404 error: not found.';
-    }
-    if (error?.status >= 500) {
-      return 'Server error. Please try again later.';
-    }
-    return error?.message || 'An unexpected error occurred.';
-  }
 }

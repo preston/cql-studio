@@ -83,7 +83,7 @@
                 </span>
               </div>
             }
-            @if ($safeNavigationMigration(selectedValueSet()?.experimental) !== undefined) {
+            @if (selectedValueSet()?.experimental !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Experimental</div>
                 <span class="badge" 
@@ -96,7 +96,7 @@
             @if (selectedValueSet()?.date) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Date</div>
-                <div>{{ formatDate($safeNavigationMigration(selectedValueSet()?.date)) }}</div>
+                <div>{{ formatFhirDate(selectedValueSet()?.date, true) }}</div>
               </div>
             }
             @if (selectedValueSet()?.publisher) {
@@ -125,7 +125,7 @@
                 <div class="text-break">{{ selectedValueSet()?.copyright }}</div>
               </div>
             }
-            @if ($safeNavigationMigration(selectedValueSet()?.immutable) !== undefined) {
+            @if (selectedValueSet()?.immutable !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Immutable</div>
                 <span class="badge" 
@@ -272,10 +272,10 @@
             @if (selectedValueSet()?.compose?.lockedDate) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Locked Date</div>
-                <div>{{ formatDate($safeNavigationMigration(selectedValueSet()?.compose?.lockedDate)) }}</div>
+                <div>{{ formatFhirDate(selectedValueSet()?.compose?.lockedDate, true) }}</div>
               </div>
             }
-            @if ($safeNavigationMigration(selectedValueSet()?.compose?.inactive) !== undefined) {
+            @if (selectedValueSet()?.compose?.inactive !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Inactive</div>
                 <span class="badge" 
@@ -376,16 +376,16 @@
             @if (selectedValueSet()?.expansion?.timestamp) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Timestamp</div>
-                <div>{{ formatDate($safeNavigationMigration(selectedValueSet()?.expansion?.timestamp)) }}</div>
+                <div>{{ formatFhirDate(selectedValueSet()?.expansion?.timestamp, true) }}</div>
               </div>
             }
-            @if ($safeNavigationMigration(selectedValueSet()?.expansion?.total) !== undefined) {
+            @if (selectedValueSet()?.expansion?.total !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Total</div>
                 <div>{{ selectedValueSet()?.expansion?.total }}</div>
               </div>
             }
-            @if ($safeNavigationMigration(selectedValueSet()?.expansion?.offset) !== undefined) {
+            @if (selectedValueSet()?.expansion?.offset !== undefined) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Offset</div>
                 <div>{{ selectedValueSet()?.expansion?.offset }}</div>
@@ -435,7 +435,7 @@
             @if (selectedValueSet()?.meta?.lastUpdated) {
               <div class="mb-3">
                 <div class="text-muted small mb-1">Last Updated</div>
-                <div>{{ formatDate($safeNavigationMigration(selectedValueSet()?.meta?.lastUpdated)) }}</div>
+                <div>{{ formatFhirDate(selectedValueSet()?.meta?.lastUpdated, true) }}</div>
               </div>
             }
             @if (selectedValueSet()?.meta?.profile && selectedValueSet()!.meta!.profile!.length > 0) {
@@ -502,7 +502,8 @@
           <h6 class="mb-0">Expanded Codes ({{ expandedCodes().length }})</h6>
           <div class="form-floating flex-shrink-0" style="min-width: 6.5rem;">
             <select class="form-select form-select-sm" id="pageSizeSelect"
-                    [(ngModel)]="currentPageSize">
+                    [ngModel]="pageSize()"
+                    (ngModelChange)="setPageSize(+$event)">
               @for (size of availablePageSizes(); track size) {
                 <option [value]="size">{{ size }}</option>
               }
@@ -670,9 +671,9 @@
                                               <code class="small">{{ param.valueUri }}</code>
                                             </a>
                                           } @else if (param.valueDateTime) {
-                                            <div>{{ formatDate(param.valueDateTime) }}</div>
+                                            <div>{{ formatFhirDate(param.valueDateTime, true) }}</div>
                                           } @else if (param.valueDate) {
-                                            <div>{{ formatDate(param.valueDate) }}</div>
+                                            <div>{{ formatFhirDate(param.valueDate, true) }}</div>
                                           } @else if (param.valueCoding) {
                                             <div>
                                               @if (param.valueCoding.code) {

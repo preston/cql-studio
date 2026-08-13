@@ -1,14 +1,19 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnDestroy, afterNextRender, Injector } from '@angular/core';
+import { Component, signal, computed, inject, afterNextRender, Injector, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
-import { takeUntil, catchError } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
 import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
 import { ToastService } from '../../../services/toast.service';
 import { ValueSet } from 'fhir/r4';
 import { isResourceType } from '../../../services/fhir-resource-type.lib';
+import {
+  hasTerminologyConfigured,
+  terminologyHttpErrorMessage,
+} from '../../../services/terminology-ui.lib';
 import { CodeSearchDetailsPaneComponent } from '../code-search-details-pane/code-search-details-pane.component';
 
 @Component({
@@ -16,9 +21,10 @@ import { CodeSearchDetailsPaneComponent } from '../code-search-details-pane/code
   imports: [FormsModule, CodeSearchDetailsPaneComponent],
   templateUrl: './code-search-tab.component.html',
 
-  styleUrl: './code-search-tab.component.scss'
+  styleUrl: './code-search-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CodeSearchTabComponent implements OnDestroy {
+export class CodeSearchTabComponent {
 
   protected readonly valueSetInput = signal<string>('');
   protected readonly valueSetSearchResults = signal<ValueSet[]>([]);
@@ -43,12 +49,10 @@ export class CodeSearchTabComponent implements OnDestroy {
   protected readonly availablePageSizes = [10, 20, 50, 100];
 
   private readonly valueSetSearchSubject = new Subject<string>();
-  private readonly destroy$ = new Subject<void>();
 
-  protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
-    return baseUrl.trim() !== '';
-  });
+  protected readonly hasValidConfiguration = computed(() =>
+    hasTerminologyConfigured(this.settingsService.getEffectiveTerminologyEndpointAddress())
+  );
 
   protected readonly searchFilterUsed = signal<string>('');
 
@@ -73,13 +77,8 @@ export class CodeSearchTabComponent implements OnDestroy {
         }).catch(() => []);
       }),
       catchError(() => of([])),
-      takeUntil(this.destroy$)
+      takeUntilDestroyed()
     ).subscribe();
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   private performValueSetSearch(searchTerm: string): Promise<ValueSet[]> {
@@ -243,7 +242,7 @@ export class CodeSearchTabComponent implements OnDestroy {
         });
       }
     } catch (error) {
-      const msg = this.getErrorMessage(error);
+      const msg = terminologyHttpErrorMessage(error);
       this.toastService.showError(msg, 'Code Search Failed');
     } finally {
       this.expandLoading.set(false);
@@ -279,7 +278,7 @@ export class CodeSearchTabComponent implements OnDestroy {
       this.expandedCodeDetails.set(details);
     } catch (error) {
       const details = new Map(this.expandedCodeDetails());
-      details.set(codeKey, { error: this.getErrorMessage(error) });
+      details.set(codeKey, { error: terminologyHttpErrorMessage(error) });
       this.expandedCodeDetails.set(details);
     } finally {
       const loading = new Set(this.loadingDetails());
@@ -288,12 +287,4 @@ export class CodeSearchTabComponent implements OnDestroy {
     }
   }
 
-  private getErrorMessage(error: any): string {
-    if (error?.status === 401 || error?.status === 403) {
-      return 'Authentication failed. Check your authorization in Settings.';
-    }
-    if (error?.status === 404) return 'Server responded with 404.';
-    if (error?.status >= 500) return 'Server error. Please try again later.';
-    return error?.message || 'An unexpected error occurred.';
-  }
 }

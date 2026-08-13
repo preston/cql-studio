@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -8,6 +8,7 @@ import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
 import { CqlTestResults, TestResult, TestResultsSummary, TestError } from '../../models/cql-test-results.model';
+import { downloadBlob } from '../../services/download-blob.lib';
 
 interface DashboardData {
   filename: string;
@@ -43,7 +44,8 @@ interface ComparisonTest {
   imports: [FormsModule, DatePipe, BaseChartDirective],
   templateUrl: './dashboard.component.html',
 
-  styleUrl: './dashboard.component.scss'
+  styleUrl: './dashboard.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent implements OnInit {
   // Data signals
@@ -888,7 +890,7 @@ export class DashboardComponent implements OnInit {
       .join('\n');
     
     // Download file
-    this.downloadFile(csvContent, 'comparison-matrix.csv', 'text/csv');
+    downloadBlob(csvContent, 'comparison-matrix.csv', 'text/csv');
   }
   
   downloadMatrixAsJson(): void {
@@ -953,18 +955,6 @@ export class DashboardComponent implements OnInit {
     
     // Download file
     const jsonContent = JSON.stringify(exportData, null, 2);
-    this.downloadFile(jsonContent, 'comparison-matrix.json', 'application/json');
-  }
-  
-  private downloadFile(content: string, filename: string, mimeType: string): void {
-    const blob = new Blob([content], { type: mimeType });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    downloadBlob(jsonContent, 'comparison-matrix.json', 'application/json');
   }
 }

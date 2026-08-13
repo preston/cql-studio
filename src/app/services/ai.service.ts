@@ -6,7 +6,6 @@ import { Observable, of, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { BaseService } from './base.service';
 import { SettingsService } from './settings.service';
-import { IdeStateService } from './ide-state.service';
 import { ConversationManagerService } from './conversation-manager.service';
 import { AiPlanningService } from './ai-planning.service';
 import { ToolPolicyService } from './tool-policy.service';
@@ -109,7 +108,6 @@ export interface StructuredActParseResult {
 })
 export class AiService extends BaseService {
   private settingsService = inject(SettingsService);
-  private ideStateService = inject(IdeStateService);
   private conversationManager = inject(ConversationManagerService);
   private planningService = inject(AiPlanningService);
   private toolPolicyService = inject(ToolPolicyService);
@@ -831,15 +829,6 @@ Use this context when helping improve, debug, or extend the code.`;
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     });
-  }
-
-  private generateId(): string {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-  }
-
-  private generateTitle(firstMessage: string): string {
-    const words = firstMessage.split(' ').slice(0, 5);
-    return words.join(' ') + (firstMessage.split(' ').length > 5 ? '...' : '');
   }
 
   /**

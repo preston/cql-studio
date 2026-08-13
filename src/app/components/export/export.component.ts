@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { Bundle, Library, Patient, Resource } from 'fhir/r4';
@@ -56,6 +56,13 @@ import {
   primaryIgForManifestSync,
   sanitizedIgCount
 } from '../../services/export-merge.lib';
+import {
+  isLogicLibrary,
+  libraryIdentityKey,
+  rootsFingerprint as buildRootsFingerprint,
+  sameLibrary,
+  statusBadgeClass as exportStatusBadgeClass
+} from './export-wizard.lib';
 
 export type { ExportDestination, ExportWizardStep } from './export.types';
 export type ExportDepSortColumn = 'include' | 'kind' | 'name' | 'status' | 'detail';
@@ -119,7 +126,8 @@ const EXPORT_DESTINATIONS: readonly ExportDestinationMeta[] = [
 @Component({
   selector: 'app-export',
   imports: [FormsModule, ExportDataStepComponent],
-  templateUrl: './export.component.html'
+  templateUrl: './export.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExportComponent implements OnInit {
   private readonly libraryService = inject(LibraryService);
@@ -411,13 +419,13 @@ export class ExportComponent implements OnInit {
   }
 
   isLibrarySelected(lib: Library): boolean {
-    return this.selectedLibraries().some((s) => this.sameLibrary(s, lib));
+    return this.selectedLibraries().some((s) => sameLibrary(s, lib));
   }
 
   toggleLibrary(lib: Library): void {
     const current = this.selectedLibraries();
     if (this.isLibrarySelected(lib)) {
-      this.selectedLibraries.set(current.filter((s) => !this.sameLibrary(s, lib)));
+      this.selectedLibraries.set(current.filter((s) => !sameLibrary(s, lib)));
     } else {
       this.selectedLibraries.set([...current, lib]);
     }
@@ -470,7 +478,7 @@ export class ExportComponent implements OnInit {
       const libs = (bundle.entry ?? [])
         .map((e) => e.resource)
         .filter((r): r is Library => resourceTypeOf(r) === 'Library')
-        .filter((lib) => this.isLogicLibrary(lib));
+        .filter((lib) => isLogicLibrary(lib));
       this.libraryResults.set(libs);
     } catch (err) {
       this.libraryError.set(describeFhirHttpFailure(err));
@@ -533,10 +541,7 @@ export class ExportComponent implements OnInit {
   }
 
   private rootsFingerprint(): string {
-    return this.selectedLibraries()
-      .map((l) => this.libraryIdentityKey(l))
-      .sort()
-      .join(';');
+    return buildRootsFingerprint(this.selectedLibraries());
   }
 
   isGraphStale(): boolean {
@@ -681,18 +686,7 @@ export class ExportComponent implements OnInit {
   }
 
   statusBadgeClass(status: ExportDependencyNode['status']): string {
-    switch (status) {
-      case 'resolved':
-        return 'text-bg-success';
-      case 'missing':
-        return 'text-bg-danger';
-      case 'external':
-        return 'text-bg-secondary';
-      case 'cycle':
-        return 'text-bg-warning';
-      default:
-        return 'text-bg-light';
-    }
+    return exportStatusBadgeClass(status);
   }
 
   /**
@@ -908,12 +902,12 @@ export class ExportComponent implements OnInit {
 
     let outcomes;
     if (this.conditionalCreate()) {
-      const rootKeys = new Set(roots.map((l) => this.libraryIdentityKey(l)));
+      const rootKeys = new Set(roots.map((l) => libraryIdentityKey(l)));
       const deps = resources.filter((r) => {
         if (resourceTypeOf(r) !== 'Library') {
           return true;
         }
-        return !rootKeys.has(this.libraryIdentityKey(r as Library));
+        return !rootKeys.has(libraryIdentityKey(r as Library));
       });
       const bundle = this.crmiPackageService.buildArtifactBundle(roots, deps, {
         bundleType: 'transaction',
@@ -945,12 +939,12 @@ export class ExportComponent implements OnInit {
         'Select at least one root library in the dependency table for CRMI packaging.'
       );
     }
-    const rootKeys = new Set(roots.map((l) => this.libraryIdentityKey(l)));
+    const rootKeys = new Set(roots.map((l) => libraryIdentityKey(l)));
     const deps = resources.filter((r) => {
       if (resourceTypeOf(r) !== 'Library') {
         return true;
       }
-      return !rootKeys.has(this.libraryIdentityKey(r as Library));
+      return !rootKeys.has(libraryIdentityKey(r as Library));
     });
 
     const action = this.crmiAction();
@@ -1073,26 +1067,7 @@ export class ExportComponent implements OnInit {
     }
   }
 
-  private isLogicLibrary(lib: Library): boolean {
-    const codings = lib.type?.coding ?? [];
-    if (codings.length === 0) {
-      return true;
-    }
-    return codings.some((c) => c.code === 'logic-library' || c.code === 'asset-collection');
-  }
-
-  private sameLibrary(a: Library, b: Library): boolean {
-    if (a.id && b.id && a.id === b.id) {
-      return true;
-    }
-    return a.name === b.name && a.version === b.version && a.url === b.url;
-  }
-
   private isSelectedPrimary(lib: Library): boolean {
-    return this.selectedLibraries().some((s) => this.sameLibrary(s, lib));
-  }
-
-  private libraryIdentityKey(lib: Library): string {
-    return `${lib.id ?? ''}|${lib.name ?? ''}|${lib.version ?? ''}|${lib.url ?? ''}`;
+    return this.selectedLibraries().some((s) => sameLibrary(s, lib));
   }
 }

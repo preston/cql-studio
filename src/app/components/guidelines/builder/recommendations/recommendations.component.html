@@ -11,7 +11,8 @@
             type="text"
             class="form-control form-control-sm"
             id="rec-label"
-            [(ngModel)]="newRecommendation.label"
+            [ngModel]="newRecommendation().label"
+            (ngModelChange)="patchNewRecommendation({ label: $event })"
             placeholder="Recommendation label"
           />
         </div>
@@ -21,7 +22,8 @@
             type="text"
             class="form-control form-control-sm"
             id="rec-description"
-            [(ngModel)]="newRecommendation.description"
+            [ngModel]="newRecommendation().description"
+            (ngModelChange)="patchNewRecommendation({ description: $event })"
             placeholder="Optional description"
           />
         </div>
@@ -30,7 +32,7 @@
           <button
             class="btn btn-primary btn-sm w-100"
             (click)="onAddRecommendation()"
-            [disabled]="!newRecommendation.label"
+            [disabled]="!newRecommendation().label"
             type="button"
             id="add-recommendation-btn"
           >
@@ -45,13 +47,14 @@
     <div class="list-group">
       @for (rec of recommendations(); track rec.id; let i = $index) {
         <div class="list-group-item">
-          @if (editingIndex === i) {
+          @if (editingIndex() === i) {
             <div class="row g-2">
               <div class="col-md-5">
                 <input
                   type="text"
                   class="form-control form-control-sm"
-                  [(ngModel)]="editingRecommendation.label"
+                  [ngModel]="editingRecommendation().label"
+                  (ngModelChange)="patchEditingRecommendation({ label: $event })"
                   placeholder="Label"
                 />
               </div>
@@ -59,7 +62,8 @@
                 <input
                   type="text"
                   class="form-control form-control-sm"
-                  [(ngModel)]="editingRecommendation.description"
+                  [ngModel]="editingRecommendation().description"
+                  (ngModelChange)="patchEditingRecommendation({ description: $event })"
                   placeholder="Description"
                 />
               </div>
@@ -117,4 +121,3 @@
     </div>
   }
 </div>
-

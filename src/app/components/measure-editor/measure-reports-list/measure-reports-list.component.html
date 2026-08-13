@@ -12,7 +12,8 @@
         type="text"
         class="form-control form-control-sm"
         id="measureReportMeasureFilter"
-        [(ngModel)]="measureFilter"
+        [ngModel]="measureFilter()"
+        (ngModelChange)="measureFilter.set($event)"
         (keydown.enter)="onSearch()"
         placeholder="Measure canonical URL"
       />

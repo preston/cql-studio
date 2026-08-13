@@ -1,8 +1,9 @@
 // Author: Preston Lee
 
-import { Component, output, signal, computed, inject } from '@angular/core';
+import {Component, ChangeDetectionStrategy, output, signal, computed, inject} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { LibraryService } from '../../../services/library.service';
 import { IdeStateService } from '../../../services/ide-state.service';
 import {
@@ -14,7 +15,8 @@ import {
   selector: 'app-new-library-modal',
   imports: [FormsModule],
   templateUrl: './new-library-modal.component.html',
-  styleUrl: './new-library-modal.component.scss'
+  styleUrl: './new-library-modal.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NewLibraryModalComponent {
   create = output<string>();
@@ -56,7 +58,7 @@ export class NewLibraryModalComponent {
     this.errorMessage.set('');
   }
 
-  onValidateAndCreate(): void {
+  async onValidateAndCreate(): Promise<void> {
     const t = this.title().trim();
     this.errorMessage.set('');
 
@@ -80,43 +82,50 @@ export class NewLibraryModalComponent {
 
     this.isValidating.set(true);
 
-    this.libraryService.get(t).subscribe({
-      next: () => {
-        this.isValidating.set(false);
-        this.errorMessage.set(
-          `A library with ID "${t}" already exists on the server`
-        );
-      },
-      error: (error: unknown) => {
-        const status = error instanceof HttpErrorResponse
-          ? error.status
-          : (error as { status?: number })?.status;
+    try {
+      await firstValueFrom(this.libraryService.get(t));
+      this.isValidating.set(false);
+      this.errorMessage.set(
+        `A library with ID "${t}" already exists on the server`
+      );
+    } catch (error: unknown) {
+      const status = error instanceof HttpErrorResponse
+        ? error.status
+        : (error as { status?: number })?.status;
 
-        if (status !== 404) {
-          const message = error instanceof HttpErrorResponse
-            ? (error.message || error.statusText)
-            : (error as { message?: string })?.message;
+      if (status !== 404) {
+        const message = error instanceof HttpErrorResponse
+          ? (error.message || error.statusText)
+          : (error as { message?: string })?.message;
+        this.errorMessage.set(
+          `Unable to validate library ID on server: ${message || 'Unknown error'}`
+        );
+        this.isValidating.set(false);
+        return;
+      }
+
+      try {
+        const existing = await firstValueFrom(
+          this.libraryService.findByNameAndVersion(t, '1.0.0')
+        );
+        this.isValidating.set(false);
+        if (existing) {
           this.errorMessage.set(
-            `Unable to validate library ID on server: ${message || 'Unknown error'}`
+            `A library named "${t}" version 1.0.0 already exists on the server`
           );
-          this.isValidating.set(false);
           return;
         }
-
-        this.libraryService.findByNameAndVersion(t, '1.0.0').subscribe({
-          next: (existing) => {
-            this.isValidating.set(false);
-            if (existing) {
-              this.errorMessage.set(
-                `A library named "${t}" version 1.0.0 already exists on the server`
-              );
-              return;
-            }
-            this.create.emit(t);
-          }
-        });
+        this.create.emit(t);
+      } catch (nameCheckError: unknown) {
+        const message = nameCheckError instanceof HttpErrorResponse
+          ? (nameCheckError.message || nameCheckError.statusText)
+          : (nameCheckError as { message?: string })?.message;
+        this.errorMessage.set(
+          `Unable to validate library name on server: ${message || 'Unknown error'}`
+        );
+        this.isValidating.set(false);
       }
-    });
+    }
   }
 
   onCancel(): void {

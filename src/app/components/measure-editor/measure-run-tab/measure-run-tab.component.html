@@ -4,14 +4,14 @@
     <div class="col-md-3">
       <div class="form-floating">
         <input type="date" class="form-control form-control-sm" id="measure-run-period-start" placeholder=" "
-          [ngModel]="periodStartValue" (ngModelChange)="periodStart.set($event)">
+          [ngModel]="periodStart()" (ngModelChange)="periodStart.set($event)">
         <label for="measure-run-period-start">Period start</label>
       </div>
     </div>
     <div class="col-md-3">
       <div class="form-floating">
         <input type="date" class="form-control form-control-sm" id="measure-run-period-end" placeholder=" "
-          [ngModel]="periodEndValue" (ngModelChange)="periodEnd.set($event)">
+          [ngModel]="periodEnd()" (ngModelChange)="periodEnd.set($event)">
         <label for="measure-run-period-end">Period end</label>
       </div>
     </div>
@@ -24,7 +24,7 @@
     <div class="col-md-3">
       <div class="form-floating">
         <select class="form-select form-select-sm" id="measure-run-report-type"
-          [ngModel]="reportTypeValue" (ngModelChange)="reportTypeValue = $event">
+          [ngModel]="reportType()" (ngModelChange)="onReportTypeChange($event)">
           <option value="subject">subject</option>
           <option value="subject-list">subject-list</option>
           <option value="population">population</option>
@@ -64,7 +64,7 @@
       } @else {
       <div class="form-floating">
         <input type="text" class="form-control form-control-sm" id="measure-run-subject" placeholder=" "
-          [ngModel]="subjectValue" (ngModelChange)="subject.set($event)">
+          [ngModel]="subject()" (ngModelChange)="subject.set($event)">
         <label for="measure-run-subject">Subject (optional)</label>
       </div>
       }

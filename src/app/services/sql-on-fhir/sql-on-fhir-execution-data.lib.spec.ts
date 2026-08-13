@@ -105,7 +105,7 @@ describe('sql-on-fhir-execution-data.lib value sets', () => {
     );
   });
 
-  test('buildBundledValueSetMap indexes by normalized url', () => {
+  test('indexBundledValueSets indexes by normalized url', () => {
     const indexes = indexBundledValueSets([{ ...mammography, url: `${mammography.url}/` } as ValueSet]);
     expect(
       lookupBundledValueSet(

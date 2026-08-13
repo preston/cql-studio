@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject, DestroyRef } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject, DestroyRef} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EditorView, Decoration, DecorationSet, keymap } from '@codemirror/view';
 import { Compartment, EditorState, StateEffect, StateField } from '@codemirror/state';
@@ -85,7 +85,8 @@ const referenceHighlightField = StateField.define<DecorationSet>({
   imports: [FormsModule, RenameSymbolModalComponent],
   templateUrl: './cql-editor.component.html',
 
-  styleUrls: ['./cql-editor.component.scss']
+  styleUrls: ['./cql-editor.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   editorContainer = viewChild<ElementRef<HTMLDivElement>>('editorContainer');

@@ -12,7 +12,7 @@
         <button 
           id="query-parameters-tab"
           class="nav-link" 
-          [class.active]="activeTab === 'query-parameters'"
+          [class.active]="activeTab() === 'query-parameters'"
           (click)="setActiveTab('query-parameters')"
           type="button">
           Query Parameters
@@ -20,7 +20,7 @@
         <button 
           id="index-files-tab"
           class="nav-link" 
-          [class.active]="activeTab === 'index-files'"
+          [class.active]="activeTab() === 'index-files'"
           (click)="setActiveTab('index-files')"
           type="button">
           Index File Support
@@ -28,7 +28,7 @@
         <button 
           id="integration-tab"
           class="nav-link" 
-          [class.active]="activeTab === 'integration'"
+          [class.active]="activeTab() === 'integration'"
           (click)="setActiveTab('integration')"
           type="button">
           Integration & Deep Linking
@@ -36,7 +36,7 @@
         <button 
           id="validation-tab"
           class="nav-link" 
-          [class.active]="activeTab === 'validation'"
+          [class.active]="activeTab() === 'validation'"
           (click)="setActiveTab('validation')"
           type="button">
           Schema Validation
@@ -44,7 +44,7 @@
         <button 
           id="filtering-tab"
           class="nav-link" 
-          [class.active]="activeTab === 'filtering'"
+          [class.active]="activeTab() === 'filtering'"
           (click)="setActiveTab('filtering')"
           type="button">
           Filtering & Organization
@@ -57,7 +57,7 @@
       <div class="tab-content">
         
         <!-- Query Parameters Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'query-parameters'">
+        <div class="tab-pane" [class.active]="activeTab() === 'query-parameters'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">Query Parameters</h2>
@@ -167,7 +167,7 @@
         </div>
 
         <!-- Index Files Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'index-files'">
+        <div class="tab-pane" [class.active]="activeTab() === 'index-files'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">Index File Support</h2>
@@ -210,7 +210,7 @@
         </div>
 
         <!-- Integration & Deep Linking Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'integration'">
+        <div class="tab-pane" [class.active]="activeTab() === 'integration'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">Programmatic Integration & Deep Linking</h2>
@@ -240,7 +240,7 @@
         </div>
 
         <!-- Schema Validation Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'validation'">
+        <div class="tab-pane" [class.active]="activeTab() === 'validation'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">Schema Validation Details</h2>
@@ -298,7 +298,7 @@
         </div>
 
         <!-- Filtering & Organization Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'filtering'">
+        <div class="tab-pane" [class.active]="activeTab() === 'filtering'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">Advanced Filtering & Organization</h2>

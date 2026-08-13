@@ -5,7 +5,6 @@ import { OllamaMessage } from './ai.service';
 import { ParsedToolCall, ToolCallParserService } from './tool-call-parser.service';
 import { ToolResult } from './tool-orchestrator.service';
 import { IdeStateService } from './ide-state.service';
-import { SettingsService } from './settings.service';
 import { Plan, PlanStep } from '../models/plan.model';
 
 /**
@@ -59,7 +58,6 @@ export interface EditorContext {
 })
 export class ConversationManagerService {
   private readonly STORAGE_KEY_PREFIX = 'ai_conversation_';
-  private readonly MAX_CONVERSATIONS_PER_EDITOR = 1; // One conversation per editor (Cline pattern)
   private readonly MAX_API_MESSAGES = 100; // Context window management (Cline pattern: prevent infinite growth)
   private readonly MAX_CONTEXT_TOKENS = 8000; // Approximate token limit for Ollama (configurable)
   
@@ -79,7 +77,6 @@ export class ConversationManagerService {
   });
   
   private ideStateService = inject(IdeStateService);
-  private settingsService = inject(SettingsService);
   private toolCallParser = inject(ToolCallParserService);
   
   constructor() {

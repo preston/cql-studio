@@ -1,15 +1,18 @@
 // Author: Preston Lee
 
-import { Component, input, inject } from '@angular/core';
+import { Component, input, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ConceptMap } from 'fhir/r4';
 import { ToastService } from '../../../services/toast.service';
+import { downloadJson } from '../../../services/download-blob.lib';
+import { formatFhirDate, terminologyDownloadFilename } from '../../../services/terminology-ui.lib';
 
 @Component({
   selector: 'app-conceptmap-details-pane',
   imports: [],
   templateUrl: './conceptmap-details-pane.component.html',
 
-  styleUrl: './conceptmap-details-pane.component.scss'
+  styleUrl: './conceptmap-details-pane.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConceptMapDetailsPaneComponent {
   // Inputs
@@ -18,16 +21,7 @@ export class ConceptMapDetailsPaneComponent {
   // Services
   private toastService = inject(ToastService);
 
-  formatDate(dateString?: string): string {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      return date.toLocaleString();
-    } catch {
-      return dateString;
-    }
-  }
+  protected readonly formatFhirDate = formatFhirDate;
 
   isArray(value: any): boolean {
     return Array.isArray(value);
@@ -40,23 +34,7 @@ export class ConceptMapDetailsPaneComponent {
 
   downloadConceptMap(conceptMap: ConceptMap): void {
     try {
-      const jsonString = JSON.stringify(conceptMap, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      
-      const filename = conceptMap.id 
-        ? `ConceptMap-${conceptMap.id}.json`
-        : conceptMap.url 
-          ? `ConceptMap-${conceptMap.url.replace(/[^a-zA-Z0-9]/g, '_')}.json`
-          : 'ConceptMap.json';
-      
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      downloadJson(conceptMap, terminologyDownloadFilename('ConceptMap', conceptMap));
     } catch (error) {
       console.error('Failed to download ConceptMap:', error);
       this.toastService.showError('Failed to download ConceptMap', 'Download Error');

@@ -1,17 +1,19 @@
 // Author: Preston Lee
 
-import { Component, input, computed, signal, effect, inject } from '@angular/core';
+import { Component, input, computed, signal, effect, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ValueSet, Coding } from 'fhir/r4';
 import { ToastService } from '../../../services/toast.service';
 import { ClipboardService } from '../../../services/clipboard.service';
+import { formatFhirDate } from '../../../services/terminology-ui.lib';
 
 @Component({
   selector: 'app-code-search-details-pane',
   imports: [FormsModule],
   templateUrl: './code-search-details-pane.component.html',
 
-  styleUrl: './code-search-details-pane.component.scss'
+  styleUrl: './code-search-details-pane.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CodeSearchDetailsPaneComponent {
   searchValueSet = input<ValueSet | null>(null);
@@ -61,13 +63,6 @@ export class CodeSearchDetailsPaneComponent {
     return Math.min(end, total);
   });
 
-  get currentPageSize(): number {
-    return this.pageSize();
-  }
-  set currentPageSize(value: number) {
-    this.setPageSize(value);
-  }
-
   setPageSize(size: number): void {
     this.pageSize.set(size);
     const maxPage = Math.max(1, Math.ceil(this.expandedCodes().length / size));
@@ -106,16 +101,7 @@ export class CodeSearchDetailsPaneComponent {
     return this.expandedCodeDetails().get(codeKey);
   }
 
-  formatDate(dateString?: string): string {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return dateString;
-      return date.toLocaleString();
-    } catch {
-      return dateString;
-    }
-  }
+  protected readonly formatFhirDate = formatFhirDate;
 
   handleRowClick(code: any): void {
     const handler = this.onRowToggle();

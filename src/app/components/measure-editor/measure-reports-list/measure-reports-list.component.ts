@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MeasureReport } from 'fhir/r4';
@@ -15,16 +15,11 @@ import { isResourceType } from '../../../services/fhir-resource-type.lib';
   imports: [FormsModule, RouterLink],
   templateUrl: './measure-reports-list.component.html',
   styleUrl: './measure-reports-list.component.scss',
+
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureReportsListComponent implements OnInit {
-  private readonly measureFilterSignal = signal('');
-
-  get measureFilter(): string {
-    return this.measureFilterSignal();
-  }
-  set measureFilter(value: string) {
-    this.measureFilterSignal.set(value);
-  }
+  protected readonly measureFilter = signal('');
 
   protected readonly results = signal<MeasureReport[]>([]);
   protected readonly loading = signal(false);
@@ -72,7 +67,7 @@ export class MeasureReportsListComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const measure = this.measureFilterSignal().trim();
+      const measure = this.measureFilter().trim();
       const page = this.currentPage();
       const size = this.pageSize();
       const params: {

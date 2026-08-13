@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, computed, inject } from '@angular/core';
+import { Component, input, output, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   Measure,
@@ -28,7 +28,8 @@ type PasteableField =
   imports: [FormsModule],
   templateUrl: './measure-definition-tab.component.html',
 
-  styleUrl: './measure-definition-tab.component.scss'
+  styleUrl: './measure-definition-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureDefinitionTabComponent {
   measure = input<Measure | null>(null);

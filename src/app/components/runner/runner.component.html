@@ -72,8 +72,12 @@
             <button id="validate-config-btn" type="button" class="btn btn-outline-primary" (click)="validateCurrentConfig()">
               <i class="bi bi-check-circle me-1"></i>Validate
             </button>
+            <button id="apply-json-config-btn" type="button" class="btn btn-outline-primary"
+              (click)="loadFromJson()">
+              <i class="bi bi-check2-square me-1"></i>Apply JSON to Form
+            </button>
             <button id="load-from-json-btn" type="button" class="btn btn-primary" (click)="triggerFileSelection()">
-              <i class="bi bi-upload me-1"></i>Load from JSON
+              <i class="bi bi-upload me-1"></i>Load from File
             </button>
             <button id="update-json-config-btn" type="button" class="btn btn-outline-secondary"
               (click)="updateJsonConfig()">
@@ -97,17 +101,20 @@
             </div>
             <div class="card-body">
               <div class="form-floating mb-3">
-                <input type="url" class="form-control" id="baseUrl" [(ngModel)]="config().FhirServer.BaseUrl"
+                <input type="url" class="form-control" id="baseUrl" [ngModel]="config().FhirServer.BaseUrl"
+                  (ngModelChange)="patchConfig({ FhirServer: { BaseUrl: $event } })"
                   placeholder="http://localhost:8080/fhir">
                 <label for="baseUrl">Base URL</label>
               </div>
               <div class="form-floating mb-3">
-                <input type="text" class="form-control" id="cqlOperation" [(ngModel)]="config().FhirServer.CqlOperation"
+                <input type="text" class="form-control" id="cqlOperation" [ngModel]="config().FhirServer.CqlOperation"
+                  (ngModelChange)="patchConfig({ FhirServer: { CqlOperation: $event } })"
                   placeholder="$cql">
                 <label for="cqlOperation">CQL Operation</label>
               </div>
               <div class="form-floating mb-3">
-                <input type="url" class="form-control" id="ogBaseUrl" [(ngModel)]="config().FhirServer.ogBaseUrl"
+                <input type="url" class="form-control" id="ogBaseUrl" [ngModel]="config().FhirServer.ogBaseUrl"
+                  (ngModelChange)="patchConfig({ FhirServer: { ogBaseUrl: $event } })"
                   placeholder="https://example.com/fhir">
                 <label for="ogBaseUrl">Original Base URL (Optional)</label>
               </div>
@@ -125,17 +132,20 @@
             </div>
             <div class="card-body">
               <div class="form-floating mb-3">
-                <input type="text" class="form-control" id="cqlFileVersion" [(ngModel)]="config().Build.CqlFileVersion"
+                <input type="text" class="form-control" id="cqlFileVersion" [ngModel]="config().Build.CqlFileVersion"
+                  (ngModelChange)="patchConfig({ Build: { CqlFileVersion: $event } })"
                   placeholder="1.0.000" pattern="^\d+\.\d+\.\d+$">
                 <label for="cqlFileVersion">CQL File Version</label>
               </div>
               <!-- <div class="form-floating mb-3">
                 <input type="text" class="form-control" id="cqlOutputPath"
-                  [(ngModel)]="config().Build.CqlOutputPath" placeholder="./cql">
+                  [ngModel]="config().Build.CqlOutputPath"
+                  (ngModelChange)="patchConfig({ Build: { CqlOutputPath: $event } })" placeholder="./cql">
                 <label for="cqlOutputPath">CQL Output Path</label>
               </div> -->
               <div class="form-floating mb-3">
-                <input type="text" class="form-control" id="cqlVersion" [(ngModel)]="config().Build.CqlVersion"
+                <input type="text" class="form-control" id="cqlVersion" [ngModel]="config().Build.CqlVersion"
+                  (ngModelChange)="patchConfig({ Build: { CqlVersion: $event } })"
                   placeholder="1.5.3" pattern="^\d+\.\d+(\.\d+)?$">
                 <label for="cqlVersion">CQL Version (Optional)</label>
               </div>
@@ -143,32 +153,38 @@
               <hr>
               <div class="form-floating mb-3">
                 <input type="text" class="form-control" id="testsRunDescription"
-                  [(ngModel)]="config().Build.testsRunDescription" placeholder="Quick Test Run">
+                  [ngModel]="config().Build.testsRunDescription"
+                  (ngModelChange)="patchConfig({ Build: { testsRunDescription: $event } })" placeholder="Quick Test Run">
                 <label for="testsRunDescription">Test Run Description</label>
               </div>
               <div class="form-floating mb-3">
                 <input type="text" class="form-control" id="cqlTranslator"
-                  [(ngModel)]="config().Build.cqlTranslator" placeholder="cql4browsers">
+                  [ngModel]="config().Build.cqlTranslator"
+                  (ngModelChange)="patchConfig({ Build: { cqlTranslator: $event } })" placeholder="cql4browsers">
                 <label for="cqlTranslator">CQL Translator</label>
               </div>
               <div class="form-floating mb-3">
                 <input type="text" class="form-control" id="cqlTranslatorVersion"
-                  [(ngModel)]="config().Build.cqlTranslatorVersion" placeholder="1.0.0">
+                  [ngModel]="config().Build.cqlTranslatorVersion"
+                  (ngModelChange)="patchConfig({ Build: { cqlTranslatorVersion: $event } })" placeholder="1.0.0">
                 <label for="cqlTranslatorVersion">CQL Translator Version</label>
               </div>
               <div class="form-floating mb-3">
                 <input type="text" class="form-control" id="cqlEngine"
-                  [(ngModel)]="config().Build.cqlEngine" placeholder="cql4browsers">
+                  [ngModel]="config().Build.cqlEngine"
+                  (ngModelChange)="patchConfig({ Build: { cqlEngine: $event } })" placeholder="cql4browsers">
                 <label for="cqlEngine">CQL Engine</label>
               </div>
               <div class="form-floating mb-3">
                 <input type="text" class="form-control" id="cqlEngineVersion"
-                  [(ngModel)]="config().Build.cqlEngineVersion" placeholder="1.0.0">
+                  [ngModel]="config().Build.cqlEngineVersion"
+                  (ngModelChange)="patchConfig({ Build: { cqlEngineVersion: $event } })" placeholder="1.0.0">
                 <label for="cqlEngineVersion">CQL Engine Version</label>
               </div>
               <hr>
               <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="quickTest" [(ngModel)]="config().Debug.QuickTest">
+                <input class="form-check-input" type="checkbox" id="quickTest" [ngModel]="config().Debug.QuickTest"
+                  (ngModelChange)="patchConfig({ Debug: { QuickTest: $event } })">
                 <label class="form-check-label" for="quickTest">
                   Quick Test (smoke tests only)
                 </label>
@@ -192,7 +208,8 @@
                     type="text" 
                     class="form-control" 
                     id="resultsPath"
-                    [(ngModel)]="config().Tests.ResultsPath"
+                    [ngModel]="config().Tests.ResultsPath"
+                    (ngModelChange)="patchConfig({ Tests: { ResultsPath: $event } })"
                     placeholder="./results">
                   <label for="resultsPath">Results Path</label>
                 </div>
@@ -233,28 +250,28 @@
                       <td>
                         <div class="form-floating">
                           <input type="text" class="form-control form-control-sm" id="testsName-{{ $index }}"
-                            [(ngModel)]="item.testsName" placeholder="Test suite name">
+                            [ngModel]="item.testsName" (ngModelChange)="patchSkipItem($index, { testsName: $event })" placeholder="Test suite name">
                           <label for="testsName-{{ $index }}">Test Suite</label>
                         </div>
                       </td>
                       <td>
                         <div class="form-floating">
                           <input type="text" class="form-control form-control-sm" id="groupName-{{ $index }}"
-                            [(ngModel)]="item.groupName" placeholder="Group name">
+                            [ngModel]="item.groupName" (ngModelChange)="patchSkipItem($index, { groupName: $event })" placeholder="Group name">
                           <label for="groupName-{{ $index }}">Group</label>
                         </div>
                       </td>
                       <td>
                         <div class="form-floating">
                           <input type="text" class="form-control form-control-sm" id="testName-{{ $index }}"
-                            [(ngModel)]="item.testName" placeholder="Test name">
+                            [ngModel]="item.testName" (ngModelChange)="patchSkipItem($index, { testName: $event })" placeholder="Test name">
                           <label for="testName-{{ $index }}">Test</label>
                         </div>
                       </td>
                       <td>
                         <div class="form-floating">
                           <input type="text" class="form-control form-control-sm" id="reason-{{ $index }}"
-                            [(ngModel)]="item.reason" placeholder="Skip reason">
+                            [ngModel]="item.reason" (ngModelChange)="patchSkipItem($index, { reason: $event })" placeholder="Skip reason">
                           <label for="reason-{{ $index }}">Reason</label>
                         </div>
                       </td>
@@ -309,21 +326,21 @@
                       <td>
                         <div class="form-floating">
                           <input type="text" class="form-control form-control-sm" id="only-testsName-{{ $index }}"
-                            [(ngModel)]="item.testsName" placeholder="Test suite name">
+                            [ngModel]="item.testsName" (ngModelChange)="patchOnlyListItem($index, { testsName: $event })" placeholder="Test suite name">
                           <label for="only-testsName-{{ $index }}">Test Suite</label>
                         </div>
                       </td>
                       <td>
                         <div class="form-floating">
                           <input type="text" class="form-control form-control-sm" id="only-groupName-{{ $index }}"
-                            [(ngModel)]="item.groupName" placeholder="Group name">
+                            [ngModel]="item.groupName" (ngModelChange)="patchOnlyListItem($index, { groupName: $event })" placeholder="Group name">
                           <label for="only-groupName-{{ $index }}">Group</label>
                         </div>
                       </td>
                       <td>
                         <div class="form-floating">
                           <input type="text" class="form-control form-control-sm" id="only-testName-{{ $index }}"
-                            [(ngModel)]="item.testName" placeholder="Test name">
+                            [ngModel]="item.testName" (ngModelChange)="patchOnlyListItem($index, { testName: $event })" placeholder="Test name">
                           <label for="only-testName-{{ $index }}">Test</label>
                         </div>
                       </td>

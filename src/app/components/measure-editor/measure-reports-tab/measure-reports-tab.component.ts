@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, signal, inject } from '@angular/core';
+import { Component, input, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Measure, MeasureReport } from 'fhir/r4';
 import { firstValueFrom } from 'rxjs';
 import { MeasureService } from '../../../services/measure.service';
@@ -14,7 +14,8 @@ import { isResourceType } from '../../../services/fhir-resource-type.lib';
   imports: [MeasureReportViewComponent],
   templateUrl: './measure-reports-tab.component.html',
 
-  styleUrl: './measure-reports-tab.component.scss'
+  styleUrl: './measure-reports-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureReportsTabComponent {
   measure = input<Measure | null>(null);

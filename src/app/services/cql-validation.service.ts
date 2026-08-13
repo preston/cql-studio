@@ -266,19 +266,4 @@ export class CqlValidationService {
     }));
   }
 
-  /**
-   * Get formatted error messages (for display in Problems panel)
-   * @deprecated Use getStructuredErrors() instead for better structure
-   */
-  getFormattedErrors(cql: string): string[] {
-    return this.getStructuredErrors(cql).map(e => e.formattedMessage);
-  }
-
-  /**
-   * Get formatted warning messages (for display in Problems panel)
-   * @deprecated Use getStructuredWarnings() instead for better structure
-   */
-  getFormattedWarnings(cql: string): string[] {
-    return this.getStructuredWarnings(cql).map(e => e.formattedMessage);
-  }
 }

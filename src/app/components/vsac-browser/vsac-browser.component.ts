@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, computed, inject, signal } from '@angular/core';
+import {Component, ChangeDetectionStrategy, computed, inject, signal} from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -25,7 +25,8 @@ import { ValueSetDependencyNode, ValueSetDependencyRef, ValueSetDependencyStatus
   imports: [NgTemplateOutlet, FormsModule, RouterLink, SyntaxHighlighterComponent, ValueSetDependencyTreeComponent],
   templateUrl: './vsac-browser.component.html',
 
-  styleUrl: './vsac-browser.component.scss'
+  styleUrl: './vsac-browser.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VsacBrowserComponent {
   private vsac = inject(VsacService);

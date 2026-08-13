@@ -50,92 +50,40 @@
     </div>
     <div class="list-group mb-3">
       @for (valueset of valuesetResults(); track getValueSetTrackId(valueset, $index)) {
-      <div class="list-group-item list-group-item-action" (click)="selectValueSet(valueset)"
-        [class.active]="selectedValueSet()?.id === valueset.id">
-        <div class="d-flex w-100 justify-content-between align-items-start">
-          <div class="d-flex align-items-center flex-grow-1 overflow-hidden" style="min-width: 0;">
-            <h6 class="mb-1 text-truncate me-2">{{ valueset.name || 'Unnamed ValueSet' }}</h6>
-          </div>
-          <div class="d-flex align-items-center gap-1 flex-shrink-0">
-            @if (valueset.version) {
-            <small class="text-muted text-nowrap">{{ valueset.version }}</small>
-            }
-            @if (valueset.status) {
-            <span class="badge text-nowrap" [class.bg-success]="valueset.status === 'active'"
-              [class.bg-warning]="valueset.status === 'draft'"
-              [class.bg-danger]="valueset.status === 'retired'">
-              {{ valueset.status }}
-            </span>
-            }
-            <button
-              type="button"
-              id="valueset-clipboard-plus-btn"
-              class="btn btn-primary btn-sm"
-              title="Add ValueSet to Clipboard"
-              (click)="onAddValueSetToClipboard(valueset); $event.stopPropagation()"
-            >
-              <i class="bi bi-clipboard-plus"></i>
-            </button>
-          </div>
-        </div>
-        @if (valueset.title) {
-        <p class="mb-1 text-break">{{ valueset.title }}</p>
-        }
-        <small class="text-muted">
-          @if (valueset.url) {
-          <a [href]="valueset.url" target="_blank" rel="noopener noreferrer" 
-             (click)="$event.stopPropagation()" class="text-decoration-none text-break d-inline-block" style="max-width: 100%; word-break: break-all;">
-            {{ valueset.url }}
-          </a>
-          } @else {
-          <i class="bi bi-link-45deg me-1"></i>N/A
-          }
-        </small>
-      </div>
+      <app-terminology-resource-list-item
+        [name]="valueset.name"
+        [title]="valueset.title"
+        [url]="valueset.url"
+        [version]="valueset.version"
+        [status]="valueset.status"
+        [active]="selectedValueSet()?.id === valueset.id"
+        unnamedFallback="Unnamed ValueSet"
+        [showTitleFallback]="false"
+        [showStatusFallback]="false"
+        [showClipboard]="true"
+        clipboardButtonId="valueset-clipboard-plus-btn"
+        clipboardTitle="Add ValueSet to Clipboard"
+        (selected)="selectValueSet(valueset)"
+        (addToClipboard)="onAddValueSetToClipboard(valueset)"
+      />
       }
     </div>
 
     <!-- Pagination Controls -->
-    @if (valuesetTotalPages() > 1) {
-    <nav aria-label="ValueSets page navigation">
-      <ul class="pagination justify-content-center my-4">
-        <li class="page-item" [class.disabled]="!valuesetHasPreviousPage()">
-          <button class="page-link" (click)="valuesetGoToFirstPage()" [disabled]="!valuesetHasPreviousPage()"
-            type="button">
-            <i class="bi bi-chevron-double-left"></i>
-          </button>
-        </li>
-        <li class="page-item" [class.disabled]="!valuesetHasPreviousPage()">
-          <button class="page-link" (click)="valuesetPreviousPage()" [disabled]="!valuesetHasPreviousPage()"
-            type="button">
-            <i class="bi bi-chevron-left"></i>
-          </button>
-        </li>
-        <li class="page-item disabled">
-          <span class="page-link">
-            {{ valuesetCurrentPage() }}/{{ valuesetTotalPages() }}
-          </span>
-        </li>
-        <li class="page-item disabled">
-          <span class="page-link">
-            {{ valuesetStartIndex() }}-{{ valuesetEndIndex() }} of {{ valuesetTotalCount() }}
-          </span>
-        </li>
-        <li class="page-item" [class.disabled]="!valuesetHasNextPage()">
-          <button class="page-link" (click)="valuesetNextPage()" [disabled]="!valuesetHasNextPage()"
-            type="button">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </li>
-        <li class="page-item" [class.disabled]="!valuesetHasNextPage()">
-          <button class="page-link" (click)="valuesetGoToLastPage()" [disabled]="!valuesetHasNextPage()"
-            type="button">
-            <i class="bi bi-chevron-double-right"></i>
-          </button>
-        </li>
-      </ul>
-    </nav>
-    }
+    <app-bootstrap-pagination
+      idPrefix="valuesets"
+      ariaLabel="ValueSets page navigation"
+      [currentPage]="valuesetCurrentPage()"
+      [totalPages]="valuesetTotalPages()"
+      [startIndex]="valuesetStartIndex()"
+      [endIndex]="valuesetEndIndex()"
+      [totalCount]="valuesetTotalCount()"
+      [hasPrevious]="valuesetHasPreviousPage()"
+      [hasNext]="valuesetHasNextPage()"
+      (goFirst)="valuesetGoToFirstPage()"
+      (goPrevious)="valuesetPreviousPage()"
+      (goNext)="valuesetNextPage()"
+      (goLast)="valuesetGoToLastPage()" />
     }
 
     <!-- Empty State -->

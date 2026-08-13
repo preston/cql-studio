@@ -1,119 +1,269 @@
 // Author: Preston Lee
 
 import { Routes } from '@angular/router';
-import { CqlIdeComponent } from './components/cql-ide/cql-ide.component';
-import { IdeLayoutComponent } from './components/ide-layout/ide-layout.component';
-import { OpenComponent } from './components/open/open.component';
-import { ResultsViewerComponent } from './components/results-viewer/results-viewer.component';
-import { ResultsDocumentationComponent } from './components/results-documentation/results-documentation.component';
-import { RunnerDocumentationComponent } from './components/runner-documentation/runner-documentation.component';
-import { SettingsComponent } from './components/settings/settings.component';
-import { DashboardComponent } from './components/dashboard/dashboard.component';
-import { RunnerComponent } from './components/runner/runner.component';
-import { FhirUploaderComponent } from './components/fhir-uploader/fhir-uploader.component';
-import { TerminologyLayoutComponent } from './components/terminology/terminology-layout.component';
-import { ValueSetsTabComponent } from './components/terminology/valuesets-tab/valuesets-tab.component';
-import { ConceptMapsTabComponent } from './components/terminology/conceptmaps-tab/conceptmaps-tab.component';
-import { CodeSystemsTabComponent } from './components/terminology/codesystems-tab/codesystems-tab.component';
-import { ValidationTabComponent } from './components/terminology/validation-tab/validation-tab.component';
-import { CodeSearchTabComponent } from './components/terminology/code-search-tab/code-search-tab.component';
-import { AboutComponent } from './components/about/about.component';
-import { LandingComponent } from './components/landing/landing.component';
-import { GuidelinesComponent } from './components/guidelines/guidelines.component';
-import { MeasureEditorComponent } from './components/measure-editor/measure-editor.component';
-import { MeasureLibraryComponent } from './components/measure-editor/measure-library/measure-library.component';
-import { MeasureWorkspaceComponent } from './components/measure-editor/measure-workspace/measure-workspace.component';
-import { MeasureReportsListComponent } from './components/measure-editor/measure-reports-list/measure-reports-list.component';
-import { MeasureReportViewerComponent } from './components/measure-editor/measure-report-viewer/measure-report-viewer.component';
-import { ClipboardManagerComponent } from './components/clipboard-manager/clipboard-manager.component';
-import { VsacBrowserComponent } from './components/vsac-browser/vsac-browser.component';
-import { FhirRegistryImporterComponent } from './components/fhir-registry-importer/fhir-registry-importer.component';
-import { ExportComponent } from './components/export/export.component';
-import { SqlOnFhirComponent } from './components/sql-on-fhir/sql-on-fhir.component';
 import { sqlOnFhirGuard } from './components/sql-on-fhir/sql-on-fhir.guard';
-import { ExamplesComponent } from './components/examples/examples.component';
-import { LipidManagementExampleComponent } from './components/examples/lipid-management-example/lipid-management-example.component';
-import { HospitalAtHomeExampleComponent } from './components/examples/hospital-at-home-example/hospital-at-home-example.component';
-import { TeamDashboardComponent } from './components/team/team-dashboard/team-dashboard.component';
-import { TeamWorkspacesComponent } from './components/team/team-workspaces/team-workspaces.component';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   // Normal app routes
-  { path: '', component: LandingComponent, pathMatch: 'full' },
-  { path: 'results/open', component: OpenComponent },
-  { path: 'results', component: ResultsViewerComponent },
+  {
+    path: '',
+    loadComponent: () =>
+      import('./components/landing/landing.component').then((m) => m.LandingComponent),
+    pathMatch: 'full',
+  },
+  {
+    path: 'results/open',
+    loadComponent: () =>
+      import('./components/open/open.component').then((m) => m.OpenComponent),
+  },
+  {
+    path: 'results',
+    loadComponent: () =>
+      import('./components/results-viewer/results-viewer.component').then(
+        (m) => m.ResultsViewerComponent
+      ),
+  },
   { path: 'documentation', redirectTo: '/documentation/results', pathMatch: 'full' },
-  { path: 'documentation/results', component: ResultsDocumentationComponent },
-  { path: 'documentation/runner', component: RunnerDocumentationComponent },
-  { path: 'settings', component: SettingsComponent },
+  {
+    path: 'documentation/results',
+    loadComponent: () =>
+      import('./components/results-documentation/results-documentation.component').then(
+        (m) => m.ResultsDocumentationComponent
+      ),
+  },
+  {
+    path: 'documentation/runner',
+    loadComponent: () =>
+      import('./components/runner-documentation/runner-documentation.component').then(
+        (m) => m.RunnerDocumentationComponent
+      ),
+  },
+  {
+    path: 'settings',
+    loadComponent: () =>
+      import('./components/settings/settings.component').then((m) => m.SettingsComponent),
+  },
   {
     path: 'examples',
-    component: ExamplesComponent,
+    loadComponent: () =>
+      import('./components/examples/examples.component').then((m) => m.ExamplesComponent),
     children: [
       { path: '', redirectTo: 'lipid-management', pathMatch: 'full' },
-      { path: 'lipid-management', component: LipidManagementExampleComponent },
-      { path: 'hospital-at-home', component: HospitalAtHomeExampleComponent }
-    ]
+      {
+        path: 'lipid-management',
+        loadComponent: () =>
+          import(
+            './components/examples/lipid-management-example/lipid-management-example.component'
+          ).then((m) => m.LipidManagementExampleComponent),
+      },
+      {
+        path: 'hospital-at-home',
+        loadComponent: () =>
+          import(
+            './components/examples/hospital-at-home-example/hospital-at-home-example.component'
+          ).then((m) => m.HospitalAtHomeExampleComponent),
+      },
+    ],
   },
-  { path: 'dashboard', component: DashboardComponent },
-  { path: 'team/dashboard', component: TeamDashboardComponent, canActivate: [authGuard] },
-  { path: 'team/workspaces', component: TeamWorkspacesComponent, canActivate: [authGuard] },
-  { path: 'team/workspaces/:workspaceId', component: TeamWorkspacesComponent, canActivate: [authGuard] },
-  { path: 'runner', component: RunnerComponent },
-  { path: 'uploader', component: FhirUploaderComponent },
-  { 
-    path: 'terminology', 
-    component: TerminologyLayoutComponent,
+  {
+    path: 'dashboard',
+    loadComponent: () =>
+      import('./components/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+  },
+  {
+    path: 'team/dashboard',
+    loadComponent: () =>
+      import('./components/team/team-dashboard/team-dashboard.component').then(
+        (m) => m.TeamDashboardComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'team/workspaces',
+    loadComponent: () =>
+      import('./components/team/team-workspaces/team-workspaces.component').then(
+        (m) => m.TeamWorkspacesComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'team/workspaces/:workspaceId',
+    loadComponent: () =>
+      import('./components/team/team-workspaces/team-workspaces.component').then(
+        (m) => m.TeamWorkspacesComponent
+      ),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'runner',
+    loadComponent: () =>
+      import('./components/runner/runner.component').then((m) => m.RunnerComponent),
+  },
+  {
+    path: 'uploader',
+    loadComponent: () =>
+      import('./components/fhir-uploader/fhir-uploader.component').then(
+        (m) => m.FhirUploaderComponent
+      ),
+  },
+  {
+    path: 'terminology',
+    loadComponent: () =>
+      import('./components/terminology/terminology-layout.component').then(
+        (m) => m.TerminologyLayoutComponent
+      ),
     children: [
       { path: '', redirectTo: 'valuesets', pathMatch: 'full' },
-      { path: 'valuesets', component: ValueSetsTabComponent },
-      { path: 'conceptmaps', component: ConceptMapsTabComponent },
-      { path: 'codesystems', component: CodeSystemsTabComponent },
-      { path: 'validation', component: ValidationTabComponent },
-      { path: 'search', component: CodeSearchTabComponent }
-    ]
+      {
+        path: 'valuesets',
+        loadComponent: () =>
+          import('./components/terminology/valuesets-tab/valuesets-tab.component').then(
+            (m) => m.ValueSetsTabComponent
+          ),
+      },
+      {
+        path: 'conceptmaps',
+        loadComponent: () =>
+          import('./components/terminology/conceptmaps-tab/conceptmaps-tab.component').then(
+            (m) => m.ConceptMapsTabComponent
+          ),
+      },
+      {
+        path: 'codesystems',
+        loadComponent: () =>
+          import('./components/terminology/codesystems-tab/codesystems-tab.component').then(
+            (m) => m.CodeSystemsTabComponent
+          ),
+      },
+      {
+        path: 'validation',
+        loadComponent: () =>
+          import('./components/terminology/validation-tab/validation-tab.component').then(
+            (m) => m.ValidationTabComponent
+          ),
+      },
+      {
+        path: 'search',
+        loadComponent: () =>
+          import('./components/terminology/code-search-tab/code-search-tab.component').then(
+            (m) => m.CodeSearchTabComponent
+          ),
+      },
+    ],
   },
-  { path: 'measure-reports', component: MeasureReportsListComponent },
-  { path: 'measure-reports/:reportId', component: MeasureReportViewerComponent },
+  {
+    path: 'measure-reports',
+    loadComponent: () =>
+      import('./components/measure-editor/measure-reports-list/measure-reports-list.component').then(
+        (m) => m.MeasureReportsListComponent
+      ),
+  },
+  {
+    path: 'measure-reports/:reportId',
+    loadComponent: () =>
+      import(
+        './components/measure-editor/measure-report-viewer/measure-report-viewer.component'
+      ).then((m) => m.MeasureReportViewerComponent),
+  },
   { path: 'measures/reports/:reportId', redirectTo: 'measure-reports/:reportId' },
   { path: 'measures/reports', redirectTo: 'measure-reports', pathMatch: 'full' },
   {
     path: 'measures',
-    component: MeasureEditorComponent,
+    loadComponent: () =>
+      import('./components/measure-editor/measure-editor.component').then(
+        (m) => m.MeasureEditorComponent
+      ),
     children: [
-      { path: '', component: MeasureLibraryComponent },
-      { path: 'new', component: MeasureWorkspaceComponent },
-      { path: ':id', component: MeasureWorkspaceComponent }
-    ]
+      {
+        path: '',
+        loadComponent: () =>
+          import('./components/measure-editor/measure-library/measure-library.component').then(
+            (m) => m.MeasureLibraryComponent
+          ),
+      },
+      {
+        path: 'new',
+        loadComponent: () =>
+          import(
+            './components/measure-editor/measure-workspace/measure-workspace.component'
+          ).then((m) => m.MeasureWorkspaceComponent),
+      },
+      {
+        path: ':id',
+        loadComponent: () =>
+          import(
+            './components/measure-editor/measure-workspace/measure-workspace.component'
+          ).then((m) => m.MeasureWorkspaceComponent),
+      },
+    ],
   },
-  { path: 'vsac', component: VsacBrowserComponent },
+  {
+    path: 'vsac',
+    loadComponent: () =>
+      import('./components/vsac-browser/vsac-browser.component').then((m) => m.VsacBrowserComponent),
+  },
   // Short alias; Angular preserves ?package=&version= on redirect for external deep links.
   { path: 'fhir-registry', redirectTo: 'fhir-registry-importer', pathMatch: 'full' },
-  { path: 'fhir-registry-importer', component: FhirRegistryImporterComponent },
-  { path: 'export', component: ExportComponent },
-  { path: 'guidelines', component: GuidelinesComponent },
-  { path: 'guidelines/:id/testing', component: GuidelinesComponent },
-  { path: 'guidelines/:id', component: GuidelinesComponent },
-  { path: 'sql', component: SqlOnFhirComponent, canActivate: [sqlOnFhirGuard] },
-  { path: 'about', component: AboutComponent },
-  { path: 'clipboard', component: ClipboardManagerComponent },
+  {
+    path: 'fhir-registry-importer',
+    loadComponent: () =>
+      import('./components/fhir-registry-importer/fhir-registry-importer.component').then(
+        (m) => m.FhirRegistryImporterComponent
+      ),
+  },
+  {
+    path: 'export',
+    loadComponent: () =>
+      import('./components/export/export.component').then((m) => m.ExportComponent),
+  },
+  {
+    path: 'guidelines',
+    loadComponent: () =>
+      import('./components/guidelines/guidelines.component').then((m) => m.GuidelinesComponent),
+  },
+  {
+    path: 'guidelines/:id/testing',
+    loadComponent: () =>
+      import('./components/guidelines/guidelines.component').then((m) => m.GuidelinesComponent),
+  },
+  {
+    path: 'guidelines/:id',
+    loadComponent: () =>
+      import('./components/guidelines/guidelines.component').then((m) => m.GuidelinesComponent),
+  },
+  {
+    path: 'sql',
+    loadComponent: () =>
+      import('./components/sql-on-fhir/sql-on-fhir.component').then((m) => m.SqlOnFhirComponent),
+    canActivate: [sqlOnFhirGuard],
+  },
+  {
+    path: 'about',
+    loadComponent: () =>
+      import('./components/about/about.component').then((m) => m.AboutComponent),
+  },
+  {
+    path: 'clipboard',
+    loadComponent: () =>
+      import('./components/clipboard-manager/clipboard-manager.component').then(
+        (m) => m.ClipboardManagerComponent
+      ),
+  },
 
   // IDE routes with separate layout
-  { 
-    path: 'ide', 
-    component: IdeLayoutComponent,
+  {
+    path: 'ide',
+    loadComponent: () =>
+      import('./components/ide-layout/ide-layout.component').then((m) => m.IdeLayoutComponent),
     children: [
-      { path: '', component: CqlIdeComponent },
-      { path: 'results', component: CqlIdeComponent },
-      { path: 'documentation', component: CqlIdeComponent },
-      { path: 'documentation/results', component: CqlIdeComponent },
-      { path: 'documentation/runner', component: CqlIdeComponent },
-      { path: 'settings', component: CqlIdeComponent },
-      { path: 'dashboard', component: CqlIdeComponent },
-      { path: 'runner', component: CqlIdeComponent }
-    ]
+      {
+        path: '',
+        loadComponent: () =>
+          import('./components/cql-ide/cql-ide.component').then((m) => m.CqlIdeComponent),
+      },
+    ],
   },
-  
-  { path: '**', redirectTo: '' }
+
+  { path: '**', redirectTo: '' },
 ];

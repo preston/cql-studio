@@ -3,19 +3,23 @@
   <div class="px-2 py-1 border-bottom flex-shrink-0">
     <div class="d-flex align-items-center gap-1">
       <input id="clipboardSearch" type="text" class="form-control form-control-sm flex-fill"
-        placeholder="Search clipboard..." [(ngModel)]="searchTerm">
+        placeholder="Search clipboard..."
+        [ngModel]="searchTerm()"
+        (ngModelChange)="searchTerm.set($event)">
 
       <div class="d-flex align-items-center gap-1">
         <!-- <label class="form-label mb-0 small text-body-secondary" for="clipboardSort">Sort:</label> -->
-        <select id="clipboardSort" class="form-select form-select-sm" [(ngModel)]="sortBy"
-          (change)="onSortByChange($event)" title="Sort by" style="min-width: 90px;">
+        <select id="clipboardSort" class="form-select form-select-sm"
+          [ngModel]="sortBy()"
+          (ngModelChange)="sortBy.set($event)"
+          title="Sort by" style="min-width: 90px;">
           <option value="addedAt">Added</option>
           <option value="name">Name</option>
           <option value="type">Type</option>
         </select>
         <button id="clipboardSortOrder" class="btn btn-outline-secondary btn-sm" (click)="toggleSortOrder()"
-          [title]="'Sort ' + (sortOrder === 'asc' ? 'Descending' : 'Ascending')">
-          <i class="bi bi-{{ sortOrder === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
+          [title]="'Sort ' + (sortOrder() === 'asc' ? 'Descending' : 'Ascending')">
+          <i class="bi bi-{{ sortOrder() === 'asc' ? 'arrow-up' : 'arrow-down' }}"></i>
         </button>
         <button id="clipboardClear" class="btn btn-outline-danger btn-sm ms-1" (click)="onClearClipboard()"
           [disabled]="items().length === 0" title="Clear clipboard">

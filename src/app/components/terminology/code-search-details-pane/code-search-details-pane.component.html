@@ -45,7 +45,8 @@
           <div class="d-flex align-items-center gap-2">
             <label for="codeSearchPageSizeSelect" class="small text-muted mb-0">Items per page:</label>
             <select class="form-select form-select-sm" id="codeSearchPageSizeSelect"
-                    [(ngModel)]="currentPageSize"
+                    [ngModel]="pageSize()"
+                    (ngModelChange)="setPageSize(+$event)"
                     style="width: auto;">
               @for (size of availablePageSizes(); track size) {
                 <option [value]="size">{{ size }}</option>
@@ -213,9 +214,9 @@
                                               <code class="small">{{ param.valueUri }}</code>
                                             </a>
                                           } @else if (param.valueDateTime) {
-                                            <div>{{ formatDate(param.valueDateTime) }}</div>
+                                            <div>{{ formatFhirDate(param.valueDateTime, true) }}</div>
                                           } @else if (param.valueDate) {
-                                            <div>{{ formatDate(param.valueDate) }}</div>
+                                            <div>{{ formatFhirDate(param.valueDate, true) }}</div>
                                           } @else if (param.valueCoding) {
                                             <div>
                                               @if (param.valueCoding.code) {

@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, inject, computed } from '@angular/core';
+import { Component, input, output, inject, computed, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Measure, CodeableConcept, Coding, MeasureGroup, MeasureGroupPopulation, MeasureGroupStratifier, MeasureSupplementalData, Expression } from 'fhir/r4';
 import { ClipboardService } from '../../../services/clipboard.service';
@@ -11,7 +11,8 @@ import { ToastService } from '../../../services/toast.service';
   imports: [FormsModule],
   templateUrl: './measure-groups-tab.component.html',
 
-  styleUrl: './measure-groups-tab.component.scss'
+  styleUrl: './measure-groups-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureGroupsTabComponent {
   measure = input<Measure | null>(null);

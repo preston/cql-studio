@@ -4,7 +4,8 @@
     <div class="d-flex gap-2">
       <select
         class="form-select form-select-sm"
-        [(ngModel)]="selectedType"
+        [ngModel]="selectedType()"
+        (ngModelChange)="selectedType.set($event)"
         id="element-type-select"
       >
         <option value="">Select element type...</option>
@@ -15,7 +16,7 @@
       <button
         class="btn btn-primary btn-sm"
         (click)="onAddElement()"
-        [disabled]="!selectedType"
+        [disabled]="!selectedType()"
         type="button"
         id="add-element-btn"
       >
@@ -24,4 +25,3 @@
     </div>
   </div>
 </div>
-

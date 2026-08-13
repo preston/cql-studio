@@ -11,7 +11,8 @@
             type="text"
             class="form-control form-control-sm"
             id="param-name"
-            [(ngModel)]="newParameter.name"
+            [ngModel]="newParameter().name"
+            (ngModelChange)="patchNewParameter({ name: $event })"
             placeholder="Parameter name"
           />
         </div>
@@ -20,7 +21,8 @@
           <select
             class="form-select form-select-sm"
             id="param-type"
-            [(ngModel)]="newParameter.type"
+            [ngModel]="newParameter().type"
+            (ngModelChange)="patchNewParameter({ type: $event })"
           >
             @for (type of parameterTypes; track type) {
               <option [value]="type">{{ type }}</option>
@@ -33,7 +35,8 @@
             type="text"
             class="form-control form-control-sm"
             id="param-description"
-            [(ngModel)]="newParameter.description"
+            [ngModel]="newParameter().description"
+            (ngModelChange)="patchNewParameter({ description: $event })"
             placeholder="Optional description"
           />
         </div>
@@ -42,7 +45,7 @@
           <button
             class="btn btn-primary btn-sm w-100"
             (click)="onAddParameter()"
-            [disabled]="!newParameter.name"
+            [disabled]="!newParameter().name"
             type="button"
             id="add-parameter-btn"
           >
@@ -57,20 +60,22 @@
     <div class="list-group">
       @for (param of parameters(); track param.name; let i = $index) {
         <div class="list-group-item">
-          @if (editingIndex === i) {
+          @if (editingIndex() === i) {
             <div class="row g-2">
               <div class="col-md-4">
                 <input
                   type="text"
                   class="form-control form-control-sm"
-                  [(ngModel)]="editingParameter.name"
+                  [ngModel]="editingParameter().name"
+                  (ngModelChange)="patchEditingParameter({ name: $event })"
                   placeholder="Name"
                 />
               </div>
               <div class="col-md-3">
                 <select
                   class="form-select form-select-sm"
-                  [(ngModel)]="editingParameter.type"
+                  [ngModel]="editingParameter().type"
+                  (ngModelChange)="patchEditingParameter({ type: $event })"
                 >
                   @for (type of parameterTypes; track type) {
                     <option [value]="type">{{ type }}</option>
@@ -81,7 +86,8 @@
                 <input
                   type="text"
                   class="form-control form-control-sm"
-                  [(ngModel)]="editingParameter.description"
+                  [ngModel]="editingParameter().description"
+                  (ngModelChange)="patchEditingParameter({ description: $event })"
                   placeholder="Description"
                 />
               </div>
@@ -140,4 +146,3 @@
     </div>
   }
 </div>
-

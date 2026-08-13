@@ -11,28 +11,28 @@
       <div class="nav flex-column nav-pills documentation-nav" role="tablist">
         <button 
           class="nav-link" 
-          [class.active]="activeTab === 'overview'"
+          [class.active]="activeTab() === 'overview'"
           (click)="setActiveTab('overview')"
           type="button">
           Overview
         </button>
         <button 
           class="nav-link" 
-          [class.active]="activeTab === 'configuration'"
+          [class.active]="activeTab() === 'configuration'"
           (click)="setActiveTab('configuration')"
           type="button">
           Configuration
         </button>
         <button 
           class="nav-link" 
-          [class.active]="activeTab === 'test-execution'"
+          [class.active]="activeTab() === 'test-execution'"
           (click)="setActiveTab('test-execution')"
           type="button">
           Test Execution
         </button>
         <button 
           class="nav-link" 
-          [class.active]="activeTab === 'job-management'"
+          [class.active]="activeTab() === 'job-management'"
           (click)="setActiveTab('job-management')"
           type="button">
           Job Management
@@ -45,7 +45,7 @@
       <div class="tab-content">
         
         <!-- Overview Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'overview'">
+        <div class="tab-pane" [class.active]="activeTab() === 'overview'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">CQL Test Runner Overview</h2>
@@ -100,7 +100,7 @@
         </div>
 
         <!-- Configuration Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'configuration'">
+        <div class="tab-pane" [class.active]="activeTab() === 'configuration'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">Configuration Options</h2>
@@ -270,7 +270,7 @@
 
 
         <!-- Test Execution Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'test-execution'">
+        <div class="tab-pane" [class.active]="activeTab() === 'test-execution'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">Test Execution Process</h2>
@@ -347,7 +347,7 @@
         </div>
 
         <!-- Job Management Tab -->
-        <div class="tab-pane" [class.active]="activeTab === 'job-management'">
+        <div class="tab-pane" [class.active]="activeTab() === 'job-management'">
           <div class="card">
             <div class="card-header">
               <h2 class="h4 mb-0">Job Management</h2>

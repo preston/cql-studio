@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, output, computed, inject } from '@angular/core';
+import {Component, ChangeDetectionStrategy, output, computed, inject} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Library, Patient, Group } from 'fhir/r4';
@@ -18,7 +18,8 @@ import { encodeUtf8Base64 } from '../../../../services/utf8-encoding.lib';
   imports: [FormsModule, SyntaxHighlighterComponent],
   templateUrl: './fhir-tab.component.html',
 
-  styleUrls: ['./fhir-tab.component.scss']
+  styleUrls: ['./fhir-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FhirTabComponent {
   saveLibrary = output<void>();

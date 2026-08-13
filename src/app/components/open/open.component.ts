@@ -112,8 +112,8 @@ export class OpenComponent implements OnInit {
     this.router.navigate(['/dashboard'], { queryParams });
   }
 
-  onValidateSchemaChange(): void {
-    this.settingsService.saveSettings();
+  onValidateSchemaChange(value: boolean): void {
+    this.settingsService.updateSettings({ validateSchema: value });
   }
 
   clearSelectedFile(): void {

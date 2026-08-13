@@ -1,8 +1,9 @@
 // Author: Preston Lee
 
-import { Component, input, output, OnDestroy, signal, computed, OnInit, inject } from '@angular/core';
+import { Component, input, output, OnDestroy, signal, computed, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { SummaryComponent } from '../builder/summary/summary.component';
 import { FunctionsComponent } from '../builder/functions/functions.component';
 import { InclusionsComponent } from '../builder/inclusions/inclusions.component';
@@ -21,6 +22,7 @@ import { CqlGenerationService } from '../../../services/cql-generation.service';
 import { CqlParsingService } from '../../../services/cql-parsing.service';
 import { Library } from 'fhir/r4';
 import { decodeUtf8Base64, encodeUtf8Base64 } from '../../../services/utf8-encoding.lib';
+import { describeFhirHttpFailure } from '../../../services/fhir-http-error.lib';
 
 @Component({
   selector: 'app-guideline-editor',
@@ -39,7 +41,8 @@ import { decodeUtf8Base64, encodeUtf8Base64 } from '../../../services/utf8-encod
   ],
   templateUrl: './guideline-editor.component.html',
 
-  styleUrl: './guideline-editor.component.scss'
+  styleUrl: './guideline-editor.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GuidelineEditorComponent implements OnInit, OnDestroy {
   library = input.required<Library>();
@@ -191,24 +194,30 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
       this.statusMessage.set('Saving guideline...');
     }
 
-    // Generate CQL from visual model using CqlGenerationService
-    const cqlContent = this.cqlGenerationService.generateCql(artifact);
+    try {
+      const cqlContent = this.cqlGenerationService.generateCql(artifact);
+      const translationResult = await this.translationService.translateCqlToElmAsync(cqlContent);
 
-    // Translate to ELM for validation (ensure translation assets are ready)
-    const translationResult = await this.translationService.translateCqlToElmAsync(cqlContent);
-    
-    if (translationResult.hasErrors) {
-      const errorMessage = translationResult.errors.join('; ');
-      this.guidelinesStateService.setError(`Translation failed: ${errorMessage}`);
+      if (translationResult.hasErrors) {
+        const errorMessage = translationResult.errors.join('; ');
+        this.guidelinesStateService.setError(`Translation failed: ${errorMessage}`);
+        this.guidelinesStateService.setSaving(false);
+        if (showMessage) {
+          this.statusMessage.set('Save failed');
+        }
+        return;
+      }
+
+      // putLibrary clears saving when the HTTP call completes
+      this.updateLibrary(this.library(), cqlContent, translationResult.elmXml || '', artifact);
+    } catch (error) {
+      const errorMessage = describeFhirHttpFailure(error);
+      this.guidelinesStateService.setError(`Save failed: ${errorMessage}`);
       this.guidelinesStateService.setSaving(false);
       if (showMessage) {
         this.statusMessage.set('Save failed');
       }
-      return;
     }
-    
-    // Update existing library
-    this.updateLibrary(this.library(), cqlContent, translationResult.elmXml || '', artifact);
   }
 
   private updateLibrary(library: Library, cqlContent: string, elmXml: string, artifact: any): void {
@@ -251,42 +260,31 @@ export class GuidelineEditorComponent implements OnInit, OnDestroy {
       updatedLibrary.description = metadata.description;
     }
 
-    this.libraryService.put(updatedLibrary).subscribe({
-      next: (library: Library) => {
-        if (library.name) {
-          this.translationService.invalidateIncludedLibraryCache(
-            library.name,
-            library.version ?? null,
-            null,
-            cqlContent
-          );
-        }
-        this.guidelinesStateService.setLibrary(library);
-        this.guidelinesStateService.clearDirty();
-        this.guidelinesStateService.setSaving(false);
-        this.statusMessage.set('Guideline saved successfully');
-        this.runAfterDelay(3000, () => this.statusMessage.set(''));
-      },
-      error: (error) => {
-        const errorMessage = this.getErrorMessage(error);
-        this.guidelinesStateService.setError(`Save failed: ${errorMessage}`);
-        this.guidelinesStateService.setSaving(false);
-        this.statusMessage.set('Save failed');
-      }
-    });
+    void this.putLibrary(updatedLibrary, cqlContent);
   }
 
-  private getErrorMessage(error: any): string {
-    if (error?.status === 401 || error?.status === 403) {
-      return 'Authentication failed. Please check your settings.';
+  private async putLibrary(updatedLibrary: Library, cqlContent: string): Promise<void> {
+    try {
+      const library = await firstValueFrom(this.libraryService.put(updatedLibrary));
+      if (library.name) {
+        this.translationService.invalidateIncludedLibraryCache(
+          library.name,
+          library.version ?? null,
+          null,
+          cqlContent
+        );
+      }
+      this.guidelinesStateService.setLibrary(library);
+      this.guidelinesStateService.clearDirty();
+      this.guidelinesStateService.setSaving(false);
+      this.statusMessage.set('Guideline saved successfully');
+      this.runAfterDelay(3000, () => this.statusMessage.set(''));
+    } catch (error) {
+      const errorMessage = describeFhirHttpFailure(error);
+      this.guidelinesStateService.setError(`Save failed: ${errorMessage}`);
+      this.guidelinesStateService.setSaving(false);
+      this.statusMessage.set('Save failed');
     }
-    if (error?.status === 404) {
-      return 'Resource not found.';
-    }
-    if (error?.status >= 500) {
-      return 'Server error. Please try again later.';
-    }
-    return error?.message || 'An unexpected error occurred.';
   }
 
   onMetadataChange(field: string, value: string): void {

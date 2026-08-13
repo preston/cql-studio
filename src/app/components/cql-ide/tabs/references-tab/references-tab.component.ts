@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, computed, inject, input, linkedSignal } from '@angular/core';
+import {Component, ChangeDetectionStrategy, computed, inject, input, linkedSignal} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IdeFindReferencesResult, IdeStateService } from '../../../../services/ide-state.service';
 
@@ -8,7 +8,8 @@ import { IdeFindReferencesResult, IdeStateService } from '../../../../services/i
   selector: 'app-references-tab',
   imports: [FormsModule],
   templateUrl: './references-tab.component.html',
-  styleUrls: ['./references-tab.component.scss']
+  styleUrls: ['./references-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReferencesTabComponent {
   private readonly ideStateService = inject(IdeStateService);

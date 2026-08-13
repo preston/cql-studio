@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { SettingsService } from './settings.service';
 import { BaseService } from './base.service';
 import { buildHttpHeaders } from './endpoint-config.lib';
+import { describeFhirHttpFailure } from './fhir-http-error.lib';
 
 export interface CapabilitySearchParam {
   name: string;
@@ -109,7 +110,7 @@ export class FhirCapabilityService extends BaseService {
         this.parseMetadata(body);
       })
       .catch((err) => {
-        this._error.set(this.getErrorMessage(err));
+        this._error.set(describeFhirHttpFailure(err) || 'Failed to load server metadata');
         this._resourceTypes.set([]);
         this._searchParamsByType.set(new Map());
       })
@@ -119,19 +120,6 @@ export class FhirCapabilityService extends BaseService {
       });
 
     return this.loadPromise;
-  }
-
-  private getErrorMessage(err: unknown): string {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const e = (err as { error?: unknown }).error;
-      if (e && typeof e === 'object' && 'message' in e) {
-        return String((e as { message: unknown }).message);
-      }
-    }
-    if (err instanceof Error) {
-      return err.message;
-    }
-    return 'Failed to load server metadata';
   }
 
   private parseMetadata(body: CapabilityMetadata): void {

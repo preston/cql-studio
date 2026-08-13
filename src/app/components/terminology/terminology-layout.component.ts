@@ -1,18 +1,23 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import {Component, ChangeDetectionStrategy, signal, computed, inject, OnInit} from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../services/settings.service';
 import { TerminologyService } from '../../services/terminology.service';
 import { ToastService } from '../../services/toast.service';
+import {
+  hasTerminologyConfigured,
+  terminologyHttpErrorMessage,
+} from '../../services/terminology-ui.lib';
 
 @Component({
   selector: 'app-terminology-layout',
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './terminology-layout.component.html',
 
-  styleUrl: './terminology-layout.component.scss'
+  styleUrl: './terminology-layout.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TerminologyLayoutComponent implements OnInit {
 
@@ -26,11 +31,9 @@ export class TerminologyLayoutComponent implements OnInit {
     conceptmaps: number;
   } | null>(null);
 
-  // Configuration status
-  protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
-    return baseUrl.trim() !== '';
-  });
+  protected readonly hasValidConfiguration = computed(() =>
+    hasTerminologyConfigured(this.settingsService.getEffectiveTerminologyEndpointAddress())
+  );
 
   protected readonly configurationStatus = computed(() => {
     if (!this.hasValidConfiguration()) {
@@ -74,7 +77,7 @@ export class TerminologyLayoutComponent implements OnInit {
       await this.checkServerAvailability();
       this.serverAvailable.set(true);
     } catch (error) {
-      const errorMessage = this.getErrorMessage(error);
+      const errorMessage = terminologyHttpErrorMessage(error);
       this.serverAvailable.set(false);
       this.serverError.set(errorMessage);
       this.toastService.showError(errorMessage, 'Server Connection Failed');
@@ -105,19 +108,5 @@ export class TerminologyLayoutComponent implements OnInit {
 
   navigateToSettings(): void {
     this.router.navigate(['/settings'], { queryParams: { section: 'environments' } });
-  }
-
-  // Utility methods
-  private getErrorMessage(error: any): string {
-    if (error?.status === 401 || error?.status === 403) {
-      return 'Authentication failed. The terminology server may require authentication. Please check your authorization bearer token in Settings.';
-    }
-    if (error?.status === 404) {
-      return 'Server responded with 404 error: not found.';
-    }
-    if (error?.status >= 500) {
-      return 'Server error. Please try again later.';
-    }
-    return error?.message || 'An unexpected error occurred.';
   }
 }

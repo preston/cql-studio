@@ -1,4 +1,4 @@
-<div class="modal fade show d-block" [class.show]="isVisible" tabindex="-1" role="dialog" id="newGuidelineModal">
+<div class="modal fade show d-block" [class.show]="isVisible()" tabindex="-1" role="dialog" id="newGuidelineModal">
   <div class="modal-dialog modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -19,8 +19,8 @@
               class="form-control"
               [class.is-invalid]="errors()['name']"
               id="library-name"
-              [(ngModel)]="library.name"
-              (ngModelChange)="onNameChange()"
+              [ngModel]="library().name"
+              (ngModelChange)="patchLibrary({ name: $event }); onNameChange()"
               name="name"
               required
               placeholder="e.g., MyGuideline"
@@ -38,7 +38,8 @@
               type="text"
               class="form-control"
               id="library-title"
-              [(ngModel)]="library.title"
+              [ngModel]="library().title"
+              (ngModelChange)="patchLibrary({ title: $event })"
               name="title"
               placeholder="e.g., My Clinical Guideline"
             />
@@ -51,8 +52,8 @@
               class="form-control"
               [class.is-invalid]="errors()['version']"
               id="library-version"
-              [(ngModel)]="library.version"
-              (ngModelChange)="onVersionChange()"
+              [ngModel]="library().version"
+              (ngModelChange)="patchLibrary({ version: $event }); onVersionChange()"
               name="version"
               required
               placeholder="e.g., 1.0.0"
@@ -69,7 +70,8 @@
             <textarea
               class="form-control"
               id="library-description"
-              [(ngModel)]="library.description"
+              [ngModel]="library().description"
+              (ngModelChange)="patchLibrary({ description: $event })"
               name="description"
               rows="3"
               placeholder="Optional description of the guideline"
@@ -99,5 +101,4 @@
     </div>
   </div>
 </div>
-<div class="modal-backdrop fade show" [class.show]="isVisible"></div>
-
+<div class="modal-backdrop fade show" [class.show]="isVisible()"></div>

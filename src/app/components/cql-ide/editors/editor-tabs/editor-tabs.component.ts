@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, output, OnInit, inject, signal } from '@angular/core';
+import {Component, ChangeDetectionStrategy, output, OnInit, inject, signal} from '@angular/core';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { LibraryResource } from '../../shared/ide-types';
 
@@ -8,7 +8,8 @@ import { LibraryResource } from '../../shared/ide-types';
   selector: 'app-editor-tabs',
   templateUrl: './editor-tabs.component.html',
 
-  styleUrls: ['./editor-tabs.component.scss']
+  styleUrls: ['./editor-tabs.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EditorTabsComponent implements OnInit {
   selectLibrary = output<string>();
@@ -18,13 +19,8 @@ export class EditorTabsComponent implements OnInit {
   protected readonly ideStateService = inject(IdeStateService);
   protected readonly isDragOver = signal(false);
 
-  get libraryResources() {
-    return this.ideStateService.libraryResources;
-  }
-  
-  get activeLibraryId() {
-    return this.ideStateService.activeLibraryId;
-  }
+  protected readonly libraryResources = this.ideStateService.libraryResources;
+  protected readonly activeLibraryId = this.ideStateService.activeLibraryId;
 
   ngOnInit(): void {
     // Component initialization

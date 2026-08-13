@@ -1,7 +1,8 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
@@ -9,13 +10,27 @@ import { ToastService } from '../../../services/toast.service';
 import { ConceptMap, Bundle } from 'fhir/r4';
 import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { ConceptMapDetailsPaneComponent } from '../conceptmap-details-pane/conceptmap-details-pane.component';
+import { TerminologyResourceOpenerService } from '../../../services/terminology-resource-opener.service';
+import {
+  bindTerminologyTabDeepLinks,
+  openTerminologyFromExternalRequest,
+} from '../../../services/terminology-external-open.lib';
+import {
+  hasTerminologyConfigured,
+  parseBundlePage,
+  terminologyHttpErrorMessage,
+  terminologyResourceTrackId,
+} from '../../../services/terminology-ui.lib';
+import { BootstrapPaginationComponent } from '../../shared/bootstrap-pagination/bootstrap-pagination.component';
+import { TerminologyResourceListItemComponent } from '../terminology-resource-list-item/terminology-resource-list-item.component';
 
 @Component({
   selector: 'app-conceptmaps-tab',
-  imports: [FormsModule, ConceptMapDetailsPaneComponent],
+  imports: [FormsModule, ConceptMapDetailsPaneComponent, BootstrapPaginationComponent, TerminologyResourceListItemComponent],
   templateUrl: './conceptmaps-tab.component.html',
 
-  styleUrl: './conceptmaps-tab.component.scss'
+  styleUrl: './conceptmaps-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConceptMapsTabComponent implements OnInit {
 
@@ -68,21 +83,46 @@ export class ConceptMapsTabComponent implements OnInit {
     return Math.min(end, total);
   });
 
-  // Configuration status
-  protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
-    return baseUrl.trim() !== '';
-  });
+  protected readonly hasValidConfiguration = computed(() =>
+    hasTerminologyConfigured(this.settingsService.getEffectiveTerminologyEndpointAddress())
+  );
 
   protected settingsService = inject(SettingsService);
   private terminologyService = inject(TerminologyService);
   private toastService = inject(ToastService);
+  private terminologyOpener = inject(TerminologyResourceOpenerService);
+  private route = inject(ActivatedRoute);
+
+  private handledOpenKey: string | null = null;
+
+  constructor() {
+    bindTerminologyTabDeepLinks('ConceptMap', {
+      opener: this.terminologyOpener,
+      route: this.route,
+      open: (id, url) => void this.openFromExternalRequest(id, url),
+    });
+  }
 
   ngOnInit(): void {
-    // Auto-load ConceptMaps when component is initialized
     if (this.hasValidConfiguration() && !this.conceptmapLoading()) {
       this.searchConceptMaps();
     }
+  }
+
+  private async openFromExternalRequest(id: string, url?: string): Promise<void> {
+    await openTerminologyFromExternalRequest({
+      resourceType: 'ConceptMap',
+      id,
+      url,
+      getHandledKey: () => this.handledOpenKey,
+      setHandledKey: (key) => {
+        this.handledOpenKey = key;
+      },
+      hasValidConfiguration: () => this.hasValidConfiguration(),
+      opener: this.terminologyOpener,
+      toast: this.toastService,
+      onOpened: (resource) => this.selectConceptMap(resource),
+    });
   }
 
   // ConceptMap operations
@@ -119,51 +159,19 @@ export class ConceptMapsTabComponent implements OnInit {
         this.conceptmapCurrentPage.set(1);
       }
 
-      this.conceptmapResults.set(
-        result?.entry
-          ?.map(e => e.resource)
-          .filter((resource): resource is ConceptMap => isResourceType(resource, 'ConceptMap')) || []
-      );
+      const page = parseBundlePage<ConceptMap>(result, 'ConceptMap', {
+        pageSize: this.conceptmapPageSize(),
+        currentPage: this.conceptmapCurrentPage(),
+      });
+      this.conceptmapResults.set(page.items);
+      this.conceptmapBundleLinks.set(page.links);
+      this.conceptmapTotalCount.set(page.total);
 
-      // Extract and store Bundle links
-      const linksMap = new Map<string, string>();
-      if (result?.link) {
-        console.log('Bundle links received (ConceptMap):', result.link);
-        for (const link of result.link) {
-          if (link.relation && link.url) {
-            linksMap.set(link.relation, link.url);
-            console.log(`Stored Bundle link: ${link.relation} -> ${link.url}`);
-          }
-        }
-      }
-      this.conceptmapBundleLinks.set(linksMap);
-
-      // Update total count from bundle
-      if (result?.total !== undefined) {
-        this.conceptmapTotalCount.set(result.total);
-      } else {
-        // Estimate total if not provided based on Bundle links
-        const hasNext = linksMap.has('next');
-        const currentResults = this.conceptmapResults().length;
-        const pageSize = this.conceptmapPageSize();
-        const currentPage = this.conceptmapCurrentPage();
-        
-        if (hasNext) {
-          // Might have more results
-          this.conceptmapTotalCount.set((currentPage * pageSize) + 1);
-        } else {
-          // This is likely the last page
-          this.conceptmapTotalCount.set((currentPage - 1) * pageSize + currentResults);
-        }
-      }
-
-      // Update current page based on Bundle links
-      // If this is a new search (no URL provided), we're on page 1
       if (!url) {
         this.conceptmapCurrentPage.set(1);
       }
     } catch (error) {
-      const errorMessage = this.getErrorMessage(error);
+      const errorMessage = terminologyHttpErrorMessage(error);
       this.conceptmapError.set(errorMessage);
       this.toastService.showError(errorMessage, 'ConceptMap Search Failed');
     } finally {
@@ -305,31 +313,7 @@ export class ConceptMapsTabComponent implements OnInit {
     return results;
   }
 
-  // Helper methods
   getConceptMapTrackId(conceptmap: ConceptMap, index: number): string {
-    // Prioritize id (should be unique in FHIR), then url, then index with prefix
-    // Always include index to ensure uniqueness even if id/url are duplicated or empty
-    const id = conceptmap.id?.trim();
-    const url = conceptmap.url?.trim();
-    if (id) {
-      return `conceptmap-id-${id}-${index}`;
-    } else if (url) {
-      return `conceptmap-url-${url}-${index}`;
-    } else {
-      return `conceptmap-${index}`;
-    }
-  }
-
-  private getErrorMessage(error: any): string {
-    if (error?.status === 401 || error?.status === 403) {
-      return 'Authentication failed. The terminology server may require authentication. Please check your authorization bearer token in Settings.';
-    }
-    if (error?.status === 404) {
-      return 'Server responded with 404 error: not found.';
-    }
-    if (error?.status >= 500) {
-      return 'Server error. Please try again later.';
-    }
-    return error?.message || 'An unexpected error occurred.';
+    return terminologyResourceTrackId('conceptmap', conceptmap, index);
   }
 }

@@ -1,10 +1,9 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject } from '@angular/core';
+import { Component, signal, computed, inject, ChangeDetectionStrategy, effect, untracked } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
-import { filter } from 'rxjs/operators';
 import { Measure, OperationOutcome, CodeableConcept, Identifier } from 'fhir/r4';
 import { MeasureService } from '../../../services/measure.service';
 import { SettingsService } from '../../../services/settings.service';
@@ -27,9 +26,22 @@ type WorkspaceTab = 'definition' | 'groups' | 'run' | 'reports';
   ],
   templateUrl: './measure-workspace.component.html',
 
-  styleUrl: './measure-workspace.component.scss'
+  styleUrl: './measure-workspace.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureWorkspaceComponent {
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly measureService = inject(MeasureService);
+  private readonly settingsService = inject(SettingsService);
+  private readonly toastService = inject(ToastService);
+
+  private readonly paramMap = toSignal(this.route.paramMap, {
+    initialValue: this.route.snapshot.paramMap,
+  });
+
+  protected readonly routeMeasureId = computed(() => this.paramMap().get('id'));
+
   protected readonly measure = signal<Measure | null>(null);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -45,7 +57,7 @@ export class MeasureWorkspaceComponent {
   protected readonly measureStatus = computed(() => this.measure()?.status ?? '');
 
   protected readonly isNewMeasure = computed(
-    () => this.route.snapshot.paramMap.get('id') === 'new' || this.route.snapshot.routeConfig?.path === 'new'
+    () => this.routeMeasureId() === 'new' || this.route.snapshot.routeConfig?.path === 'new'
   );
   protected readonly hasValidConfiguration = () => this.settingsService.getEffectiveEvaluationServerUrl().trim() !== '';
   protected readonly saving = signal(false);
@@ -60,37 +72,25 @@ export class MeasureWorkspaceComponent {
     this.sidebarTab.set(tab);
   }
 
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private measureService = inject(MeasureService);
-  private settingsService = inject(SettingsService);
-  private toastService = inject(ToastService);
+  private loadGeneration = 0;
 
   constructor() {
-    this.route.paramMap
-      .pipe(
-        filter(params => !!params.get('id')),
-        takeUntilDestroyed()
-      )
-      .subscribe(params => {
-        const id = params.get('id')!;
-        if (id === 'new') {
+    effect(() => {
+      const id = this.routeMeasureId();
+      const isNewPath = this.route.snapshot.routeConfig?.path === 'new';
+      untracked(() => {
+        if (id === 'new' || (!id && isNewPath)) {
+          this.loadGeneration++;
           this.measure.set(this.createNewMeasure());
           this.loading.set(false);
           this.error.set(null);
-        } else {
-          this.loadMeasure(id);
+          return;
+        }
+        if (id) {
+          void this.loadMeasure(id);
         }
       });
-    const path = this.route.snapshot.routeConfig?.path;
-    const initialId = this.route.snapshot.paramMap.get('id');
-    if (path === 'new' || initialId === 'new') {
-      this.measure.set(this.createNewMeasure());
-      this.loading.set(false);
-      this.error.set(null);
-    } else if (initialId) {
-      this.loadMeasure(initialId);
-    }
+    });
   }
 
   private createNewMeasure(): Measure {
@@ -101,23 +101,32 @@ export class MeasureWorkspaceComponent {
   }
 
   private async loadMeasure(id: string): Promise<void> {
+    const generation = ++this.loadGeneration;
     this.loading.set(true);
     this.error.set(null);
     try {
       const m = await firstValueFrom(this.measureService.getMeasure(id));
+      if (generation !== this.loadGeneration) {
+        return;
+      }
       this.measure.set(m);
     } catch (err: unknown) {
+      if (generation !== this.loadGeneration) {
+        return;
+      }
       const msg = err instanceof Error ? err.message : 'Failed to load measure.';
       this.error.set(msg);
       this.toastService.showError(msg, 'Measure Load');
       this.measure.set(null);
     } finally {
-      this.loading.set(false);
+      if (generation === this.loadGeneration) {
+        this.loading.set(false);
+      }
     }
   }
 
   protected async reload(): Promise<void> {
-    const id = this.measure()?.id ?? this.route.snapshot.paramMap.get('id');
+    const id = this.measure()?.id ?? this.routeMeasureId();
     if (!id || id === 'new') return;
     this.reloading.set(true);
     this.error.set(null);
@@ -163,7 +172,7 @@ export class MeasureWorkspaceComponent {
   }
 
   protected async deleteMeasure(): Promise<void> {
-    const id = this.measure()?.id ?? this.route.snapshot.paramMap.get('id');
+    const id = this.measure()?.id ?? this.routeMeasureId();
     if (!id || id === 'new') return;
     this.deleting.set(true);
     this.error.set(null);

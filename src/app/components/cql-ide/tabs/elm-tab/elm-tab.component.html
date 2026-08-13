@@ -26,14 +26,14 @@
     </div>
 
     <!-- Translation Errors -->
-    @if (hasErrors) {
+    @if (hasErrors()) {
       <div class="alert alert-danger mb-3" role="alert">
         <div class="d-flex align-items-center mb-2">
           <i class="bi bi-exclamation-triangle-fill me-2"></i>
           <strong>Translation Errors</strong>
         </div>
         <ul class="mb-0 small">
-          @for (error of translationErrors; track $index) {
+          @for (error of translationErrors(); track $index) {
             <li>{{ error }}</li>
           }
         </ul>
@@ -41,14 +41,14 @@
     }
 
     <!-- Translation Warnings -->
-    @if (hasWarnings) {
+    @if (hasWarnings()) {
       <div class="alert alert-warning mb-3" role="alert">
         <div class="d-flex align-items-center mb-2">
           <i class="bi bi-exclamation-triangle me-2"></i>
           <strong>Translation Warnings</strong>
         </div>
         <ul class="mb-0 small">
-          @for (warning of translationWarnings; track $index) {
+          @for (warning of translationWarnings(); track $index) {
             <li>{{ warning }}</li>
           }
         </ul>
@@ -90,7 +90,7 @@
           <app-syntax-highlighter [code]="formattedElmXml()" [language]="'xml'" [showLineNumbers]="false"></app-syntax-highlighter>
         }
         
-        @if (!isTranslating() && !elmTranslationResults() && hasErrors) {
+        @if (!isTranslating() && !elmTranslationResults() && hasErrors()) {
           <div class="text-muted text-center py-4 px-2">
             <i class="bi bi-x-circle me-2"></i>
             <span>No ELM output due to translation errors</span>

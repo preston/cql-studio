@@ -1,7 +1,8 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnInit, effect, untracked } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SettingsService } from '../../../services/settings.service';
 import { TerminologyService } from '../../../services/terminology.service';
@@ -11,13 +12,26 @@ import { isResourceType } from '../../../services/fhir-resource-type.lib';
 import { ValueSetDetailsPaneComponent } from '../valueset-details-pane/valueset-details-pane.component';
 import { ClipboardService } from '../../../services/clipboard.service';
 import { TerminologyResourceOpenerService } from '../../../services/terminology-resource-opener.service';
+import {
+  bindTerminologyTabDeepLinks,
+  openTerminologyFromExternalRequest,
+} from '../../../services/terminology-external-open.lib';
+import {
+  hasTerminologyConfigured,
+  parseBundlePage,
+  terminologyHttpErrorMessage,
+  terminologyResourceTrackId,
+} from '../../../services/terminology-ui.lib';
+import { BootstrapPaginationComponent } from '../../shared/bootstrap-pagination/bootstrap-pagination.component';
+import { TerminologyResourceListItemComponent } from '../terminology-resource-list-item/terminology-resource-list-item.component';
 
 @Component({
   selector: 'app-valuesets-tab',
-  imports: [FormsModule, ValueSetDetailsPaneComponent],
+  imports: [FormsModule, ValueSetDetailsPaneComponent, BootstrapPaginationComponent, TerminologyResourceListItemComponent],
   templateUrl: './valuesets-tab.component.html',
 
-  styleUrl: './valuesets-tab.component.scss'
+  styleUrl: './valuesets-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ValueSetsTabComponent implements OnInit {
 
@@ -38,49 +52,11 @@ export class ValueSetsTabComponent implements OnInit {
   protected readonly valuesetAvailablePageSizes = [5, 10, 20, 50];
   protected readonly valuesetBundleLinks = signal<Map<string, string>>(new Map());
 
-  // Pagination for Expanded Codes
-  protected readonly currentPage = signal<number>(1);
-  protected readonly pageSize = signal<number>(10);
-  protected readonly availablePageSizes = [10, 20, 50, 100];
-
   // Expanded row state for Expanded Codes table
   protected readonly expandedRows = signal<Set<string>>(new Set());
   protected readonly expandedCodeDetails = signal<Map<string, any>>(new Map());
   protected readonly loadingDetails = signal<Set<string>>(new Set());
-
-  // Pagination computed properties
-  protected readonly paginatedCodes = computed(() => {
-    const codes = this.expandedCodes();
-    const size = this.pageSize();
-    const page = this.currentPage();
-    const startIndex = (page - 1) * size;
-    const endIndex = startIndex + size;
-    return codes.slice(startIndex, endIndex);
-  });
-
-  protected readonly totalPages = computed(() => {
-    const codes = this.expandedCodes();
-    const size = this.pageSize();
-    return Math.max(1, Math.ceil(codes.length / size));
-  });
-
-  protected readonly hasPreviousPage = computed(() => {
-    return this.currentPage() > 1;
-  });
-
-  protected readonly hasNextPage = computed(() => {
-    return this.currentPage() < this.totalPages();
-  });
-
-  protected readonly startIndex = computed(() => {
-    return (this.currentPage() - 1) * this.pageSize() + 1;
-  });
-
-  protected readonly endIndex = computed(() => {
-    const total = this.expandedCodes().length;
-    const end = this.currentPage() * this.pageSize();
-    return Math.min(end, total);
-  });
+  protected readonly availablePageSizes = [10, 20, 50, 100];
 
   // Pagination computed properties for ValueSets
   protected readonly valuesetTotalPages = computed(() => {
@@ -107,31 +83,24 @@ export class ValueSetsTabComponent implements OnInit {
     return Math.min(end, total);
   });
 
-  // Configuration status
-  protected readonly hasValidConfiguration = computed(() => {
-    const baseUrl = this.settingsService.getEffectiveTerminologyEndpointAddress();
-    return baseUrl.trim() !== '';
-  });
+  protected readonly hasValidConfiguration = computed(() =>
+    hasTerminologyConfigured(this.settingsService.getEffectiveTerminologyEndpointAddress())
+  );
 
   protected settingsService = inject(SettingsService);
   private terminologyService = inject(TerminologyService);
   private toastService = inject(ToastService);
   private clipboardService = inject(ClipboardService);
   private terminologyOpener = inject(TerminologyResourceOpenerService);
+  private route = inject(ActivatedRoute);
+
+  private handledOpenKey: string | null = null;
 
   constructor() {
-    effect(() => {
-      const pending = this.terminologyOpener.pending();
-      if (!pending || pending.resourceType !== 'ValueSet') {
-        return;
-      }
-      untracked(() => {
-        const request = this.terminologyOpener.consumePending('ValueSet');
-        if (!request) {
-          return;
-        }
-        void this.openFromExternalRequest(request.id, request.url);
-      });
+    bindTerminologyTabDeepLinks('ValueSet', {
+      opener: this.terminologyOpener,
+      route: this.route,
+      open: (id, url) => void this.openFromExternalRequest(id, url),
     });
   }
 
@@ -143,36 +112,19 @@ export class ValueSetsTabComponent implements OnInit {
   }
 
   private async openFromExternalRequest(id: string, url?: string): Promise<void> {
-    if (!this.hasValidConfiguration()) {
-      this.toastService.showWarning(
-        'Please configure terminology service settings first.',
-        'Configuration Required'
-      );
-      return;
-    }
-    try {
-      let valueset: ValueSet | null = null;
-      try {
-        valueset = await firstValueFrom(this.terminologyService.getValueSet(id));
-      } catch {
-        if (url) {
-          const bundle = await firstValueFrom(
-            this.terminologyService.searchValueSets({ url, _count: 1 })
-          );
-          const found = bundle.entry
-            ?.map((e) => e.resource)
-            .find((r): r is ValueSet => isResourceType(r, 'ValueSet'));
-          valueset = found ?? null;
-        }
-      }
-      if (!valueset) {
-        this.toastService.showError(`ValueSet "${id}" was not found.`, 'Open Failed');
-        return;
-      }
-      await this.selectValueSet(valueset);
-    } catch (error) {
-      this.toastService.showError(this.getErrorMessage(error), 'Open Failed');
-    }
+    await openTerminologyFromExternalRequest({
+      resourceType: 'ValueSet',
+      id,
+      url,
+      getHandledKey: () => this.handledOpenKey,
+      setHandledKey: (key) => {
+        this.handledOpenKey = key;
+      },
+      hasValidConfiguration: () => this.hasValidConfiguration(),
+      opener: this.terminologyOpener,
+      toast: this.toastService,
+      onOpened: (resource) => this.selectValueSet(resource),
+    });
   }
 
   // ValueSet operations
@@ -209,51 +161,19 @@ export class ValueSetsTabComponent implements OnInit {
         this.valuesetCurrentPage.set(1);
       }
 
-      this.valuesetResults.set(
-        result?.entry
-          ?.map(e => e.resource)
-          .filter((resource): resource is ValueSet => isResourceType(resource, 'ValueSet')) || []
-      );
+      const page = parseBundlePage<ValueSet>(result, 'ValueSet', {
+        pageSize: this.valuesetPageSize(),
+        currentPage: this.valuesetCurrentPage(),
+      });
+      this.valuesetResults.set(page.items);
+      this.valuesetBundleLinks.set(page.links);
+      this.valuesetTotalCount.set(page.total);
 
-      // Extract and store Bundle links
-      const linksMap = new Map<string, string>();
-      if (result?.link) {
-        console.log('Bundle links received:', result.link);
-        for (const link of result.link) {
-          if (link.relation && link.url) {
-            linksMap.set(link.relation, link.url);
-            console.log(`Stored Bundle link: ${link.relation} -> ${link.url}`);
-          }
-        }
-      }
-      this.valuesetBundleLinks.set(linksMap);
-
-      // Update total count from bundle
-      if (result?.total !== undefined) {
-        this.valuesetTotalCount.set(result.total);
-      } else {
-        // Estimate total if not provided based on Bundle links
-        const hasNext = linksMap.has('next');
-        const currentResults = this.valuesetResults().length;
-        const pageSize = this.valuesetPageSize();
-        const currentPage = this.valuesetCurrentPage();
-        
-        if (hasNext) {
-          // Might have more results
-          this.valuesetTotalCount.set((currentPage * pageSize) + 1);
-        } else {
-          // This is likely the last page
-          this.valuesetTotalCount.set((currentPage - 1) * pageSize + currentResults);
-        }
-      }
-
-      // Update current page based on Bundle links
-      // If this is a new search (no URL provided), we're on page 1
       if (!url) {
         this.valuesetCurrentPage.set(1);
       }
     } catch (error) {
-      const errorMessage = this.getErrorMessage(error);
+      const errorMessage = terminologyHttpErrorMessage(error);
       this.valuesetError.set(errorMessage);
       this.toastService.showError(errorMessage, 'ValueSet Search Failed');
     } finally {
@@ -268,8 +188,7 @@ export class ValueSetsTabComponent implements OnInit {
     this.expandedCodeDetails.set(new Map());
     this.loadingDetails.set(new Set());
     this.expandedValueSet.set(null);
-    this.currentPage.set(1);
-    
+
     this.selectedValueSet.set(valueset);
     await this.expandValueSet();
   }
@@ -297,12 +216,11 @@ export class ValueSetsTabComponent implements OnInit {
       this.expandedRows.set(new Set());
       this.expandedCodeDetails.set(new Map());
       this.loadingDetails.set(new Set());
-      this.currentPage.set(1);
 
       await this.searchValueSets();
       this.toastService.showSuccess('ValueSet deleted successfully.', 'Delete Complete');
     } catch (error) {
-      const errorMessage = this.getErrorMessage(error);
+      const errorMessage = terminologyHttpErrorMessage(error);
       this.valuesetError.set(errorMessage);
       this.toastService.showError(errorMessage, 'ValueSet Delete Failed');
       throw error;
@@ -336,12 +254,10 @@ export class ValueSetsTabComponent implements OnInit {
       // First try with ID if available (uses GET /ValueSet/{id}/$expand)
       if (valueset.id) {
         params.id = valueset.id;
-        console.log('Expanding ValueSet with ID:', valueset.id);
       } else if (valueset.url) {
         // Fall back to URL, decode if encoded (uses POST /ValueSet/$expand)
         const url = decodeURIComponent(valueset.url);
         params.url = url;
-        console.log('Expanding ValueSet with URL:', url);
       } else {
         throw new Error('No ID or URL available for ValueSet expansion');
       }
@@ -349,13 +265,11 @@ export class ValueSetsTabComponent implements OnInit {
       const result = await firstValueFrom(this.terminologyService.expandValueSet(params));
       this.expandedValueSet.set(result || null);
       this.expandedCodes.set(result?.expansion?.contains || []);
-      this.currentPage.set(1); // Reset to first page when expanding new ValueSet
     } catch (error) {
       console.error('ValueSet expansion error:', error);
 
       // If error mentions unknown ValueSet, try alternative approach
       if ((error as any)?.error?.issue?.[0]?.diagnostics?.includes('Unknown ValueSet')) {
-        console.log('ValueSet not found, trying alternative approach...');
         try {
           // Try with just the ValueSet name/identifier
           const alternativeParams = {
@@ -367,14 +281,13 @@ export class ValueSetsTabComponent implements OnInit {
 
           const result = await firstValueFrom(this.terminologyService.expandValueSet(alternativeParams));
           this.expandedCodes.set(result?.expansion?.contains || []);
-          this.currentPage.set(1);
           return;
         } catch (altError) {
           console.error('Alternative expansion also failed:', altError);
         }
       }
 
-      const errorMessage = this.getErrorMessage(error) + ' The server might not support expansion of this specific value set.';
+      const errorMessage = terminologyHttpErrorMessage(error) + ' The server might not support expansion of this specific value set.';
       this.valuesetError.set(errorMessage);
       this.toastService.showInfo('The server might not support expansion of this specific value set.', 'ValueSet Not Expanded');
     } finally {
@@ -490,7 +403,7 @@ export class ValueSetsTabComponent implements OnInit {
       console.error('Failed to load code details:', error);
       // Store error in details
       const details = new Map(this.expandedCodeDetails());
-      details.set(codeKey, { error: this.getErrorMessage(error) });
+      details.set(codeKey, { error: terminologyHttpErrorMessage(error) });
       this.expandedCodeDetails.set(details);
     } finally {
       // Remove from loading set
@@ -500,36 +413,7 @@ export class ValueSetsTabComponent implements OnInit {
     }
   }
 
-  // Helper methods
-  formatDate(dateString?: string): string {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString();
-  }
-
   getValueSetTrackId(valueset: ValueSet, index: number): string {
-    // Prioritize id (should be unique in FHIR), then url, then index with prefix
-    // Always include index to ensure uniqueness even if id/url are duplicated or empty
-    const id = valueset.id?.trim();
-    const url = valueset.url?.trim();
-    if (id) {
-      return `valueset-id-${id}-${index}`;
-    } else if (url) {
-      return `valueset-url-${url}-${index}`;
-    } else {
-      return `valueset-${index}`;
-    }
-  }
-
-  private getErrorMessage(error: any): string {
-    if (error?.status === 401 || error?.status === 403) {
-      return 'Authentication failed. The terminology server may require authentication. Please check your authorization bearer token in Settings.';
-    }
-    if (error?.status === 404) {
-      return 'Server responded with 404 error: not found.';
-    }
-    if (error?.status >= 500) {
-      return 'Server error. Please try again later.';
-    }
-    return error?.message || 'An unexpected error occurred.';
+    return terminologyResourceTrackId('valueset', valueset, index);
   }
 }

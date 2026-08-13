@@ -11,7 +11,8 @@
             type="text"
             class="form-control form-control-sm"
             id="ext-name"
-            [(ngModel)]="newExternalCql.name"
+            [ngModel]="newExternalCql().name"
+            (ngModelChange)="patchNewExternalCql({ name: $event })"
             placeholder="Library name"
           />
         </div>
@@ -21,7 +22,8 @@
             type="text"
             class="form-control form-control-sm"
             id="ext-version"
-            [(ngModel)]="newExternalCql.version"
+            [ngModel]="newExternalCql().version"
+            (ngModelChange)="patchNewExternalCql({ version: $event })"
             placeholder="Version"
           />
         </div>
@@ -31,7 +33,8 @@
             type="text"
             class="form-control form-control-sm"
             id="ext-url"
-            [(ngModel)]="newExternalCql.url"
+            [ngModel]="newExternalCql().url"
+            (ngModelChange)="patchNewExternalCql({ url: $event })"
             placeholder="Library URL"
           />
         </div>
@@ -40,7 +43,7 @@
           <button
             class="btn btn-primary btn-sm w-100"
             (click)="onAddExternalCql()"
-            [disabled]="!newExternalCql.name"
+            [disabled]="!newExternalCql().name"
             type="button"
             id="add-external-cql-btn"
           >
@@ -55,13 +58,14 @@
     <div class="list-group">
       @for (ext of externalCql(); track ext.id; let i = $index) {
         <div class="list-group-item">
-          @if (editingIndex === i) {
+          @if (editingIndex() === i) {
             <div class="row g-2">
               <div class="col-md-4">
                 <input
                   type="text"
                   class="form-control form-control-sm"
-                  [(ngModel)]="editingExternalCql.name"
+                  [ngModel]="editingExternalCql().name"
+                  (ngModelChange)="patchEditingExternalCql({ name: $event })"
                   placeholder="Name"
                 />
               </div>
@@ -69,7 +73,8 @@
                 <input
                   type="text"
                   class="form-control form-control-sm"
-                  [(ngModel)]="editingExternalCql.version"
+                  [ngModel]="editingExternalCql().version"
+                  (ngModelChange)="patchEditingExternalCql({ version: $event })"
                   placeholder="Version"
                 />
               </div>
@@ -77,7 +82,8 @@
                 <input
                   type="text"
                   class="form-control form-control-sm"
-                  [(ngModel)]="editingExternalCql.url"
+                  [ngModel]="editingExternalCql().url"
+                  (ngModelChange)="patchEditingExternalCql({ url: $event })"
                   placeholder="URL"
                 />
               </div>
@@ -138,4 +144,3 @@
     </div>
   }
 </div>
-

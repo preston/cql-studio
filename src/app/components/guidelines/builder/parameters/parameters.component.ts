@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, computed, inject } from '@angular/core';
+import {Component, ChangeDetectionStrategy, computed, inject, signal} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GuidelinesStateService, Parameter } from '../../../../services/guidelines-state.service';
 
@@ -9,7 +9,8 @@ import { GuidelinesStateService, Parameter } from '../../../../services/guidelin
   imports: [FormsModule],
   templateUrl: './parameters.component.html',
 
-  styleUrl: './parameters.component.scss'
+  styleUrl: './parameters.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ParametersComponent {
   protected readonly parameters = computed(() => {
@@ -27,55 +28,58 @@ export class ParametersComponent {
     'Quantity'
   ];
 
-  protected newParameter: Partial<Parameter> = {
+  protected readonly newParameter = signal<Partial<Parameter>>({
     name: '',
     type: 'String',
     description: ''
-  };
+  });
 
-  protected editingIndex: number | null = null;
-  protected editingParameter: Partial<Parameter> = {};
+  protected readonly editingIndex = signal<number | null>(null);
+  protected readonly editingParameter = signal<Partial<Parameter>>({});
 
   private guidelinesStateService = inject(GuidelinesStateService);
 
   onAddParameter(): void {
-    if (!this.newParameter.name || !this.newParameter.type) {
+    const draft = this.newParameter();
+    if (!draft.name || !draft.type) {
       return;
     }
 
     const parameter: Parameter = {
-      name: this.newParameter.name,
-      type: this.newParameter.type,
-      description: this.newParameter.description,
-      defaultValue: this.newParameter.defaultValue
+      name: draft.name,
+      type: draft.type,
+      description: draft.description,
+      defaultValue: draft.defaultValue
     };
 
     this.guidelinesStateService.addParameter(parameter);
-    this.newParameter = { name: '', type: 'String', description: '' };
+    this.newParameter.set({ name: '', type: 'String', description: '' });
   }
 
   onEditParameter(index: number): void {
     const param = this.parameters()[index];
-    this.editingIndex = index;
-    this.editingParameter = { ...param };
+    this.editingIndex.set(index);
+    this.editingParameter.set({ ...param });
   }
 
   onSaveEdit(): void {
-    if (this.editingIndex !== null && this.editingParameter.name && this.editingParameter.type) {
+    const index = this.editingIndex();
+    const draft = this.editingParameter();
+    if (index !== null && draft.name && draft.type) {
       const parameter: Parameter = {
-        name: this.editingParameter.name,
-        type: this.editingParameter.type,
-        description: this.editingParameter.description,
-        defaultValue: this.editingParameter.defaultValue
+        name: draft.name,
+        type: draft.type,
+        description: draft.description,
+        defaultValue: draft.defaultValue
       };
-      this.guidelinesStateService.updateParameter(this.editingIndex, parameter);
+      this.guidelinesStateService.updateParameter(index, parameter);
       this.cancelEdit();
     }
   }
 
   cancelEdit(): void {
-    this.editingIndex = null;
-    this.editingParameter = {};
+    this.editingIndex.set(null);
+    this.editingParameter.set({});
   }
 
   onDeleteParameter(index: number): void {
@@ -83,5 +87,12 @@ export class ParametersComponent {
       this.guidelinesStateService.deleteParameter(index);
     }
   }
-}
 
+  patchNewParameter(patch: Partial<Parameter>): void {
+    this.newParameter.update((current) => ({ ...current, ...patch }));
+  }
+
+  patchEditingParameter(patch: Partial<Parameter>): void {
+    this.editingParameter.update((current) => ({ ...current, ...patch }));
+  }
+}

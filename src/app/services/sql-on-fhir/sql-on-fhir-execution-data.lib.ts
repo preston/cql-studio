@@ -74,11 +74,6 @@ export function lookupBundledValueSet(
   );
 }
 
-/** @deprecated Use indexBundledValueSets — kept for tests migrating to lookupBundledValueSet. */
-export function buildBundledValueSetMap(valueSets: ValueSet[]): Map<string, ValueSet> {
-  return indexBundledValueSets(valueSets).byUrl;
-}
-
 function appendBundledValueSetRows(ref: ValueSetReference, bundled: ValueSet, rows: FlatRow[]): void {
   for (const row of flattenValueSets([bundled])) {
     rows.push({ ...row, value_set_id: ref.url });

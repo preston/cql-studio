@@ -25,7 +25,7 @@
           <div class="card-header">
             <div class="d-flex flex-column flex-md-row flex-md-nowrap align-items-stretch align-items-md-center justify-content-md-between gap-3">
               <div class="d-flex align-items-center flex-shrink-0">
-                <i class="fas fa-info-circle me-2"></i>
+                <i class="bi bi-info-circle me-2"></i>
                 <h4 class="mb-0">{{ testResults()?.cqlengine?.cqlEngine ? testResults()?.cqlengine?.cqlEngine : 'Test Run & Engine Information' }}</h4>
               </div>
               <div class="row g-2 g-md-3 flex-grow-1 flex-md-grow-0">
@@ -39,7 +39,7 @@
                 </div>
                 <div class="col-6 col-md-auto text-end">
                   <small class="d-block text-white-50">Run Date</small>
-                  <small class="text-white">{{ $safeNavigationMigration(testResults()?.testsRunDateTime) | date:'short' }}</small>
+                  <small class="text-white">{{ testResults()?.testsRunDateTime | date:'short' }}</small>
                 </div>
                 @if (testResults()?.cqlengine?.cqlVersion) {
                   <div class="col-6 col-md-auto text-end">
@@ -134,7 +134,7 @@
         <div class="card">
           <div class="card-header">
             <h6 class="mb-0">
-              <i class="fas fa-chart-pie me-2"></i>
+              <i class="bi bi-pie-chart me-2"></i>
               Test Results Distribution
             </h6>
           </div>
@@ -150,7 +150,7 @@
         <div class="card">
           <div class="card-header">
             <h6 class="mb-0">
-              <i class="fas fa-chart-bar me-2"></i>
+              <i class="bi bi-bar-chart me-2"></i>
               Test Results by Group (Top 10)
             </h6>
           </div>
@@ -262,7 +262,7 @@
                   @if (groupBy() !== 'none') {
                     <tr class="table-group-header">
                       <td colspan="7" class="bg-light fw-bold py-2">
-                        <i class="fas fa-folder me-2"></i>
+                        <i class="bi bi-folder me-2"></i>
                         {{ group.group }} ({{ group.results.length }} {{ group.results.length === 1 ? 'test' : 'tests' }})
                       </td>
                     </tr>

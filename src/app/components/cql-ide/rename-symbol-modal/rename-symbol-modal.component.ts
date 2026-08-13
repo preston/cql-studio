@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, signal, computed } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output, signal, computed} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   isValidRenameTarget,
@@ -11,7 +11,8 @@ import {
   selector: 'app-rename-symbol-modal',
   imports: [FormsModule],
   templateUrl: './rename-symbol-modal.component.html',
-  styleUrl: './rename-symbol-modal.component.scss'
+  styleUrl: './rename-symbol-modal.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RenameSymbolModalComponent {
   oldName = input.required<string>();

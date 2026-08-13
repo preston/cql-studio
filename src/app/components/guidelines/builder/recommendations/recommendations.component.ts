@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, computed, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GuidelinesStateService, Recommendation } from '../../../../services/guidelines-state.service';
 
@@ -8,8 +8,8 @@ import { GuidelinesStateService, Recommendation } from '../../../../services/gui
   selector: 'app-recommendations',
   imports: [FormsModule],
   templateUrl: './recommendations.component.html',
-
-  styleUrl: './recommendations.component.scss'
+  styleUrl: './recommendations.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RecommendationsComponent {
   protected readonly recommendations = computed(() => {
@@ -17,54 +17,57 @@ export class RecommendationsComponent {
     return artifact?.recommendations || [];
   });
 
-  protected newRecommendation: Partial<Recommendation> = {
+  protected readonly newRecommendation = signal<Partial<Recommendation>>({
     label: '',
-    description: ''
-  };
+    description: '',
+  });
 
-  protected editingIndex: number | null = null;
-  protected editingRecommendation: Partial<Recommendation> = {};
+  protected readonly editingIndex = signal<number | null>(null);
+  protected readonly editingRecommendation = signal<Partial<Recommendation>>({});
 
   private guidelinesStateService = inject(GuidelinesStateService);
 
   onAddRecommendation(): void {
-    if (!this.newRecommendation.label) {
+    const draft = this.newRecommendation();
+    if (!draft.label) {
       return;
     }
 
     const recommendation: Recommendation = {
       id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      label: this.newRecommendation.label,
-      description: this.newRecommendation.description,
-      subpopulations: []
+      label: draft.label,
+      description: draft.description,
+      subpopulations: [],
     };
 
     this.guidelinesStateService.addRecommendation(recommendation);
-    this.newRecommendation = { label: '', description: '' };
+    this.newRecommendation.set({ label: '', description: '' });
   }
 
   onEditRecommendation(index: number): void {
     const rec = this.recommendations()[index];
-    this.editingIndex = index;
-    this.editingRecommendation = { ...rec };
+    this.editingIndex.set(index);
+    this.editingRecommendation.set({ ...rec });
   }
 
   onSaveEdit(): void {
-    if (this.editingIndex !== null && this.editingRecommendation.label) {
+    const index = this.editingIndex();
+    const draft = this.editingRecommendation();
+    if (index !== null && draft.label) {
       const recommendation: Recommendation = {
-        id: this.editingRecommendation.id || `rec-${Date.now()}`,
-        label: this.editingRecommendation.label,
-        description: this.editingRecommendation.description,
-        subpopulations: this.editingRecommendation.subpopulations || []
+        id: draft.id || `rec-${Date.now()}`,
+        label: draft.label,
+        description: draft.description,
+        subpopulations: draft.subpopulations || [],
       };
-      this.guidelinesStateService.updateRecommendation(this.editingIndex, recommendation);
+      this.guidelinesStateService.updateRecommendation(index, recommendation);
       this.cancelEdit();
     }
   }
 
   cancelEdit(): void {
-    this.editingIndex = null;
-    this.editingRecommendation = {};
+    this.editingIndex.set(null);
+    this.editingRecommendation.set({});
   }
 
   onDeleteRecommendation(index: number): void {
@@ -72,5 +75,12 @@ export class RecommendationsComponent {
       this.guidelinesStateService.deleteRecommendation(index);
     }
   }
-}
 
+  patchNewRecommendation(patch: Partial<Recommendation>): void {
+    this.newRecommendation.update((current) => ({ ...current, ...patch }));
+  }
+
+  patchEditingRecommendation(patch: Partial<Recommendation>): void {
+    this.editingRecommendation.update((current) => ({ ...current, ...patch }));
+  }
+}

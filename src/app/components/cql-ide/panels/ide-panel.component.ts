@@ -1,7 +1,8 @@
 // Author: Preston Lee
 
-import { Component, input, output, viewChild, ElementRef, HostListener, inject, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, viewChild, ElementRef, inject, computed } from '@angular/core';
 import { CdkDropList, CdkDrag, CdkDragDrop } from '@angular/cdk/drag-drop';
+import { firstValueFrom } from 'rxjs';
 import { IdePanel, IdePanelTab } from './ide-panel-tab.interface';
 import { IdeStateService, TabDataScope } from '../../../services/ide-state.service';
 
@@ -12,7 +13,6 @@ export interface PanelTabListData {
 import { LibraryService } from '../../../services/library.service';
 import { TranslationService } from '../../../services/translation.service';
 import { LibraryTranslationContextBuilder } from '../../../services/library-translation-context.lib';
-import { SettingsService } from '../../../services/settings.service';
 import { ToastService } from '../../../services/toast.service';
 
 // Import all tab components
@@ -45,7 +45,12 @@ import { ValuesetPeekTabComponent } from '../tabs/valueset-peek-tab/valueset-pee
   ],
   templateUrl: './ide-panel.component.html',
 
-  styleUrls: ['./ide-panel.component.scss']
+  styleUrls: ['./ide-panel.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(window:mousemove)': 'onMouseMove($event)',
+    '(window:mouseup)': 'onMouseUp($event)',
+  },
 })
 export class IdePanelComponent {
   panel = input.required<IdePanel>();
@@ -56,7 +61,6 @@ export class IdePanelComponent {
   startResize = output<{ type: string; event: MouseEvent; newSize?: number }>();
   moveTab = output<{ tabId: string; fromPanelId: string; toPanelId: string }>();
   reorderTab = output<{ panelId: string; fromIndex: number; toIndex: number }>();
-  tabDrop = output<{ tab: any; targetPanelId: string }>();
   dragOver = output<string>();
   dragLeave = output<string>();
   executeAll = output<void>();
@@ -80,7 +84,6 @@ export class IdePanelComponent {
   private libraryService = inject(LibraryService);
   private translationService = inject(TranslationService);
   private libraryTranslationContextBuilder = inject(LibraryTranslationContextBuilder);
-  private settingsService = inject(SettingsService);
   private toastService = inject(ToastService);
 
   private isResizing: boolean = false;
@@ -162,27 +165,24 @@ export class IdePanelComponent {
     this.ideStateService.setPreserveLogs(value);
   }
 
-  onDeleteLibraryFromServer(): void {
+  async onDeleteLibraryFromServer(): Promise<void> {
     const activeLibraryId = this.ideStateService.activeLibraryId();
     if (activeLibraryId) {
       // Get the active library resource
       const activeLibrary = this.ideStateService.getActiveLibraryResource();
       if (activeLibrary && activeLibrary.library) {
-        // Delete the library from the server
-        this.libraryService.delete(activeLibrary.library).subscribe({
-          next: () => {
-            this.ideStateService.removeLibraryResource(activeLibraryId);
-            this.ideStateService.selectLibraryResource('');
-            this.ideStateService.invalidateTabData(TabDataScope.LibraryList);
-            if (this.navigationTab()) {
-              this.navigationTab()!.loadLibraries();
-            }
-          },
-          error: (error) => {
-            console.error('Error deleting library from server:', error);
-            // You might want to show an error message to the user here
+        try {
+          await firstValueFrom(this.libraryService.delete(activeLibrary.library));
+          this.ideStateService.removeLibraryResource(activeLibraryId);
+          this.ideStateService.selectLibraryResource('');
+          this.ideStateService.invalidateTabData(TabDataScope.LibraryList);
+          if (this.navigationTab()) {
+            this.navigationTab()!.loadLibraries();
           }
-        });
+        } catch (error) {
+          console.error('Error deleting library from server:', error);
+          // You might want to show an error message to the user here
+        }
       }
     }
   }
@@ -204,7 +204,6 @@ export class IdePanelComponent {
     this.startResize.emit({ type: this.position(), event });
   }
 
-  @HostListener('window:mousemove', ['$event'])
   onMouseMove(event: MouseEvent): void {
     if (this.isResizing) {
       if (this.resizeAnimationFrame !== null) {
@@ -218,7 +217,6 @@ export class IdePanelComponent {
     }
   }
 
-  @HostListener('window:mouseup', ['$event'])
   onMouseUp(event: MouseEvent): void {
     if (this.isResizing) {
       this.stopResize();
@@ -255,12 +253,6 @@ export class IdePanelComponent {
     if (this.resizeAnimationFrame !== null) {
       cancelAnimationFrame(this.resizeAnimationFrame);
       this.resizeAnimationFrame = null;
-    }
-  }
-
-  private updateBottomPanelHeight(): void {
-    if (this.position() === 'bottom' && this.panel().size) {
-      document.documentElement.style.setProperty('--bottom-panel-height', `${this.panel().size}px`);
     }
   }
 
@@ -321,24 +313,26 @@ export class IdePanelComponent {
     // Always get the latest content from the active library resource
     // This ensures we translate whatever is currently in the editor, even if dirty
     const cqlContent = this.getActiveLibraryCqlContent();
-    if (cqlContent) {
-      this.ideStateService.setTranslating(true);
+    if (!cqlContent) {
+      return;
+    }
 
+    this.ideStateService.setTranslating(true);
+    try {
       const translationResult = await this.translationService.translateCqlToElmAsync(
         cqlContent,
         this.libraryTranslationContextBuilder.fromLibraryResource(this.ideStateService.getActiveLibraryResource())
       );
-      
+
       // Update translation state with errors/warnings
       this.ideStateService.setTranslationErrors(translationResult.errors);
       this.ideStateService.setTranslationWarnings(translationResult.warnings);
       this.ideStateService.setTranslationMessages(translationResult.messages);
       this.ideStateService.setElmTranslationResults(translationResult.elmXml);
-      this.ideStateService.setTranslating(false);
-      
+
       if (translationResult.hasErrors) {
         console.error('Translation failed with errors:', translationResult.errors);
-        
+
         // Add error to output section for user feedback
         const errorContent = translationResult.errors.join('\n');
         this.ideStateService.addOutputSection({
@@ -352,9 +346,8 @@ export class IdePanelComponent {
           timestamp: new Date()
         });
       } else {
-        
         // Add success message to output section
-        const warningText = translationResult.warnings.length > 0 
+        const warningText = translationResult.warnings.length > 0
           ? `\n\nWarnings:\n${translationResult.warnings.join('\n')}`
           : '';
         this.ideStateService.addOutputSection({
@@ -368,6 +361,23 @@ export class IdePanelComponent {
           timestamp: new Date()
         });
       }
+    } catch (error) {
+      console.error('ELM translation threw:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.ideStateService.setTranslationErrors([errorMessage]);
+      this.ideStateService.setElmTranslationResults(null);
+      this.ideStateService.addOutputSection({
+        id: `output_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        title: 'ELM Translation Error',
+        content: `Translation failed:\n${errorMessage}`,
+        type: 'error',
+        status: 'error',
+        executionTime: 0,
+        expanded: false,
+        timestamp: new Date()
+      });
+    } finally {
+      this.ideStateService.setTranslating(false);
     }
   }
 

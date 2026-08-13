@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, computed, signal } from '@angular/core';
+import { Component, input, computed, signal, ChangeDetectionStrategy } from '@angular/core';
 import { MeasureReport } from 'fhir/r4';
 import { SyntaxHighlighterComponent } from '../../shared/syntax-highlighter/syntax-highlighter.component';
 import {
@@ -15,6 +15,8 @@ import {
   imports: [SyntaxHighlighterComponent],
   templateUrl: './measure-report-view.component.html',
   styleUrl: './measure-report-view.component.scss',
+
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureReportViewComponent {
   report = input<MeasureReport | null>(null);

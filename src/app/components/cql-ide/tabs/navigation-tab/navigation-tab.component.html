@@ -103,7 +103,7 @@
 
           <!-- Page Numbers -->
           <div class="page-numbers d-flex align-items-center gap-1">
-            @for (page of getPageNumbers(); track page) {
+            @for (page of getPageNumbers(); track $index) {
             <button class="btn-page" [class.active]="page === currentPage()" [class.ellipsis]="page === '...'"
               (click)="onPageClick(page)" [disabled]="page === '...'" style="min-width: 28px;">
               {{ page }}

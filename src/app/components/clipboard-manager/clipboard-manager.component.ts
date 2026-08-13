@@ -11,6 +11,7 @@ import { SettingsService } from '../../services/settings.service';
 import { ToastService } from '../../services/toast.service';
 import { Resource } from 'fhir/r4';
 import { resourceTypeOf } from '../../services/fhir-resource-type.lib';
+import { describeFhirHttpFailure } from '../../services/fhir-http-error.lib';
 import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
 
 @Component({
@@ -189,7 +190,7 @@ export class ClipboardManagerComponent implements OnInit {
         }
       }
     } catch (err) {
-      this.searchError.set(this.getErrorMessage(err));
+      this.searchError.set(describeFhirHttpFailure(err) || 'Search failed');
       this.searchResults.set([]);
       this.searchTotalCount.set(0);
       this.searchBundleLinks.set(new Map());
@@ -197,17 +198,6 @@ export class ClipboardManagerComponent implements OnInit {
       this.searchLoading.set(false);
       this.searchHasRun.set(true);
     }
-  }
-
-  private getErrorMessage(err: unknown): string {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const e = (err as { error?: unknown }).error;
-      if (e && typeof e === 'object' && 'message' in e) {
-        return String((e as { message: unknown }).message);
-      }
-    }
-    if (err instanceof Error) return err.message;
-    return 'Search failed';
   }
 
   searchFirstPage(): void {

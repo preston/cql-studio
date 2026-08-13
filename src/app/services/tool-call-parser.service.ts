@@ -1,8 +1,6 @@
 // Author: Preston Lee
 
 import { Injectable } from '@angular/core';
-import { InsertCodeTool } from './tools/insert-code.tool';
-import { ReplaceCodeTool } from './tools/replace-code.tool';
 
 export interface ParsedToolCall {
   tool: string;
@@ -32,7 +30,7 @@ export class ToolCallParserService {
     // This approach finds the start of a tool call object and then properly balances braces
     // to handle nested JSON structures (like code in params with newlines and braces)
     const toolCallStarts: number[] = [];
-    
+
     // Find all potential tool call starts: {"tool"
     const toolPattern = /\{\s*"tool"\s*:/g;
     let match;
@@ -44,61 +42,36 @@ export class ToolCallParserService {
     for (const startPos of toolCallStarts) {
       try {
         const jsonObject = this.extractJsonObject(responseText, startPos);
-        if (jsonObject) {
-          let parsed: any;
-          try {
-            // First try parsing as-is
-            parsed = JSON.parse(jsonObject);
-          } catch (parseError: any) {
-            // If parsing fails, try to repair malformed JSON (e.g., literal newlines in strings)
-            const repaired = this.repairJsonWithNewlines(jsonObject);
-            if (repaired) {
-              try {
-                parsed = JSON.parse(repaired);
-                console.log('[Tool Parser] ✅ Repaired and parsed tool call JSON');
-              } catch (repairError: any) {
-                console.warn('[Tool Parser] ❌ Failed to parse even after repair:', repairError.message);
-                throw parseError; // Throw original error
-              }
-            } else {
-              throw parseError;
-            }
+        if (!jsonObject) {
+          continue;
+        }
+
+        let parsed: any;
+        try {
+          parsed = JSON.parse(jsonObject);
+        } catch (parseError: any) {
+          // If parsing fails, try to repair malformed JSON (e.g., literal newlines in strings)
+          const repaired = this.repairJsonWithNewlines(jsonObject);
+          if (!repaired) {
+            throw parseError;
           }
-          
+          try {
+            parsed = JSON.parse(repaired);
+          } catch {
+            throw parseError;
+          }
+        }
+
         if (parsed.tool && parsed.params) {
           toolCalls.push({
             tool: parsed.tool,
             params: parsed.params,
             raw: jsonObject
           });
-          console.log('[Tool Parser] ✅ Parsed tool call:', parsed.tool, 'params keys:', Object.keys(parsed.params));
-          
-          // Special logging for code editing tools with multiline content
-          if ((parsed.tool === InsertCodeTool.id || parsed.tool === ReplaceCodeTool.id) && parsed.params['code']) {
-            const code = parsed.params['code'];
-            const hasNewlines = code.includes('\n') || code.split('\n').length > 1;
-            console.log(`[Tool Parser] Code parameter length: ${code.length}, has newlines: ${hasNewlines}, lines: ${code.split('\n').length}`);
-            if (hasNewlines) {
-              console.log('[Tool Parser] First 100 chars of code:', code.substring(0, 100).replace(/\n/g, '\\n'));
-            }
-          }
-        } else {
-          console.warn('[Tool Parser] ⚠️ Invalid tool call structure at position', startPos, 'missing tool or params:', parsed);
         }
-        } else {
-          console.debug('[Tool Parser] Could not extract complete JSON object at position', startPos);
-        }
-      } catch (e: any) {
-        // Log parsing errors with more detail
-        const snippet = responseText.substring(startPos, Math.min(startPos + 200, responseText.length));
-        console.warn('[Tool Parser] ❌ Failed to parse potential tool call at position', startPos, 'error:', e.message);
-        console.warn('[Tool Parser] Snippet:', snippet.substring(0, 100) + '...');
+      } catch {
+        // Skip malformed JSON tool-call candidates
       }
-    }
-    
-    if (toolCallStarts.length > 0 && toolCalls.length === 0) {
-      console.warn('[Tool Parser] ⚠️ Found', toolCallStarts.length, 'potential tool call starts but parsed 0 calls');
-      console.warn('[Tool Parser] Response preview:', responseText.substring(0, 500));
     }
 
     // Try markdown code block format with tool metadata
@@ -112,19 +85,14 @@ export class ToolCallParserService {
         const paramsJson = match[2].trim();
         try {
           params = JSON.parse(paramsJson);
-        } catch (parseError: any) {
-          // Try to repair if parsing fails
+        } catch {
           const repaired = this.repairJsonWithNewlines(paramsJson);
-          if (repaired) {
-            try {
-              params = JSON.parse(repaired);
-              console.log('[Tool Parser] ✅ Repaired and parsed markdown tool call JSON');
-            } catch (repairError) {
-              console.warn('Failed to parse markdown tool call even after repair:', match[0]);
-              continue;
-            }
-          } else {
-            console.warn('Failed to parse markdown tool call:', match[0]);
+          if (!repaired) {
+            continue;
+          }
+          try {
+            params = JSON.parse(repaired);
+          } catch {
             continue;
           }
         }
@@ -133,8 +101,8 @@ export class ToolCallParserService {
           params,
           raw: match[0]
         });
-      } catch (e) {
-        console.warn('Failed to parse markdown tool call:', match[0]);
+      } catch {
+        // Skip malformed markdown tool calls
       }
     }
 
@@ -146,19 +114,14 @@ export class ToolCallParserService {
         const paramsJson = match[2];
         try {
           params = JSON.parse(paramsJson);
-        } catch (parseError: any) {
-          // Try to repair if parsing fails
+        } catch {
           const repaired = this.repairJsonWithNewlines(paramsJson);
-          if (repaired) {
-            try {
-              params = JSON.parse(repaired);
-              console.log('[Tool Parser] ✅ Repaired and parsed MCP native tool call JSON');
-            } catch (repairError) {
-              console.warn('Failed to parse MCP native tool call even after repair:', match[0]);
-              continue;
-            }
-          } else {
-            console.warn('Failed to parse MCP native tool call:', match[0]);
+          if (!repaired) {
+            continue;
+          }
+          try {
+            params = JSON.parse(repaired);
+          } catch {
             continue;
           }
         }
@@ -167,8 +130,8 @@ export class ToolCallParserService {
           params,
           raw: match[0]
         });
-      } catch (e) {
-        console.warn('Failed to parse MCP native tool call:', match[0]);
+      } catch {
+        // Skip malformed MCP-native tool calls
       }
     }
 
@@ -444,7 +407,6 @@ export class ToolCallParserService {
       
       return result;
     } catch (error) {
-      console.warn('[Tool Parser] Failed to repair JSON:', error);
       return null;
     }
   }

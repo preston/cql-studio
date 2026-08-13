@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output} from '@angular/core';
 import { Plan, PlanStep } from '../../../../models/plan.model';
 
 @Component({
@@ -8,7 +8,8 @@ import { Plan, PlanStep } from '../../../../models/plan.model';
   imports: [],
   templateUrl: './plan-display.component.html',
 
-  styleUrls: ['./plan-display.component.scss']
+  styleUrls: ['./plan-display.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlanDisplayComponent {
   plan = input.required<Plan>();

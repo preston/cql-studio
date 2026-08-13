@@ -1,18 +1,19 @@
 // Author: Preston Lee
 
-import { Component } from '@angular/core';
+import {Component, ChangeDetectionStrategy, signal} from '@angular/core';
 
 @Component({
   selector: 'app-results-documentation',
   imports: [],
   templateUrl: './results-documentation.component.html',
 
-  styleUrl: './results-documentation.component.scss'
+  styleUrl: './results-documentation.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResultsDocumentationComponent {
-  activeTab: string = 'query-parameters';
+  protected readonly activeTab = signal('query-parameters');
 
   setActiveTab(tab: string): void {
-    this.activeTab = tab;
+    this.activeTab.set(tab);
   }
 }

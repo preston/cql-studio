@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, signal, ElementRef, HostBinding, AfterViewInit, viewChild, inject, afterNextRender, Injector } from '@angular/core';
+import { Component, signal, ElementRef, HostBinding, AfterViewInit, viewChild, inject, afterNextRender, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,7 +14,7 @@ import {
   FHIR_REGISTRY_IMPORTER_SOURCE_LOCAL
 } from '../fhir-registry-importer/fhir-registry-importer.deep-link';
 import { Library, Bundle, ImplementationGuide, Resource } from 'fhir/r4';
-import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
+import { convertCqlToFhirLibrary } from '../../services/cql-file-to-fhir-library.lib';
 import {
   FHIR_BUNDLE_EXAMPLE_PATHS,
   FHIR_CQL_EXAMPLE_PATHS
@@ -34,11 +34,7 @@ import {
   WorkspaceResourceLinkInput,
   workspaceLinkInputFromFhirResource,
 } from '../../services/workspace-resource-link.lib';
-
-function isFhirPackageArchiveName(name: string): boolean {
-  const lower = name.toLowerCase();
-  return lower.endsWith('.tgz') || lower.endsWith('.tar.gz');
-}
+import { isFhirPackageArchiveName } from '../../services/fhir-package-archive-path.lib';
 
 interface BundleIgState {
   entryIndex: number;
@@ -88,7 +84,8 @@ interface CqlFile {
   imports: [DecimalPipe, FormsModule, ImplementationGuidePanelComponent, AddToWorkspacesPanelComponent],
   templateUrl: './fhir-uploader.component.html',
 
-  styleUrl: './fhir-uploader.component.scss'
+  styleUrl: './fhir-uploader.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FhirUploaderComponent implements AfterViewInit {
   protected readonly files = signal<BundleFile[]>([]);
@@ -450,7 +447,11 @@ export class FhirUploaderComponent implements AfterViewInit {
     let next: CqlFile;
     try {
       const cqlContent = await this.readFileAsText(cqlFile.file);
-      const fhirLibrary = this.convertCqlToFhirLibrary(cqlContent, cqlFile.name);
+      const fhirLibrary = convertCqlToFhirLibrary(
+        cqlContent,
+        cqlFile.name,
+        this.settingsService.getEffectiveEvaluationServerUrl()
+      );
       next = {
         ...cqlFile,
         cqlContent,
@@ -466,57 +467,6 @@ export class FhirUploaderComponent implements AfterViewInit {
       };
     }
     this.cqlFiles.update((list) => list.map((f) => (f.id === cqlFile.id ? next : f)));
-  }
-
-  private convertCqlToFhirLibrary(cqlContent: string, fileName: string): Library {
-    const contentWithoutComments = this.stripCqlComments(cqlContent);
-    const libraryHeader =
-      contentWithoutComments.match(/library\s+(?:"([^"]+)"|'([^']+)'|([A-Za-z_][\w.]*))/i) ??
-      null;
-    const libraryName =
-      libraryHeader?.[1] || libraryHeader?.[2] || libraryHeader?.[3] || fileName.replace(/\.cql$/i, '');
-
-    const descriptionMatch = cqlContent.match(/\/\*\*([^*]+)\*\//s);
-    const description = descriptionMatch ? descriptionMatch[1].trim() : `CQL Library: ${libraryName}`;
-
-    // Prefer an explicit library version declaration near the header, not FHIR `using` version.
-    const cqlVersionMatch = contentWithoutComments.match(
-      /library\s+(?:"[^"]+"|'[^']+'|[A-Za-z_][\w.]*)\s+version\s+['"]([^'"]+)['"]/i
-    );
-    const cqlVersion = cqlVersionMatch?.[1] ?? '0.0.0';
-
-    const effectiveFhirBaseUrl = this.settingsService.getEffectiveEvaluationServerUrl();
-    const canonicalUrl = `${effectiveFhirBaseUrl.replace(/\/+$/, '')}/Library/${encodeURIComponent(libraryName)}`;
-
-    return {
-      resourceType: 'Library',
-      type: {
-        coding: [
-          {
-            system: 'http://terminology.hl7.org/CodeSystem/library-type',
-            code: 'logic-library'
-          }
-        ]
-      },
-      id: libraryName.replace(/[^A-Za-z0-9.-]/g, '-'),
-      version: cqlVersion,
-      name: libraryName,
-      title: libraryName,
-      status: 'active',
-      description,
-      url: canonicalUrl,
-      content: [
-        {
-          contentType: 'text/cql',
-          data: encodeUtf8Base64(cqlContent)
-        }
-      ]
-    };
-  }
-
-  private stripCqlComments(cqlContent: string): string {
-    const withoutBlockComments = cqlContent.replace(/\/\*[\s\S]*?\*\//g, '');
-    return withoutBlockComments.replace(/\/\/[^\n\r]*(?=[\n\r]|$)/g, '');
   }
 
   private readFileAsText(file: File): Promise<string> {
@@ -1026,9 +976,8 @@ export class FhirUploaderComponent implements AfterViewInit {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      await response.json();
       this.showModal('Success', 'Server expunged successfully!', 'success');
-      console.log('Expunge result:', result);
     } catch (error) {
       this.showModal('Error', `Failed to expunge server: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
       console.error('Expunge error:', error);
@@ -1063,9 +1012,8 @@ export class FhirUploaderComponent implements AfterViewInit {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      await response.json();
       this.showModal('Success', 'Server purged successfully!', 'success');
-      console.log('Purge result:', result);
     } catch (error) {
       this.showModal('Error', `Failed to purge server: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
       console.error('Purge error:', error);

@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 @Component({
@@ -16,6 +16,7 @@ import { RouterOutlet } from '@angular/router';
       height: 100%;
       width: 100%;
     }
-  `]
+  `],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureEditorComponent {}

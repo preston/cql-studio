@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy, HostListener, viewChild, viewChildren, effect, inject, ElementRef, untracked } from '@angular/core';
-import { Router, ActivatedRoute } from '@angular/router';
+import { Component, ChangeDetectionStrategy, OnInit, OnDestroy, viewChild, viewChildren, effect, inject, ElementRef, untracked } from '@angular/core';
+import { Router } from '@angular/router';
 import {
   IdeFindReferencesResult,
   IdeStateService,
@@ -21,6 +21,7 @@ import { CqlValidationService } from '../../services/cql-validation.service';
 import { ToastService } from '../../services/toast.service';
 import { CqlIdeLibraryOpenerService } from '../../services/cql-ide-library-opener.service';
 import { Library } from 'fhir/r4';
+import { firstValueFrom } from 'rxjs';
 import { IdeExecutionSubject } from '../../models/ide-context.model';
 import { encodeUtf8Base64 } from '../../services/utf8-encoding.lib';
 import {
@@ -28,7 +29,10 @@ import {
   normalizeExecutionResults,
   shouldRenderExecutionResultsSeparately
 } from '../../services/cql-execution-output.lib';
-import { KeyboardShortcut } from './shared/ide-types';
+import {
+  getAllShortcuts as buildAllShortcuts,
+  isMacPlatform as detectMacPlatform
+} from './cql-ide-shortcuts.lib';
 
 // Import all the new components
 import { IdeStatusBarComponent } from './ide-status-bar/ide-status-bar.component';
@@ -46,23 +50,19 @@ import { EditorTabsComponent } from './editors/editor-tabs/editor-tabs.component
   ],
   templateUrl: './cql-ide.component.html',
 
-  styleUrls: ['./cql-ide.component.scss']
+  styleUrls: ['./cql-ide.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:keydown)': 'handleKeyboardShortcuts($event)',
+  },
 })
 export class CqlIdeComponent implements OnInit, OnDestroy {
   private static readonly MAIN_CONTENT_MIN_WIDTH_PX = 200;
 
   cqlEditors = viewChildren(CqlEditorComponent);
   ideLayoutRef = viewChild<ElementRef<HTMLElement>>('ideLayout');
-  
-  // Simple state properties
-  leftPanelVisible = true;
-  rightPanelVisible = true;
-  bottomPanelVisible = true;
-  activeLibraryId: string | null = null;
-  libraryResources: any[] = [];
 
   private router = inject(Router);
-  private route = inject(ActivatedRoute);
   public ideStateService = inject(IdeStateService);
   public ideTabRegistryService = inject(IdeTabRegistryService);
   private libraryService = inject(LibraryService);
@@ -318,17 +318,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
 
   // Panel management
   onTogglePanel(panelId: string): void {
-    switch (panelId) {
-      case 'left':
-        this.leftPanelVisible = !this.leftPanelVisible;
-        break;
-      case 'right':
-        this.rightPanelVisible = !this.rightPanelVisible;
-        break;
-      case 'bottom':
-        this.bottomPanelVisible = !this.bottomPanelVisible;
-        break;
-    }
     this.ideStateService.togglePanel(panelId);
   }
 
@@ -344,10 +333,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.reorderTabInPanel(event.panelId, event.fromIndex, event.toIndex);
   }
 
-  // Drag and drop handlers
-  onTabDrop(event: { tab: any, targetPanelId: string }): void {
-  }
-
   onDragOver(panelId: string): void {
     this.ideStateService.setDragOverPanel(panelId);
   }
@@ -360,7 +345,6 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
 
   // Library management
   onLibraryIdChange(libraryId: string): void {
-    this.activeLibraryId = libraryId;
     this.ideStateService.selectLibraryResource(libraryId);
     queueMicrotask(() => {
       const editor = this.activeCqlEditor();
@@ -407,84 +391,101 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     this.ideStateService.setExecutionStatus('Translating CQL to ELM...');
     this.ideStateService.setTranslating(true);
 
-    // Translate CQL to ELM using the translation service (as if triggered from ELM tab)
-    const translationResult = await this.translationService.translateCqlToElmAsync(
-      currentContent,
-      this.libraryTranslationContextBuilder.fromLibraryResource(activeLibrary)
-    );
-    
-    // Update translation state with errors/warnings
-    this.ideStateService.setTranslationErrors(translationResult.errors);
-    this.ideStateService.setTranslationWarnings(translationResult.warnings);
-    this.ideStateService.setTranslationMessages(translationResult.messages);
-    
-    this.ideStateService.setTranslating(false);
+    try {
+      // Translate CQL to ELM using the translation service (as if triggered from ELM tab)
+      const translationResult = await this.translationService.translateCqlToElmAsync(
+        currentContent,
+        this.libraryTranslationContextBuilder.fromLibraryResource(activeLibrary)
+      );
 
-    // Set ELM results in state (for display in ELM tab)
-    this.ideStateService.setElmTranslationResults(translationResult.elmXml);
+      // Update translation state with errors/warnings
+      this.ideStateService.setTranslationErrors(translationResult.errors);
+      this.ideStateService.setTranslationWarnings(translationResult.warnings);
+      this.ideStateService.setTranslationMessages(translationResult.messages);
 
-    // Check if we have ELM XML to save (even if there are errors, we may have partial results)
-    if (!translationResult.elmXml) {
-      console.error('Translation failed - no ELM XML generated');
-      this.ideStateService.setExecutionStatus('Translation failed - no ELM output generated');
-      
-      // Add error message to Console pane
+      this.ideStateService.setTranslating(false);
+
+      // Set ELM results in state (for display in ELM tab)
+      this.ideStateService.setElmTranslationResults(translationResult.elmXml);
+
+      // Check if we have ELM XML to save (even if there are errors, we may have partial results)
+      if (!translationResult.elmXml) {
+        console.error('Translation failed - no ELM XML generated');
+        this.ideStateService.setExecutionStatus('Translation failed - no ELM output generated');
+
+        // Add error message to Console pane
+        const libraryName = activeLibrary.name || activeLibrary.id || 'Library';
+        const errorMessages = translationResult.errors.length > 0
+          ? translationResult.errors.join('\n')
+          : 'Translation failed to generate ELM XML';
+        this.ideStateService.addTextOutput(
+          `Save Failed: ${libraryName}`,
+          `Failed to save library "${libraryName}" - no ELM XML was generated.\n\nErrors:\n${errorMessages}`,
+          'error'
+        );
+
+        // Mark as dirty again since save failed
+        this.ideStateService.updateLibraryResource(activeLibrary.id, {
+          isDirty: true
+        });
+
+        // Clear error status after a short delay
+        this.clearExecutionStatusAfter(5000);
+        return;
+      }
+
+      // If we have ELM XML, proceed with saving (even if there are errors)
+      if (translationResult.hasErrors) {
+        console.warn('Translation completed with errors, but ELM XML is available. Proceeding with save.');
+        this.ideStateService.setExecutionStatus('Saving library (with translation warnings)...');
+
+        // Add warning message to Console pane (using 'error' status since there are translation errors)
+        const libraryName = activeLibrary.name || activeLibrary.id || 'Library';
+        const errorMessages = translationResult.errors.join('\n');
+        this.ideStateService.addTextOutput(
+          `Save Warning: ${libraryName}`,
+          `Library "${libraryName}" saved with translation errors.\n\nErrors:\n${errorMessages}\n\nELM XML was generated and saved.`,
+          'error'
+        );
+      } else {
+        this.ideStateService.setExecutionStatus('Saving library...');
+      }
+
+      // Update the library resource with current content
+      this.ideStateService.updateLibraryResource(activeLibrary.id, {
+        cqlContent: currentContent,
+        isDirty: false
+      });
+
+      // Check if this is a new library (no FHIR library object) or existing library
+      // Also check if the ID has changed (which requires creating a new library)
+      const hasExistingLibrary = activeLibrary.library && activeLibrary.library.id;
+      const idHasChanged = hasExistingLibrary && activeLibrary.library && activeLibrary.library.id !== activeLibrary.id;
+
+      // Always include ELM XML in the Library content per FHIR Library resource specifications
+      // The ELM XML is base64 encoded and included with contentType 'application/elm+xml'
+      if (hasExistingLibrary && !idHasChanged) {
+        // Update existing library (ID hasn't changed)
+        await this.updateExistingLibrary(activeLibrary.library, currentContent, translationResult.elmXml);
+      } else {
+        // Create new library (either no existing library or ID has changed)
+        await this.createNewLibrary(activeLibrary, currentContent, translationResult.elmXml);
+      }
+    } catch (error) {
+      console.error('Save failed during translation:', error);
+      this.ideStateService.setTranslating(false);
+      this.ideStateService.setExecutionStatus('Failed to save library');
       const libraryName = activeLibrary.name || activeLibrary.id || 'Library';
-      const errorMessages = translationResult.errors.length > 0 
-        ? translationResult.errors.join('\n')
-        : 'Translation failed to generate ELM XML';
+      const errorMessage = error instanceof Error ? error.message : String(error);
       this.ideStateService.addTextOutput(
         `Save Failed: ${libraryName}`,
-        `Failed to save library "${libraryName}" - no ELM XML was generated.\n\nErrors:\n${errorMessages}`,
+        `Failed to save library "${libraryName}".\n\nError: ${errorMessage}`,
         'error'
       );
-      
-      // Mark as dirty again since save failed
       this.ideStateService.updateLibraryResource(activeLibrary.id, {
         isDirty: true
       });
-      
-      // Clear error status after a short delay
-      this.clearExecutionStatusAfter(5000);
-      return;
-    }
-
-    // If we have ELM XML, proceed with saving (even if there are errors)
-    if (translationResult.hasErrors) {
-      console.warn('Translation completed with errors, but ELM XML is available. Proceeding with save.');
-      this.ideStateService.setExecutionStatus('Saving library (with translation warnings)...');
-      
-      // Add warning message to Console pane (using 'error' status since there are translation errors)
-      const libraryName = activeLibrary.name || activeLibrary.id || 'Library';
-      const errorMessages = translationResult.errors.join('\n');
-      this.ideStateService.addTextOutput(
-        `Save Warning: ${libraryName}`,
-        `Library "${libraryName}" saved with translation errors.\n\nErrors:\n${errorMessages}\n\nELM XML was generated and saved.`,
-        'error'
-      );
-    } else {
-      this.ideStateService.setExecutionStatus('Saving library...');
-    }
-
-    // Update the library resource with current content
-    this.ideStateService.updateLibraryResource(activeLibrary.id, {
-      cqlContent: currentContent,
-      isDirty: false
-    });
-
-    // Check if this is a new library (no FHIR library object) or existing library
-    // Also check if the ID has changed (which requires creating a new library)
-    const hasExistingLibrary = activeLibrary.library && activeLibrary.library.id;
-    const idHasChanged = hasExistingLibrary && activeLibrary.library && activeLibrary.library.id !== activeLibrary.id;
-    
-    // Always include ELM XML in the Library content per FHIR Library resource specifications
-    // The ELM XML is base64 encoded and included with contentType 'application/elm+xml'
-    if (hasExistingLibrary && !idHasChanged) {
-      // Update existing library (ID hasn't changed)
-      this.updateExistingLibrary(activeLibrary.library, currentContent, translationResult.elmXml);
-    } else {
-      // Create new library (either no existing library or ID has changed)
-      this.createNewLibrary(activeLibrary, currentContent, translationResult.elmXml);
+      this.clearExecutionStatusAfter(3000);
     }
   }
 
@@ -524,7 +525,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   // Execution
-  onExecuteAll(): void {
+  async onExecuteAll(): Promise<void> {
     this.ideStateService.setExecuting(true);
     
     // Get all library resources
@@ -542,22 +543,17 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       name: lib.name || lib.id
     }));
     
-    // Execute all libraries using CQL execution service
-    this.cqlExecutionService.executeAllLibraries(librariesToExecute, subjects).subscribe({
-      next: (results) => {
-        this.ideStateService.setExecuting(false);
-        
-        // Format and add results to output sections
-        this.formatAndAddExecutionResults(results, 'Execute All Libraries', subjects);
-      },
-      error: (error) => {
-        console.error('All libraries execution failed:', error);
-        this.ideStateService.setExecuting(false);
-        
-        // Add error to output sections
-        this.addErrorToOutput('Execute All Libraries', error);
-      }
-    });
+    try {
+      const results = await firstValueFrom(
+        this.cqlExecutionService.executeAllLibraries(librariesToExecute, subjects)
+      );
+      this.ideStateService.setExecuting(false);
+      this.formatAndAddExecutionResults(results, 'Execute All Libraries', subjects);
+    } catch (error) {
+      console.error('All libraries execution failed:', error);
+      this.ideStateService.setExecuting(false);
+      this.addErrorToOutput('Execute All Libraries', error);
+    }
   }
 
   private activeCqlEditor(): CqlEditorComponent | undefined {
@@ -683,68 +679,64 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
 
     this.ideStateService.setExecuting(true);
     this.ideStateService.setExecutionStatus('Translating CQL to ELM...');
-    
+
     const subjects = this.ideContextService.getSelectedSubjects();
-    
+
     // Get current CQL content from memory (even if not saved)
     const currentCqlContent = activeLibrary.cqlContent || '';
-    
-    // Translate CQL to ELM using the translation service (similar to Save)
-    const translationResult = await this.translationService.translateCqlToElmAsync(
-      currentCqlContent,
-      this.libraryTranslationContextBuilder.fromLibraryResource(activeLibrary)
-    );
-    
-    // Update translation state with errors/warnings
-    this.ideStateService.setTranslationErrors(translationResult.errors);
-    this.ideStateService.setTranslationWarnings(translationResult.warnings);
-    this.ideStateService.setTranslationMessages(translationResult.messages);
-    
-    // Set ELM results in state (for display in ELM tab)
-    this.ideStateService.setElmTranslationResults(translationResult.elmXml);
-    
-    // Check if we have ELM XML (even if there are errors, we may have partial results)
-    if (!translationResult.elmXml) {
-      console.warn('Translation failed - no ELM XML generated, executing without ELM');
-      this.ideStateService.setExecutionStatus('Executing (translation failed, no ELM)...');
-    } else {
-      this.ideStateService.setExecutionStatus('Executing library...');
+
+    try {
+      // Translate CQL to ELM using the translation service (similar to Save)
+      const translationResult = await this.translationService.translateCqlToElmAsync(
+        currentCqlContent,
+        this.libraryTranslationContextBuilder.fromLibraryResource(activeLibrary)
+      );
+
+      // Update translation state with errors/warnings
+      this.ideStateService.setTranslationErrors(translationResult.errors);
+      this.ideStateService.setTranslationWarnings(translationResult.warnings);
+      this.ideStateService.setTranslationMessages(translationResult.messages);
+
+      // Set ELM results in state (for display in ELM tab)
+      this.ideStateService.setElmTranslationResults(translationResult.elmXml);
+
+      // Check if we have ELM XML (even if there are errors, we may have partial results)
+      if (!translationResult.elmXml) {
+        console.warn('Translation failed - no ELM XML generated, executing without ELM');
+        this.ideStateService.setExecutionStatus('Executing (translation failed, no ELM)...');
+      } else {
+        this.ideStateService.setExecutionStatus('Executing library...');
+      }
+
+      // Execute single library using CQL execution service
+      // Pass the entire activeLibrary resource with current CQL content and ELM
+      const result = await firstValueFrom(
+        this.cqlExecutionService.executeLibrary(
+          activeLibrary.id,
+          subjects,
+          {
+            cqlContent: currentCqlContent,
+            elmXml: translationResult.elmXml || undefined,
+            libraryResource: activeLibrary
+          }
+        )
+      );
+      this.ideStateService.setExecutionStatus('');
+      this.formatAndAddExecutionResults(
+        result,
+        `Library: ${activeLibrary.name || activeLibrary.id}`,
+        subjects
+      );
+    } catch (error) {
+      console.error('Library execution failed:', error);
+      this.ideStateService.setExecutionStatus('');
+      this.addErrorToOutput(`Library: ${activeLibrary.name || activeLibrary.id}`, error);
+    } finally {
+      this.ideStateService.setExecuting(false);
     }
-    
-    // Execute single library using CQL execution service
-    // Pass the entire activeLibrary resource with current CQL content and ELM
-    this.cqlExecutionService.executeLibrary(
-      activeLibrary.id, 
-      subjects,
-      {
-        cqlContent: currentCqlContent,
-        elmXml: translationResult.elmXml || undefined,
-        libraryResource: activeLibrary
-      }
-    ).subscribe({
-      next: (result) => {
-        this.ideStateService.setExecuting(false);
-        this.ideStateService.setExecutionStatus('');
-        
-        // Format and add results to output sections
-        this.formatAndAddExecutionResults(
-          result,
-          `Library: ${activeLibrary.name || activeLibrary.id}`,
-          subjects
-        );
-      },
-      error: (error) => {
-        console.error('Library execution failed:', error);
-        this.ideStateService.setExecuting(false);
-        this.ideStateService.setExecutionStatus('');
-        
-        // Add error to output sections
-        this.addErrorToOutput(`Library: ${activeLibrary.name || activeLibrary.id}`, error);
-      }
-    });
   }
 
-  onReloadLibrary(): void {
+  async onReloadLibrary(): Promise<void> {
     const activeLibraryId = this.ideStateService.activeLibraryId();
     if (!activeLibraryId) {
       console.warn('No active library to reload');
@@ -753,77 +745,73 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
 
     this.ideStateService.setExecutionStatus('Reloading library...');
 
-    this.libraryService.get(activeLibraryId).subscribe({
-      next: (library: any) => {
-        const libraryResource = this.ideStateService.getActiveLibraryResource();
-        if (!libraryResource) {
-          console.error('No active library resource found for reload');
-          this.ideStateService.setExecutionStatus('');
-          return;
-        }
+    try {
+      const library: any = await firstValueFrom(this.libraryService.get(activeLibraryId));
+      const libraryResource = this.ideStateService.getActiveLibraryResource();
+      if (!libraryResource) {
+        console.error('No active library resource found for reload');
+        this.ideStateService.setExecutionStatus('');
+        return;
+      }
 
-        const cqlAttachment = library.content?.find((c: any) => c.contentType === 'text/cql');
-        const fromUrl = !!(cqlAttachment?.url && !cqlAttachment?.data);
-        if (fromUrl) {
-          this.ideStateService.updateLibraryResource(activeLibraryId, {
-            contentLoading: true,
-            contentLoadError: undefined
-          });
-        }
-
-        this.libraryService.getCqlContent(library).subscribe({
-          next: ({ cqlContent }) => {
-            this.ideStateService.updateLibraryResource(activeLibraryId, {
-              cqlContent,
-              originalContent: cqlContent,
-              isDirty: false,
-              library,
-              contentLoading: false,
-              contentLoadError: undefined
-            });
-            this.invalidateLibrarySourceCache(library, cqlContent);
-            this.ideStateService.triggerReload(activeLibraryId);
-            const libraryName = libraryResource.name || libraryResource.id || 'Library';
-            this.ideStateService.addTextOutput(
-              `Library Reloaded: ${libraryName}`,
-              `Successfully reloaded library "${libraryName}" from server.\n\nContent length: ${cqlContent.length} characters`,
-              'success'
-            );
-            this.ideStateService.setExecutionStatus('Library reloaded successfully');
-            this.clearExecutionStatusAfter(2000);
-          },
-          error: (err) => {
-            const libraryName = libraryResource.name || libraryResource.id || 'Library';
-            const message = err?.message ?? String(err);
-            const errorMessage = `Could not load CQL from URL for library "${libraryName}". ${message}`;
-            this.ideStateService.updateLibraryResource(activeLibraryId, {
-              contentLoading: false,
-              contentLoadError: errorMessage
-            });
-            this.ideStateService.addTextOutput(
-              `Library Reload Failed: ${libraryName}`,
-              errorMessage,
-              'error'
-            );
-            this.ideStateService.setExecutionStatus('Failed to reload library');
-            this.clearExecutionStatusAfter(3000);
-          }
+      const cqlAttachment = library.content?.find((c: any) => c.contentType === 'text/cql');
+      const fromUrl = !!(cqlAttachment?.url && !cqlAttachment?.data);
+      if (fromUrl) {
+        this.ideStateService.updateLibraryResource(activeLibraryId, {
+          contentLoading: true,
+          contentLoadError: undefined
         });
-      },
-      error: (error) => {
-        console.error('Failed to reload library:', error);
-        this.ideStateService.setExecutionStatus('Failed to reload library');
-        const libraryName = this.ideStateService.getActiveLibraryResource()?.name ||
-          this.ideStateService.getActiveLibraryResource()?.id || 'Library';
-        const errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      try {
+        const { cqlContent } = await firstValueFrom(this.libraryService.getCqlContent(library));
+        this.ideStateService.updateLibraryResource(activeLibraryId, {
+          cqlContent,
+          originalContent: cqlContent,
+          isDirty: false,
+          library,
+          contentLoading: false,
+          contentLoadError: undefined
+        });
+        this.invalidateLibrarySourceCache(library, cqlContent);
+        this.ideStateService.triggerReload(activeLibraryId);
+        const libraryName = libraryResource.name || libraryResource.id || 'Library';
+        this.ideStateService.addTextOutput(
+          `Library Reloaded: ${libraryName}`,
+          `Successfully reloaded library "${libraryName}" from server.\n\nContent length: ${cqlContent.length} characters`,
+          'success'
+        );
+        this.ideStateService.setExecutionStatus('Library reloaded successfully');
+        this.clearExecutionStatusAfter(2000);
+      } catch (err: any) {
+        const libraryName = libraryResource.name || libraryResource.id || 'Library';
+        const message = err?.message ?? String(err);
+        const errorMessage = `Could not load CQL from URL for library "${libraryName}". ${message}`;
+        this.ideStateService.updateLibraryResource(activeLibraryId, {
+          contentLoading: false,
+          contentLoadError: errorMessage
+        });
         this.ideStateService.addTextOutput(
           `Library Reload Failed: ${libraryName}`,
-          `Failed to reload library "${libraryName}" from server.\n\nError: ${errorMessage}`,
+          errorMessage,
           'error'
         );
+        this.ideStateService.setExecutionStatus('Failed to reload library');
         this.clearExecutionStatusAfter(3000);
       }
-    });
+    } catch (error) {
+      console.error('Failed to reload library:', error);
+      this.ideStateService.setExecutionStatus('Failed to reload library');
+      const libraryName = this.ideStateService.getActiveLibraryResource()?.name ||
+        this.ideStateService.getActiveLibraryResource()?.id || 'Library';
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.ideStateService.addTextOutput(
+        `Library Reload Failed: ${libraryName}`,
+        `Failed to reload library "${libraryName}" from server.\n\nError: ${errorMessage}`,
+        'error'
+      );
+      this.clearExecutionStatusAfter(3000);
+    }
   }
 
   onFormatCql(): void {
@@ -904,7 +892,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   // Library save helper methods
-  private updateExistingLibrary(library: any, cqlContent: string, elmXml: string): void {
+  private async updateExistingLibrary(library: any, cqlContent: string, elmXml: string): Promise<void> {
     // Get the current library resource to get the latest metadata
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
     
@@ -929,59 +917,55 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       ]
     };
 
-    this.libraryService.put(updatedLibrary).subscribe({
-      next: (savedLibrary) => {
-        this.ideStateService.setExecutionStatus('Library saved successfully');
-        
-        // Update the library resource with the saved library
-        // Preserve user's URL choice (including empty) - do not overwrite with generated URL
-        const currentId = this.ideStateService.activeLibraryId()!;
-        
-        this.ideStateService.updateLibraryResource(currentId, {
-          library: savedLibrary,
-          originalContent: cqlContent,
-          isDirty: false
-        });
-        this.invalidateLibrarySourceCache(savedLibrary, cqlContent);
-        
-        // Add success message to Console pane
-        const libraryName = activeLibrary?.name || activeLibrary?.id || 'Library';
-        this.ideStateService.addTextOutput(
-          `Library Saved: ${libraryName} - Server caches may be updated asynchronously`,
-          `Successfully saved library "${libraryName}". Server caches may updated asynchronously.\n\nLibrary ID: ${currentId}\nContent length: ${cqlContent.length} characters`,
-          'success'
-        );
-        
-        // Force content refresh to update the cache
-        
-        // Clear status after a short delay
-        this.clearExecutionStatusAfter(2000);
-      },
-      error: (error) => {
-        console.error('Failed to update library:', error);
-        this.ideStateService.setExecutionStatus('Failed to save library');
-        
-        // Add error message to Console pane
-        const libraryName = activeLibrary?.name || activeLibrary?.id || 'Library';
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.ideStateService.addTextOutput(
-          `Save Failed: ${libraryName}`,
-          `Failed to save library "${libraryName}" to server.\n\nError: ${errorMessage}`,
-          'error'
-        );
-        
-        // Mark as dirty again since save failed
-        this.ideStateService.updateLibraryResource(this.ideStateService.activeLibraryId()!, {
-          isDirty: true
-        });
-        
-        // Clear error status after a short delay
-        this.clearExecutionStatusAfter(3000);
-      }
-    });
+    try {
+      const savedLibrary = await firstValueFrom(this.libraryService.put(updatedLibrary));
+      this.ideStateService.setExecutionStatus('Library saved successfully');
+
+      // Update the library resource with the saved library
+      // Preserve user's URL choice (including empty) - do not overwrite with generated URL
+      const currentId = this.ideStateService.activeLibraryId()!;
+
+      this.ideStateService.updateLibraryResource(currentId, {
+        library: savedLibrary,
+        originalContent: cqlContent,
+        isDirty: false
+      });
+      this.invalidateLibrarySourceCache(savedLibrary, cqlContent);
+
+      // Add success message to Console pane
+      const libraryName = activeLibrary?.name || activeLibrary?.id || 'Library';
+      this.ideStateService.addTextOutput(
+        `Library Saved: ${libraryName} - Server caches may be updated asynchronously`,
+        `Successfully saved library "${libraryName}". Server caches may updated asynchronously.\n\nLibrary ID: ${currentId}\nContent length: ${cqlContent.length} characters`,
+        'success'
+      );
+
+      // Clear status after a short delay
+      this.clearExecutionStatusAfter(2000);
+    } catch (error) {
+      console.error('Failed to update library:', error);
+      this.ideStateService.setExecutionStatus('Failed to save library');
+
+      // Add error message to Console pane
+      const libraryName = activeLibrary?.name || activeLibrary?.id || 'Library';
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.ideStateService.addTextOutput(
+        `Save Failed: ${libraryName}`,
+        `Failed to save library "${libraryName}" to server.\n\nError: ${errorMessage}`,
+        'error'
+      );
+
+      // Mark as dirty again since save failed
+      this.ideStateService.updateLibraryResource(this.ideStateService.activeLibraryId()!, {
+        isDirty: true
+      });
+
+      // Clear error status after a short delay
+      this.clearExecutionStatusAfter(3000);
+    }
   }
 
-  private createNewLibrary(libraryResource: any, cqlContent: string, elmXml: string): void {
+  private async createNewLibrary(libraryResource: any, cqlContent: string, elmXml: string): Promise<void> {
     // Create a new FHIR Library resource with our id so PUT creates it with that id
     const newLibrary: Library = {
       resourceType: 'Library' as const,
@@ -1013,37 +997,43 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       description: libraryResource.description || `Library ${libraryResource.name || libraryResource.id}`
     };
 
-    this.libraryService.put(newLibrary).subscribe({
-      next: (savedLibrary) => {
-        this.ideStateService.setExecutionStatus('Library saved successfully');
+    try {
+      const savedLibrary = await firstValueFrom(this.libraryService.put(newLibrary));
+      this.ideStateService.setExecutionStatus('Library saved successfully');
 
-        this.ideStateService.updateLibraryResource(libraryResource.id, {
-          library: savedLibrary,
-          originalContent: cqlContent,
-          isDirty: false
-        });
-        this.invalidateLibrarySourceCache(savedLibrary, cqlContent);
+      this.ideStateService.updateLibraryResource(libraryResource.id, {
+        library: savedLibrary,
+        originalContent: cqlContent,
+        isDirty: false
+      });
+      this.invalidateLibrarySourceCache(savedLibrary, cqlContent);
 
-        const libraryName = libraryResource.name || libraryResource.id || 'Library';
-        this.ideStateService.addTextOutput(
-          `Library Created: ${libraryName}`,
-          `Successfully created and saved library "${libraryName}" to server.\n\nLibrary ID: ${libraryResource.id}\nContent length: ${cqlContent.length} characters`,
-          'success'
-        );
+      const libraryName = libraryResource.name || libraryResource.id || 'Library';
+      this.ideStateService.addTextOutput(
+        `Library Created: ${libraryName}`,
+        `Successfully created and saved library "${libraryName}" to server.\n\nLibrary ID: ${libraryResource.id}\nContent length: ${cqlContent.length} characters`,
+        'success'
+      );
 
-        this.clearExecutionStatusAfter(2000);
-      },
-      error: (error) => {
-        console.error('Failed to create library:', error);
-        this.ideStateService.setExecutionStatus('Failed to save library');
+      this.clearExecutionStatusAfter(2000);
+    } catch (error) {
+      console.error('Failed to create library:', error);
+      this.ideStateService.setExecutionStatus('Failed to save library');
 
-        this.ideStateService.updateLibraryResource(libraryResource.id, {
-          isDirty: true
-        });
+      const libraryName = libraryResource.name || libraryResource.id || 'Library';
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.ideStateService.addTextOutput(
+        `Save Failed: ${libraryName}`,
+        `Failed to create library "${libraryName}" on server.\n\nError: ${errorMessage}`,
+        'error'
+      );
 
-        this.clearExecutionStatusAfter(3000);
-      }
-    });
+      this.ideStateService.updateLibraryResource(libraryResource.id, {
+        isDirty: true
+      });
+
+      this.clearExecutionStatusAfter(3000);
+    }
   }
 
   private formatAndAddExecutionResults(results: unknown, title: string, subjects: IdeExecutionSubject[] = []): void {
@@ -1110,47 +1100,16 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
     return JSON.stringify(payload);
   }
 
-  // Platform detection utility
-  private isMacPlatform(): boolean {
-    return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-  }
-
   // Keyboard shortcuts for the welcome message
-  getAllShortcuts(): KeyboardShortcut[] {
-    const isMac = this.isMacPlatform();
-    
-    return [
-      // Core CQL IDE shortcuts - Platform-specific
-      { key: 'F4', description: 'Save Active Editor' },
-      { key: 'F5', description: 'Execute Active Library' },
-      { 
-        key: 'F6', 
-        description: 'Execute All Open Libraries' 
-      },
-      { 
-        key: isMac ? '⌘+⌥+W' : 'Ctrl+W', 
-        description: 'Close Active Editor' 
-      },
-      {
-        key: 'Ctrl+Space',
-        description: 'Autocomplete'
-      },
-      {
-        key: isMac ? '⌘+/' : 'Ctrl+/',
-        description: 'Toggle Line Comment'
-      },
-      { key: 'F12', description: 'Go to Definition / Open Terminology' },
-      { key: 'Shift+F12', description: 'Find All References' },
-      { key: 'Hover / right-click', description: 'Find References, Peek ValueSet, Rename' }
-    ];
+  getAllShortcuts() {
+    return buildAllShortcuts(detectMacPlatform());
   }
 
   // Keyboard shortcut handler
-  @HostListener('document:keydown', ['$event'])
   handleKeyboardShortcuts(event: KeyboardEvent): void {
 
     // Prevent default behavior for our shortcuts
-    const isMac = this.isMacPlatform();
+    const isMac = detectMacPlatform();
     const isCmdKey = isMac ? event.metaKey : event.ctrlKey;
     
     // F4 - Save Active Editor

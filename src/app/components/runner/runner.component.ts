@@ -1,17 +1,22 @@
 // Author: Preston Lee
 
-import { Component, OnInit, signal, computed, AfterViewInit, ElementRef, viewChild, OnDestroy, inject, afterNextRender, Injector } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, signal, computed, AfterViewInit, ElementRef, viewChild, inject, afterNextRender, Injector, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe, TitleCasePipe, JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { RunnerService, CQLTestConfiguration, CqlTestTargetRef, JobResponse, JobStatus } from '../../services/runner.service';
-import { FileLoaderService } from '../../services/file-loader.service';
+import { RunnerService, CQLTestConfiguration, JobResponse, JobStatus, CqlTestSkipListItem, CqlTestTargetRef } from '../../services/runner.service';
 import { SettingsService } from '../../services/settings.service';
 import { ToastService } from '../../services/toast.service';
-import { interval, Subscription, firstValueFrom } from 'rxjs';
-import { switchMap, takeWhile } from 'rxjs/operators';
+import { interval, Subject, firstValueFrom } from 'rxjs';
+import { switchMap, takeUntil, takeWhile } from 'rxjs/operators';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
 import { SyntaxHighlighterComponent } from '../shared/syntax-highlighter/syntax-highlighter.component';
+import {
+  isValidConfiguration,
+  normalizeLoadedConfiguration,
+  parsePrefillOnlyListItems
+} from './runner-config.lib';
 
 // Import CodeMirror
 import { EditorView, basicSetup } from 'codemirror';
@@ -23,9 +28,10 @@ import { json } from '@codemirror/lang-json';
   imports: [DatePipe, TitleCasePipe, JsonPipe, FormsModule, SyntaxHighlighterComponent],
   templateUrl: './runner.component.html',
 
-  styleUrl: './runner.component.scss'
+  styleUrl: './runner.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
+export class RunnerComponent implements OnInit, AfterViewInit {
   // Configuration form data
   protected readonly config = signal<CQLTestConfiguration>({
     FhirServer: {
@@ -92,8 +98,9 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${hours}h ${minutes}m`;
   });
 
-  private pollingSubscription?: Subscription;
-  private timerSubscription?: Subscription;
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly stopPolling$ = new Subject<void>();
+  private readonly stopTimer$ = new Subject<void>();
   private codeMirrorEditor?: EditorView;
 
   jsonEditorContainer = viewChild<ElementRef<HTMLDivElement>>('jsonEditorContainer');
@@ -101,10 +108,19 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   private runnerService = inject(RunnerService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
-  private fileLoader = inject(FileLoaderService);
   private settingsService = inject(SettingsService);
   private toastService = inject(ToastService);
   private injector = inject(Injector);
+
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.stopPolling();
+      this.stopTimer();
+      this.destroyCodeMirror();
+      this.stopPolling$.complete();
+      this.stopTimer$.complete();
+    });
+  }
 
   ngOnInit(): void {
     const params = this.route.snapshot.queryParams;
@@ -148,14 +164,50 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private applyDefaultFhirBaseUrlPatch(): void {
-    const currentConfig = this.config();
-    this.config.set({
-      ...currentConfig,
+    this.patchConfig({
       FhirServer: {
-        ...currentConfig.FhirServer,
         BaseUrl: this.settingsService.getEffectiveRunnerFhirBaseUrl()
       }
     });
+  }
+
+  protected patchConfig(patch: {
+    FhirServer?: Partial<CQLTestConfiguration['FhirServer']>;
+    Build?: Partial<CQLTestConfiguration['Build']>;
+    Debug?: Partial<CQLTestConfiguration['Debug']>;
+    Tests?: Partial<CQLTestConfiguration['Tests']>;
+  }): void {
+    this.config.update((current) => ({
+      ...current,
+      FhirServer: patch.FhirServer ? { ...current.FhirServer, ...patch.FhirServer } : current.FhirServer,
+      Build: patch.Build ? { ...current.Build, ...patch.Build } : current.Build,
+      Debug: patch.Debug ? { ...current.Debug, ...patch.Debug } : current.Debug,
+      Tests: patch.Tests ? { ...current.Tests, ...patch.Tests } : current.Tests,
+    }));
+  }
+
+  protected patchSkipItem(index: number, patch: Partial<CqlTestSkipListItem>): void {
+    this.config.update((current) => ({
+      ...current,
+      Tests: {
+        ...current.Tests,
+        SkipList: current.Tests.SkipList.map((item, i) =>
+          i === index ? { ...item, ...patch } : item
+        ),
+      },
+    }));
+  }
+
+  protected patchOnlyListItem(index: number, patch: Partial<CqlTestTargetRef>): void {
+    this.config.update((current) => ({
+      ...current,
+      Tests: {
+        ...current.Tests,
+        OnlyList: current.Tests.OnlyList.map((item, i) =>
+          i === index ? { ...item, ...patch } : item
+        ),
+      },
+    }));
   }
 
   /**
@@ -173,7 +225,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
       if (!Array.isArray(parsed)) {
         return false;
       }
-      const onlyList = this.parsePrefillOnlyListItems(parsed);
+      const onlyList = parsePrefillOnlyListItems(parsed);
       const base = this.buildDefaultRunnerConfiguration();
       this.config.set({
         ...base,
@@ -189,38 +241,6 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private parsePrefillOnlyListItems(items: unknown[]): CqlTestTargetRef[] {
-    const seen = new Set<string>();
-    const out: CqlTestTargetRef[] = [];
-    for (const item of items) {
-      if (!item || typeof item !== 'object') {
-        continue;
-      }
-      const o = item as Record<string, unknown>;
-      const testsName = o['testsName'];
-      const groupName = o['groupName'];
-      const testName = o['testName'];
-      if (
-        typeof testsName !== 'string' ||
-        typeof groupName !== 'string' ||
-        typeof testName !== 'string'
-      ) {
-        continue;
-      }
-      const dedupeKey = `${testsName}\0${groupName}\0${testName}`;
-      if (seen.has(dedupeKey)) {
-        continue;
-      }
-      seen.add(dedupeKey);
-      out.push({
-        testsName,
-        groupName,
-        testName
-      });
-    }
-    return out;
-  }
-
   ngAfterViewInit(): void {
     // Initialize CodeMirror when view is ready
     if (this.showJsonEditor()) {
@@ -228,15 +248,16 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {
-    this.stopPolling();
-    this.stopTimer();
-    this.destroyCodeMirror();
-  }
-
   protected async createJob(): Promise<void> {
     this.error.set(null);
     this.connectionError.set(null);
+
+    // JSON editor edits live only in CodeMirror until applied.
+    if (this.showJsonEditor() && !this.applyJsonEditorToConfig()) {
+      this.isCreatingJob.set(false);
+      return;
+    }
+
     this.isCreatingJob.set(true);
     
     // Clear previous job state and results
@@ -311,10 +332,12 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isPolling.set(true);
     this.stopPolling(); // Stop any existing polling
     
-    this.pollingSubscription = interval(2000) // Poll every 2 seconds
+    interval(2000) // Poll every 2 seconds
       .pipe(
         switchMap(() => this.runnerService.getJobStatus(jobId)),
-        takeWhile((status) => status.status === 'pending' || status.status === 'running', true)
+        takeWhile((status) => status.status === 'pending' || status.status === 'running', true),
+        takeUntil(this.stopPolling$),
+        takeUntilDestroyed(this.destroyRef)
       )
       .subscribe({
         next: (status) => {
@@ -352,24 +375,23 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private stopPolling(): void {
-    if (this.pollingSubscription) {
-      this.pollingSubscription.unsubscribe();
-      this.pollingSubscription = undefined;
-    }
+    this.stopPolling$.next();
   }
 
   private startTimer(): void {
     this.stopTimer();
-    this.timerSubscription = interval(1000).subscribe(() => {
-      this.clockTick.update(n => n + 1);
-    });
+    interval(1000)
+      .pipe(
+        takeUntil(this.stopTimer$),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        this.clockTick.update(n => n + 1);
+      });
   }
 
   private stopTimer(): void {
-    if (this.timerSubscription) {
-      this.timerSubscription.unsubscribe();
-      this.timerSubscription = undefined;
-    }
+    this.stopTimer$.next();
   }
 
   protected reset(): void {
@@ -394,14 +416,19 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected toggleJsonEditor(): void {
-    this.showJsonEditor.set(!this.showJsonEditor());
     if (this.showJsonEditor()) {
-      this.updateJsonConfig();
-      // Initialize CodeMirror when switching to JSON editor
-      afterNextRender(() => this.initializeCodeMirror(), { injector: this.injector });
-    } else {
+      // Leaving JSON mode — apply editor contents before destroying CodeMirror.
+      if (!this.applyJsonEditorToConfig()) {
+        return;
+      }
       this.destroyCodeMirror();
+      this.showJsonEditor.set(false);
+      return;
     }
+
+    this.showJsonEditor.set(true);
+    this.updateJsonConfig();
+    afterNextRender(() => this.initializeCodeMirror(), { injector: this.injector });
   }
 
   protected updateJsonConfig(): void {
@@ -412,19 +439,27 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  protected loadFromJson(): void {
-    if (this.codeMirrorEditor) {
-      try {
-        const content = this.codeMirrorEditor.state.doc.toString();
-        const parsed = JSON.parse(content) as CQLTestConfiguration;
-        const normalized = this.normalizeLoadedConfiguration(parsed);
-        this.config.set(normalized);
-        this.jsonConfig.set(JSON.stringify(normalized, null, 2));
-        this.error.set(null);
-      } catch (error) {
-        this.error.set('Invalid JSON format');
-      }
+  /** Applies CodeMirror JSON into `config`. Returns false on parse/validation failure. */
+  protected applyJsonEditorToConfig(): boolean {
+    if (!this.codeMirrorEditor) {
+      return true;
     }
+    try {
+      const content = this.codeMirrorEditor.state.doc.toString();
+      const parsed = JSON.parse(content) as CQLTestConfiguration;
+      const normalized = normalizeLoadedConfiguration(parsed);
+      this.config.set(normalized);
+      this.jsonConfig.set(JSON.stringify(normalized, null, 2));
+      this.error.set(null);
+      return true;
+    } catch {
+      this.error.set('Invalid JSON format');
+      return false;
+    }
+  }
+
+  protected loadFromJson(): void {
+    this.applyJsonEditorToConfig();
   }
 
   protected async validateCurrentConfig(): Promise<void> {
@@ -548,7 +583,7 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
         const validation = await firstValueFrom(this.runnerService.validateConfiguration(configData));
         
         if (validation.valid) {
-          const normalized = this.normalizeLoadedConfiguration(configData);
+          const normalized = normalizeLoadedConfiguration(configData);
           this.config.set(normalized);
           const normalizedJson = JSON.stringify(normalized, null, 2);
           this.jsonConfig.set(normalizedJson);
@@ -773,23 +808,6 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  /**
-   * Ensures optional Tests.OnlyList and required SkipList are arrays after loading JSON.
-   */
-  private normalizeLoadedConfiguration(data: CQLTestConfiguration): CQLTestConfiguration {
-    if (!data.Tests) {
-      return data;
-    }
-    return {
-      ...data,
-      Tests: {
-        ...data.Tests,
-        SkipList: Array.isArray(data.Tests.SkipList) ? data.Tests.SkipList : [],
-        OnlyList: Array.isArray(data.Tests.OnlyList) ? data.Tests.OnlyList : []
-      }
-    };
-  }
-
   protected getStatusBadgeClass(status: string): string {
     switch (status) {
       case 'pending':
@@ -904,8 +922,8 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
       const data = await response.json();
       
       // Validate that the loaded data is a valid CQL test configuration
-      if (this.isValidConfiguration(data)) {
-        this.config.set(this.normalizeLoadedConfiguration(data as CQLTestConfiguration));
+      if (isValidConfiguration(data)) {
+        this.config.set(normalizeLoadedConfiguration(data as CQLTestConfiguration));
         this.updateJsonConfig();
         this.error.set(null);
         this.updateUrlWithPreservedParams();
@@ -914,28 +932,6 @@ export class RunnerComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     } catch (error: any) {
       this.error.set('Failed to load configuration from URL: ' + (error.message || 'Unknown error'));
-    }
-  }
-
-  private isValidConfiguration(data: any): boolean {
-    try {
-      // Check if the data has the required structure
-      return data &&
-        typeof data === 'object' &&
-        data.FhirServer &&
-        typeof data.FhirServer.BaseUrl === 'string' &&
-        typeof data.FhirServer.CqlOperation === 'string' &&
-        data.Build &&
-        typeof data.Build.CqlFileVersion === 'string' &&
-        typeof data.Build.CqlOutputPath === 'string' &&
-        data.Debug &&
-        typeof data.Debug.QuickTest === 'boolean' &&
-        data.Tests &&
-        typeof data.Tests.ResultsPath === 'string' &&
-        Array.isArray(data.Tests.SkipList) &&
-        (!('OnlyList' in data.Tests) || Array.isArray(data.Tests.OnlyList));
-    } catch (error) {
-      return false;
     }
   }
 

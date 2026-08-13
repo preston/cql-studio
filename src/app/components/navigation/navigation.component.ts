@@ -1,9 +1,10 @@
 // Author: Preston Lee
 
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
-import { filter } from 'rxjs/operators';
+import { filter, map } from 'rxjs/operators';
 import { SessionStorageKeys } from '../../constants/session-storage.constants';
 import { SettingsService } from '../../services/settings.service';
 import { EnvironmentService } from '../../services/environment.service';
@@ -16,11 +17,11 @@ import { AuthService } from '../../services/auth.service';
   imports: [RouterModule],
   templateUrl: './navigation.component.html',
 
-  styleUrl: './navigation.component.scss'
+  styleUrl: './navigation.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NavigationComponent {
   protected readonly title = signal('CQL Studio');
-  protected readonly showFileMenu = signal(false);
 
   private readonly router = inject(Router);
   protected readonly settingsService = inject(SettingsService);
@@ -28,19 +29,24 @@ export class NavigationComponent {
   private readonly environmentSwitchService = inject(EnvironmentSwitchService);
   protected readonly authService = inject(AuthService);
 
+  private readonly navUrl = toSignal(
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects.split('?')[0]),
+    ),
+    { initialValue: this.router.url.split('?')[0] }
+  );
+
+  protected readonly showFileMenu = computed(() => this.navUrl() === '/results');
+
+  /** Re-check sessionStorage when route changes (INDEX_URL is set outside this component). */
+  protected readonly hasIndexUrl = computed(() => {
+    this.navUrl();
+    return !!sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
+  });
+
   readonly activeEnvironmentName = computed(() => this.environmentService.activeEnvironment().name);
   readonly workspaceEnvironmentSections = this.environmentService.workspaceCatalogWithEnvironments;
-
-  constructor() {
-    // Listen to route changes to update the signal
-    this.router.events
-      .pipe(filter(event => event instanceof NavigationEnd))
-      .subscribe((event: NavigationEnd) => {
-        // Show file menu only on the results-viewer component (not on /results/open)
-        const baseUrl = event.url.split('?')[0]; // Remove query parameters for comparison
-        this.showFileMenu.set(baseUrl === '/results');
-      });
-  }
 
   onOpenNew(): void {
     // Clear any stored data and navigate to home
@@ -59,10 +65,10 @@ export class NavigationComponent {
         // Parse and re-stringify to ensure valid JSON formatting
         const data = JSON.parse(storedData);
         const jsonString = JSON.stringify(data, null, 2);
-        
+
         // Get the original filename or use default
         const originalFilename = sessionStorage.getItem(SessionStorageKeys.ORIGINAL_FILENAME) || 'cql-test-results.json';
-        
+
         // Create a blob and download it
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = window.URL.createObjectURL(blob);
@@ -86,10 +92,6 @@ export class NavigationComponent {
     } else {
       this.router.navigate(['/results/open']);
     }
-  }
-
-  hasIndexUrl(): boolean {
-    return !!sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
   }
 
   activateEnvironment(id: string): void {

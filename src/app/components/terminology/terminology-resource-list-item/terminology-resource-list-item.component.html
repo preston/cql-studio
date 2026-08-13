@@ -1,0 +1,59 @@
+<div
+  class="list-group-item list-group-item-action"
+  [class.active]="active()"
+  (click)="selected.emit()"
+>
+  <div class="d-flex w-100 justify-content-between align-items-start">
+    <div class="d-flex align-items-center flex-grow-1 overflow-hidden" style="min-width: 0;">
+      <h6 class="mb-1 text-truncate me-2">{{ name() || unnamedFallback() }}</h6>
+    </div>
+    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+      @if (showVersion() && (version() || showVersionFallback())) {
+        <small class="text-muted text-nowrap">{{ version() || 'N/A' }}</small>
+      }
+      @if (status() || showStatusFallback()) {
+        <span
+          class="badge text-nowrap"
+          [class.bg-success]="status() === 'active'"
+          [class.bg-warning]="status() === 'draft'"
+          [class.bg-danger]="status() === 'retired'"
+          [class.bg-secondary]="!status() || (status() !== 'active' && status() !== 'draft' && status() !== 'retired')"
+        >
+          {{ status() || 'Unknown' }}
+        </span>
+      }
+      @if (showClipboard()) {
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [attr.id]="clipboardButtonId()"
+          [title]="clipboardTitle()"
+          (click)="onClipboardClick($event)"
+        >
+          <i class="bi bi-clipboard-plus"></i>
+        </button>
+      }
+    </div>
+  </div>
+  @if (title()) {
+    <p class="mb-1 text-break">{{ title() }}</p>
+  } @else if (showTitleFallback()) {
+    <p class="mb-1 text-break">N/A</p>
+  }
+  <small class="text-muted">
+    @if (url()) {
+      <a
+        [href]="url()"
+        target="_blank"
+        rel="noopener noreferrer"
+        (click)="onUrlClick($event)"
+        class="text-decoration-none text-break d-inline-block"
+        style="max-width: 100%; word-break: break-all;"
+      >
+        {{ url() }}
+      </a>
+    } @else {
+      <i class="bi bi-link-45deg me-1"></i>N/A
+    }
+  </small>
+</div>

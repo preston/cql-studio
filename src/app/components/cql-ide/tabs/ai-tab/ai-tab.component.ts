@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
-import { Component, input, output, computed, signal, viewChild, ElementRef, OnDestroy, effect, afterNextRender, inject, Injector } from '@angular/core';
-import { Subscription } from 'rxjs';
+import {Component, ChangeDetectionStrategy, input, output, computed, signal, viewChild, ElementRef, OnDestroy, effect, afterNextRender, inject, Injector} from '@angular/core';
+import { Subscription, firstValueFrom } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MarkdownComponent } from 'ngx-markdown';
@@ -10,7 +10,7 @@ import { IdeStateService } from '../../../../services/ide-state.service';
 import { SettingsService } from '../../../../services/settings.service';
 import { ConversationManagerService, Conversation } from '../../../../services/conversation-manager.service';
 import { ToolResult } from '../../../../services/tool-orchestrator.service';
-import { ToolCallParserService, ParsedToolCall } from '../../../../services/tool-call-parser.service';
+import { ParsedToolCall } from '../../../../services/tool-call-parser.service';
 import { CodeDiffPreviewComponent, CodeDiff } from './code-diff-preview.component';
 import { AiConversationStateService } from '../../../../services/ai-conversation-state.service';
 import { AiToolExecutionManagerService } from '../../../../services/ai-tool-execution-manager.service';
@@ -33,11 +33,13 @@ export interface AttachedFileEntry {
   imports: [FormsModule, MarkdownComponent, CodeDiffPreviewComponent, PlanDisplayComponent, TimeagoPipe],
   templateUrl: './ai-tab.component.html',
 
-  styleUrls: ['./ai-tab.component.scss']
+  styleUrls: ['./ai-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AiTabComponent implements OnDestroy {
   messagesContainer = viewChild<ElementRef>('messagesContainer');
   scrollSentinel = viewChild<ElementRef>('scrollSentinel');
+  private destroyed = false;
   thinkingFullContent = viewChild<ElementRef>('thinkingFullContent');
   attachFileInput = viewChild<ElementRef<HTMLInputElement>>('attachFileInput');
   cqlContent = input<string>('');
@@ -149,7 +151,6 @@ export class AiTabComponent implements OnDestroy {
   readonly settingsService = inject(SettingsService);
   private readonly conversationManager = inject(ConversationManagerService);
   private readonly router = inject(Router);
-  private readonly toolCallParser = inject(ToolCallParserService);
   private readonly conversationState = inject(AiConversationStateService);
   private readonly toolExecutionManager = inject(AiToolExecutionManagerService);
   private readonly streamHandler = inject(AiStreamResponseHandlerService);
@@ -286,6 +287,7 @@ export class AiTabComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     if (this._currentSubscription) {
       this._currentSubscription.unsubscribe();
       this._currentSubscription = null;
@@ -433,53 +435,50 @@ export class AiTabComponent implements OnDestroy {
     this.resetContinuationTracking();
   }
 
-  public onResetMCPTools(): void {
+  public async onResetMCPTools(): Promise<void> {
     this._resettingMCPTools.set(true);
     this.ideStateService.addInfoOutput('AI MCP tools', 'Reinitializing server MCP tools...');
-    this.aiService.reinitializeServerMCPTools().subscribe({
-      next: result => {
-        this._resettingMCPTools.set(false);
-        if (result.success) {
-          this.ideStateService.addInfoOutput(
-            'AI MCP tools',
-            result.count !== undefined
-              ? `Reinitialized server MCP tools. ${result.count} tool(s) loaded from CQL Studio Server.`
-              : 'Reinitialized server MCP tools.'
-          );
-        } else {
-          this.ideStateService.addWarningOutput('AI MCP tools', result.error ?? 'Reinitialization failed.');
-        }
-      },
-      error: err => {
-        this._resettingMCPTools.set(false);
-        this.ideStateService.addErrorOutput('AI MCP tools', err?.message ?? 'Reinitialization failed.');
+    try {
+      const result = await firstValueFrom(this.aiService.reinitializeServerMCPTools());
+      if (result.success) {
+        this.ideStateService.addInfoOutput(
+          'AI MCP tools',
+          result.count !== undefined
+            ? `Reinitialized server MCP tools. ${result.count} tool(s) loaded from CQL Studio Server.`
+            : 'Reinitialized server MCP tools.'
+        );
+      } else {
+        this.ideStateService.addWarningOutput('AI MCP tools', result.error ?? 'Reinitialization failed.');
       }
-    });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Reinitialization failed.';
+      this.ideStateService.addErrorOutput('AI MCP tools', message);
+    } finally {
+      this._resettingMCPTools.set(false);
+    }
   }
 
   public onNavigateToSettings(): void {
     this.router.navigate(['/settings']);
   }
 
-  public testConnection(): void {
+  public async testConnection(): Promise<void> {
     this.connectionTest.set({ status: 'testing', error: '', models: [] });
-    this.aiService.testOllamaConnection().subscribe({
-      next: (result) => {
-        const status: 'connected' | 'error' | 'unknown' = result.connected ? 'connected' : (result.error ? 'error' : 'unknown');
-        this.connectionTest.set({
-          status,
-          error: result.error || '',
-          models: result.models || []
-        });
-      },
-      error: (error) => {
-        this.connectionTest.set({
-          status: 'error',
-          error: error.message,
-          models: []
-        });
-      }
-    });
+    try {
+      const result = await firstValueFrom(this.aiService.testOllamaConnection());
+      const status: 'connected' | 'error' | 'unknown' = result.connected ? 'connected' : (result.error ? 'error' : 'unknown');
+      this.connectionTest.set({
+        status,
+        error: result.error || '',
+        models: result.models || []
+      });
+    } catch (error: unknown) {
+      this.connectionTest.set({
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
+        models: []
+      });
+    }
   }
 
   public getContextHistory(): Conversation[] {
@@ -703,6 +702,9 @@ export class AiTabComponent implements OnDestroy {
 
     this._currentSubscription = subscription.subscribe({
       next: async (event) => {
+        if (this.destroyed) {
+          return;
+        }
         if (event.type === 'start') {
           this.clearAttachments();
           this.conversationState.startStreaming();
@@ -720,9 +722,15 @@ export class AiTabComponent implements OnDestroy {
         } else if (event.type === 'end') {
           const finalResponse = (event as { fullResponse?: string }).fullResponse ?? this.conversationState.streamingResponse();
           await this.handleMainStreamResponse(finalResponse);
+          if (this.destroyed) {
+            return;
+          }
         }
       },
       error: (err: any) => {
+        if (this.destroyed) {
+          return;
+        }
         console.error('Streaming error:', err);
         this._isLoading.set(false);
         
@@ -740,6 +748,9 @@ export class AiTabComponent implements OnDestroy {
       },
       complete: (): void => {
         this._currentSubscription = null;
+        if (!this.destroyed && (this._isLoading() || this.conversationState.isStreaming())) {
+          this.finishResponse();
+        }
       }
     });
   }
@@ -748,7 +759,7 @@ export class AiTabComponent implements OnDestroy {
     this.replaceCqlCode.emit(code);
   }
 
-  private loadSuggestedCommands(): void {
+  private async loadSuggestedCommands(): Promise<void> {
     const conv = this.activeConversation();
     if (conv && conv.uiMessages.length > 0) {
       this._suggestedCommands.set([]);
@@ -758,16 +769,14 @@ export class AiTabComponent implements OnDestroy {
     this._isLoadingSuggestions.set(true);
     this._suggestedCommands.set([]);
 
-    this.aiService.generateSuggestedCommands(this.cqlContent() ?? '').subscribe({
-      next: (commands) => {
-        this._suggestedCommands.set(commands);
-        this._isLoadingSuggestions.set(false);
-      },
-      error: (error) => {
-        this._suggestedCommands.set([]);
-        this._isLoadingSuggestions.set(false);
-      }
-    });
+    try {
+      const commands = await firstValueFrom(this.aiService.generateSuggestedCommands(this.cqlContent() ?? ''));
+      this._suggestedCommands.set(commands);
+    } catch {
+      this._suggestedCommands.set([]);
+    } finally {
+      this._isLoadingSuggestions.set(false);
+    }
   }
 
   private setupScrollSentinelObserver(): void {
@@ -891,6 +900,9 @@ export class AiTabComponent implements OnDestroy {
       .sendStreamingMessage('', editorId, this.useMCPTools(), this.cqlContent(), summary, mode)
       .subscribe({
         next: async (event) => {
+          if (this.destroyed) {
+            return;
+          }
           if (event.type === 'thinkingChunk') {
             const content = event.content || '';
             if (content.length > 0) this.conversationState.addStreamingThinkingChunk(content);
@@ -903,14 +915,23 @@ export class AiTabComponent implements OnDestroy {
                 finalResponse,
                 this.getStreamResponseContext(false)
               );
+              if (this.destroyed) {
+                return;
+              }
               this.processStreamResult(result);
             } catch (err) {
+              if (this.destroyed) {
+                return;
+              }
               console.error('[AI Tab] Error processing continuation response:', err);
               this.finishResponse();
             }
           }
         },
         error: (error: unknown) => {
+          if (this.destroyed) {
+            return;
+          }
           const err = error as { message?: string };
           const errorMessage =
             err?.message ||
@@ -925,6 +946,9 @@ export class AiTabComponent implements OnDestroy {
         },
         complete: () => {
           this._currentSubscription = null;
+          if (!this.destroyed && (this._isLoading() || this.conversationState.isStreaming())) {
+            this.finishResponse();
+          }
         }
       });
   }

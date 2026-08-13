@@ -73,75 +73,35 @@
     </div>
     <div class="list-group mb-3">
       @for (conceptmap of getFilteredAndSortedConceptMaps(); track getConceptMapTrackId(conceptmap, $index)) {
-      <div class="list-group-item list-group-item-action" (click)="selectConceptMap(conceptmap)"
-        [class.active]="selectedConceptMap()?.id === conceptmap.id && selectedConceptMap()?.url === conceptmap.url">
-        <div class="d-flex w-100 justify-content-between">
-          <h6 class="mb-1 text-truncate me-2" style="max-width: 60%;">{{ conceptmap.name || 'Unnamed ConceptMap' }}</h6>
-          <div class="d-flex align-items-center gap-1 flex-shrink-0">
-            <span class="badge text-nowrap" [class.bg-success]="conceptmap.status === 'active'"
-              [class.bg-warning]="conceptmap.status === 'draft'"
-              [class.bg-danger]="conceptmap.status === 'retired'"
-              [class.bg-secondary]="!conceptmap.status || (conceptmap.status !== 'active' && conceptmap.status !== 'draft' && conceptmap.status !== 'retired')">
-              {{ conceptmap.status || 'Unknown' }}
-            </span>
-          </div>
-        </div>
-        <p class="mb-1 text-break">{{ conceptmap.title || 'N/A' }}</p>
-        <small class="text-muted">
-          @if (conceptmap.url) {
-          <a [href]="conceptmap.url" target="_blank" rel="noopener noreferrer" 
-             (click)="$event.stopPropagation()" class="text-decoration-none text-break d-inline-block" style="max-width: 100%; word-break: break-all;">
-            {{ conceptmap.url }}
-          </a>
-          } @else {
-          <i class="bi bi-link-45deg me-1"></i>N/A
-          }
-        </small>
-      </div>
+      <app-terminology-resource-list-item
+        [name]="conceptmap.name"
+        [title]="conceptmap.title"
+        [url]="conceptmap.url"
+        [status]="conceptmap.status"
+        [active]="selectedConceptMap()?.id === conceptmap.id && selectedConceptMap()?.url === conceptmap.url"
+        unnamedFallback="Unnamed ConceptMap"
+        [showVersion]="false"
+        [showStatusFallback]="true"
+        (selected)="selectConceptMap(conceptmap)"
+      />
       }
     </div>
 
     <!-- Pagination Controls -->
-    @if (conceptmapTotalPages() > 1) {
-    <nav aria-label="ConceptMaps page navigation">
-      <ul class="pagination justify-content-center my-4">
-        <li class="page-item" [class.disabled]="!conceptmapHasPreviousPage()">
-          <button class="page-link" (click)="conceptmapGoToFirstPage()"
-            [disabled]="!conceptmapHasPreviousPage()" type="button">
-            <i class="bi bi-chevron-double-left"></i>
-          </button>
-        </li>
-        <li class="page-item" [class.disabled]="!conceptmapHasPreviousPage()">
-          <button class="page-link" (click)="conceptmapPreviousPage()" [disabled]="!conceptmapHasPreviousPage()"
-            type="button">
-            <i class="bi bi-chevron-left"></i>
-          </button>
-        </li>
-        <li class="page-item disabled">
-          <span class="page-link">
-            {{ conceptmapCurrentPage() }}/{{ conceptmapTotalPages() }}
-          </span>
-        </li>
-        <li class="page-item disabled">
-          <span class="page-link">
-            {{ conceptmapStartIndex() }}-{{ conceptmapEndIndex() }} of {{ conceptmapTotalCount() }}
-          </span>
-        </li>
-        <li class="page-item" [class.disabled]="!conceptmapHasNextPage()">
-          <button class="page-link" (click)="conceptmapNextPage()" [disabled]="!conceptmapHasNextPage()"
-            type="button">
-            <i class="bi bi-chevron-right"></i>
-          </button>
-        </li>
-        <li class="page-item" [class.disabled]="!conceptmapHasNextPage()">
-          <button class="page-link" (click)="conceptmapGoToLastPage()" [disabled]="!conceptmapHasNextPage()"
-            type="button">
-            <i class="bi bi-chevron-double-right"></i>
-          </button>
-        </li>
-      </ul>
-    </nav>
-    }
+    <app-bootstrap-pagination
+      idPrefix="conceptmaps"
+      ariaLabel="ConceptMaps page navigation"
+      [currentPage]="conceptmapCurrentPage()"
+      [totalPages]="conceptmapTotalPages()"
+      [startIndex]="conceptmapStartIndex()"
+      [endIndex]="conceptmapEndIndex()"
+      [totalCount]="conceptmapTotalCount()"
+      [hasPrevious]="conceptmapHasPreviousPage()"
+      [hasNext]="conceptmapHasNextPage()"
+      (goFirst)="conceptmapGoToFirstPage()"
+      (goPrevious)="conceptmapPreviousPage()"
+      (goNext)="conceptmapNextPage()"
+      (goLast)="conceptmapGoToLastPage()" />
     }
 
     <!-- Empty State -->

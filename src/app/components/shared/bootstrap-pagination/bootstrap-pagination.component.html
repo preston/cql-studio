@@ -1,0 +1,52 @@
+@if (totalPages() > 1) {
+<nav [attr.aria-label]="ariaLabel()">
+  <ul class="pagination justify-content-center my-4">
+    <li class="page-item" [class.disabled]="!hasPrevious()">
+      <button
+        type="button"
+        class="page-link"
+        [id]="idPrefix() + '-first'"
+        (click)="goFirst.emit()"
+        [disabled]="!hasPrevious()">
+        <i class="bi bi-chevron-double-left"></i>
+      </button>
+    </li>
+    <li class="page-item" [class.disabled]="!hasPrevious()">
+      <button
+        type="button"
+        class="page-link"
+        [id]="idPrefix() + '-prev'"
+        (click)="goPrevious.emit()"
+        [disabled]="!hasPrevious()">
+        <i class="bi bi-chevron-left"></i>
+      </button>
+    </li>
+    <li class="page-item disabled">
+      <span class="page-link">{{ currentPage() }}/{{ totalPages() }}</span>
+    </li>
+    <li class="page-item disabled">
+      <span class="page-link">{{ startIndex() }}-{{ endIndex() }} of {{ totalCount() }}</span>
+    </li>
+    <li class="page-item" [class.disabled]="!hasNext()">
+      <button
+        type="button"
+        class="page-link"
+        [id]="idPrefix() + '-next'"
+        (click)="goNext.emit()"
+        [disabled]="!hasNext()">
+        <i class="bi bi-chevron-right"></i>
+      </button>
+    </li>
+    <li class="page-item" [class.disabled]="!hasNext()">
+      <button
+        type="button"
+        class="page-link"
+        [id]="idPrefix() + '-last'"
+        (click)="goLast.emit()"
+        [disabled]="!hasNext()">
+        <i class="bi bi-chevron-double-right"></i>
+      </button>
+    </li>
+  </ul>
+</nav>
+}

@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { OutputSection } from '../../shared/ide-types';
 
@@ -9,7 +9,8 @@ import { OutputSection } from '../../shared/ide-types';
   imports: [DatePipe],
   templateUrl: './custom-output-card.component.html',
 
-  styleUrls: ['./custom-output-card.component.scss']
+  styleUrls: ['./custom-output-card.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CustomOutputCardComponent {
   section = input.required<OutputSection>();

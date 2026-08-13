@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, output, computed, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, output, computed, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import { OutlineItem } from '../../shared/ide-types';
@@ -10,18 +10,18 @@ import { OutlineItem } from '../../shared/ide-types';
   imports: [FormsModule],
   templateUrl: './outline-tab.component.html',
 
-  styleUrls: ['./outline-tab.component.scss']
+  styleUrls: ['./outline-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OutlineTabComponent {
-  public outlineSearchTerm = signal('');
-  public outlineSortBy = signal<'name' | 'type' | 'line'>('name');
-  public outlineSortOrder = signal<'asc' | 'desc'>('asc');
+  public readonly outlineSearchTerm = signal('');
+  public readonly outlineSortBy = signal<'name' | 'type' | 'line'>('name');
+  public readonly outlineSortOrder = signal<'asc' | 'desc'>('asc');
 
   navigateToLine = output<number>();
 
   protected readonly ideStateService = inject(IdeStateService);
 
-  // Computed properties for outline items
   public outlineItems = computed(() => {
     const activeLibrary = this.ideStateService.getActiveLibraryResource();
     if (!activeLibrary) return [];
@@ -59,7 +59,6 @@ export class OutlineTabComponent {
   public filteredOutlineItems = computed(() => {
     let filtered = [...this.outlineItems()];
     
-    // Apply search filter
     if (this.outlineSearchTerm().trim()) {
       const searchTerm = this.outlineSearchTerm().toLowerCase();
       filtered = filtered.filter(item => 
@@ -68,7 +67,6 @@ export class OutlineTabComponent {
       );
     }
     
-    // Apply sorting
     filtered.sort((a, b) => {
       let comparison = 0;
       
@@ -90,11 +88,8 @@ export class OutlineTabComponent {
     return filtered;
   });
 
-
-  onSortByChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    const newSortBy = target.value as 'name' | 'type' | 'line';
-    this.changeOutlineSorting(newSortBy);
+  onSortByChange(sortBy: 'name' | 'type' | 'line'): void {
+    this.changeOutlineSorting(sortBy);
   }
 
   changeOutlineSorting(sortBy: 'name' | 'type' | 'line'): void {
@@ -112,27 +107,6 @@ export class OutlineTabComponent {
 
   trackByOutlineItem(index: number, item: OutlineItem): string {
     return `${item.type}-${item.line}-${item.name}`;
-  }
-
-  // Getters and setters for template binding
-  get searchTerm(): string {
-    return this.outlineSearchTerm();
-  }
-
-  set searchTerm(value: string) {
-    this.outlineSearchTerm.set(value);
-  }
-
-  get sortBy(): 'name' | 'type' | 'line' {
-    return this.outlineSortBy();
-  }
-
-  set sortBy(value: 'name' | 'type' | 'line') {
-    this.outlineSortBy.set(value);
-  }
-
-  get sortOrder(): 'asc' | 'desc' {
-    return this.outlineSortOrder();
   }
 
   getIconForType(type: string): string {
@@ -157,17 +131,14 @@ export class OutlineTabComponent {
   private normalizeNameForSorting(name: string): string {
     let normalized = name.trim();
     
-    // Remove all double quotes and single quotes
     normalized = normalized.replace(/["']/g, '');
     
-    // Remove "function " prefix
     if (normalized.startsWith('function ')) {
-      normalized = normalized.substring(9); // "function " is 9 characters
+      normalized = normalized.substring(9);
     }
     
-    // Remove "library " prefix
     if (normalized.startsWith('library ')) {
-      normalized = normalized.substring(8); // "library " is 8 characters
+      normalized = normalized.substring(8);
     }
     
     return normalized;

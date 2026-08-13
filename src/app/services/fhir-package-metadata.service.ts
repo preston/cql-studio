@@ -119,10 +119,6 @@ export class FhirPackageMetadataService {
     }
   }
 
-  private inferResourceType(path: string, files: Map<string, Uint8Array>): string {
-    return this.readResourceSummary(path, files)?.resourceType?.trim() || 'Unknown';
-  }
-
   /**
    * Best-effort parse of a package member's identity fields. Used to fill in `id`/`url`/`version`
    * when the package's `.index.json` entry is missing them (or there is no index at all), so

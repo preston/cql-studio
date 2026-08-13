@@ -2,10 +2,12 @@
 
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, effect, inject, signal, ChangeDetectionStrategy, untracked } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MeasureReport } from 'fhir/r4';
 import { firstValueFrom } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { MeasureService } from '../../../services/measure.service';
 import { ToastService } from '../../../services/toast.service';
 import { isResourceType } from '../../../services/fhir-resource-type.lib';
@@ -16,8 +18,10 @@ import { MeasureReportViewComponent } from '../measure-report-view/measure-repor
   imports: [RouterLink, MeasureReportViewComponent, DatePipe],
   templateUrl: './measure-report-viewer.component.html',
   styleUrl: './measure-report-viewer.component.scss',
+
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MeasureReportViewerComponent implements OnInit {
+export class MeasureReportViewerComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly measureService = inject(MeasureService);
   private readonly toastService = inject(ToastService);
@@ -27,13 +31,20 @@ export class MeasureReportViewerComponent implements OnInit {
   protected readonly notFound = signal(false);
   protected readonly invalidResource = signal(false);
   protected readonly report = signal<MeasureReport | null>(null);
-  protected readonly reportId = signal('');
 
-  ngOnInit(): void {
-    this.route.paramMap.subscribe(params => {
-      const id = params.get('reportId')?.trim() ?? '';
-      this.reportId.set(id);
-      void this.loadReport(id);
+  protected readonly reportId = toSignal(
+    this.route.paramMap.pipe(map((params) => params.get('reportId')?.trim() ?? '')),
+    { initialValue: this.route.snapshot.paramMap.get('reportId')?.trim() ?? '' }
+  );
+
+  private loadGeneration = 0;
+
+  constructor() {
+    effect(() => {
+      const id = this.reportId();
+      untracked(() => {
+        void this.loadReport(id);
+      });
     });
   }
 
@@ -63,6 +74,7 @@ export class MeasureReportViewerComponent implements OnInit {
   }
 
   private async loadReport(id: string): Promise<void> {
+    const generation = ++this.loadGeneration;
     this.loading.set(true);
     this.error.set(null);
     this.notFound.set(false);
@@ -77,12 +89,18 @@ export class MeasureReportViewerComponent implements OnInit {
 
     try {
       const resource = await firstValueFrom(this.measureService.getMeasureReport(id));
+      if (generation !== this.loadGeneration) {
+        return;
+      }
       if (!isResourceType(resource, 'MeasureReport')) {
         this.invalidResource.set(true);
         return;
       }
       this.report.set(resource);
     } catch (err: unknown) {
+      if (generation !== this.loadGeneration) {
+        return;
+      }
       const msg = err instanceof Error ? err.message : String(err);
       if (err instanceof HttpErrorResponse && err.status === 404) {
         this.notFound.set(true);
@@ -93,7 +111,9 @@ export class MeasureReportViewerComponent implements OnInit {
         this.toastService.showError(msg, 'MeasureReport');
       }
     } finally {
-      this.loading.set(false);
+      if (generation === this.loadGeneration) {
+        this.loading.set(false);
+      }
     }
   }
 }

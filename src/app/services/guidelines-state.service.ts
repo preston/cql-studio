@@ -1,8 +1,6 @@
 // Author: Preston Lee
 
-import { Injectable, signal, computed, inject } from '@angular/core';
-import { LibraryService } from './library.service';
-import { SettingsService } from './settings.service';
+import { Injectable, signal, computed } from '@angular/core';
 import { Library } from 'fhir/r4';
 
 export interface BaseElement {
@@ -99,9 +97,6 @@ export interface GuidelinesArtifact {
   providedIn: 'root'
 })
 export class GuidelinesStateService {
-  private libraryService = inject(LibraryService);
-  private settingsService = inject(SettingsService);
-
   // Artifact state
   private _artifact = signal<GuidelinesArtifact | null>(null);
   private _activeLibraryId = signal<string | null>(null);
@@ -110,6 +105,8 @@ export class GuidelinesStateService {
   private _isSaving = signal<boolean>(false);
   private _error = signal<string | null>(null);
   private _library = signal<Library | null>(null);
+  /** Survives route remount so conversion Proceed does not re-show the modal. */
+  private _skipConversionLibraryId = signal<string | null>(null);
 
   // Public computed signals
   public artifact = computed(() => this._artifact());
@@ -119,6 +116,19 @@ export class GuidelinesStateService {
   public isSaving = computed(() => this._isSaving());
   public error = computed(() => this._error());
   public library = computed(() => this._library());
+  public skipConversionLibraryId = computed(() => this._skipConversionLibraryId());
+
+  markSkipConversion(libraryId: string): void {
+    this._skipConversionLibraryId.set(libraryId);
+  }
+
+  consumeSkipConversion(libraryId: string): boolean {
+    if (this._skipConversionLibraryId() !== libraryId) {
+      return false;
+    }
+    this._skipConversionLibraryId.set(null);
+    return true;
+  }
 
   // Initialize with empty artifact matching CDS Connect structure
   initializeEmptyArtifact(): void {
@@ -518,6 +528,7 @@ export class GuidelinesStateService {
     this._isSaving.set(false);
     this._error.set(null);
     this._library.set(null);
+    this._skipConversionLibraryId.set(null);
   }
 }
 

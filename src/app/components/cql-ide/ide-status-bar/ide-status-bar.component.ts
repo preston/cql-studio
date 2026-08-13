@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input } from '@angular/core';
+import {Component, ChangeDetectionStrategy, computed, input} from '@angular/core';
 import { IdeContextType } from '../../../models/ide-context.model';
 
 @Component({
@@ -8,7 +8,8 @@ import { IdeContextType } from '../../../models/ide-context.model';
   imports: [],
   templateUrl: './ide-status-bar.component.html',
 
-  styleUrls: ['./ide-status-bar.component.scss']
+  styleUrls: ['./ide-status-bar.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class IdeStatusBarComponent {
   editorState = input<any>();
@@ -21,15 +22,7 @@ export class IdeStatusBarComponent {
   contextType = input<IdeContextType>('Patient');
   isLoadingLibraries = input<boolean>(false);
 
-  get cursorPosition() {
-    return this.editorState()?.cursorPosition;
-  }
-
-  get wordCount() {
-    return this.editorState()?.wordCount;
-  }
-
-  get isValidSyntax() {
-    return this.editorState()?.isValidSyntax;
-  }
+  protected readonly cursorPosition = computed(() => this.editorState()?.cursorPosition);
+  protected readonly wordCount = computed(() => this.editorState()?.wordCount);
+  protected readonly isValidSyntax = computed(() => this.editorState()?.isValidSyntax);
 }

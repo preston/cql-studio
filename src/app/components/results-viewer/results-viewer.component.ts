@@ -1,6 +1,7 @@
 // Author: Preston Lee
 
-import { Component, OnInit, OnDestroy, signal, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, signal, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe, DecimalPipe, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -21,7 +22,7 @@ import {
   isValidSortByOption,
   isValidSortOrder
 } from '../../models/query-params.model';
-import { interval, Subscription } from 'rxjs';
+import { interval } from 'rxjs';
 import { 
   COLOR_SUCCESS, 
   COLOR_DANGER, 
@@ -40,9 +41,10 @@ import {
   imports: [DatePipe, DecimalPipe, TitleCasePipe, FormsModule, BaseChartDirective, SyntaxHighlighterComponent],
   templateUrl: './results-viewer.component.html',
 
-  styleUrl: './results-viewer.component.scss'
+  styleUrl: './results-viewer.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ResultsViewerComponent implements OnInit, OnDestroy {
+export class ResultsViewerComponent implements OnInit {
   testResults = signal<CqlTestResults | null>(null);
   filteredResults = signal<TestResult[]>([]);
   selectedStatus = signal<StatusFilter>(StatusFilter.ALL);
@@ -64,7 +66,6 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
   private originalUrl: string | null = null;
   
   // Polling for new results
-  private pollingSubscription?: Subscription;
   private lastResultsHash: string | null = null;
 
   pieChartData = signal({
@@ -227,14 +228,11 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
   private readonly fileLoader = inject(FileLoaderService);
   private readonly schemaValidation = inject(SchemaValidationService);
   private readonly settingsService = inject(SettingsService);
+  private readonly destroyRef = inject(DestroyRef);
 
   ngOnInit(): void {
     this.loadResults();
     this.startPolling();
-  }
-
-  ngOnDestroy(): void {
-    this.stopPolling();
   }
 
   private loadResults(): void {
@@ -408,10 +406,8 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
   }
 
   onSortByChange(event: Event): void {
-    console.log('onSortByChange called!');
     const target = event.target as HTMLSelectElement;
     const value = target.value;
-    console.log('Sort by value:', value);
     if (isValidSortByOption(value)) {
       this.sortBy.set(value);
     } else {
@@ -427,10 +423,8 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
   }
 
   onSortOrderChange(event: Event): void {
-    console.log('onSortOrderChange called!');
     const target = event.target as HTMLSelectElement;
     const value = target.value;
-    console.log('Sort order value:', value);
     if (isValidSortOrder(value)) {
       this.sortOrder.set(value);
     } else {
@@ -600,10 +594,6 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
     } else {
       this.router.navigate(['/results/open']);
     }
-  }
-
-  hasIndexUrl(): boolean {
-    return !!sessionStorage.getItem(SessionStorageKeys.INDEX_URL);
   }
 
   hasDetailedInfo(): boolean {
@@ -817,20 +807,11 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
    * Start polling for new results in sessionStorage
    */
   private startPolling(): void {
-    this.pollingSubscription = interval(1000) // Check every second
+    interval(1000) // Check every second
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.checkForNewResults();
       });
-  }
-
-  /**
-   * Stop polling for new results
-   */
-  private stopPolling(): void {
-    if (this.pollingSubscription) {
-      this.pollingSubscription.unsubscribe();
-      this.pollingSubscription = undefined;
-    }
   }
 
   /**
@@ -845,7 +826,6 @@ export class ResultsViewerComponent implements OnInit, OnDestroy {
         
         // If the hash has changed, reload the results
         if (this.lastResultsHash !== currentHash) {
-          console.log('New results detected, refreshing...');
           this.testResults.set(data);
           this.applyFilters();
           this.updateChartData();

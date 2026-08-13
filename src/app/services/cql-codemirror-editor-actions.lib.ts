@@ -11,7 +11,7 @@ import {
   Tooltip
 } from '@codemirror/view';
 import { Extension, StateEffect, StateField, Transaction } from '@codemirror/state';
-import { CqlDefinitionIndex, CqlReferenceMatch } from './elm-locator.lib';
+import { CqlDefinitionIndex } from './elm-locator.lib';
 import { isCqlIdentPart } from './cql-identifier.lib';
 
 export type CqlEditorActionId =
@@ -403,39 +403,11 @@ export function createEditorActionsExtension(handlers: EditorActionsHandlers): E
   ];
 }
 
-/** @deprecated Fixed context menus were removed; hover tooltips close via closeHoverTooltips. */
-export function dismissActionMenu(): void {
-  // no-op
-}
-
 export function reconfigureDefinitionIndex(
   view: EditorView,
   index: CqlDefinitionIndex | null
 ): void {
   view.dispatch({
     effects: setDefinitionIndexEffect.of(index)
-  });
-}
-
-/** @deprecated Prefer createEditorActionsExtension; kept for transitional imports. */
-export function createGoToDefinitionExtension(handlers: {
-  findReferenceAt: (line: number, column: number) => CqlReferenceMatch | null;
-  isResolvableSync: (match: CqlReferenceMatch) => boolean;
-  goToDefinitionAt: (line: number, column: number) => void | Promise<void>;
-}): Extension[] {
-  return createEditorActionsExtension({
-    findActionsAt: (line, column) => {
-      const match = handlers.findReferenceAt(line, column);
-      if (!match || !handlers.isResolvableSync(match)) {
-        return [];
-      }
-      return [
-        {
-          id: 'go-to-definition',
-          label: 'Go to Definition',
-          run: () => handlers.goToDefinitionAt(line, column)
-        }
-      ];
-    }
   });
 }

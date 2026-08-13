@@ -1,15 +1,15 @@
 // Author: Preston Lee
 
-import { Component, input, output, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, input, output, OnInit, signal, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Patient, Parameters, Bundle, Library } from 'fhir/r4';
+import { Patient, Parameters, Library } from 'fhir/r4';
 import { PatientService } from '../../../services/patient.service';
 import { LibraryService } from '../../../services/library.service';
 import { SettingsService } from '../../../services/settings.service';
 import { isResourceType } from '../../../services/fhir-resource-type.lib';
-import { forkJoin, of } from 'rxjs';
+import { firstValueFrom, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
 export interface TestResult {
@@ -25,7 +25,8 @@ export interface TestResult {
   imports: [FormsModule, DatePipe],
   templateUrl: './guideline-testing.component.html',
 
-  styleUrl: './guideline-testing.component.scss'
+  styleUrl: './guideline-testing.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GuidelineTestingComponent implements OnInit {
   library = input.required<Library>();
@@ -50,53 +51,48 @@ export class GuidelineTestingComponent implements OnInit {
   private router = inject(Router);
 
   ngOnInit(): void {
-    this.loadPatients();
+    void this.loadPatients();
   }
 
-  loadPatients(): void {
+  async loadPatients(): Promise<void> {
     this.isLoadingPatients.set(true);
-    // Load all patients from FHIR server
-    this.patientService.search('').subscribe({
-      next: (bundle: Bundle) => {
-        this.isLoadingPatients.set(false);
+    try {
+      const bundle = await firstValueFrom(this.patientService.search(''));
+      const loadedPatients = bundle.entry 
+        ? bundle.entry
+            .map(entry => entry.resource)
+            .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
+        : [];
+      this.patients.set(loadedPatients);
+      this.currentPage.set(1); // Reset to first page when loading new patients
+    } catch (error: any) {
+      this.error.set(`Failed to load patients: ${error.message || 'Unknown error'}`);
+      console.error('Error loading patients:', error);
+    } finally {
+      this.isLoadingPatients.set(false);
+    }
+  }
+
+  async onSearch(): Promise<void> {
+    if (this.searchTerm().trim()) {
+      this.isLoadingPatients.set(true);
+      try {
+        const bundle = await firstValueFrom(this.patientService.search(this.searchTerm()));
         const loadedPatients = bundle.entry 
           ? bundle.entry
               .map(entry => entry.resource)
               .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
           : [];
         this.patients.set(loadedPatients);
-        this.currentPage.set(1); // Reset to first page when loading new patients
-      },
-      error: (error: any) => {
+        this.currentPage.set(1); // Reset to first page when searching
+      } catch (error: any) {
+        this.error.set(`Failed to search patients: ${error.message || 'Unknown error'}`);
+        console.error('Error searching patients:', error);
+      } finally {
         this.isLoadingPatients.set(false);
-        this.error.set(`Failed to load patients: ${error.message || 'Unknown error'}`);
-        console.error('Error loading patients:', error);
       }
-    });
-  }
-
-  onSearch(): void {
-    if (this.searchTerm().trim()) {
-      this.isLoadingPatients.set(true);
-      this.patientService.search(this.searchTerm()).subscribe({
-        next: (bundle: Bundle) => {
-          this.isLoadingPatients.set(false);
-          const loadedPatients = bundle.entry 
-            ? bundle.entry
-                .map(entry => entry.resource)
-                .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
-            : [];
-          this.patients.set(loadedPatients);
-          this.currentPage.set(1); // Reset to first page when searching
-        },
-        error: (error: any) => {
-          this.isLoadingPatients.set(false);
-          this.error.set(`Failed to search patients: ${error.message || 'Unknown error'}`);
-          console.error('Error searching patients:', error);
-        }
-      });
     } else {
-      this.loadPatients();
+      await this.loadPatients();
     }
   }
 
@@ -117,7 +113,7 @@ export class GuidelineTestingComponent implements OnInit {
     return this.selectedPatients().some(p => p.id === patient.id);
   }
 
-  onExecute(): void {
+  async onExecute(): Promise<void> {
     const selected = this.selectedPatients();
     if (selected.length === 0) {
       this.error.set('Please select at least one patient to test');
@@ -163,38 +159,35 @@ export class GuidelineTestingComponent implements OnInit {
       );
     });
 
-    // Execute all in parallel using forkJoin
-    forkJoin(executions).subscribe({
-      next: (responses: any[]) => {
-        const results: TestResult[] = responses.map((response, index) => {
-          const patient = selected[index];
-          
-          // If response is already a TestResult (from error handling), return it
-          if (response.patientId) {
-            return response;
-          }
-          
-          // Otherwise, create result from successful response
-          const startTime = Date.now();
-          return {
-            patientId: patient.id || '',
-            patientName: this.getPatientName(patient),
-            result: response,
-            executionTime: Date.now() - startTime
-          };
-        });
+    try {
+      const responses = await firstValueFrom(forkJoin(executions));
+      const results: TestResult[] = responses.map((response, index) => {
+        const patient = selected[index];
         
-        this.testResults.set(results);
-        // Expand all accordions by default
-        const allPatientIds = new Set(results.map(r => r.patientId));
-        this.expandedAccordions.set(allPatientIds);
-        this.isExecuting.set(false);
-      },
-      error: (error: any) => {
-        this.error.set(`Execution failed: ${error.message || 'Unknown error'}`);
-        this.isExecuting.set(false);
-      }
-    });
+        // If response is already a TestResult (from error handling), return it
+        if (response && typeof response === 'object' && 'patientId' in response) {
+          return response as TestResult;
+        }
+        
+        // Otherwise, create result from successful response
+        const startTime = Date.now();
+        return {
+          patientId: patient.id || '',
+          patientName: this.getPatientName(patient),
+          result: response,
+          executionTime: Date.now() - startTime
+        };
+      });
+      
+      this.testResults.set(results);
+      // Expand all accordions by default
+      const allPatientIds = new Set(results.map(r => r.patientId));
+      this.expandedAccordions.set(allPatientIds);
+    } catch (error: any) {
+      this.error.set(`Execution failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      this.isExecuting.set(false);
+    }
   }
 
   getPatientName(patient: Patient): string {

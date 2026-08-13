@@ -1,8 +1,7 @@
 // Author: Preston Lee
 
-import { Component, computed, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal, inject, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { output } from '@angular/core';
 import { IdeStateService } from '../../../../services/ide-state.service';
 import {
   ClipboardItem,
@@ -16,62 +15,31 @@ import {
   imports: [FormsModule],
   templateUrl: 'clipboard-tab.component.html',
 
-  styleUrls: ['clipboard-tab.component.scss']
+  styleUrls: ['clipboard-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ClipboardTabComponent {
-  // Outputs
   insertCqlCode = output<string>();
 
-  // Local UI state
-  private readonly searchSignal = signal<string>('');
-  private readonly sortBySignal = signal<ClipboardSortBy>('addedAt');
-  private readonly sortOrderSignal = signal<ClipboardSortOrder>('desc');
+  readonly searchTerm = signal<string>('');
+  readonly sortBy = signal<ClipboardSortBy>('addedAt');
+  readonly sortOrder = signal<ClipboardSortOrder>('desc');
 
-  // Services
   private readonly clipboardService = inject(ClipboardService);
   private readonly ideStateService = inject(IdeStateService);
 
-  // Derived state
   readonly hasActiveLibrary = computed(() => !!this.ideStateService.activeLibraryId());
 
   readonly items = computed<ClipboardItem[]>(() =>
     this.clipboardService.query({
-      search: this.searchSignal(),
-      sortBy: this.sortBySignal(),
-      sortOrder: this.sortOrderSignal()
+      search: this.searchTerm(),
+      sortBy: this.sortBy(),
+      sortOrder: this.sortOrder()
     })
   );
 
-  // Accessors for template binding to signals
-  get searchTerm(): string {
-    return this.searchSignal();
-  }
-
-  set searchTerm(value: string) {
-    this.searchSignal.set(value);
-  }
-
-  get sortBy(): ClipboardSortBy {
-    return this.sortBySignal();
-  }
-
-  set sortBy(value: ClipboardSortBy) {
-    this.sortBySignal.set(value);
-  }
-
-  get sortOrder(): ClipboardSortOrder {
-    return this.sortOrderSignal();
-  }
-
-  // Template handlers
-  onSortByChange(event: Event): void {
-    const target = event.target as HTMLSelectElement;
-    const value = target.value as ClipboardSortBy;
-    this.sortBySignal.set(value);
-  }
-
   toggleSortOrder(): void {
-    this.sortOrderSignal.set(this.sortOrderSignal() === 'asc' ? 'desc' : 'asc');
+    this.sortOrder.set(this.sortOrder() === 'asc' ? 'desc' : 'asc');
   }
 
   onClearClipboard(): void {

@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, viewChild, ElementRef, inject, afterNextRender, Injector } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output, viewChild, ElementRef, inject, afterNextRender, Injector, signal} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IdeStateService } from '../../../../services/ide-state.service';
@@ -13,7 +13,8 @@ import { CustomOutputCardComponent } from './custom-output-card.component';
   imports: [FormsModule, DatePipe, SyntaxHighlighterComponent, CustomOutputCardComponent],
   templateUrl: './console-tab.component.html',
 
-  styleUrls: ['./console-tab.component.scss']
+  styleUrls: ['./console-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConsoleTabComponent {
   preserveLogs = input<boolean>(false);
@@ -22,7 +23,7 @@ export class ConsoleTabComponent {
   executionStatus = input<string>('');
   
   // Autoscroll control
-  public autoscrollEnabled: boolean = true;
+  public readonly autoscrollEnabled = signal(true);
   
   clearOutput = output<void>();
   copyOutput = output<void>();
@@ -30,20 +31,17 @@ export class ConsoleTabComponent {
   autoscrollChange = output<boolean>();
 
   consoleContent = viewChild<ElementRef>('consoleContent');
-  
-  get outputSections() {
-    return this.ideStateService.outputSections;
-  }
-  private shouldAutoScroll = true;
-  private mutationObserver: MutationObserver | null = null;
 
   public ideStateService = inject(IdeStateService);
+  protected readonly outputSections = this.ideStateService.outputSections;
+  private shouldAutoScroll = true;
+  private mutationObserver: MutationObserver | null = null;
   private injector = inject(Injector);
 
   constructor() {
     afterNextRender(() => {
       this.setupMutationObserver();
-      if (this.shouldAutoScroll && this.autoscrollEnabled) {
+      if (this.shouldAutoScroll && this.autoscrollEnabled()) {
         this.scrollToBottom();
       }
     }, { injector: this.injector });
@@ -56,7 +54,7 @@ export class ConsoleTabComponent {
     }
 
     this.mutationObserver = new MutationObserver(() => {
-      if (this.shouldAutoScroll && this.autoscrollEnabled) {
+      if (this.shouldAutoScroll && this.autoscrollEnabled()) {
         this.scrollToBottom();
       }
     });
@@ -139,7 +137,7 @@ export class ConsoleTabComponent {
   }
 
   onAutoscrollChange(value: boolean): void {
-    this.autoscrollEnabled = value;
+    this.autoscrollEnabled.set(value);
     this.autoscrollChange.emit(value);
     
     // If autoscroll is enabled and user is at bottom, scroll to bottom

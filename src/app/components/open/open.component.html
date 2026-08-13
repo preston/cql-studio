@@ -122,8 +122,8 @@
 						<h5>Settings</h5>
 						<div class="form-check form-switch">
 							<input class="form-check-input" type="checkbox" id="validate-schema-switch"
-								[(ngModel)]="settingsService.settings().validateSchema"
-								(ngModelChange)="onValidateSchemaChange()" [disabled]="isLoading()">
+								[ngModel]="settingsService.settings().validateSchema"
+								(ngModelChange)="onValidateSchemaChange($event)" [disabled]="isLoading()">
 							<label class="form-check-label" for="validate-schema-switch">
 								<i class="bi bi-check-circle me-1"></i>Validate against schema before loading
 							</label>

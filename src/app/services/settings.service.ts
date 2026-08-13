@@ -140,16 +140,6 @@ export class SettingsService {
     return this.environmentService.getEffectiveAddressForRole('content');
   }
 
-  /** @deprecated Use getEffectiveEvaluationServerUrl() */
-  getEffectiveFhirBaseUrl(): string {
-    return this.getEffectiveEvaluationServerUrl();
-  }
-
-  /** @deprecated Use getEffectiveTerminologyEndpointAddress() */
-  getEffectiveTerminologyBaseUrl(): string {
-    return this.getEffectiveTerminologyEndpointAddress();
-  }
-
   getEndpointHttpContext(role: EndpointRole, baseHeaders?: Record<string, string>): EndpointHttpContext {
     return this.environmentService.getEndpointHttpContext(role, baseHeaders);
   }
@@ -331,11 +321,16 @@ export class SettingsService {
   }
 
   updateSettings(updates: Partial<Settings>): void {
+    this.patchSettings(updates);
+    this.saveSettings();
+  }
+
+  /** Immutable in-memory update without persisting (Save still required). */
+  patchSettings(updates: Partial<Settings>): void {
     this.settings.update(current => ({ ...current, ...updates }));
     if (updates.environments || updates.activeEnvironmentId) {
       this.syncEnvironmentFromSettings(this.settings());
     }
-    this.saveSettings();
   }
 
   static readonly EXPORT_FILENAME = 'settings.cql-studio.json';

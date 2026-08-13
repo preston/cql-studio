@@ -1,8 +1,9 @@
 // Author: Preston Lee
 
-import { Component, OnInit, inject, signal, effect } from '@angular/core';
+import {Component, ChangeDetectionStrategy, OnInit, inject, signal, effect} from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Library, Patient, Group, Bundle } from 'fhir/r4';
+import { firstValueFrom } from 'rxjs';
+import { Library, Patient, Group } from 'fhir/r4';
 import { LibraryService } from '../../../../services/library.service';
 import { PatientService } from '../../../../services/patient.service';
 import { GroupService } from '../../../../services/group.service';
@@ -13,6 +14,7 @@ import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library
 import { isResourceType } from '../../../../services/fhir-resource-type.lib';
 import { describeFhirHttpFailure } from '../../../../services/fhir-http-error.lib';
 import { buildNewLibraryCql } from '../../../../services/new-cql-library.lib';
+import { displayNameFromFhirResource } from '../../../../services/workspace-resource-link.lib';
 import { NewLibraryModalComponent } from '../../new-library-modal/new-library-modal.component';
 
 @Component({
@@ -20,7 +22,8 @@ import { NewLibraryModalComponent } from '../../new-library-modal/new-library-mo
   imports: [FormsModule, NewLibraryModalComponent],
   templateUrl: './navigation-tab.component.html',
 
-  styleUrls: ['./navigation-tab.component.scss']
+  styleUrls: ['./navigation-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class NavigationTabComponent implements OnInit {
   private readonly libraryService = inject(LibraryService);
@@ -56,6 +59,8 @@ export class NavigationTabComponent implements OnInit {
   public Math = Math;
 
   private lastSeenLibraryListInvalidation = 0;
+  private patientSearchGeneration = 0;
+  private groupSearchGeneration = 0;
 
   constructor() {
     effect(() => {
@@ -102,47 +107,47 @@ export class NavigationTabComponent implements OnInit {
     this.ideStateService.selectLibraryResource(title);
   }
 
-  loadPaginatedLibraries(): void {
+  async loadPaginatedLibraries(): Promise<void> {
     this.isLoadingLibraries.set(true);
-    this.libraryService.getAll(
-      this.currentPage(),
-      this.pageSize(),
-      this.librarySortBy(),
-      this.librarySortOrder()
-    ).subscribe({
-      next: (bundle: Bundle) => {
-        this.isLoadingLibraries.set(false);
-        const libraries = bundle.entry
-          ? bundle.entry
-              .map(entry => entry.resource)
-              .filter((resource): resource is Library => isResourceType(resource, 'Library'))
-          : [];
-        this.paginatedLibraries.set(libraries);
-        
-        const hasNextPage = bundle.link?.some(link => link.relation === 'next');
-        
-        if (bundle.total && bundle.total > 0) {
-          this.totalLibraries.set(bundle.total);
-          this.totalPages.set(Math.ceil(bundle.total / this.pageSize()));
-        } else if (hasNextPage) {
-          this.totalLibraries.set(this.currentPage() * this.pageSize() + 1);
-          this.totalPages.set(this.currentPage() + 1);
-        } else {
-          this.totalLibraries.set((this.currentPage() - 1) * this.pageSize() + libraries.length);
-          this.totalPages.set(this.currentPage());
-        }
-      },
-      error: (error: unknown) => {
-        this.isLoadingLibraries.set(false);
-        this.ideStateService.addErrorOutput(
-          'Library List Error',
-          `Failed to load libraries from server: ${describeFhirHttpFailure(error)}`
-        );
-        this.paginatedLibraries.set([]);
-        this.totalPages.set(0);
-        this.totalLibraries.set(0);
+    try {
+      const bundle = await firstValueFrom(
+        this.libraryService.getAll(
+          this.currentPage(),
+          this.pageSize(),
+          this.librarySortBy(),
+          this.librarySortOrder()
+        )
+      );
+      this.isLoadingLibraries.set(false);
+      const libraries = bundle.entry
+        ? bundle.entry
+            .map(entry => entry.resource)
+            .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+        : [];
+      this.paginatedLibraries.set(libraries);
+
+      const hasNextPage = bundle.link?.some(link => link.relation === 'next');
+
+      if (bundle.total && bundle.total > 0) {
+        this.totalLibraries.set(bundle.total);
+        this.totalPages.set(Math.ceil(bundle.total / this.pageSize()));
+      } else if (hasNextPage) {
+        this.totalLibraries.set(this.currentPage() * this.pageSize() + 1);
+        this.totalPages.set(this.currentPage() + 1);
+      } else {
+        this.totalLibraries.set((this.currentPage() - 1) * this.pageSize() + libraries.length);
+        this.totalPages.set(this.currentPage());
       }
-    });
+    } catch (error: unknown) {
+      this.isLoadingLibraries.set(false);
+      this.ideStateService.addErrorOutput(
+        'Library List Error',
+        `Failed to load libraries from server: ${describeFhirHttpFailure(error)}`
+      );
+      this.paginatedLibraries.set([]);
+      this.totalPages.set(0);
+      this.totalLibraries.set(0);
+    }
   }
 
   loadLibraries(): void {
@@ -204,52 +209,52 @@ export class NavigationTabComponent implements OnInit {
     }
   }
 
-  loadSearchedLibraries(): void {
+  async loadSearchedLibraries(): Promise<void> {
     this.isLoadingLibraries.set(true);
-    this.libraryService.searchPaginated(
-      this.libraryListSearchTerm(),
-      this.currentPage(),
-      this.pageSize(),
-      this.librarySortBy(),
-      this.librarySortOrder()
-    ).subscribe({
-      next: (bundle: Bundle) => {
-        this.isLoadingLibraries.set(false);
-        const libraries = bundle.entry
-          ? bundle.entry
-              .map(entry => entry.resource)
-              .filter((resource): resource is Library => isResourceType(resource, 'Library'))
-          : [];
-        this.paginatedLibraries.set(libraries);
-        
-        const hasNextPage = bundle.link?.some(link => link.relation === 'next');
-        
-        if (bundle.total && bundle.total > 0) {
-          this.totalLibraries.set(bundle.total);
-          this.totalPages.set(Math.ceil(bundle.total / this.pageSize()));
-        } else if (hasNextPage) {
-          this.totalLibraries.set(this.currentPage() * this.pageSize() + 1);
-          this.totalPages.set(this.currentPage() + 1);
-        } else {
-          this.totalLibraries.set((this.currentPage() - 1) * this.pageSize() + libraries.length);
-          this.totalPages.set(this.currentPage());
-        }
-      },
-      error: (error: unknown) => {
-        this.isLoadingLibraries.set(false);
-        this.ideStateService.addErrorOutput(
-          'Library List Error',
-          `Failed to search libraries on server: ${describeFhirHttpFailure(error)}`
-        );
-        this.paginatedLibraries.set([]);
-        this.totalPages.set(0);
-        this.totalLibraries.set(0);
+    try {
+      const bundle = await firstValueFrom(
+        this.libraryService.searchPaginated(
+          this.libraryListSearchTerm(),
+          this.currentPage(),
+          this.pageSize(),
+          this.librarySortBy(),
+          this.librarySortOrder()
+        )
+      );
+      this.isLoadingLibraries.set(false);
+      const libraries = bundle.entry
+        ? bundle.entry
+            .map(entry => entry.resource)
+            .filter((resource): resource is Library => isResourceType(resource, 'Library'))
+        : [];
+      this.paginatedLibraries.set(libraries);
+
+      const hasNextPage = bundle.link?.some(link => link.relation === 'next');
+
+      if (bundle.total && bundle.total > 0) {
+        this.totalLibraries.set(bundle.total);
+        this.totalPages.set(Math.ceil(bundle.total / this.pageSize()));
+      } else if (hasNextPage) {
+        this.totalLibraries.set(this.currentPage() * this.pageSize() + 1);
+        this.totalPages.set(this.currentPage() + 1);
+      } else {
+        this.totalLibraries.set((this.currentPage() - 1) * this.pageSize() + libraries.length);
+        this.totalPages.set(this.currentPage());
       }
-    });
+    } catch (error: unknown) {
+      this.isLoadingLibraries.set(false);
+      this.ideStateService.addErrorOutput(
+        'Library List Error',
+        `Failed to search libraries on server: ${describeFhirHttpFailure(error)}`
+      );
+      this.paginatedLibraries.set([]);
+      this.totalPages.set(0);
+      this.totalLibraries.set(0);
+    }
   }
 
   getLibraryDisplayName(library: Library): string {
-    return library.name || library.id || 'Unknown';
+    return displayNameFromFhirResource(library) ?? 'Unknown';
   }
 
   getLibraryVersion(library: Library): string {
@@ -310,32 +315,37 @@ export class NavigationTabComponent implements OnInit {
     this.clearGroupSearch();
   }
 
-  onPatientSearchInput(event: Event): void {
+  async onPatientSearchInput(event: Event): Promise<void> {
     const searchTerm = (event.target as HTMLInputElement).value;
     this.patientSearchTerm.set(searchTerm);
-    
+    const generation = ++this.patientSearchGeneration;
+
     if (searchTerm.trim()) {
       this.isSearchingPatients.set(true);
-      this.patientService.search(searchTerm).subscribe({
-        next: (bundle: Bundle) => {
-          this.isSearchingPatients.set(false);
-          if (bundle.entry && bundle.entry.length > 0) {
-            this.patientSearchResults.set(
-              bundle.entry
-                .map(entry => entry.resource)
-                .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
-            );
-            this.showPatientSearchResults.set(true);
-          } else {
-            this.patientSearchResults.set([]);
-            this.showPatientSearchResults.set(true);
-          }
-        },
-        error: (error: any) => {
-          this.isSearchingPatients.set(false);
-          console.error('Error searching patients:', error);
+      try {
+        const bundle = await firstValueFrom(this.patientService.search(searchTerm));
+        if (generation !== this.patientSearchGeneration) {
+          return;
         }
-      });
+        this.isSearchingPatients.set(false);
+        if (bundle.entry && bundle.entry.length > 0) {
+          this.patientSearchResults.set(
+            bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Patient => isResourceType(resource, 'Patient'))
+          );
+          this.showPatientSearchResults.set(true);
+        } else {
+          this.patientSearchResults.set([]);
+          this.showPatientSearchResults.set(true);
+        }
+      } catch (error: any) {
+        if (generation !== this.patientSearchGeneration) {
+          return;
+        }
+        this.isSearchingPatients.set(false);
+        console.error('Error searching patients:', error);
+      }
     } else {
       this.isSearchingPatients.set(false);
       this.showPatientSearchResults.set(false);
@@ -354,6 +364,7 @@ export class NavigationTabComponent implements OnInit {
   }
 
   clearPatientSearch(): void {
+    this.patientSearchGeneration++;
     this.patientSearchTerm.set('');
     this.patientSearchResults.set([]);
     this.showPatientSearchResults.set(false);
@@ -375,32 +386,37 @@ export class NavigationTabComponent implements OnInit {
     return this.patientService.getDisplayName(patient);
   }
 
-  onGroupSearchInput(event: Event): void {
+  async onGroupSearchInput(event: Event): Promise<void> {
     const searchTerm = (event.target as HTMLInputElement).value;
     this.groupSearchTerm.set(searchTerm);
+    const generation = ++this.groupSearchGeneration;
 
     if (searchTerm.trim()) {
       this.isSearchingGroups.set(true);
-      this.groupService.search(searchTerm).subscribe({
-        next: (bundle: Bundle) => {
-          this.isSearchingGroups.set(false);
-          if (bundle.entry && bundle.entry.length > 0) {
-            this.groupSearchResults.set(
-              bundle.entry
-                .map(entry => entry.resource)
-                .filter((resource): resource is Group => isResourceType(resource, 'Group'))
-            );
-            this.showGroupSearchResults.set(true);
-          } else {
-            this.groupSearchResults.set([]);
-            this.showGroupSearchResults.set(true);
-          }
-        },
-        error: (error: unknown) => {
-          this.isSearchingGroups.set(false);
-          console.error('Error searching groups:', error);
+      try {
+        const bundle = await firstValueFrom(this.groupService.search(searchTerm));
+        if (generation !== this.groupSearchGeneration) {
+          return;
         }
-      });
+        this.isSearchingGroups.set(false);
+        if (bundle.entry && bundle.entry.length > 0) {
+          this.groupSearchResults.set(
+            bundle.entry
+              .map(entry => entry.resource)
+              .filter((resource): resource is Group => isResourceType(resource, 'Group'))
+          );
+          this.showGroupSearchResults.set(true);
+        } else {
+          this.groupSearchResults.set([]);
+          this.showGroupSearchResults.set(true);
+        }
+      } catch (error: unknown) {
+        if (generation !== this.groupSearchGeneration) {
+          return;
+        }
+        this.isSearchingGroups.set(false);
+        console.error('Error searching groups:', error);
+      }
     } else {
       this.isSearchingGroups.set(false);
       this.showGroupSearchResults.set(false);
@@ -419,6 +435,7 @@ export class NavigationTabComponent implements OnInit {
   }
 
   clearGroupSearch(): void {
+    this.groupSearchGeneration++;
     this.groupSearchTerm.set('');
     this.groupSearchResults.set([]);
     this.showGroupSearchResults.set(false);

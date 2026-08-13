@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output, signal} from '@angular/core';
 import { Library } from 'fhir/r4';
 
 @Component({
@@ -8,7 +8,8 @@ import { Library } from 'fhir/r4';
   imports: [],
   templateUrl: './conversion-modal.component.html',
 
-  styleUrl: './conversion-modal.component.scss'
+  styleUrl: './conversion-modal.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConversionModalComponent {
   library = input.required<Library>();
@@ -16,20 +17,15 @@ export class ConversionModalComponent {
   proceed = output<void>();
   cancel = output<void>();
 
-  protected isVisible = true;
-
-  constructor() {
-    this.isVisible = true;
-  }
+  protected readonly isVisible = signal(true);
 
   onProceed(): void {
     this.proceed.emit();
-    this.isVisible = false;
+    this.isVisible.set(false);
   }
 
   onCancel(): void {
     this.cancel.emit();
-    this.isVisible = false;
+    this.isVisible.set(false);
   }
 }
-

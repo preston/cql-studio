@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, signal, inject, computed, viewChild, ElementRef, afterNextRender, Injector } from '@angular/core';
+import { Component, input, signal, inject, computed, viewChild, ElementRef, afterNextRender, Injector, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { Subject } from 'rxjs';
@@ -24,7 +24,8 @@ export interface SubjectOption {
   imports: [FormsModule, MeasureReportViewComponent],
   templateUrl: './measure-run-tab.component.html',
 
-  styleUrl: './measure-run-tab.component.scss'
+  styleUrl: './measure-run-tab.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureRunTabComponent {
   subjectResultsListRef = viewChild<ElementRef<HTMLUListElement>>('subjectResultsList');
@@ -115,29 +116,10 @@ export class MeasureRunTabComponent {
     return p.id ?? '';
   }
 
-  get periodStartValue(): string {
-    return this.periodStart();
-  }
-  set periodStartValue(v: string) {
-    this.periodStart.set(v);
-  }
-  get periodEndValue(): string {
-    return this.periodEnd();
-  }
-  set periodEndValue(v: string) {
-    this.periodEnd.set(v);
-  }
-  get reportTypeValue(): string {
-    return this.reportType();
-  }
-  set reportTypeValue(v: string) {
-    this.reportType.set(v as 'subject' | 'subject-list' | 'population');
-  }
-  get subjectValue(): string {
-    return this.subject();
-  }
-  set subjectValue(v: string) {
-    this.subject.set(v);
+  protected onReportTypeChange(value: string): void {
+    if (value === 'subject' || value === 'subject-list' || value === 'population') {
+      this.reportType.set(value);
+    }
   }
 
   protected onSubjectInput(value: string): void {

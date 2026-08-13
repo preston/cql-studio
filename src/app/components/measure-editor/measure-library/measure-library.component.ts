@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, signal, computed, inject, OnInit } from '@angular/core';
+import { Component, signal, computed, inject, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -15,18 +15,13 @@ import { isResourceType } from '../../../services/fhir-resource-type.lib';
   imports: [FormsModule, RouterLink],
   templateUrl: './measure-library.component.html',
 
-  styleUrl: './measure-library.component.scss'
+  styleUrl: './measure-library.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeasureLibraryComponent implements OnInit {
-  private readonly searchTermSignal = signal('');
+  protected readonly searchTerm = signal('');
   protected readonly results = signal<Measure[]>([]);
 
-  get searchTerm(): string {
-    return this.searchTermSignal();
-  }
-  set searchTerm(value: string) {
-    this.searchTermSignal.set(value);
-  }
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly currentPage = signal(1);
@@ -73,7 +68,7 @@ export class MeasureLibraryComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     try {
-      const term = this.searchTermSignal().trim();
+      const term = this.searchTerm().trim();
       const page = this.currentPage();
       const size = this.pageSize();
       const params: { name?: string; title?: string; _count: number; _offset: number } = {

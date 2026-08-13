@@ -72,3 +72,28 @@ describe('IdeStateService output sections', () => {
     expect(service.outputSections()[0].id).toBe('existing');
   });
 });
+
+describe('IdeStateService triggerReload', () => {
+  it('keeps reload trigger set so change-detection effects can observe it', async () => {
+    const service = new IdeStateService();
+    service.triggerReload('lib-1');
+
+    expect(service.reloadTrigger()?.libraryId).toBe('lib-1');
+    expect(service.reloadTrigger()?.timestamp).toEqual(expect.any(Number));
+
+    await Promise.resolve();
+
+    expect(service.reloadTrigger()?.libraryId).toBe('lib-1');
+  });
+
+  it('emits a distinct trigger object on each triggerReload for the same library', () => {
+    const service = new IdeStateService();
+    service.triggerReload('lib-1');
+    const first = service.reloadTrigger();
+    service.triggerReload('lib-1');
+    const second = service.reloadTrigger();
+
+    expect(first).not.toBe(second);
+    expect(second?.libraryId).toBe('lib-1');
+  });
+});

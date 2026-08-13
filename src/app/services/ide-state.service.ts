@@ -590,9 +590,10 @@ export class IdeStateService {
   }
 
   triggerReload(libraryId: string): void {
+    // Timestamp makes each trigger distinct so the same library can reload repeatedly.
+    // Do not clear via queueMicrotask: effects run during change detection (not as
+    // microtasks), so a microtask clear races ahead and the editor never sees the value.
     this._reloadTrigger.set({ libraryId, timestamp: Date.now() });
-    // Clear the trigger after a brief moment to allow it to be triggered again
-    queueMicrotask(() => this._reloadTrigger.set(null));
   }
 
   reorderLibraryResources(fromIndex: number, toIndex: number): void {

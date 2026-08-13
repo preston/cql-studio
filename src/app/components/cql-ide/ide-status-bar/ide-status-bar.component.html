@@ -1,20 +1,20 @@
 <div class="bg-primary d-flex justify-content-between align-items-center px-3 py-1 text-white">
   <div class="d-flex align-items-center gap-3">
-    @if (cursorPosition) {
+    @if (cursorPosition(); as cursor) {
       <span class="d-flex align-items-center gap-1 small">
         <i class="bi bi-cursor"></i>
-        Ln {{ cursorPosition.line }}, Col {{ cursorPosition.column }}
+        Ln {{ cursor.line }}, Col {{ cursor.column }}
       </span>
     }
-    @if (wordCount) {
+    @if (wordCount()) {
       <span class="d-flex align-items-center gap-1 small">
         <i class="bi bi-type"></i>
-        {{ wordCount }} words
+        {{ wordCount() }} words
       </span>
     }
-    <span class="d-flex align-items-center gap-1 small" [class.text-success]="isValidSyntax" [class.text-danger]="!isValidSyntax">
-      <i class="bi bi-{{ isValidSyntax ? 'check' : 'exclamation-triangle' }}"></i>
-      {{ isValidSyntax ? 'Valid' : 'Invalid' }}
+    <span class="d-flex align-items-center gap-1 small" [class.text-success]="isValidSyntax()" [class.text-danger]="!isValidSyntax()">
+      <i class="bi bi-{{ isValidSyntax() ? 'check' : 'exclamation-triangle' }}"></i>
+      {{ isValidSyntax() ? 'Valid' : 'Invalid' }}
     </span>
     @if (selectedContextCount() > 0) {
       <span class="d-flex align-items-center gap-1 small text-info">

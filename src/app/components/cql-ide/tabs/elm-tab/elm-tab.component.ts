@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import { Component, input, output, effect, computed, inject } from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output, effect, computed, inject} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { SettingsService } from '../../../../services/settings.service';
 import { TranslationService } from '../../../../services/translation.service';
@@ -12,7 +12,8 @@ import { SyntaxHighlighterComponent } from '../../../shared/syntax-highlighter/s
   imports: [FormsModule, SyntaxHighlighterComponent],
   templateUrl: './elm-tab.component.html',
 
-  styleUrls: ['./elm-tab.component.scss']
+  styleUrls: ['./elm-tab.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ElmTabComponent {
   // Use signal-based inputs (preferred in Angular 21)
@@ -58,25 +59,11 @@ export class ElmTabComponent {
     });
   }
 
-  get translationErrors(): string[] {
-    return this.ideStateService.translationErrors();
-  }
-
-  get translationWarnings(): string[] {
-    return this.ideStateService.translationWarnings();
-  }
-
-  get translationMessages(): string[] {
-    return this.ideStateService.translationMessages();
-  }
-
-  get hasErrors(): boolean {
-    return this.translationErrors.length > 0;
-  }
-
-  get hasWarnings(): boolean {
-    return this.translationWarnings.length > 0;
-  }
+  readonly translationErrors = computed(() => this.ideStateService.translationErrors());
+  readonly translationWarnings = computed(() => this.ideStateService.translationWarnings());
+  readonly translationMessages = computed(() => this.ideStateService.translationMessages());
+  readonly hasErrors = computed(() => this.translationErrors().length > 0);
+  readonly hasWarnings = computed(() => this.translationWarnings().length > 0);
 
   onTranslateCqlToElm(): void {
     this.translateCqlToElm.emit();

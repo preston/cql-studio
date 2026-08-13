@@ -1,18 +1,19 @@
 // Author: Preston Lee
 
-import { Component } from '@angular/core';
+import {Component, ChangeDetectionStrategy, signal} from '@angular/core';
 
 @Component({
   selector: 'app-runner-documentation',
   imports: [],
   templateUrl: './runner-documentation.component.html',
 
-  styleUrl: './runner-documentation.component.scss'
+  styleUrl: './runner-documentation.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RunnerDocumentationComponent {
-  activeTab: string = 'overview';
+  protected readonly activeTab = signal('overview');
 
   setActiveTab(tab: string): void {
-    this.activeTab = tab;
+    this.activeTab.set(tab);
   }
 }
