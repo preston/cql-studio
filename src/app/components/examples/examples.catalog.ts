@@ -30,9 +30,10 @@ export interface ExampleCatalogEntry {
 export const EXAMPLE_PACKAGE_LIPID = '';
 export const EXAMPLE_PACKAGE_LIPID_VERSION = '';
 export const EXAMPLE_PACKAGE_LIPID_URL = ExamplePaths.LIPID_MANAGEMENT_PACKAGE;
-/** Not published to a FHIR package registry yet. */
+/** Not published to a FHIR package registry yet; shipped as a built-in `.tgz`. */
 export const EXAMPLE_PACKAGE_HOSPITAL_AT_HOME = '';
 export const EXAMPLE_PACKAGE_HOSPITAL_AT_HOME_VERSION = '';
+export const EXAMPLE_PACKAGE_HOSPITAL_AT_HOME_URL = ExamplePaths.HOSPITAL_AT_HOME_PACKAGE;
 
 export const EXAMPLE_CATALOG: readonly ExampleCatalogEntry[] = [
   {
@@ -52,10 +53,10 @@ export const EXAMPLE_CATALOG: readonly ExampleCatalogEntry[] = [
     path: 'hospital-at-home',
     badges: ['CDS', 'Gaps in Care'],
     description:
-      'CDS and gaps-in-care libraries for determining eligibility of admitted patients to transfer to an at-home care environment.',
+      'CQL demonstration of Hospital-at-Home eligibility using the Leff et al. (1997) inclusion and exclusion criteria, with encounter-level results, bundled test patients, and VSAC ValueSet definitions.',
     packageId: EXAMPLE_PACKAGE_HOSPITAL_AT_HOME,
     packageVersion: EXAMPLE_PACKAGE_HOSPITAL_AT_HOME_VERSION,
-    packageUrl: ''
+    packageUrl: EXAMPLE_PACKAGE_HOSPITAL_AT_HOME_URL
   }
 ];
 
