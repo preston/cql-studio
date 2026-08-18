@@ -60,4 +60,43 @@ describe('CqlExecutionService', () => {
 
     expect(service.http.post).toHaveBeenCalledTimes(2);
   });
+
+  it('omits expression when the expressions array is empty', () => {
+    const service = createCqlExecutionService();
+    service.executeLibrary('lib1', undefined, { expressions: [] }).subscribe();
+    const [, body] = (service.http.post as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(body.parameter.some((p: { name: string }) => p.name === 'expression')).toBe(false);
+  });
+
+  it('repeats expression parameters for custom evaluation', () => {
+    const service = createCqlExecutionService();
+    const subjects: IdeExecutionSubject[] = [
+      { reference: 'Patient/p1', id: 'p1', display: 'Pat 1' },
+      { reference: 'Patient/p2', id: 'p2', display: 'Pat 2' }
+    ];
+
+    service.executeLibrary('lib1', subjects, {
+      expressions: ['Foo', 'Encounter Eligibility Results']
+    }).subscribe();
+
+    expect(service.http.post).toHaveBeenCalledTimes(2);
+    for (const [, body] of (service.http.post as ReturnType<typeof vi.fn>).mock.calls) {
+      const expressionValues = body.parameter
+        .filter((p: { name: string }) => p.name === 'expression')
+        .map((p: { valueString: string }) => p.valueString);
+      expect(expressionValues).toEqual(['Foo', 'Encounter Eligibility Results']);
+      expect(body.parameter.some((p: { name: string }) => p.name === 'subject')).toBe(true);
+    }
+  });
+
+  it('sends expression parameters when evaluating without a subject', () => {
+    const service = createCqlExecutionService();
+    service.executeLibrary('lib1', undefined, { expressions: ['Foo'] }).subscribe();
+    const [, body] = (service.http.post as ReturnType<typeof vi.fn>).mock.calls[0];
+    const expressionValues = body.parameter
+      .filter((p: { name: string }) => p.name === 'expression')
+      .map((p: { valueString: string }) => p.valueString);
+    expect(expressionValues).toEqual(['Foo']);
+    expect(body.parameter.some((p: { name: string }) => p.name === 'subject')).toBe(false);
+  });
 });

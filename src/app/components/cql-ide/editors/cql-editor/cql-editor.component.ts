@@ -1,6 +1,6 @@
 // Author: Preston Lee
 
-import {Component, ChangeDetectionStrategy, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject, DestroyRef} from '@angular/core';
+import {Component, ChangeDetectionStrategy, input, output, viewChild, ElementRef, AfterViewInit, OnDestroy, signal, computed, effect, inject, DestroyRef, untracked} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EditorView, Decoration, DecorationSet, keymap } from '@codemirror/view';
 import { Compartment, EditorState, StateEffect, StateField } from '@codemirror/state';
@@ -22,9 +22,11 @@ import { LibraryTranslationContextBuilder } from '../../../../services/library-t
 import { CqlDefinitionIndexService, elmColumnToCodeMirror } from '../../../../services/cql-definition-index.service';
 import {
   CqlDefinitionIndex,
+  CqlExpressionDefinition,
   isReferenceResolvableSync,
   positionContains,
-  findDefinition
+  findDefinition,
+  expressionDefinitions
 } from '../../../../services/elm-locator.lib';
 import { CqlIdeLibraryOpenerService } from '../../../../services/cql-ide-library-opener.service';
 import { SettingsService } from '../../../../services/settings.service';
@@ -126,6 +128,8 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
 
   // Toolbar properties
   isExecuting: boolean = false;
+  protected readonly executionScope = signal<'all' | 'custom'>('all');
+  protected readonly selectedExpressionNames = signal<ReadonlySet<string>>(new Set());
   
   // Signal for canExecute state
   private _canExecuteSignal = signal(false);
@@ -151,6 +155,14 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private terminologyService = inject(TerminologyService);
   private libraryService = inject(LibraryService);
   private readonly destroyRef = inject(DestroyRef);
+
+  protected readonly expressions = signal<CqlExpressionDefinition[]>([]);
+  protected readonly executeButtonTitle = computed(() => {
+    if (this.executionScope() === 'custom' && this.selectedExpressionNames().size === 0) {
+      return 'Select at least one expression';
+    }
+    return this.canExecute() ? 'Execute Library' : 'Save library before executing';
+  });
 
   private definitionIndex: CqlDefinitionIndex | null = null;
   /** True after edits until the next successful ELM index rebuild. */
@@ -180,6 +192,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
     // Watch for libraryId changes
     effect(() => {
       const libraryId = this.libraryId();
+      this.expressions.set([]);
       if (libraryId && this.editor) {
         this.reinitializeEditor();
         this.updateCanExecute();
@@ -272,6 +285,26 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         void library.originalContent;
         void library.isDirty;
         this.updateCanExecute();
+      }
+    });
+
+    effect(() => {
+      const available = new Set(this.expressions().map(expression => expression.name));
+      const selected = this.selectedExpressionNames();
+      let changed = false;
+      const next = new Set<string>();
+      for (const name of selected) {
+        if (available.has(name)) {
+          next.add(name);
+        } else {
+          changed = true;
+        }
+      }
+      if (changed) {
+        untracked(() => {
+          this.selectedExpressionNames.set(next);
+          this.updateCanExecute();
+        });
       }
     });
   }
@@ -726,6 +759,9 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private updateDefinitionIndex(full: FullValidationResult): void {
     this.definitionIndex = this.definitionIndexService.buildIndex(full.raw.elmXml);
     this.definitionIndexDirty = this.definitionIndex == null;
+    if (this.definitionIndex) {
+      this.expressions.set(expressionDefinitions(this.definitionIndex));
+    }
     this.hoverTypeInfos = extractElmHoverTypeInfos(full.raw.elmXml ?? '');
     if (this.definitionIndex) {
       this.applyTerminologyIndex(
@@ -1557,15 +1593,62 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
     const normalizedCurrent = this.normalizeContent(currentContent);
     const normalizedOriginal = this.normalizeContent(library.originalContent);
     const isDirty = normalizedCurrent !== normalizedOriginal;
-    const canExecute = !isDirty;
-    
-    this._canExecuteSignal.set(canExecute);
+    if (isDirty) {
+      this._canExecuteSignal.set(false);
+      return;
+    }
+    if (this.executionScope() === 'custom' && this.selectedExpressionNames().size === 0) {
+      this._canExecuteSignal.set(false);
+      return;
+    }
+
+    this._canExecuteSignal.set(true);
   }
 
 
 
   onExecuteLibrary(): void {
     this.executeLibrary.emit();
+  }
+
+  getEvaluateExpressions(): string[] | undefined {
+    if (this.executionScope() !== 'custom') {
+      return undefined;
+    }
+    const selected = this.selectedExpressionNames();
+    return this.expressions()
+      .filter(expression => selected.has(expression.name))
+      .map(expression => expression.name);
+  }
+
+  protected setExecutionScope(scope: 'all' | 'custom'): void {
+    this.executionScope.set(scope);
+    this.updateCanExecute();
+  }
+
+  protected isExpressionSelected(name: string): boolean {
+    return this.selectedExpressionNames().has(name);
+  }
+
+  protected toggleExpression(name: string, checked: boolean): void {
+    if (this.executionScope() === 'all') {
+      return;
+    }
+    this.selectedExpressionNames.update(current => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(name);
+      } else {
+        next.delete(name);
+      }
+      return next;
+    });
+    this.updateCanExecute();
+  }
+
+  protected onExpressionCheckboxChange(name: string, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    this.toggleExpression(name, !!input?.checked);
   }
 
   onReloadLibrary(): void {

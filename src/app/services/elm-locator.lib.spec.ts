@@ -8,6 +8,7 @@ import { ElmIncludeParser } from './elm-include.lib';
 import {
   buildDefinitionIndex,
   elmColumnToCodeMirror,
+  expressionDefinitions,
   findDefinition,
   findReferenceAt,
   parseLocator,
@@ -120,5 +121,34 @@ describe('elm-locator.lib', () => {
     const index = buildDefinitionIndex(helloWorldElm, includeParser)!;
     const match = findReferenceAt(index, 20, 14);
     expect(match?.reference.span).toEqual(parseLocator('20:15-20:21'));
+  });
+
+  it('expressionDefinitions lists ExpressionDefs and skips functions and context aliases', () => {
+    const terminologyElm = readFileSync(join(fixturesDir, 'terminology-sample.elm.xml'), 'utf8');
+    expect(expressionDefinitions(buildDefinitionIndex(terminologyElm, includeParser)!)).toEqual([
+      { name: 'In VS', modifiers: [] },
+      { name: 'From LOINC', modifiers: [] }
+    ]);
+    expect(expressionDefinitions(buildDefinitionIndex(helloCommonElm, includeParser)!)).toEqual([]);
+    expect(expressionDefinitions(buildDefinitionIndex(helloWorldElm, includeParser)!)).toEqual([
+      { name: 'HelloWorld', modifiers: [] },
+      { name: 'PatientName', modifiers: [] },
+      { name: 'PatientAge', modifiers: [] },
+      { name: 'AllTheMagic', modifiers: [] }
+    ]);
+  });
+
+  it('expressionDefinitions badges private access level', () => {
+    const elm = `<?xml version="1.0" encoding="UTF-8"?>
+<library xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="urn:hl7-org:elm:r1">
+  <statements>
+    <def xsi:type="ExpressionDef" name="Visible" locator="1:1-1:20" accessLevel="Public"/>
+    <def xsi:type="ExpressionDef" name="Hidden" locator="2:1-2:20" accessLevel="Private"/>
+  </statements>
+</library>`;
+    expect(expressionDefinitions(buildDefinitionIndex(elm, includeParser)!)).toEqual([
+      { name: 'Visible', modifiers: [] },
+      { name: 'Hidden', modifiers: ['private'] }
+    ]);
   });
 });

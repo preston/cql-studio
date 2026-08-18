@@ -34,6 +34,7 @@ export interface CqlExecutionOptions {
   operation?: CqlOperationType;
   functionName?: string;
   cqlExpression?: string;
+  expressions?: string[];
   cqlContent?: string;
   elmXml?: string;
   libraryResource?: LibraryResource;
@@ -80,6 +81,7 @@ export class CqlExecutionService extends BaseService {
 
   private executeLibraryWithoutSubject(libraryId: string, options?: CqlExecutionOptions): Observable<CqlExecutionResult[]> {
     const parameters = this.createBaseParameters();
+    this.addEvaluateExpressionParameters(parameters, options?.expressions);
     return this.executeHttpRequest(
       this.getLibraryEvaluateUrl(libraryId),
       parameters,
@@ -95,6 +97,7 @@ export class CqlExecutionService extends BaseService {
       .map(subject => {
         const parameters = this.createBaseParameters();
         this.addSubjectParameter(parameters, subject.reference);
+        this.addEvaluateExpressionParameters(parameters, options?.expressions);
         return this.executeHttpRequest(
           this.getLibraryEvaluateUrl(libraryId),
           parameters,
@@ -200,6 +203,22 @@ export class CqlExecutionService extends BaseService {
       name: 'subject',
       valueString: subjectReference
     });
+  }
+
+  private addEvaluateExpressionParameters(parameters: Parameters, expressions?: string[]): void {
+    if (!expressions?.length) {
+      return;
+    }
+    for (const name of expressions) {
+      const trimmed = name.trim();
+      if (!trimmed) {
+        continue;
+      }
+      parameters.parameter!.push({
+        name: 'expression',
+        valueString: trimmed
+      });
+    }
   }
 
   private addLibraryParameter(parameters: Parameters, libraryId: string): void {

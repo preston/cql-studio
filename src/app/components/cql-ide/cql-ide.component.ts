@@ -677,6 +677,17 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const expressions = this.activeCqlEditor()?.getEvaluateExpressions();
+    if (expressions && expressions.length === 0) {
+      this.ideStateService.addTextOutput(
+        'Execute Skipped',
+        'Select at least one expression, or switch execution scope to All.',
+        'pending'
+      );
+      this.ideStateService.activateOutputTab();
+      return;
+    }
+
     this.ideStateService.setExecuting(true);
     this.ideStateService.setExecutionStatus('Translating CQL to ELM...');
 
@@ -717,7 +728,8 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
           {
             cqlContent: currentCqlContent,
             elmXml: translationResult.elmXml || undefined,
-            libraryResource: activeLibrary
+            libraryResource: activeLibrary,
+            expressions
           }
         )
       );

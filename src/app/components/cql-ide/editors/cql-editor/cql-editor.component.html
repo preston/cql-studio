@@ -27,16 +27,63 @@
         Save
       </button>
       }
-      <button class="btn btn-success btn-sm" (click)="onExecuteLibrary()" [disabled]="isExecuting || !canExecute()"
-        [title]="canExecute() ? 'Execute Library' : 'Save library before executing'">
-        @if (!isExecuting) {
-        <i class="bi bi-play me-1"></i>
-        }
-        @if (isExecuting) {
-        <i class="bi bi-arrow-clockwise me-1"></i>
-        }
-        Execute
-      </button>
+      <div class="btn-group" role="group" aria-label="Execute library">
+        <button id="cql-editor-execute-btn" type="button" class="btn btn-success btn-sm"
+          (click)="onExecuteLibrary()" [disabled]="isExecuting || !canExecute()"
+          [title]="executeButtonTitle()">
+          @if (!isExecuting) {
+          <i class="bi bi-play me-1"></i>
+          }
+          @if (isExecuting) {
+          <i class="bi bi-arrow-clockwise me-1"></i>
+          }
+          Execute
+        </button>
+        <button id="cql-editor-execute-menu-btn" type="button"
+          class="btn btn-success btn-sm dropdown-toggle dropdown-toggle-split"
+          data-bs-toggle="dropdown" data-bs-auto-close="outside"
+          data-bs-popper-config='{"strategy":"fixed"}'
+          [disabled]="isExecuting" aria-expanded="false"
+          title="Choose expressions to execute">
+          <span class="visually-hidden">Toggle expression selection</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end p-2" style="min-width: 16rem;">
+          <div id="cql-editor-execute-scope" class="btn-group btn-group-sm w-100 mb-2" role="group"
+            aria-label="Execution scope">
+            <button type="button" id="cql-editor-execute-scope-all" class="btn"
+              [class.btn-success]="executionScope() === 'all'"
+              [class.btn-outline-success]="executionScope() !== 'all'"
+              (click)="setExecutionScope('all')">
+              All
+            </button>
+            <button type="button" id="cql-editor-execute-scope-custom" class="btn"
+              [class.btn-success]="executionScope() === 'custom'"
+              [class.btn-outline-success]="executionScope() !== 'custom'"
+              (click)="setExecutionScope('custom')">
+              Custom
+            </button>
+          </div>
+          <div class="overflow-auto" style="max-height: 16rem;">
+            @if (expressions().length === 0) {
+            <div class="text-muted small px-1">No expressions found</div>
+            }
+            @for (expression of expressions(); track expression.name; let i = $index) {
+            <label class="dropdown-item d-flex align-items-center gap-2 py-1 mb-0">
+              <input type="checkbox" class="form-check-input flex-shrink-0"
+                [id]="'cql-editor-execute-expression-' + i"
+                [checked]="executionScope() === 'custom' && isExpressionSelected(expression.name)"
+                [disabled]="executionScope() === 'all'"
+                (change)="onExpressionCheckboxChange(expression.name, $event)"
+                (click)="$event.stopPropagation()">
+              <span class="text-truncate min-w-0 flex-grow-1" [title]="expression.name">{{ expression.name }}</span>
+              @for (modifier of expression.modifiers; track modifier) {
+              <span class="badge bg-secondary flex-shrink-0">{{ modifier }}</span>
+              }
+            </label>
+            }
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

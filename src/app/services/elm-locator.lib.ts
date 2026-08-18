@@ -17,6 +17,12 @@ export interface CqlDefinition {
   span: CqlSourceSpan;
   /** Canonical URL/id for valueset/codesystem defs from ELM. */
   url?: string;
+  accessLevel?: 'Public' | 'Private';
+}
+
+export interface CqlExpressionDefinition {
+  name: string;
+  modifiers: string[];
 }
 
 export type CqlReferenceKind =
@@ -110,6 +116,14 @@ export function elmColumnToCodeMirror(elmColumn: number): number {
   return Math.max(0, elmColumn - 1);
 }
 
+function parseAccessLevel(value: string | null): 'Public' | 'Private' | undefined {
+  return value === 'Public' || value === 'Private' ? value : undefined;
+}
+
+function notableExpressionModifiers(def: CqlDefinition): string[] {
+  return def.accessLevel === 'Private' ? ['private'] : [];
+}
+
 export function buildDefinitionIndex(elmXml: string, includeParser: ElmIncludeParser): CqlDefinitionIndex | null {
   if (!elmXml?.trim()) {
     return null;
@@ -129,10 +143,10 @@ export function buildDefinitionIndex(elmXml: string, includeParser: ElmIncludePa
     name: string,
     kind: CqlDefinitionKind,
     span: CqlSourceSpan,
-    url?: string
+    extras?: { url?: string; accessLevel?: 'Public' | 'Private' }
   ): void => {
     const existing = definitions.get(name) ?? [];
-    existing.push({ name, kind, span, ...(url ? { url } : {}) });
+    existing.push({ name, kind, span, ...extras });
     definitions.set(name, existing);
   };
 
@@ -148,7 +162,8 @@ export function buildDefinitionIndex(elmXml: string, includeParser: ElmIncludePa
       def.getAttributeNS('http://www.w3.org/2001/XMLSchema-instance', 'type') ??
       '';
     const kind: CqlDefinitionKind = typeAttr.includes('FunctionDef') ? 'function' : 'expression';
-    addDefinition(name, kind, span);
+    const accessLevel = parseAccessLevel(def.getAttribute('accessLevel'));
+    addDefinition(name, kind, span, accessLevel ? { accessLevel } : undefined);
   }
 
   for (const def of doc.querySelectorAll('contexts > def')) {
@@ -169,7 +184,7 @@ export function buildDefinitionIndex(elmXml: string, includeParser: ElmIncludePa
     if (!name || !span) {
       continue;
     }
-    addDefinition(name, 'valueset', span, url ?? undefined);
+    addDefinition(name, 'valueset', span, url ? { url } : undefined);
   }
 
   for (const def of doc.querySelectorAll('codeSystems > def')) {
@@ -180,7 +195,7 @@ export function buildDefinitionIndex(elmXml: string, includeParser: ElmIncludePa
     if (!name || !span) {
       continue;
     }
-    addDefinition(name, 'codesystem', span, url ?? undefined);
+    addDefinition(name, 'codesystem', span, url ? { url } : undefined);
   }
 
   for (const element of doc.querySelectorAll('[locator]')) {
@@ -331,6 +346,25 @@ export function findDefinition(
     return defs.find(d => d.kind === kind) ?? null;
   }
   return defs[0];
+}
+
+/** Expression defs from the translated ELM index, excluding functions and context aliases. */
+export function expressionDefinitions(index: CqlDefinitionIndex): CqlExpressionDefinition[] {
+  const expressions: CqlExpressionDefinition[] = [];
+  const seen = new Set<string>();
+  for (const defs of index.definitions.values()) {
+    if (defs.some(def => def.kind === 'context')) {
+      continue;
+    }
+    for (const def of defs) {
+      if (def.kind !== 'expression' || seen.has(def.name)) {
+        continue;
+      }
+      seen.add(def.name);
+      expressions.push({ name: def.name, modifiers: notableExpressionModifiers(def) });
+    }
+  }
+  return expressions;
 }
 
 export function resolveDefinitionTarget(
