@@ -157,6 +157,20 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly expressions = signal<CqlExpressionDefinition[]>([]);
+  protected readonly expressionFilter = signal('');
+  protected readonly sortedExpressions = computed(() =>
+    [...this.expressions()].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    )
+  );
+  protected readonly visibleExpressions = computed(() => {
+    const filter = this.expressionFilter().trim().toLowerCase();
+    const sorted = this.sortedExpressions();
+    if (!filter) {
+      return sorted;
+    }
+    return sorted.filter(expression => expression.name.toLowerCase().includes(filter));
+  });
   protected readonly executeButtonTitle = computed(() => {
     if (this.executionScope() === 'custom' && this.selectedExpressionNames().size === 0) {
       return 'Select at least one expression';
@@ -1616,7 +1630,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       return undefined;
     }
     const selected = this.selectedExpressionNames();
-    return this.expressions()
+    return this.sortedExpressions()
       .filter(expression => selected.has(expression.name))
       .map(expression => expression.name);
   }
@@ -1649,6 +1663,22 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   protected onExpressionCheckboxChange(name: string, event: Event): void {
     const input = event.target as HTMLInputElement | null;
     this.toggleExpression(name, !!input?.checked);
+  }
+
+  protected selectAllExpressions(): void {
+    if (this.executionScope() !== 'custom') {
+      return;
+    }
+    this.selectedExpressionNames.set(new Set(this.expressions().map(expression => expression.name)));
+    this.updateCanExecute();
+  }
+
+  protected selectNoExpressions(): void {
+    if (this.executionScope() !== 'custom') {
+      return;
+    }
+    this.selectedExpressionNames.set(new Set());
+    this.updateCanExecute();
   }
 
   onReloadLibrary(): void {
