@@ -17,7 +17,7 @@ export class ExamplePaths {
   /** Built-in FHIR NPM packages under public/examples/packages. */
   static readonly PACKAGES_BASE = '/examples/packages';
   static readonly LIPID_MANAGEMENT_PACKAGE =
-    `${ExamplePaths.PACKAGES_BASE}/com.prestonlee.fhir.lipid-management-0.2.0.tgz`;
+    `${ExamplePaths.PACKAGES_BASE}/com.prestonlee.fhir.lipid-management-0.4.0.tgz`;
   static readonly HOSPITAL_AT_HOME_PACKAGE =
     `${ExamplePaths.PACKAGES_BASE}/hah-eligibility-demo-1.1.0.tgz`;
 }
