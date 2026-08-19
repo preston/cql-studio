@@ -56,6 +56,7 @@ import {
 import { IgImportSanitizeOptions } from '../../services/fhir-package-import.service';
 import { isConformanceResourceType } from '../../services/fhir-resource-endpoint.lib';
 import { AuthService } from '../../services/auth.service';
+import { ToastService } from '../../services/toast.service';
 import { WorkspaceResourceLinkService } from '../../services/workspace-resource-link.service';
 import { isFhirPackageArchiveName } from '../../services/fhir-package-archive-path.lib';
 
@@ -94,6 +95,7 @@ export class FhirRegistryImporterComponent {
   private readonly packageImportService = inject(FhirPackageImportService);
   private readonly packageStaging = inject(FhirPackageLocalUploadStagingService);
   private readonly workspaceResourceLink = inject(WorkspaceResourceLinkService);
+  private readonly toast = inject(ToastService);
   private readonly injector = inject(Injector);
   private readonly route = inject(ActivatedRoute);
   protected readonly auth = inject(AuthService);
@@ -724,7 +726,9 @@ export class FhirRegistryImporterComponent {
     const rootName = this.rootPackageName();
     const rootPkg = rootName ? this.packagesByName().get(rootName) : undefined;
     if (!ver || !rootName || !rootPkg || rootPkg.loadStatus !== 'loaded') {
-      this.dependencyErrors.set(['Load the root package tarball first (select a version).']);
+      const msg = 'Load the root package tarball first (select a version).';
+      this.dependencyErrors.set([msg]);
+      this.toast.showWarning(msg, 'Dependencies');
       return;
     }
     this.resolveBusy.set(true);
@@ -738,8 +742,24 @@ export class FhirRegistryImporterComponent {
       this.resolvedNodes.set(result.nodesByName);
       this.importOrderNames.set(result.importOrder);
       this.mergeResolvedPackages(result.nodesByName, rootName, ver);
+      const pkgCount = result.importOrder.length;
+      if (result.errors.length > 0) {
+        this.toast.showError(
+          `Resolved ${pkgCount} package(s) with ${result.errors.length} message(s).`,
+          'Dependencies'
+        );
+      } else if (result.warnings.length > 0) {
+        this.toast.showWarning(
+          `Resolved ${pkgCount} package(s) with ${result.warnings.length} warning(s).`,
+          'Dependencies'
+        );
+      } else {
+        this.toast.showSuccess(`Resolved ${pkgCount} package(s).`, 'Dependencies');
+      }
     } catch (e) {
-      this.dependencyErrors.set([e instanceof Error ? e.message : String(e)]);
+      const msg = e instanceof Error ? e.message : String(e);
+      this.dependencyErrors.set([msg]);
+      this.toast.showError(msg, 'Dependencies');
     } finally {
       this.resolveBusy.set(false);
     }
@@ -916,12 +936,27 @@ export class FhirRegistryImporterComponent {
 
   async loadAllPackagesForImport(): Promise<void> {
     const order = this.importOrderNames();
-    for (const name of order) {
+    const includedNames = order.filter((name) => this.packagesByName().get(name)?.includePackage);
+    if (includedNames.length === 0) {
+      this.toast.showWarning('No packages are enabled for import.', 'Preload');
+      return;
+    }
+    for (const name of includedNames) {
       const st = this.packagesByName().get(name);
-      if (st?.includePackage && st.loadStatus === 'pending') {
+      if (st?.loadStatus === 'pending' || st?.loadStatus === 'error') {
         await this.ensurePackageLoaded(name);
       }
     }
+    const loaded = includedNames.filter((n) => this.packagesByName().get(n)?.loadStatus === 'loaded').length;
+    const errored = includedNames.filter((n) => this.packagesByName().get(n)?.loadStatus === 'error').length;
+    if (errored > 0 || loaded < includedNames.length) {
+      this.toast.showWarning(
+        `Preloaded ${loaded} of ${includedNames.length} package(s)${errored > 0 ? `; ${errored} failed` : ''}.`,
+        'Preload'
+      );
+      return;
+    }
+    this.toast.showSuccess(`Preloaded ${loaded} package(s).`, 'Preload');
   }
 
   private async ensurePackageLoaded(name: string): Promise<void> {
@@ -1192,7 +1227,9 @@ export class FhirRegistryImporterComponent {
   async importSelected(): Promise<void> {
     const order = this.importOrderNames();
     if (order.length === 0) {
-      this.importResultsRows.set([this.importResultRowValidation('Nothing to import.')]);
+      const msg = 'Nothing to import.';
+      this.importResultsRows.set([this.importResultRowValidation(msg)]);
+      this.toast.showWarning(msg, 'Import');
       return;
     }
 
@@ -1205,9 +1242,9 @@ export class FhirRegistryImporterComponent {
       totalSelected += st.rows.filter((r) => r.selected).length;
     }
     if (totalSelected === 0) {
-      this.importResultsRows.set([
-        this.importResultRowValidation('Select at least one resource to import.')
-      ]);
+      const msg = 'Select at least one resource to import.';
+      this.importResultsRows.set([this.importResultRowValidation(msg)]);
+      this.toast.showWarning(msg, 'Import');
       return;
     }
 
@@ -1292,6 +1329,11 @@ export class FhirRegistryImporterComponent {
         progress = `${progress} ${linkSummary}`;
       }
       this.importProgress.set(progress);
+      if (errCount > 0) {
+        this.toast.showWarning(progress, 'Import');
+      } else {
+        this.toast.showSuccess(progress, 'Import');
+      }
     } catch (e) {
       accumulated.push({
         packageName: '—',
@@ -1311,6 +1353,7 @@ export class FhirRegistryImporterComponent {
         progress = `${progress} ${linkSummary}`;
       }
       this.importProgress.set(progress);
+      this.toast.showError(progress, 'Import');
     } finally {
       this.importing.set(false);
     }
