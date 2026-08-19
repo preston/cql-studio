@@ -107,7 +107,14 @@
               <span class="badge text-bg-danger">Error</span>
               }
             </td>
-            <td class="text-break">{{ row.message }}</td>
+            <td class="text-break">
+              @for (line of messageLines(row.message); track $index; let last = $last) {
+              <span>{{ line }}</span>
+              @if (!last) {
+              <br />
+              }
+              }
+            </td>
           </tr>
           }
         </tbody>

@@ -2,12 +2,14 @@
 
 /**
  * Registry package import sends one FHIR R4 `transaction` Bundle per server channel (terminology URL,
- * data URL, or merged when both use the same base). Each entry is `PUT {type}/{id}` when the resource
- * has a logical id, otherwise `POST {type}` (see `collectionBundleToTransaction`). Purely numeric
- * logical ids are rewritten before send so HAPI-style servers accept client-assigned ids (HAPI-0960).
- * FHIR R4 processes
- * all POSTs before all PUTs in a transaction; resources that reference others in the same bundle may
- * need ids/`fullUrl` patterns per server behavior (https://www.hl7.org/fhir/R4/http.html#transaction).
+ * data URL, or merged when both use the same base) for ordinary resources. Each wrapping entry is
+ * `PUT {type}/{id}` when the resource has a logical id, otherwise `POST {type}` (see
+ * `collectionBundleToTransaction`). Selected `Bundle.type` `transaction` / `batch` files are POSTed
+ * separately to `[base]` afterward so the server executes their entries (they are not nested as
+ * stored Bundle instances). Purely numeric logical ids are rewritten before send so HAPI-style
+ * servers accept client-assigned ids (HAPI-0960). FHIR R4 processes all POSTs before all PUTs in a
+ * transaction; resources that reference others in the same bundle may need ids/`fullUrl` patterns
+ * per server behavior (https://www.hl7.org/fhir/R4/http.html#transaction).
  * SearchParameter resources that list only abstract `base` types (e.g. DomainResource) are skipped because
  * HAPI validates those codes and throws HAPI-1684 (see hl7.fhir.r4.core SearchParameter-DomainResource-text.json).
  */
@@ -19,8 +21,11 @@ import { Bundle, OperationOutcome, Resource, SearchParameter } from 'fhir/r4';
 import { FhirPackageImportItemOutcome } from '../models/fhir-package-import.types';
 import { IndexedResourceRowVm } from '../models/fhir-package-view.model';
 import { resolvePackageArchiveKey } from './fhir-package-archive-path.lib';
-import { collectionBundleToTransaction } from './fhir-bundle-transaction.lib';
-import { cloneResourcesWithHapiSafeClientIds } from './fhir-hapi-client-id.lib';
+import { collectionBundleToTransaction, collectionEntryToTransactionEntry } from './fhir-bundle-transaction.lib';
+import {
+  cloneBundleEntriesWithHapiSafeClientIds,
+  cloneResourcesWithHapiSafeClientIds
+} from './fhir-hapi-client-id.lib';
 import { resourceTypeOf } from './fhir-resource-type.lib';
 import { isResourceType } from './fhir-resource-type.lib';
 import { filterImplementationGuide } from './implementation-guide.lib';
@@ -42,15 +47,16 @@ const TERM_ORDER: Record<string, number> = {
   ConceptMap: 3
 };
 
-/** Bundle types that are envelopes or search results, not persisted as `Bundle` instances (HAPI-0522). */
+/** Envelope / response Bundles that are neither stored as instances nor executed (HAPI-0522). */
 const BUNDLE_TYPES_NOT_FOR_INSTANCE_STORAGE = new Set<string>([
   'searchset',
   'history',
-  'batch',
   'batch-response',
-  'transaction',
   'transaction-response'
 ]);
+
+/** Posted to `[base]` so the server processes entries; the wrapper is not stored. */
+const EXECUTABLE_BUNDLE_TYPES = new Set<string>(['transaction', 'batch']);
 
 /**
  * Abstract base types in FHIR R4 — not valid `resourceType` for persisted instances (HAPI-1684 / HAPI-2223).
@@ -236,6 +242,42 @@ export class FhirPackageImportService {
     return `Skipped — Bundle.type "${t}" is not stored as a server resource (not sent to the server).`;
   }
 
+  private isExecutableImportedBundle(resource: Resource): boolean {
+    if (resourceTypeOf(resource) !== 'Bundle') {
+      return false;
+    }
+    const t = (resource as Bundle).type;
+    return typeof t === 'string' && EXECUTABLE_BUNDLE_TYPES.has(t);
+  }
+
+  private resourceFilename(resource: Resource): string {
+    return (resource as { __filename?: string }).__filename?.trim() ?? '';
+  }
+
+  private dedupeResourcesByFilename(resources: Resource[]): Resource[] {
+    const seen = new Set<string>();
+    const out: Resource[] = [];
+    for (const resource of resources) {
+      const fn = this.resourceFilename(resource);
+      const key = fn || `__anon_${out.length}`;
+      if (fn && seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      out.push(resource);
+    }
+    return out;
+  }
+
+  private prepareExecutableBundle(bundle: Bundle): Bundle {
+    const clonedEntries = cloneBundleEntriesWithHapiSafeClientIds(bundle.entry ?? []);
+    const entry = clonedEntries.map((e) => collectionEntryToTransactionEntry(e));
+    const type = bundle.type === 'batch' ? 'batch' : 'transaction';
+    const rest = { ...bundle } as Bundle & { __filename?: string };
+    delete rest.__filename;
+    return { ...rest, type, entry };
+  }
+
   /**
    * SearchParameter.base may list abstract types (Resource, DomainResource). HAPI resolves each code via
    * FhirContext.getResourceDefinition and fails with HAPI-1684 for abstract names even when the root
@@ -261,7 +303,8 @@ export class FhirPackageImportService {
   }
 
   /**
-   * One atomic transaction per channel; HTTP errors apply to every row.
+   * Wrapping transaction for instance resources, then each executable Bundle POSTed to `[base]`.
+   * Wrapping HTTP errors apply to every instance row; executable Bundles are posted independently.
    */
   private async postRegistryTransactionForChannel(
     resources: Resource[],
@@ -274,8 +317,9 @@ export class FhirPackageImportService {
       return;
     }
 
-    const allowed: Resource[] = [];
-    for (const resource of resources) {
+    const instanceResources: Resource[] = [];
+    const executableBundles: Bundle[] = [];
+    for (const resource of this.dedupeResourcesByFilename(resources)) {
       const abstractSkip = this.nonStorableAbstractResourceTypeMessage(resource);
       if (abstractSkip) {
         const fields = this.resourceImportFields(resource);
@@ -309,19 +353,35 @@ export class FhirPackageImportService {
         });
         continue;
       }
-      allowed.push(resource);
-    }
-    if (allowed.length === 0) {
-      return;
+      if (this.isExecutableImportedBundle(resource)) {
+        executableBundles.push(resource as Bundle);
+        continue;
+      }
+      instanceResources.push(resource);
     }
 
-    const bundle = this.buildRegistryTransactionBundle(allowed);
-    onProgress(`${channelLabel}: posting ${allowed.length} resources in one transaction`);
+    if (instanceResources.length > 0) {
+      await this.postWrappingTransaction(instanceResources, post, channelLabel, outcomes, onProgress);
+    }
+    for (const bundle of executableBundles) {
+      await this.postExecutableBundle(bundle, post, channelLabel, outcomes, onProgress);
+    }
+  }
+
+  private async postWrappingTransaction(
+    instanceResources: Resource[],
+    post: (b: Bundle) => Observable<Bundle>,
+    channelLabel: string,
+    outcomes: FhirPackageImportItemOutcome[],
+    onProgress: (message: string) => void
+  ): Promise<void> {
+    const bundle = this.buildRegistryTransactionBundle(instanceResources);
+    onProgress(`${channelLabel}: posting ${instanceResources.length} resources in one transaction`);
     try {
       const response = await firstValueFrom(post(bundle));
       const responseEntries = response.entry ?? [];
-      for (let i = 0; i < allowed.length; i++) {
-        const resource = allowed[i];
+      for (let i = 0; i < instanceResources.length; i++) {
+        const resource = instanceResources[i];
         const fields = this.resourceImportFields(resource);
         const ent = responseEntries[i];
         if (ent == null) {
@@ -353,7 +413,7 @@ export class FhirPackageImportService {
       }
     } catch (e) {
       const msg = this.describeFailure(e);
-      for (const resource of allowed) {
+      for (const resource of instanceResources) {
         const fields = this.resourceImportFields(resource);
         outcomes.push({
           channel: channelLabel,
@@ -363,6 +423,62 @@ export class FhirPackageImportService {
         });
       }
     }
+  }
+
+  private async postExecutableBundle(
+    source: Bundle,
+    post: (b: Bundle) => Observable<Bundle>,
+    channelLabel: string,
+    outcomes: FhirPackageImportItemOutcome[],
+    onProgress: (message: string) => void
+  ): Promise<void> {
+    const fields = this.resourceImportFields(source);
+    const entries = source.entry ?? [];
+    if (entries.length === 0) {
+      outcomes.push({
+        channel: channelLabel,
+        ...fields,
+        ok: true,
+        message: `Skipped — Bundle.type "${source.type ?? ''}" has no entries (not sent to the server).`
+      });
+      return;
+    }
+
+    const payload = this.prepareExecutableBundle(source);
+    const kind = payload.type === 'batch' ? 'batch' : 'transaction';
+    onProgress(`${channelLabel}: posting ${kind} Bundle (${entries.length} entries)`);
+    try {
+      const response = await firstValueFrom(post(payload));
+      outcomes.push({
+        channel: channelLabel,
+        ...fields,
+        ...this.executableBundleOutcome(kind, entries.length, response)
+      });
+    } catch (e) {
+      outcomes.push({
+        channel: channelLabel,
+        ...fields,
+        ok: false,
+        message: this.describeFailure(e)
+      });
+    }
+  }
+
+  private executableBundleOutcome(
+    kind: 'transaction' | 'batch',
+    entryCount: number,
+    response: Bundle
+  ): { ok: boolean; message: string } {
+    const responseEntries = response.entry ?? [];
+    const statuses = responseEntries.map((ent) => this.bundleEntryStatusString(ent.response?.status));
+    const failed = statuses.filter((s) => s !== '' && !/^2/.test(s));
+    const lines = statuses.filter((s) => s !== '');
+    const prefix = `Posted ${kind} (${entryCount} entries)`;
+    const message = lines.length > 0 ? `${prefix}:\n${lines.join('\n')}` : `${prefix}: OK`;
+    return {
+      ok: failed.length === 0,
+      message
+    };
   }
 
   private resourceImportFields(resource: Resource): {

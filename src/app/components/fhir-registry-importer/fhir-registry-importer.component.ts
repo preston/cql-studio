@@ -164,7 +164,7 @@ export class FhirRegistryImporterComponent {
   }
 
   protected readonly quickFilter = signal<QuickFilter>('all');
-  protected readonly includeExamples = signal(false);
+  protected readonly includeExamples = signal(true);
 
   protected readonly importing = signal(false);
   protected readonly importProgress = signal<string | null>(null);
@@ -1074,6 +1074,13 @@ export class FhirRegistryImporterComponent {
   selectAllVisible(selected: boolean): void {
     const keys = new Set(this.filteredRows().map((r) => r.rowKey));
     this.updateActiveRows((rows) => rows.map((r) => (keys.has(r.rowKey) ? { ...r, selected } : r)));
+  }
+
+  setExampleRowsSelected(selected: boolean): void {
+    if (selected) {
+      this.includeExamples.set(true);
+    }
+    this.updateActiveRows((rows) => rows.map((r) => (r.isExample ? { ...r, selected } : r)));
   }
 
   setVisibleTargets(target: 'terminology' | 'data', checked: boolean): void {

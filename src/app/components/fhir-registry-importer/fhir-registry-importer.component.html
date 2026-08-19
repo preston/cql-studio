@@ -340,21 +340,34 @@ Select None              </button>
               }
             </div>
 
-            <div class="btn-group btn-group-sm mb-2" role="group" aria-label="Show or hide example files">
-              <button id="fhir-registry-importer-examples-hide" type="button" class="btn"
-                [class.btn-primary]="!includeExamples()" [class.btn-outline-primary]="includeExamples()"
-                (click)="toggleIncludeExamples(false)">
-                Hide examples
-              </button>
-              <button id="fhir-registry-importer-examples-show" type="button" class="btn"
-                [class.btn-primary]="includeExamples()" [class.btn-outline-primary]="!includeExamples()"
-                (click)="toggleIncludeExamples(true)">
-                Show examples
-              </button>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              <div class="btn-group btn-group-sm" role="group" aria-label="Show or hide example files">
+                <button id="fhir-registry-importer-examples-show" type="button" class="btn"
+                  [class.btn-primary]="includeExamples()" [class.btn-outline-primary]="!includeExamples()"
+                  (click)="toggleIncludeExamples(true)">
+                  Show examples
+                </button>
+                <button id="fhir-registry-importer-examples-hide" type="button" class="btn"
+                  [class.btn-primary]="!includeExamples()" [class.btn-outline-primary]="includeExamples()"
+                  (click)="toggleIncludeExamples(false)">
+                  Hide examples
+                </button>
+              </div>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Select or unselect example files">
+                <button id="fhir-registry-importer-examples-select" type="button"
+                  class="btn btn-outline-secondary" (click)="setExampleRowsSelected(true)">
+                  Select examples
+                </button>
+                <button id="fhir-registry-importer-examples-unselect" type="button"
+                  class="btn btn-outline-secondary" (click)="setExampleRowsSelected(false)">
+                  Unselect examples
+                </button>
+              </div>
             </div>
             <p class="small text-muted mb-3" id="fhir-registry-importer-example-toolbar-hint">
               <strong>{{ activePackageExampleRows().length }}</strong> file(s) under declared example
-              directories. Use <em>Hide</em> to remove them from the table; use <em>Show</em> to list and select them.
+              directories. Examples are shown and selected by default. Use <em>Hide</em> to remove them from the table;
+              use <em>Select examples</em> / <em>Unselect examples</em> to change import selection.
             </p>
 
             <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Quick filters">
@@ -381,22 +394,26 @@ Select None              </button>
             </div>
 
             <div class="d-flex flex-wrap gap-2 mb-3">
-              <button id="fhir-registry-importer-visible-target-term-on" type="button" class="btn btn-outline-secondary btn-sm"
-                (click)="setVisibleTargets('terminology', true)">
-                Enable terminology target (visible)
-              </button>
-              <button id="fhir-registry-importer-visible-target-term-off" type="button" class="btn btn-outline-secondary btn-sm"
-                (click)="setVisibleTargets('terminology', false)">
-                Disable terminology target (visible)
-              </button>
-              <button id="fhir-registry-importer-visible-target-data-on" type="button" class="btn btn-outline-secondary btn-sm"
-                (click)="setVisibleTargets('data', true)">
-                Enable FHIR data target (visible)
-              </button>
-              <button id="fhir-registry-importer-visible-target-data-off" type="button" class="btn btn-outline-secondary btn-sm"
-                (click)="setVisibleTargets('data', false)">
-                Disable FHIR data target (visible)
-              </button>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Select or unselect terminology target">
+                <button id="fhir-registry-importer-visible-target-term-on" type="button" class="btn btn-outline-secondary"
+                  (click)="setVisibleTargets('terminology', true)">
+                  Select terminology target
+                </button>
+                <button id="fhir-registry-importer-visible-target-term-off" type="button" class="btn btn-outline-secondary"
+                  (click)="setVisibleTargets('terminology', false)">
+                  Unselect terminology target
+                </button>
+              </div>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Select or unselect FHIR data target">
+                <button id="fhir-registry-importer-visible-target-data-on" type="button" class="btn btn-outline-secondary"
+                  (click)="setVisibleTargets('data', true)">
+                  Select FHIR data target
+                </button>
+                <button id="fhir-registry-importer-visible-target-data-off" type="button" class="btn btn-outline-secondary"
+                  (click)="setVisibleTargets('data', false)">
+                  Unselect FHIR data target
+                </button>
+              </div>
             </div>
 
             <p id="fhir-registry-importer-selection-summary" class="small text-muted">
@@ -426,7 +443,7 @@ Select None              </button>
                 </thead>
                 <tbody>
                   @for (row of filteredRows(); track row.rowKey) {
-                  <tr [class.table-secondary]="row.isExample">
+                  <tr>
                     <td>
                       <input type="checkbox" class="form-check-input" [checked]="row.selected" (change)="toggleRow(row)"
                         [attr.aria-label]="'Select ' + row.filename" />

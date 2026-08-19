@@ -199,8 +199,8 @@ export class FhirPackageMetadataService {
   }
 
   /**
-   * Default-off for examples, CapabilityStatement, ImplementationGuide, unknown/inferred-missing types, and
-   * searchset Bundles (not persistable; often referenced by IGs).
+   * Example instances are selected. Default-off for CapabilityStatement, ImplementationGuide,
+   * unknown/inferred-missing types, and searchset Bundles (not persistable; often referenced by IGs).
    */
   private rowSelectedByDefault(
     isExample: boolean,
@@ -209,8 +209,10 @@ export class FhirPackageMetadataService {
     bundleType: string | undefined,
     searchParameterAbstractBase: boolean
   ): boolean {
+    if (isExample) {
+      return true;
+    }
     return !(
-      isExample ||
       inferredFromFile === 'Unknown' ||
       resourceType === 'Unknown' ||
       resourceType === 'CapabilityStatement' ||
@@ -268,6 +270,9 @@ export class FhirPackageMetadataService {
   ): string {
     if (resourceType === 'Bundle' && bundleType === 'searchset') {
       return 'FHIR search result bundle (searchset); not a storable instance on most servers (HAPI-0522). US Core lists these under the IG; skip import.';
+    }
+    if (resourceType === 'Bundle' && (bundleType === 'transaction' || bundleType === 'batch')) {
+      return `FHIR ${bundleType} Bundle; posted to the server root so entries are processed. The Bundle wrapper is not stored.`;
     }
     if (isExample) {
       return 'Example instance (paths under package.json directories.example / directories.examples); optional for testing.';

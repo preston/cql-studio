@@ -58,6 +58,10 @@ export class RegistryImporterImportResultsPanelComponent {
     return this.sortAsc() ? ' ▲' : ' ▼';
   }
 
+  protected messageLines(message: string): string[] {
+    return message.split(/\r?\n/);
+  }
+
   protected trackRow(_index: number, row: RegistryImportResultRow): string {
     return `${row.packageName}\u0000${row.channel}\u0000${row.resourceType}\u0000${row.resourceId}\u0000${row.filename}\u0000${row.ok}\u0000${row.message}`;
   }
