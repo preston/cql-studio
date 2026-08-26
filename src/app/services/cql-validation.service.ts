@@ -148,24 +148,44 @@ export class CqlValidationService {
       // Calculate CodeMirror positions if we have line/column and document
       if (lineNumber != null && doc) {
         try {
-          // Get line info using 1-based line number (CodeMirror uses 1-based)
+          // CodeMirror line numbers are 1-based; offsets within a line are 0-based.
           const startLine = doc.line(lineNumber);
-          
-          // Calculate position: line start + column offset
-          // Column numbers from TrackBack appear to be 0-based (matches CodeMirror)
-          // If columnNumber is null, default to 0 (start of line)
-          const columnOffset = columnNumber != null 
-            ? Math.max(0, Math.min(columnNumber, startLine.length ?? startLine.to - startLine.from))
+
+          // Locator columns are normalized to 1-based; convert to 0-based for CodeMirror.
+          // If columnNumber is null, default to 0 (start of line).
+          const lineLength = startLine.length ?? startLine.to - startLine.from;
+          let columnOffset = columnNumber != null
+            ? Math.max(0, Math.min(columnNumber - 1, lineLength))
             : 0;
+          // EOF syntax errors can report a 1-based column past the line end; highlight the last character.
+          if (columnNumber != null && columnNumber - 1 >= lineLength && lineLength > 0) {
+            columnOffset = lineLength - 1;
+          }
           from = startLine.from + columnOffset;
-          
-          // Since we don't have endLine/endChar, highlight to end of line
-          // This provides better visibility than highlighting just one character
-          to = startLine.to;
-          
-          // Ensure to is at least from (should always be true, but safety check)
-          if (to < from) {
-            to = from + 1;
+
+          const endLineNumber = locatorInfo.endLine ?? lineNumber;
+          const endColumnNumber = locatorInfo.endColumn;
+          if (endColumnNumber != null) {
+            const endLine = endLineNumber === lineNumber ? startLine : doc.line(endLineNumber);
+            const endLength = endLine.length ?? endLine.to - endLine.from;
+            // endColumn is 1-based inclusive; CodeMirror `to` is exclusive.
+            let endOffset = Math.max(0, Math.min(endColumnNumber, endLength));
+            if (endColumnNumber - 1 >= endLength && endLength > 0) {
+              endOffset = endLength;
+            }
+            to = endLine.from + endOffset;
+          } else {
+            // Fall back to end of the start line when end position is unavailable.
+            to = startLine.to;
+          }
+
+          // Ensure to is at least from + 1 so the diagnostic is visible.
+          if (to <= from) {
+            to = Math.min(from + 1, startLine.to);
+            if (to <= from && lineLength > 0) {
+              from = Math.max(startLine.from, startLine.to - 1);
+              to = startLine.to;
+            }
           }
         } catch (e) {
           // If line doesn't exist (e.g., line number out of range), use start of document

@@ -73,15 +73,18 @@ describe('TranslationService included library cache invalidation', () => {
     );
 
     const ucumUtils = ucum.UcumLhcUtils.getInstance();
+    const unsupportedUcumOp = (): never => {
+      throw new Error('Unsupported operation');
+    };
     libraryManager = new LibraryManager(
       modelManager,
       undefined,
       undefined,
       createUcumService(
-        () => {
-          throw new Error('Unsupported operation');
-        },
-        unit => (ucumUtils.validateUnitString(unit).status === 'valid' ? null : unit)
+        unsupportedUcumOp,
+        unit => (ucumUtils.validateUnitString(unit).status === 'valid' ? null : unit),
+        unsupportedUcumOp,
+        unsupportedUcumOp
       )
     );
     libraryManager.librarySourceLoader.registerProvider(
@@ -96,9 +99,11 @@ describe('TranslationService included library cache invalidation', () => {
 
     librarySourceService = Object.create(CqlLibrarySourceService.prototype) as CqlLibrarySourceService & {
       cqlCache: Map<string, string>;
+      elmCache: Map<string, string>;
       elmIncludeParser: ElmIncludeParser;
     };
     librarySourceService.cqlCache = cqlCache;
+    librarySourceService.elmCache = new Map();
     librarySourceService.elmIncludeParser = new ElmIncludeParser();
 
     service = Object.create(TranslationService.prototype) as TranslationService & {
@@ -124,5 +129,30 @@ describe('TranslationService included library cache invalidation', () => {
   it('seeds saved CQL into cache when cqlContent is provided', () => {
     service.invalidateIncludedLibraryCache('HelloCommon', '0.0.0', null, helloCommonV2);
     expect(librarySourceService.getCachedCql('HelloCommon', null, '0.0.0')).toBe(helloCommonV2);
+  });
+
+  it('preserves FHIRHelpers in compiledLibraries while clearing user libraries', () => {
+    expect(translateErrors(libraryManager, helloWorld)).toEqual([]);
+    const before = [...libraryManager.compiledLibraries.asJsMapView().keys()].map(k => k.id).sort();
+    expect(before).toEqual(['FHIRHelpers', 'HelloCommon']);
+
+    service.invalidateIncludedLibraryCache('HelloCommon', '0.0.0', null, helloCommonV2);
+    const after = [...libraryManager.compiledLibraries.asJsMapView().keys()].map(k => k.id);
+    expect(after).toEqual(['FHIRHelpers']);
+  });
+
+  it('emits ELM XML and JSON for a valid FHIR library', () => {
+    const translator = CqlTranslator.fromText(
+      `library Simple version '0.0.1'
+using FHIR version '4.0.1'
+include FHIRHelpers version '4.0.1'
+define Answer: 42`,
+      libraryManager
+    );
+    expect([...translator.errors.asJsReadonlyArrayView()]).toHaveLength(0);
+    expect(translator.toXml()).toContain('<library');
+    const json = JSON.parse(translator.toJson());
+    expect(json.library?.identifier?.id).toBe('Simple');
+    expect(json.library?.statements?.def?.some((d: { name?: string }) => d.name === 'Answer')).toBe(true);
   });
 });

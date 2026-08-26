@@ -57,18 +57,15 @@ The library expects ELM **JSON** in the standard HL7 format:
 
 This is the `{ library: ElmLibrary }` wrapper shape. You can also pass the inner `ElmLibrary` directly.
 
-### CQL Studio currently uses `translator.toXml()` — how do I get ELM JSON?
+### How do I get ELM JSON from CQL Studio?
 
-The `@cqframework/cql` `CqlTranslator` class exposes both `toXml()` and `toJson()`. CQL Studio's `TranslationService` currently only calls `toXml()`. To use this library from the Angular app:
+`TranslationService.translateCqlToElm()` / `translateCqlToElmRaw()` already return both `elmXml` and `elmJson` (from `CqlTranslator.toXml()` and `toJson()`). For the SQL pipeline:
 
 ```typescript
-// In translation.service.ts — add a toJson path:
-const elmJson = JSON.parse(translator.toJson());
+const { elmJson } = await translationService.translateCqlToElmAsync(cql);
 const transpiler = new ElmToSqlTranspiler({ ... });
-const { sql } = transpiler.transpile(elmJson);
+const { sql } = transpiler.transpile(JSON.parse(elmJson!));
 ```
-
-This wiring is Preston's responsibility (Issue #23), but you can prototype it locally by modifying `TranslationService.translateCqlToElm()`.
 
 ### Does it handle ELM XML?
 

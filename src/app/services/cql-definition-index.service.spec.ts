@@ -98,15 +98,18 @@ describe('CqlDefinitionIndexService', () => {
     );
 
     const ucumUtils = ucum.UcumLhcUtils.getInstance();
+    const unsupportedUcumOp = (): never => {
+      throw new Error('Unsupported operation');
+    };
     const libraryManager = new LibraryManager(
       modelManager,
       undefined,
       undefined,
       createUcumService(
-        () => {
-          throw new Error('Unsupported operation');
-        },
-        unit => (ucumUtils.validateUnitString(unit).status === 'valid' ? null : unit)
+        unsupportedUcumOp,
+        unit => (ucumUtils.validateUnitString(unit).status === 'valid' ? null : unit),
+        unsupportedUcumOp,
+        unsupportedUcumOp
       )
     );
     libraryManager.librarySourceLoader.registerProvider(

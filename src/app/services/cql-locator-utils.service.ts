@@ -6,91 +6,133 @@ import { CqlCompilerException } from '@cqframework/cql/cql-to-elm';
 export interface LocatorInfo {
   line: number | null;
   column: number | null;
+  endLine: number | null;
+  endColumn: number | null;
 }
 
 /**
- * Utility service for extracting line/column information from CQL compiler locators
- * Handles TrackBack objects with obfuscated Kotlin property names
+ * Utility service for extracting line/column information from CQL compiler locators.
+ * Kotlin/JS TrackBack field names are mangled and change between builds, so prefer
+ * unmangled property names and TrackBack.toString() before falling back to heuristics.
+ *
+ * Returned positions are normalized to 1-based lines/columns (CQL/ELM convention):
+ * - Semantic/include TrackBacks already use 1-based startChar (Cql2ElmVisitor).
+ * - CqlSyntaxException TrackBacks use ANTLR's 0-based charPositionInLine; those are
+ *   converted to 1-based here so callers can treat all columns uniformly.
+ * For CodeMirror: start column → offset `column - 1`; inclusive end column → exclusive
+ * offset `endColumn` (same numeric value when 1-based inclusive).
  */
 @Injectable({
   providedIn: 'root'
 })
 export class CqlLocatorUtilsService {
-  /**
-   * Extract line and column numbers from a CqlCompilerException locator
-   * TrackBack objects use obfuscated Kotlin property names (e.g., x8z_1, y8z_1)
-   */
   extractLocatorInfo(exception: CqlCompilerException): LocatorInfo {
     const locator = exception.locator;
-    
-    if (!locator) {
-      return { line: null, column: null };
-    }
-    
-    const locatorAny = locator as any;
 
-    // Kotlin/JS currently emits TrackBack(startLine, startChar, endLine, endChar)
-    // as x8z_1, y8z_1, z8z_1, a90_1. Prefer those fields when present; the
-    // previous numeric-value heuristic could mistake endChar for the line.
-    const knownStartLine = locatorAny.x8z_1;
-    const knownStartChar = locatorAny.y8z_1;
-    if (typeof knownStartLine === 'number') {
-      return {
-        line: this.normalizeLineNumber(knownStartLine),
-        column: typeof knownStartChar === 'number' ? Math.max(0, knownStartChar) : null
+    if (!locator) {
+      return { line: null, column: null, endLine: null, endColumn: null };
+    }
+
+    const locatorAny = locator as Record<string, unknown>;
+    let raw = this.readLocatorFields(locatorAny, locator);
+
+    if (!raw) {
+      return { line: null, column: null, endLine: null, endColumn: null };
+    }
+
+    // ANTLR syntax errors store 0-based columns; normalize to 1-based for callers.
+    if (this.isAntlrZeroBasedSyntaxException(exception)) {
+      raw = {
+        line: raw.line,
+        column: raw.column != null ? raw.column + 1 : null,
+        endLine: raw.endLine,
+        endColumn: raw.endColumn != null ? raw.endColumn + 1 : null
       };
     }
 
-    const locatorKeys = Object.keys(locator);
-    const numericProps: Array<{key: string, value: number}> = [];
-    
-    // Collect all numeric properties from the TrackBack object
-    for (const key of locatorKeys) {
+    return {
+      line: this.normalizeLineNumber(raw.line),
+      column: raw.column != null && raw.column >= 0 ? raw.column : null,
+      endLine: this.normalizeLineNumber(raw.endLine),
+      endColumn: raw.endColumn != null && raw.endColumn >= 0 ? raw.endColumn : null
+    };
+  }
+
+  private readLocatorFields(
+    locatorAny: Record<string, unknown>,
+    locator: object
+  ): {
+    line: number | null;
+    column: number | null;
+    endLine: number | null;
+    endColumn: number | null;
+  } | null {
+    // Prefer unmangled property names when present (fixtures / future Kotlin exports).
+    if (typeof locatorAny['startLine'] === 'number') {
+      return {
+        line: locatorAny['startLine'],
+        column: typeof locatorAny['startChar'] === 'number' ? locatorAny['startChar'] : null,
+        endLine: typeof locatorAny['endLine'] === 'number' ? locatorAny['endLine'] : null,
+        endColumn: typeof locatorAny['endChar'] === 'number' ? locatorAny['endChar'] : null
+      };
+    }
+
+    // TrackBack.toString() embeds positions stably across name mangling, e.g.
+    // TrackBack{library='...', startLine=5, startChar=13, endLine=5, endChar=15}
+    const fromToString = this.parseTrackBackToString(String(locator));
+    if (fromToString) {
+      return fromToString;
+    }
+
+    // Last resort: TrackBack own fields are library, startLine, startChar, endLine, endChar.
+    // Read numeric properties in insertion order (not sorted by value).
+    const numericInOrder: number[] = [];
+    for (const key of Object.keys(locator)) {
       const value = locatorAny[key];
       if (typeof value === 'number' && value >= 0) {
-        numericProps.push({key, value});
+        numericInOrder.push(value);
       }
     }
-    
-    // Sort by value to identify line vs column
-    numericProps.sort((a, b) => a.value - b.value);
-    
-    let lineNumber: number | null = null;
-    let columnNumber: number | null = null;
-    
-    // Strategy: The larger value is typically the line number, smaller is column
-    // Based on observed structure: x8z_1 = startLine (larger), y8z_1 = startChar (smaller, often 0)
-    // TrackBack may have: startLine, startChar, endLine, endChar
-    if (numericProps.length >= 2) {
-      // Find the largest value > 0 as line number (startLine or endLine)
-      const lineCandidates = numericProps.filter(p => p.value > 0 && p.value <= 10000);
-      if (lineCandidates.length > 0) {
-        // Use the maximum value as line number
-        lineNumber = Math.max(...lineCandidates.map(p => p.value));
-      }
-      
-      // Find the smallest value >= 0 as column (startChar, often 0)
-      const charCandidates = numericProps.filter(p => p.value >= 0 && p.value < 10000);
-      if (charCandidates.length > 0) {
-        // Use the minimum value as column number
-        columnNumber = Math.min(...charCandidates.map(p => p.value));
-      }
-    } else if (numericProps.length === 1) {
-      // Only one numeric property - assume it's the line number
-      lineNumber = numericProps[0].value;
+
+    if (numericInOrder.length >= 2) {
+      return {
+        line: numericInOrder[0],
+        column: numericInOrder[1],
+        endLine: numericInOrder.length >= 3 ? numericInOrder[2] : null,
+        endColumn: numericInOrder.length >= 4 ? numericInOrder[3] : null
+      };
     }
-    
-    lineNumber = this.normalizeLineNumber(lineNumber);
-    
-    // Column numbers appear to be 0-based (matches CodeMirror's 0-based positions)
-    // Keep as-is, but ensure it's not negative
-    if (columnNumber != null && columnNumber < 0) {
-      columnNumber = null;
+
+    if (numericInOrder.length === 1) {
+      return { line: numericInOrder[0], column: null, endLine: null, endColumn: null };
     }
-    
+
+    return null;
+  }
+
+  private isAntlrZeroBasedSyntaxException(exception: CqlCompilerException): boolean {
+    return (
+      exception.constructor?.name === 'CqlSyntaxException' ||
+      exception.name === 'CqlSyntaxException'
+    );
+  }
+
+  private parseTrackBackToString(text: string): {
+    line: number | null;
+    column: number | null;
+    endLine: number | null;
+    endColumn: number | null;
+  } | null {
+    const match =
+      /startLine=(\d+)\s*,\s*startChar=(\d+)\s*,\s*endLine=(\d+)\s*,\s*endChar=(\d+)/.exec(text);
+    if (!match) {
+      return null;
+    }
     return {
-      line: lineNumber,
-      column: columnNumber
+      line: Number(match[1]),
+      column: Number(match[2]),
+      endLine: Number(match[3]),
+      endColumn: Number(match[4])
     };
   }
 
@@ -105,10 +147,7 @@ export class CqlLocatorUtilsService {
 
     return lineNumber > 0 ? lineNumber : null;
   }
-  
-  /**
-   * Format a locator info into a human-readable string
-   */
+
   formatLocator(locatorInfo: LocatorInfo): string {
     if (locatorInfo.line != null) {
       const column = locatorInfo.column != null ? locatorInfo.column : '?';

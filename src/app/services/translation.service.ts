@@ -19,18 +19,6 @@ import { ElmIncludeParser } from './elm-include.lib';
 
 export type { LibraryTranslationContext } from './cql-library-source.service';
 
-/**
- * `CqlTranslator.toJson()` exists at runtime and in the package's
- * `kotlin/cql-to-elm.d.ts`, but the `@cqframework/cql/cql-to-elm` subpath export
- * ships only `.mjs` with no paired `types` entry, so the method isn't visible
- * to consumers under bundler module resolution. Until that's fixed upstream
- * (https://github.com/cqframework/clinical_quality_language/issues/1768) we
- * narrow the translator through this minimal interface rather than a bare cast.
- */
-interface ElmJsonEmitter {
-  toJson(): string;
-}
-
 export interface TranslationResult {
   elmXml: string | null;
   elmJson: string | null;
@@ -116,11 +104,14 @@ export class TranslationService {
         return result.msg[0];
       }
     };
+    const unsupportedUcumOp = (): never => {
+      throw new Error('Unsupported operation');
+    };
     const ucumService = createUcumService(
-      () => {
-        throw new Error('Unsupported operation');
-      },
-      validateUnit
+      unsupportedUcumOp,
+      validateUnit,
+      unsupportedUcumOp,
+      unsupportedUcumOp
     );
     
     // Register model info provider for System and FHIR models
@@ -274,7 +265,7 @@ export class TranslationService {
     }
 
     for (const key of [...mapView.keys()]) {
-      if (key.c8i_1 !== 'FHIRHelpers') {
+      if (key.id !== 'FHIRHelpers') {
         mapView.delete(key);
       }
     }
@@ -309,9 +300,9 @@ export class TranslationService {
       const translator = CqlTranslator.fromText(cql, this.libraryManager);
 
       // Extract errors, warnings, and messages
-      const errors = translator.errors?.asJsReadonlyArrayView() || [];
-      const warnings = translator.warnings?.asJsReadonlyArrayView() || [];
-      const messages = translator.messages?.asJsReadonlyArrayView() || [];
+    const errors = [...(translator.errors?.asJsReadonlyArrayView() ?? [])];
+    const warnings = [...(translator.warnings?.asJsReadonlyArrayView() ?? [])];
+    const messages = [...(translator.messages?.asJsReadonlyArrayView() ?? [])];
 
       // Format exception messages
       const errorMessages = errors
@@ -333,8 +324,7 @@ export class TranslationService {
 
       let elmJson: string | null = null;
       try {
-        // See ElmJsonEmitter above re: upstream type-export gap (#1768).
-        elmJson = (translator as unknown as ElmJsonEmitter).toJson();
+        elmJson = translator.toJson();
       } catch (e) {
         console.warn('Failed to generate ELM JSON:', e);
       }
@@ -371,7 +361,9 @@ export class TranslationService {
         return {
           elmXml: null,
           elmJson: null,
-          errors: [{ message: 'Translation assets are still loading. Please try again in a moment.' } as CqlCompilerException],
+          errors: [
+            { message: 'Translation assets are still loading. Please try again in a moment.' } as CqlCompilerException
+          ],
           warnings: [],
           messages: [],
           hasErrors: true
@@ -380,9 +372,9 @@ export class TranslationService {
 
       const translator = CqlTranslator.fromText(cql, this.libraryManager);
 
-      const errors = translator.errors?.asJsReadonlyArrayView() || [];
-      const warnings = translator.warnings?.asJsReadonlyArrayView() || [];
-      const messages = translator.messages?.asJsReadonlyArrayView() || [];
+    const errors = [...(translator.errors?.asJsReadonlyArrayView() ?? [])];
+    const warnings = [...(translator.warnings?.asJsReadonlyArrayView() ?? [])];
+    const messages = [...(translator.messages?.asJsReadonlyArrayView() ?? [])];
 
       const rawErrors = errors.filter((e: CqlCompilerException | null | undefined): e is CqlCompilerException => e != null);
       const rawWarnings = warnings.filter((e: CqlCompilerException | null | undefined): e is CqlCompilerException => e != null);
@@ -397,8 +389,7 @@ export class TranslationService {
 
       let elmJson: string | null = null;
       try {
-        // See ElmJsonEmitter above re: upstream type-export gap (#1768).
-        elmJson = (translator as unknown as ElmJsonEmitter).toJson();
+        elmJson = translator.toJson();
       } catch (e) {
         console.warn('Failed to generate ELM JSON:', e);
       }
@@ -414,13 +405,10 @@ export class TranslationService {
     } catch (error) {
       // Handle unexpected errors during translation
       const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorException: CqlCompilerException = {
-        message: `Translation failed: ${errorMessage}`
-      };
       return {
         elmXml: null,
         elmJson: null,
-        errors: [errorException],
+        errors: [{ message: `Translation failed: ${errorMessage}` } as CqlCompilerException],
         warnings: [],
         messages: [],
         hasErrors: true
