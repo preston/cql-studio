@@ -1,6 +1,7 @@
 // Author: Preston Lee
 
-import { ImplementationGuide, Patient, StructureDefinition } from 'fhir/r4';
+import type { ImplementationGuide, Patient, StructureDefinition } from 'fhir/r4';
+import { minimalImplementationGuide } from '../../testing/spec-helpers';
 import { IndexedResourceRowVm } from '../models/fhir-package-view.model';
 import {
   buildFhirPackageManifestFromIg,
@@ -82,9 +83,7 @@ describe('implementation-guide.lib', () => {
   });
 
   it('filterImplementationGuide keeps matching definition and manifest sides for one key', () => {
-    const ig: ImplementationGuide = {
-      resourceType: 'ImplementationGuide',
-      status: 'active',
+    const ig = minimalImplementationGuide({
       name: 'Dual',
       definition: {
         resource: [{ reference: { reference: 'ValueSet/demo' }, name: 'Demo VS' }]
@@ -97,7 +96,7 @@ describe('implementation-guide.lib', () => {
           }
         ]
       }
-    };
+    });
     const key = parseImplementationGuideEntries(ig)[0].key;
     const filtered = filterImplementationGuide(ig, new Set([key]));
     expect(filtered.definition?.resource?.length).toBe(1);
@@ -105,14 +104,12 @@ describe('implementation-guide.lib', () => {
   });
 
   it('filterImplementationGuide keeps display-only references when selected', () => {
-    const ig: ImplementationGuide = {
-      resourceType: 'ImplementationGuide',
-      status: 'active',
+    const ig = minimalImplementationGuide({
       name: 'DisplayOnly',
       definition: {
         resource: [{ reference: { display: 'StructureDefinition/patient-profile' } }]
       }
-    };
+    });
     const key = parseImplementationGuideEntries(ig)[0].key;
     const filtered = filterImplementationGuide(ig, new Set([key]));
     expect(filtered.definition?.resource?.length).toBe(1);

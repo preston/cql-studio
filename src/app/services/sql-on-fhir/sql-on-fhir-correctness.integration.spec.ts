@@ -201,15 +201,15 @@ describe('CMS125 end-to-end correctness (transpiled SQL on PGlite)', () => {
     sql = t.transpile(cms125Fixture as unknown as ElmLibraryWrapper).sql;
   });
 
-  // The fixture's Initial Population is demographics-only (no encounter
-  // criterion), so all four 51–74 females are in: jane, mary, linda, rita.
+  // The fixture's Initial Population requires a qualifying encounter, so mary
+  // (no visit) is out: jane, linda, rita (3 females 51–74 with office visits).
   it('computes correct patient counts on the adversarial cohort (fixture ELM)', async () => {
     await pg.seed('adversarial-v1', adversarialTables());
     const { rows } = await pg.execute(sql);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      initial_population_count: 4,
-      denominator_count: 4,
+      initial_population_count: 3,
+      denominator_count: 3,
       denominator_exclusion_count: 2,    // linda + rita as PATIENTS — linda's 2 procedures count once
       numerator_count: 1,                // jane counted once despite 2 mammograms
     });
@@ -219,7 +219,7 @@ describe('CMS125 end-to-end correctness (transpiled SQL on PGlite)', () => {
     await pg.seed('zero-exclusion-v1', zeroExclusionTables());
     const { rows } = await pg.execute(sql);
     expect(rows[0]).toMatchObject({
-      initial_population_count: 4,
+      initial_population_count: 3,
       denominator_exclusion_count: 0,    // the old single-boolean-row shape said 1
     });
   });

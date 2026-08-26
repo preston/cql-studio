@@ -97,21 +97,18 @@ describe('TranslationService included library cache invalidation', () => {
       })
     );
 
-    librarySourceService = Object.create(CqlLibrarySourceService.prototype) as CqlLibrarySourceService & {
-      cqlCache: Map<string, string>;
-      elmCache: Map<string, string>;
-      elmIncludeParser: ElmIncludeParser;
-    };
-    librarySourceService.cqlCache = cqlCache;
-    librarySourceService.elmCache = new Map();
-    librarySourceService.elmIncludeParser = new ElmIncludeParser();
+    librarySourceService = Object.create(CqlLibrarySourceService.prototype) as CqlLibrarySourceService;
+    Object.assign(librarySourceService as object, {
+      cqlCache,
+      elmCache: new Map(),
+      elmIncludeParser: new ElmIncludeParser(),
+    });
 
-    service = Object.create(TranslationService.prototype) as TranslationService & {
-      libraryManager: LibraryManager;
-      librarySourceService: CqlLibrarySourceService;
-    };
-    service.libraryManager = libraryManager;
-    service.librarySourceService = librarySourceService;
+    service = Object.create(TranslationService.prototype) as TranslationService;
+    Object.assign(service as object, {
+      libraryManager,
+      librarySourceService,
+    });
   });
 
   it('recompiles included libraries after invalidateIncludedLibraryCache', () => {

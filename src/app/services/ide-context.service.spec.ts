@@ -25,10 +25,12 @@ function createIdeContextService() {
   (service as unknown as { groupService: GroupService }).groupService = groupService;
   (service as unknown as { _contextType: ReturnType<typeof signal<'Patient' | 'Group'>> })._contextType = signal<'Patient' | 'Group'>('Patient');
   (service as unknown as { _selectionVersion: ReturnType<typeof signal<number>> })._selectionVersion = signal(0);
-  service.contextType = (service as unknown as { _contextType: ReturnType<typeof signal<'Patient' | 'Group'>> })._contextType.asReadonly();
-  service.selectionVersion = (service as unknown as { _selectionVersion: ReturnType<typeof signal<number>> })._selectionVersion.asReadonly();
-  service.selectedCount = IdeContextService.prototype.selectedCount;
-  service.hasSelection = IdeContextService.prototype.hasSelection;
+  Object.assign(service as object, {
+    contextType: (service as unknown as { _contextType: ReturnType<typeof signal<'Patient' | 'Group'>> })._contextType.asReadonly(),
+    selectionVersion: (service as unknown as { _selectionVersion: ReturnType<typeof signal<number>> })._selectionVersion.asReadonly(),
+    selectedCount: IdeContextService.prototype.selectedCount,
+    hasSelection: IdeContextService.prototype.hasSelection,
+  });
 
   return { service, patientService, groupService };
 }

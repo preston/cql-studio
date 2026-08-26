@@ -171,7 +171,7 @@ describe('ElmToSqlTranspiler', () => {
   test('CMS125 correlates Exists Qualifying Encounters to the patient alias', () => {
     const t = new ElmToSqlTranspiler();
     const { sql } = t.transpile(fixture);
-    expect(sql).toContain('_cor.subject_id = p.id');
+    expect(sql).toContain('_e.subject_id = p.id');
   });
 
   test('CMS125 resource populations count patients via subject_id', () => {
@@ -223,7 +223,7 @@ describe('generateMeasureReport', () => {
     const report = generateMeasureReport(counts, opts);
     const group = report.group?.[0];
     expect(group).toBeDefined();
-    const pops = group?.population?.map(p => p.code.text) ?? [];
+    const pops = group?.population?.map(p => p.code?.text).filter((text): text is string => !!text) ?? [];
     expect(pops).toContain('Initial Population');
     expect(pops).toContain('Denominator');
     expect(pops).toContain('Numerator');
@@ -266,7 +266,7 @@ describe('generateMeasureReport', () => {
 
 describe('inferMeasureUrlFromLibrary', () => {
   test('maps CMS125 demo library name to eCQM Measure URL', () => {
-    expect(inferMeasureUrlFromLibrary({ resourceType: 'Library', name: 'BreastCancerScreening' })).toBe(
+    expect(inferMeasureUrlFromLibrary({ resourceType: 'Library', name: 'BreastCancerScreening', status: 'active', type: {} })).toBe(
       'http://ecqi.healthit.gov/ecqms/Measure/BreastCancerScreening',
     );
   });
@@ -423,7 +423,7 @@ describe('extractValueSets', () => {
   });
 
   test('returns empty array when library has no value sets', () => {
-    const refs = extractValueSets({ library: { identifier: { id: 'Empty' }, schemaIdentifier: { id: 'x', version: 'r1' } } });
+    const refs = extractValueSets({ library: { valueSets: { def: [] } } });
     expect(refs).toEqual([]);
   });
 });

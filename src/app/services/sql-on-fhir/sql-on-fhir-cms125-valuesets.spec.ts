@@ -1,6 +1,7 @@
 // Author: Preston Lee
 
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+import type { ValueSet } from 'fhir/r4';
 import cms125Elm from '../../components/sql-on-fhir/elm-to-sql/fixtures/cms125-breast-cancer-screening.elm.json';
 import mammography from '../../../../public/fhir/sql-on-fhir/valuesets/mammography.json';
 import bilateralMastectomy from '../../../../public/fhir/sql-on-fhir/valuesets/bilateral-mastectomy.json';
@@ -8,9 +9,10 @@ import officeVisit from '../../../../public/fhir/sql-on-fhir/valuesets/office-vi
 import { extractUsedValueSets } from '../../components/sql-on-fhir/elm-to-sql';
 import { flattenValueSets } from './sql-on-fhir-bundle-flattener.lib';
 import { prepareValueSetRowsForExecution } from './sql-on-fhir-execution-data.lib';
+import { asValueSets } from '../../../testing/spec-helpers';
 
 describe('CMS125 demo value sets', () => {
-  const bundled = [mammography, bilateralMastectomy, officeVisit];
+  const bundled = asValueSets([mammography, bilateralMastectomy, officeVisit]);
   const elmJson = JSON.stringify(cms125Elm);
 
   test('bundled JSON files have compose definitions', () => {
@@ -32,9 +34,9 @@ describe('CMS125 demo value sets', () => {
   test('bundled expansions flatten to rows keyed by canonical URL', () => {
     const rows = flattenValueSets(bundled);
     expect(rows.length).toBeGreaterThan(0);
-    expect(rows.some(r => r.value_set_id === mammography.url && r.code === '24605-8')).toBe(true);
-    expect(rows.some(r => r.value_set_id === bilateralMastectomy.url && r.code === '173425001')).toBe(true);
-    expect(rows.some(r => r.value_set_id === officeVisit.url && r.code === '99213')).toBe(true);
+    expect(rows.some(r => r['value_set_id'] === mammography.url && r['code'] === '24605-8')).toBe(true);
+    expect(rows.some(r => r['value_set_id'] === bilateralMastectomy.url && r['code'] === '173425001')).toBe(true);
+    expect(rows.some(r => r['value_set_id'] === officeVisit.url && r['code'] === '99213')).toBe(true);
   });
 
   test('prepareValueSetRowsForExecution uses bundled sets without server fetch', async () => {

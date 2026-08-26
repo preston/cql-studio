@@ -19,7 +19,7 @@ import {
 import { CqlDefinitionIndexService } from './cql-definition-index.service';
 import { CqlLibrarySourceService } from './cql-library-source.service';
 import { ElmIncludeParser } from './elm-include.lib';
-import { TranslationService } from './translation.service';
+import { TranslationService, RawTranslationResult } from './translation.service';
 import { findReferenceAt, parseLocator } from './elm-locator.lib';
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
@@ -50,7 +50,7 @@ describe('CqlDefinitionIndexService', () => {
   beforeEach(() => {
     cqlCache = new Map([[cacheKey('HelloCommon', '0.0.0'), helloCommonV1]]);
 
-    const librarySourceService = Object.create(CqlLibrarySourceService.prototype) as CqlLibrarySourceService & {
+    const librarySourceService = Object.create(CqlLibrarySourceService.prototype) as unknown as {
       cqlCache: Map<string, string>;
       elmCache: Map<string, string>;
       elmIncludeParser: ElmIncludeParser;
@@ -59,27 +59,35 @@ describe('CqlDefinitionIndexService', () => {
     librarySourceService.elmCache = new Map([[cacheKey('HelloCommon', '0.0.0'), helloCommonElm]]);
     librarySourceService.elmIncludeParser = new ElmIncludeParser();
 
-    const translationService = Object.create(TranslationService.prototype) as TranslationService & {
-      translateCqlToElmRaw: (cql: string) => { elmXml: string | null };
+    const translationService = Object.create(TranslationService.prototype) as unknown as {
+      translateCqlToElmRaw: (cql: string) => RawTranslationResult;
     };
-    translationService.translateCqlToElmRaw = () => ({ elmXml: helloCommonElm });
+    translationService.translateCqlToElmRaw = () => ({
+      elmXml: helloCommonElm,
+      elmJson: null,
+      errors: [],
+      warnings: [],
+      messages: [],
+      hasErrors: false,
+    });
 
-    service = Object.create(CqlDefinitionIndexService.prototype) as CqlDefinitionIndexService & {
+    const serviceDouble = Object.create(CqlDefinitionIndexService.prototype) as unknown as {
       includeParser: ElmIncludeParser;
       librarySourceService: CqlLibrarySourceService;
       libraryService: { findByNameAndVersion: () => never };
       translationService: TranslationService;
       includedIndexCache: Map<string, unknown>;
     };
-    service.includeParser = new ElmIncludeParser();
-    service.librarySourceService = librarySourceService;
-    service.libraryService = {
+    serviceDouble.includeParser = new ElmIncludeParser();
+    serviceDouble.librarySourceService = librarySourceService as unknown as CqlLibrarySourceService;
+    serviceDouble.libraryService = {
       findByNameAndVersion: () => {
         throw new Error('should not fetch from server in this test');
       }
     } as never;
-    service.translationService = translationService;
-    service.includedIndexCache = new Map();
+    serviceDouble.translationService = translationService as TranslationService;
+    serviceDouble.includedIndexCache = new Map();
+    service = serviceDouble as unknown as CqlDefinitionIndexService;
   });
 
   it('resolves cross-library FunctionRef via included library index', async () => {

@@ -2,12 +2,13 @@
 
 import { describe, expect, test } from 'vitest';
 import cms125 from './elm-to-sql/fixtures/cms125-breast-cancer-screening.elm.json';
+import { minimalLibrary } from '../../../testing/spec-helpers';
 import { buildLibraryParameterSpecs, buildDefaultParameterValues } from './library-parameters.lib';
 import { assessMeasureLibraryCompatibility } from './measure-library-compatibility.lib';
 
 describe('measure-library-compatibility.lib', () => {
   test('CMS125 fixture passes with generated SQL result', () => {
-    const library = { resourceType: 'Library' as const, name: 'BreastCancerScreening' };
+    const library = minimalLibrary({ name: 'BreastCancerScreening' });
     const elmJson = JSON.stringify(cms125);
     const specs = buildLibraryParameterSpecs(library, elmJson);
     const values = buildDefaultParameterValues(specs, library, elmJson);

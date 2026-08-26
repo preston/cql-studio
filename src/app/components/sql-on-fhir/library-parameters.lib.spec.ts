@@ -1,6 +1,7 @@
 // Author: Preston Lee
 
 import { describe, expect, test } from 'vitest';
+import { minimalLibrary } from '../../../testing/spec-helpers';
 import {
   buildDefaultParameterValues,
   buildLibraryParameterSpecs,
@@ -9,8 +10,7 @@ import {
 } from './library-parameters.lib';
 
 describe('library-parameters.lib', () => {
-  const library = {
-    resourceType: 'Library' as const,
+  const library = minimalLibrary({
     parameter: [
       {
         name: 'Measurement Period',
@@ -26,7 +26,7 @@ describe('library-parameters.lib', () => {
         ],
       },
     ],
-  };
+  });
 
   const elmJson = JSON.stringify({
     library: {

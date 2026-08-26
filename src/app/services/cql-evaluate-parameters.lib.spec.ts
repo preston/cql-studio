@@ -1,7 +1,7 @@
 // Author: Preston Lee
 
 import { describe, expect, it } from 'vitest';
-import { Parameters } from 'fhir/r4';
+import { Parameters, Endpoint } from 'fhir/r4';
 import { appendEvaluateEndpointParameters } from './cql-evaluate-parameters.lib';
 import { BUILT_IN_ENVIRONMENT_ID } from '../models/environment.model';
 
@@ -21,7 +21,7 @@ describe('cql-evaluate-parameters.lib', () => {
     expect(names).toEqual(['dataEndpoint', 'terminologyEndpoint', 'contentEndpoint']);
     const dataParam = parameters.parameter?.find(p => p.name === 'dataEndpoint');
     expect(dataParam?.resource?.resourceType).toBe('Endpoint');
-    expect(dataParam?.resource?.address).toBe('http://localhost:8080/data');
+    expect((dataParam?.resource as Endpoint)?.address).toBe('http://localhost:8080/data');
   });
 
   it('omits endpoint parameters when role addresses are blank', () => {

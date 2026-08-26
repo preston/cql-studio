@@ -2,6 +2,7 @@
 
 import { Injector, runInInjectionContext } from '@angular/core';
 import { ImplementationGuide } from 'fhir/r4';
+import { minimalImplementationGuide } from '../../testing/spec-helpers';
 import { IndexedResourceRowVm } from '../models/fhir-package-view.model';
 import { FhirPackageImportService } from './fhir-package-import.service';
 import { parseImplementationGuideEntries } from './implementation-guide.lib';
@@ -27,10 +28,8 @@ describe('FhirPackageImportService IG sanitize', () => {
       injector.get(FhirPackageImportService)
     );
 
-    const ig: ImplementationGuide = {
-      resourceType: 'ImplementationGuide',
+    const ig = minimalImplementationGuide({
       id: 'example',
-      status: 'active',
       name: 'Example',
       definition: {
         resource: [
@@ -38,7 +37,7 @@ describe('FhirPackageImportService IG sanitize', () => {
           { reference: { reference: 'StructureDefinition/b' } }
         ]
       }
-    };
+    });
     const filename = 'package/ImplementationGuide-example.json';
     const row: IndexedResourceRowVm = {
       rowKey: filename,

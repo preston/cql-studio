@@ -10,6 +10,7 @@ import { CqlLibrarySourceService } from './cql-library-source.service';
 import { ElmIncludeParser } from './elm-include.lib';
 import { encodeUtf8Base64 } from './utf8-encoding.lib';
 import { Library } from 'fhir/r4';
+import { minimalLibraryFields } from '../../testing/spec-helpers';
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const helloCommonElm = readFileSync(join(fixturesDir, 'hello-common.elm.xml'), 'utf8');
@@ -22,6 +23,7 @@ define function MagicNumber(): 42`;
 function libraryWithContent(id: string, name: string, version: string, cql: string, elm: string): Library {
   return {
     resourceType: 'Library',
+    ...minimalLibraryFields,
     id,
     name,
     version,
@@ -48,14 +50,14 @@ describe('CqlLibrarySourceService', () => {
       getElmXml: vi.fn(),
       get: vi.fn()
     };
-    service = Object.create(CqlLibrarySourceService.prototype) as CqlLibrarySourceService & {
-      libraryService: typeof libraryService;
-      elmIncludeParser: ElmIncludeParser;
-      cqlCache: Map<string, string>;
-    };
-    service.libraryService = libraryService;
-    service.elmIncludeParser = new ElmIncludeParser();
-    service.cqlCache = new Map();
+    const instance = Object.create(CqlLibrarySourceService.prototype) as CqlLibrarySourceService;
+    Object.assign(instance as object, {
+      libraryService,
+      elmIncludeParser: new ElmIncludeParser(),
+      cqlCache: new Map(),
+      elmCache: new Map(),
+    });
+    service = instance;
   });
 
   it('prefetches HelloCommon from HelloWorld stored ELM', async () => {
@@ -77,7 +79,7 @@ describe('CqlLibrarySourceService', () => {
     const fetched = await service.prefetchIncludesFromElmXml(helloWorldElm);
     expect(fetched).toBe(true);
     expect(service.getCachedCql('HelloCommon', null, '0.0.0')).toBe(helloCommonCql);
-    expect(libraryService.findByNameAndVersion).toHaveBeenCalledWith('HelloCommon', '0.0.0');
+    expect(libraryService.findByNameAndVersion).toHaveBeenCalledWith('HelloCommon', '0.0.0', true);
   });
 
   it('returns false on cache hit for second prefetch', async () => {

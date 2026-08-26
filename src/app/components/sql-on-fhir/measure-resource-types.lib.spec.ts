@@ -5,6 +5,7 @@ import cms125Elm from './elm-to-sql/fixtures/cms125-breast-cancer-screening.elm.
 import cms130Elm from './elm-to-sql/fixtures/cms130-colorectal-cancer-screening.elm.json';
 import cms125Library from '../../../../public/fhir/sql-on-fhir/cms125-library.json';
 import type { Library } from 'fhir/r4';
+import { minimalLibrary } from '../../../testing/spec-helpers';
 import {
   extractRetrieveTypesFromElm,
   extractTypesFromLibrary,
@@ -39,7 +40,7 @@ describe('measure-resource-types.lib', () => {
   test('resolveExecutionResourceTypes ELM-only when Library has no dataRequirement', () => {
     const result = resolveExecutionResourceTypes({
       elmJson: JSON.stringify(cms125Elm),
-      library: { resourceType: 'Library', name: 'Test' },
+      library: minimalLibrary({ name: 'Test' }),
     });
     expect(result.derivedTypes).toEqual(['Encounter', 'Observation', 'Patient', 'Procedure']);
   });

@@ -4,7 +4,7 @@ import '@angular/compiler';
 import { HttpErrorResponse } from '@angular/common/http';
 import { describe, expect, test, beforeEach, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
-import type { Bundle } from 'fhir/r4';
+import type { Bundle, Patient } from 'fhir/r4';
 import { SqlOnFhirExecutionDataService } from './sql-on-fhir-execution-data.service';
 import { mergeBundles, bundleHasClinicalResources, summarizeBundleResources } from './sql-on-fhir-execution-data.lib';
 import cms125Bundle from '../../../../public/fhir/sql-on-fhir/cms125-bundle.json';
@@ -59,9 +59,9 @@ describe('sql-on-fhir-execution-data.service', () => {
       ]);
       const summary = summarizeBundleResources(merged);
       expect(summary.patientIds).toEqual(['p1', 'p2']);
-      expect(summary.countsByType.Patient).toBe(2);
-      expect(summary.countsByType.Encounter).toBe(1);
-      expect(summary.countsByType.Observation).toBe(1);
+      expect(summary.countsByType['Patient']).toBe(2);
+      expect(summary.countsByType['Encounter']).toBe(1);
+      expect(summary.countsByType['Observation']).toBe(1);
       expect(summary.totalResources).toBe(4);
     });
   });
@@ -78,14 +78,8 @@ describe('sql-on-fhir-execution-data.service', () => {
     };
 
     function createService(): SqlOnFhirExecutionDataService {
-      const instance = Object.create(
-        SqlOnFhirExecutionDataService.prototype,
-      ) as SqlOnFhirExecutionDataService & {
-        patientService: typeof patientService;
-        fhirSearch: typeof fhirSearch;
-      };
-      instance.patientService = patientService;
-      instance.fhirSearch = fhirSearch;
+      const instance = Object.create(SqlOnFhirExecutionDataService.prototype) as SqlOnFhirExecutionDataService;
+      Object.assign(instance as object, { patientService, fhirSearch });
       return instance;
     }
 
@@ -160,7 +154,7 @@ describe('sql-on-fhir-execution-data.service', () => {
     test('buildDataKeyFromPatients includes sorted patient ids and resource types', () => {
       expect(
         service.buildDataKeyFromPatients(
-          [{ id: 'b' }, { id: 'a' }],
+          [{ resourceType: 'Patient', id: 'b' }, { resourceType: 'Patient', id: 'a' }],
           ['Observation', 'Patient'],
         ),
       ).toBe('patients:a,b|types:Observation,Patient');
@@ -173,15 +167,13 @@ describe('sql-on-fhir-execution-data.service', () => {
         getBaseUrl: vi.fn(() => 'http://localhost:8080/fhir'),
         postBundle: vi.fn(() => of({ resourceType: 'Bundle', type: 'transaction-response' })),
       };
-      const instance = Object.create(
-        SqlOnFhirExecutionDataService.prototype,
-      ) as SqlOnFhirExecutionDataService & { fhirClient: typeof fhirClient };
-      instance.fhirClient = fhirClient;
+      const instance = Object.create(SqlOnFhirExecutionDataService.prototype) as SqlOnFhirExecutionDataService;
+      Object.assign(instance as object, { fhirClient });
 
       await instance.publishBundleToServer(cms125Bundle as Bundle);
 
       expect(fhirClient.postBundle).toHaveBeenCalledTimes(1);
-      const posted = fhirClient.postBundle.mock.calls[0]?.[0] as Bundle;
+      const posted = (fhirClient.postBundle as ReturnType<typeof vi.fn>).mock.calls[0][0] as Bundle;
       expect(posted.type).toBe('transaction');
       expect(posted.entry?.length).toBe(12);
     });
@@ -191,10 +183,8 @@ describe('sql-on-fhir-execution-data.service', () => {
         getBaseUrl: vi.fn(() => ''),
         postBundle: vi.fn(),
       };
-      const instance = Object.create(
-        SqlOnFhirExecutionDataService.prototype,
-      ) as SqlOnFhirExecutionDataService & { fhirClient: typeof fhirClient };
-      instance.fhirClient = fhirClient;
+      const instance = Object.create(SqlOnFhirExecutionDataService.prototype) as SqlOnFhirExecutionDataService;
+      Object.assign(instance as object, { fhirClient });
 
       await expect(instance.publishBundleToServer(cms125Bundle as Bundle)).rejects.toThrow(
         /FHIR base URL is not configured/,

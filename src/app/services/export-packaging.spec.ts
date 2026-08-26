@@ -145,7 +145,7 @@ describe('fhir-package-manifest.lib', () => {
           version: '1.0.0',
           status: 'active',
           type: { coding: [{ code: 'logic-library' }] }
-        }
+        } as Library
       }
     ]);
     expect(index['index-version']).toBe(2);

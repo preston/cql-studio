@@ -27,6 +27,7 @@ describe('export-merge.lib', () => {
     name: 'IG',
     status: 'active',
     packageId: 'org.example.ig',
+    fhirVersion: ['4.0.1'],
     definition: {
       resource: [
         { reference: { reference: 'StructureDefinition/a' } },

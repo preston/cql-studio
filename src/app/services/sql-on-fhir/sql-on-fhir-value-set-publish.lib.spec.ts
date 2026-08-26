@@ -13,14 +13,15 @@ import {
   valueSetComposeFromExpansion,
   valueSetForServerPut,
 } from './sql-on-fhir-value-set-publish.lib';
+import { asValueSet, asValueSets } from '../../../testing/spec-helpers';
 
 describe('sql-on-fhir-value-set-publish.lib', () => {
-  const bundled = [mammography, bilateralMastectomy, officeVisit];
+  const bundled = asValueSets([mammography, bilateralMastectomy, officeVisit]);
   const refs = extractUsedValueSets(cms125Elm);
 
   test('mergeBundledValueSetForElmRef uses ELM canonical url', () => {
     const ref = refs[0];
-    const merged = mergeBundledValueSetForElmRef(mammography, ref);
+    const merged = mergeBundledValueSetForElmRef(asValueSet(mammography), ref);
     expect(merged.url).toBe(ref.url);
     expect(merged.id).toBe('vs-mammography');
     expect(merged.compose?.include?.length).toBeGreaterThan(0);
@@ -48,7 +49,9 @@ describe('sql-on-fhir-value-set-publish.lib', () => {
   test('valueSetComposeFromExpansion groups codes by system', () => {
     const compose = valueSetComposeFromExpansion({
       resourceType: 'ValueSet',
+      status: 'active',
       expansion: {
+        timestamp: '2024-01-01T00:00:00Z',
         contains: [
           { system: 'http://www.ama-assn.org/go/cpt', code: '99213', display: 'Visit' },
           { system: 'http://www.ama-assn.org/go/cpt', code: '99214', display: 'Visit 2' },

@@ -407,7 +407,10 @@ export class ElmToSqlTranspiler {
 
     // Record this CTE's row-key column so later defines can correlate EXISTS
     // subqueries against it (patient-shaped → id, resource-shaped → subject_id).
-    this.defineKeyColumn.set(cteName, this.rowKeyColumnFor(def.expression, isPatientContext, statementShaped));
+    const keyColumn = this.isPatientResourcePopulationQuery(def)
+      ? 'id'
+      : this.rowKeyColumnFor(def.expression, isPatientContext, statementShaped);
+    this.defineKeyColumn.set(cteName, keyColumn);
 
     const comment = this.opts.includeComments ? `  -- define "${def.name}"\n` : '';
     return `${cteName} AS (\n${comment}${this.indent(body)}\n)`;
