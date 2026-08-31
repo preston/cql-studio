@@ -1,11 +1,11 @@
 <div id="hospital-at-home-example">
   <h5 class="card-title mb-3">{{ example.title }}</h5>
-  @if (packageUrl) {
+  @if (example.packageId || example.packageUrl) {
     <div class="mb-3">
       <app-example-import-cta
-        [packageId]="packageName"
-        [packageVersion]="packageVersion"
-        [packageUrl]="packageUrl"
+        [packageId]="example.packageId"
+        [packageVersion]="example.packageVersion"
+        [packageUrl]="example.packageUrl"
         buttonId="hospital-at-home-example-import-cta" />
     </div>
   } @else {
@@ -14,13 +14,6 @@
     </p>
   }
   <p class="text-muted">{{ example.description }}</p>
-
-  <p class="small mb-3">
-    <strong>Package:</strong> <code>{{ packageName }}</code> version <code>{{ packageVersion }}</code><br />
-    <strong>Library:</strong> <code>HaHEligibilityLeffDemo</code> version <code>1.0.0</code><br />
-    <strong>Model:</strong> FHIR R4 (4.0.1)<br />
-    <strong>Context:</strong> <code>Patient</code>
-  </p>
 
   <div class="alert alert-warning" id="hospital-at-home-clinical-use-notice" role="alert">
     <strong>Not for clinical use.</strong> This library is a teaching and demonstration artifact. It
@@ -259,8 +252,7 @@
   <h6 class="fw-normal">Terminology</h6>
   <p>
     The value set references point at VSAC canonical URLs
-    (<code>http://cts.nlm.nih.gov/fhir/ValueSet/...</code>). Package version
-    <code>{{ packageVersion }}</code>
+    (<code>http://cts.nlm.nih.gov/fhir/ValueSet/...</code>). The package
     includes the VSAC FHIR ValueSet resources required by the library. Intensional
     <code>is-a</code> (and other filter) definitions, plus grouping ValueSets that include them,
     are <strong>pre-expanded via VSAC</strong> into enumerated codes and an

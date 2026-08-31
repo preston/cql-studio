@@ -13,13 +13,6 @@ export class ExamplePaths {
 
   /** Glob pattern for Playwright route matching (e.g. abort). */
   static readonly ROUTE_GLOB = '**/examples/results/*.json';
-
-  /** Built-in FHIR NPM packages under public/examples/packages. */
-  static readonly PACKAGES_BASE = '/examples/packages';
-  static readonly LIPID_MANAGEMENT_PACKAGE =
-    `${ExamplePaths.PACKAGES_BASE}/com.prestonlee.fhir.lipid-management-0.4.0.tgz`;
-  static readonly HOSPITAL_AT_HOME_PACKAGE =
-    `${ExamplePaths.PACKAGES_BASE}/hah-eligibility-demo-1.1.0.tgz`;
 }
 
 /** FHIR bundle and CQL examples under public/fhir. Update when adding/removing files in public/fhir/bundles or public/fhir/cql. */

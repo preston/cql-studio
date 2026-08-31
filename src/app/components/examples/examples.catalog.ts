@@ -1,7 +1,5 @@
 // Author: Preston Lee
 
-import { ExamplePaths } from '../../constants/example-paths.constants';
-
 export type ExampleBadge = 'CDS' | 'Measure' | 'Gaps in Care';
 
 export const EXAMPLE_BADGES: readonly ExampleBadge[] = [
@@ -26,14 +24,7 @@ export interface ExampleCatalogEntry {
   packageUrl: string;
 }
 
-/** Not published to a FHIR package registry yet; shipped as a built-in `.tgz`. */
-export const EXAMPLE_PACKAGE_LIPID = '';
-export const EXAMPLE_PACKAGE_LIPID_VERSION = '';
-export const EXAMPLE_PACKAGE_LIPID_URL = ExamplePaths.LIPID_MANAGEMENT_PACKAGE;
-/** Not published to a FHIR package registry yet; shipped as a built-in `.tgz`. */
-export const EXAMPLE_PACKAGE_HOSPITAL_AT_HOME = '';
-export const EXAMPLE_PACKAGE_HOSPITAL_AT_HOME_VERSION = '';
-export const EXAMPLE_PACKAGE_HOSPITAL_AT_HOME_URL = ExamplePaths.HOSPITAL_AT_HOME_PACKAGE;
+export const EXAMPLE_PACKAGES_BASE = '/examples/packages';
 
 export const EXAMPLE_CATALOG: readonly ExampleCatalogEntry[] = [
   {
@@ -43,9 +34,9 @@ export const EXAMPLE_CATALOG: readonly ExampleCatalogEntry[] = [
     badges: ['Measure', 'Gaps in Care'],
     description:
       'CQL-based lipid management and cardiovascular risk workflows (including PREVENT-aligned scoring), with VSAC and custom value sets for therapy and observation criteria.',
-    packageId: EXAMPLE_PACKAGE_LIPID,
-    packageVersion: EXAMPLE_PACKAGE_LIPID_VERSION,
-    packageUrl: EXAMPLE_PACKAGE_LIPID_URL
+    packageId: '',
+    packageVersion: '',
+    packageUrl: `${EXAMPLE_PACKAGES_BASE}/com.prestonlee.fhir.lipid-management-0.4.0.tgz`
   },
   {
     id: 'hospital-at-home',
@@ -54,9 +45,9 @@ export const EXAMPLE_CATALOG: readonly ExampleCatalogEntry[] = [
     badges: ['CDS', 'Gaps in Care'],
     description:
       'CQL demonstration of Hospital-at-Home eligibility using the Leff et al. (1997) inclusion and exclusion criteria, with encounter-level results, bundled test patients, and VSAC ValueSet definitions.',
-    packageId: EXAMPLE_PACKAGE_HOSPITAL_AT_HOME,
-    packageVersion: EXAMPLE_PACKAGE_HOSPITAL_AT_HOME_VERSION,
-    packageUrl: EXAMPLE_PACKAGE_HOSPITAL_AT_HOME_URL
+    packageId: '',
+    packageVersion: '',
+    packageUrl: `${EXAMPLE_PACKAGES_BASE}/hah-eligibility-demo-1.2.0.tgz`
   }
 ];
 
