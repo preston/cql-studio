@@ -1,36 +1,35 @@
 <div id="lipid-management-example">
   <h5 class="card-title mb-3">{{ example.title }}</h5>
   @if (example.packageId || example.packageUrl) {
-    <div class="mb-3">
-      <app-example-import-cta
-        [packageId]="example.packageId"
-        [packageVersion]="example.packageVersion"
-        [packageUrl]="example.packageUrl"
-        buttonId="lipid-management-example-import-cta" />
-    </div>
+  <div class="mb-3">
+    <app-example-import-cta [packageId]="example.packageId" [packageVersion]="example.packageVersion"
+      [packageUrl]="example.packageUrl" buttonId="lipid-management-example-import-cta" />
+  </div>
   } @else {
-    <p class="text-muted small mb-3" id="lipid-management-package-unavailable">
-      A FHIR package for this example is not published yet.
-    </p>
+  <p class="text-muted small mb-3" id="lipid-management-package-unavailable">
+    A FHIR package for this example is not published yet.
+  </p>
   }
   <p class="text-muted">{{ example.description }}</p>
   <p>
     This hands-on example is based on the open-source
     <a href="https://github.com/preston/lipid-management" target="_blank" rel="noopener noreferrer"
       id="lipid-management-github-link">Lipid Management</a>
-    project based on VA/DoD guidelines, which includes CQL libraries and value sets for lipid therapy decision support on FHIR R4, including
+    project based on VA/DoD guidelines, which includes CQL libraries and value sets for lipid therapy decision support
+    on FHIR R4, including
     PREVENT-aligned cardiovascular risk utilities and ValueSet resources.
   </p>
 
-  <div class="alert alert-warning" id="lipid-management-clinical-use-notice" role="alert">
-    These libraries are providing as teaching and demonstration artifacts.
-    OpenCVDRisk is an open-source implementation of published PREVENT equations in Clinical Quality Language (CQL) and is not affiliated with or endorsed by
-    the AHA. CDS outputs are not treatment orders. <strong>Not for clinical use.</strong> 
-  </div>
+  <p>
+    These libraries are provided as teaching and demonstration artifacts. OpenCVDRisk is an open-source implementation
+    of published PREVENT equations in Clinical Quality Language (CQL) and is not affiliated with or endorsed by
+    the AHA. CDS outputs are not treatment orders. Not for clinical use.
+  </p>
 
   <h6 class="mt-4" id="lipid-management-libraries-heading">Libraries</h6>
   <p>
-    Each FHIR CQL Library is independently evaluable in <code>Patient</code> context, with upper guideline Library reusing the lower-level logic.
+    Each FHIR CQL Library is independently evaluable in <code>Patient</code> context, with upper guideline Library
+    reusing the lower-level logic.
   </p>
   <div class="table-responsive mb-3">
     <table class="table table-sm table-bordered" id="lipid-management-libraries">
@@ -69,7 +68,8 @@
 
   <h6 class="mt-4" id="lipid-management-patients-heading">Example patients</h6>
   <p>
-    Eight Synthea FHIR R4 transaction bundles are included, which can be used out of the box within the IDE. Ages are as of 2026.
+    Eight Synthea FHIR R4 transaction bundles are included, which can be used out of the box within the IDE. Ages are as
+    of 2026.
   </p>
   <div class="table-responsive mb-3">
     <table class="table table-sm table-bordered" id="lipid-management-example-patients">
@@ -99,7 +99,8 @@
         <tr>
           <td>Rhett759 Kulas532</td>
           <td>67, male</td>
-          <td>Untreated-range LDL (~225) on simvastatin plus lisinopril; LVEF 8% (HFrEF exclusion from the CPG population).</td>
+          <td>Untreated-range LDL (~225) on simvastatin plus lisinopril; LVEF 8% (HFrEF exclusion from the CPG
+            population).</td>
         </tr>
         <tr>
           <td>Katharine125 Hudson301</td>

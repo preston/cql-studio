@@ -1,31 +1,27 @@
 <div id="hospital-at-home-example">
   <h5 class="card-title mb-3">{{ example.title }}</h5>
   @if (example.packageId || example.packageUrl) {
-    <div class="mb-3">
-      <app-example-import-cta
-        [packageId]="example.packageId"
-        [packageVersion]="example.packageVersion"
-        [packageUrl]="example.packageUrl"
-        buttonId="hospital-at-home-example-import-cta" />
-    </div>
+  <div class="mb-3">
+    <app-example-import-cta [packageId]="example.packageId" [packageVersion]="example.packageVersion"
+      [packageUrl]="example.packageUrl" buttonId="hospital-at-home-example-import-cta" />
+  </div>
   } @else {
-    <p class="text-muted small mb-3" id="hospital-at-home-package-unavailable">
-      A FHIR package for this example is not published yet.
-    </p>
+  <p class="text-muted small mb-3" id="hospital-at-home-package-unavailable">
+    A FHIR package for this example is not published yet.
+  </p>
   }
   <p class="text-muted">{{ example.description }}</p>
-
-  <div class="alert alert-warning" id="hospital-at-home-clinical-use-notice" role="alert">
-    <strong>Not for clinical use.</strong> This library is a teaching and demonstration artifact. It
-    has not been clinically validated, and the criteria it encodes are a published research protocol,
-    not any particular organization's admission policy.
-  </div>
 
   <h6 class="mt-4">What Hospital-at-Home eligibility is</h6>
   <p>
     Hospital-at-Home (HaH) delivers acute, inpatient-level care in a patient's residence: daily
     clinician visits, IV therapy, diagnostics, and continuous monitoring for a condition that would
     otherwise require a hospital bed.
+  </p>
+  <p>
+    This library is provided as ateaching and demonstration artifact. It
+    has not been clinically validated, and the criteria it encodes are a published research protocol,
+    not any particular organization's admission policy.
   </p>
   <p>
     The clinical question is a screening one: of the patients presenting for acute admission, which
@@ -35,13 +31,8 @@
   </p>
   <p>
     This library encodes the criteria described by Leff et al. (1997) in an original publication
-    (<a
-      href="https://doi.org/10.1111/j.1532-5415.1997.tb05968.x"
-      target="_blank"
-      rel="noopener noreferrer"
-      id="hospital-at-home-leff-doi"
-      >https://doi.org/10.1111/j.1532-5415.1997.tb05968.x</a
-    >)
+    (<a href="https://doi.org/10.1111/j.1532-5415.1997.tb05968.x" target="_blank" rel="noopener noreferrer"
+      id="hospital-at-home-leff-doi">https://doi.org/10.1111/j.1532-5415.1997.tb05968.x</a>)
     and can be executed in &lt;1s using CQL. Results are structured to support clinicians' eligibility
     decisions on criteria-level.
   </p>
@@ -268,7 +259,7 @@
   <h6 class="mt-4" id="hospital-at-home-attribution">Attribution</h6>
   <p>
     Content authored by <em>Tim Schwirtlich, Institute for AI in Medicine (I.AIM), Northwestern
-    University</em>.
+      University</em>.
   </p>
   <p>
     The eligibility criteria encoded here are derived from the published work of Leff et al. on
@@ -276,13 +267,8 @@
     structure, and test data are original.
   </p>
   <p>
-    <a
-      href="https://doi.org/10.1111/j.1532-5415.1997.tb05968.x"
-      target="_blank"
-      rel="noopener noreferrer"
-      id="hospital-at-home-leff-doi-attribution"
-      >https://doi.org/10.1111/j.1532-5415.1997.tb05968.x</a
-    >
+    <a href="https://doi.org/10.1111/j.1532-5415.1997.tb05968.x" target="_blank" rel="noopener noreferrer"
+      id="hospital-at-home-leff-doi-attribution">https://doi.org/10.1111/j.1532-5415.1997.tb05968.x</a>
   </p>
 
   <h6 class="mt-4">License</h6>

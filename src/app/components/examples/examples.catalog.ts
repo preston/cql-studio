@@ -31,7 +31,7 @@ export const EXAMPLE_CATALOG: readonly ExampleCatalogEntry[] = [
     id: 'lipid-management',
     title: 'Lipid Management',
     path: 'lipid-management',
-    badges: ['Measure', 'Gaps in Care'],
+    badges: ['CDS', 'Gaps in Care'],
     description:
       'CQL-based lipid management and cardiovascular risk workflows (including PREVENT-aligned scoring), with VSAC and custom value sets for therapy and observation criteria.',
     packageId: '',
