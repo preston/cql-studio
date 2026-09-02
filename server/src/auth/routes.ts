@@ -15,7 +15,6 @@ import {
   clearSessionCookie,
   optionalAuth,
   publicUser,
-  requireSsoConfigured,
   SESSION_COOKIE,
   sessionCookieOptions,
   setSessionCookie,
@@ -88,16 +87,11 @@ function asyncHandler(
 
 export function createAuthRouter(env: ServerEnv): Router {
   const router = Router();
-  const gate = requireSsoConfigured(env);
 
   router.get(
     '/session',
     optionalAuth(env),
     asyncHandler(async (req, res) => {
-      if (!env.ssoConfigured) {
-        res.json({ enabled: false, user: null });
-        return;
-      }
       res.json({
         enabled: true,
         user: req.user ? publicUser(req.user) : null,
@@ -107,7 +101,6 @@ export function createAuthRouter(env: ServerEnv): Router {
 
   router.get(
     '/login',
-    gate,
     asyncHandler(async (req, res) => {
       const config = await getOidcConfig(env);
       const codeVerifier = oidcClient.randomPKCECodeVerifier();
@@ -138,7 +131,6 @@ export function createAuthRouter(env: ServerEnv): Router {
 
   router.get(
     '/callback',
-    gate,
     asyncHandler(async (req, res) => {
       const rawState = req.cookies?.[LOGIN_STATE_COOKIE] as string | undefined;
       res.clearCookie(LOGIN_STATE_COOKIE, { path: '/' });
@@ -234,7 +226,6 @@ export function createAuthRouter(env: ServerEnv): Router {
 
   router.post(
     '/logout',
-    gate,
     asyncHandler(async (req, res) => {
       const raw = req.cookies?.[SESSION_COOKIE] as string | undefined;
       if (raw) {

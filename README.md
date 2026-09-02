@@ -139,14 +139,14 @@ Server configuration uses the `CQL_STUDIO_SERVER_*` prefix:
 | `CQL_STUDIO_SERVER_NODE_ENV` | No | `development` | Node environment (`development` / `production`) |
 | `CQL_STUDIO_SERVER_CORS_ORIGIN` | Yes | `http://localhost:4200` | Allowed CORS origins for the webapp |
 | `CQL_STUDIO_SERVER_LOG_LEVEL` | No | `info` | Pino log level (`fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`) |
-| `CQL_STUDIO_SERVER_DATABASE_URL` | For SSO/Teams | `postgresql://cql_studio:password@localhost:5432/cql_studio_development` | PostgreSQL database connection URL |
-| `CQL_STUDIO_SERVER_SSO_ISSUER_URL` | For SSO | `http://localhost:9000/application/o/cql-studio/` | OIDC SSO Issuer URL |
-| `CQL_STUDIO_SERVER_SSO_CLIENT_ID` | For SSO | `cql-studio-development` | OIDC Client ID |
-| `CQL_STUDIO_SERVER_SSO_CLIENT_SECRET` | For SSO | `cql-studio-development-secret` | OIDC Client Secret |
-| `CQL_STUDIO_SERVER_SSO_REDIRECT_URL` | For SSO | `http://localhost:3003/api/auth/callback` | OIDC BFF Callback URL |
+| `CQL_STUDIO_SERVER_DATABASE_URL` | Yes | `postgresql://cql_studio:password@localhost:5432/cql_studio_development` | PostgreSQL database connection URL |
+| `CQL_STUDIO_SERVER_SSO_ISSUER_URL` | Yes | `http://localhost:9000/application/o/cql-studio/` | OIDC SSO Issuer URL |
+| `CQL_STUDIO_SERVER_SSO_CLIENT_ID` | Yes | `cql-studio-development` | OIDC Client ID |
+| `CQL_STUDIO_SERVER_SSO_CLIENT_SECRET` | Yes | `cql-studio-development-secret` | OIDC Client Secret |
+| `CQL_STUDIO_SERVER_SSO_REDIRECT_URL` | Yes | `http://localhost:3003/api/auth/callback` | OIDC BFF Callback URL |
 | `CQL_STUDIO_SERVER_SSO_SCOPES` | No | `openid profile email` | OIDC Scopes |
-| `CQL_STUDIO_SERVER_UI_BASE_URL` | For SSO | `http://localhost:4200` | Base URL of the Angular UI |
-| `CQL_STUDIO_SERVER_SESSION_SECRET` | For SSO | `cql-studio-development-session-secret` | Secret key for signing session cookies |
+| `CQL_STUDIO_SERVER_UI_BASE_URL` | Yes | `http://localhost:4200` | Base URL of the Angular UI |
+| `CQL_STUDIO_SERVER_SESSION_SECRET` | Yes | `cql-studio-development-session-secret` | Secret key for signing session cookies |
 
 ---
 

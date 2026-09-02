@@ -19,7 +19,6 @@ export interface ServerEnv {
   corsOrigin: string;
   /** Public origin of the CQL Studio UI (no trailing slash). Used for post-login redirects. */
   uiBaseUrl: string;
-  ssoConfigured: boolean;
   ssoIssuerUrl: string;
   ssoClientId: string;
   ssoClientSecret: string;
@@ -34,10 +33,10 @@ export interface ServerEnv {
   databaseUrl: string;
 }
 
-function requiredWhenSso(name: string, value: string | undefined, ssoOn: boolean): string {
+function required(name: string, value: string | undefined): string {
   const trimmed = value?.trim() ?? '';
-  if (ssoOn && !trimmed) {
-    throw new Error(`${name} is required when CQL_STUDIO_SERVER_SSO_ISSUER_URL is set`);
+  if (!trimmed) {
+    throw new Error(`${name} is required`);
   }
   return trimmed;
 }
@@ -70,44 +69,39 @@ function parseLogLevel(raw: string | undefined): PinoLogLevel {
 }
 
 export function loadEnv(): ServerEnv {
-  const ssoIssuerUrl = process.env.CQL_STUDIO_SERVER_SSO_ISSUER_URL?.trim() ?? '';
-  const ssoConfigured = ssoIssuerUrl.length > 0;
+  const ssoIssuerUrl = required(
+    'CQL_STUDIO_SERVER_SSO_ISSUER_URL',
+    process.env.CQL_STUDIO_SERVER_SSO_ISSUER_URL
+  );
+  const databaseUrl = required(
+    'CQL_STUDIO_SERVER_DATABASE_URL',
+    process.env.CQL_STUDIO_SERVER_DATABASE_URL
+  );
 
-  const databaseUrl = process.env.CQL_STUDIO_SERVER_DATABASE_URL?.trim() ?? '';
-  if (ssoConfigured && !databaseUrl) {
-    throw new Error(
-      'SSO is configured but CQL_STUDIO_SERVER_DATABASE_URL is not set. Refusing to start.'
-    );
-  }
-
-  const sessionSecret = requiredWhenSso(
+  const sessionSecret = required(
     'CQL_STUDIO_SERVER_SESSION_SECRET',
-    process.env.CQL_STUDIO_SERVER_SESSION_SECRET,
-    ssoConfigured
+    process.env.CQL_STUDIO_SERVER_SESSION_SECRET
   );
   const previousSessionSecrets = parseSecretList(
     process.env.CQL_STUDIO_SERVER_SESSION_SECRET_PREVIOUS
   ).filter((s) => s !== sessionSecret);
 
-  const ssoClientSecret = requiredWhenSso(
+  const ssoClientSecret = required(
     'CQL_STUDIO_SERVER_SSO_CLIENT_SECRET',
-    process.env.CQL_STUDIO_SERVER_SSO_CLIENT_SECRET,
-    ssoConfigured
+    process.env.CQL_STUDIO_SERVER_SSO_CLIENT_SECRET
   );
   const ssoClientSecretPrevious = parseSecretList(
     process.env.CQL_STUDIO_SERVER_SSO_CLIENT_SECRET_PREVIOUS
   ).filter((s) => s !== ssoClientSecret);
 
   const corsOrigin = process.env.CQL_STUDIO_SERVER_CORS_ORIGIN?.trim() || 'http://localhost:4200';
-  const uiBaseUrlRaw = requiredWhenSso(
+  const uiBaseUrl = required(
     'CQL_STUDIO_SERVER_UI_BASE_URL',
-    process.env.CQL_STUDIO_SERVER_UI_BASE_URL,
-    ssoConfigured
-  );
-  const uiBaseUrl = (uiBaseUrlRaw || corsOrigin).replace(/\/+$/, '');
+    process.env.CQL_STUDIO_SERVER_UI_BASE_URL
+  ).replace(/\/+$/, '');
 
   const nodeEnv = process.env.CQL_STUDIO_SERVER_NODE_ENV || 'development';
-  if (ssoConfigured && ssoIssuerUrl.startsWith('http://') && nodeEnv !== 'development') {
+  if (ssoIssuerUrl.startsWith('http://') && nodeEnv !== 'development') {
     throw new Error(
       'HTTP SSO issuer URLs are only allowed when CQL_STUDIO_SERVER_NODE_ENV=development'
     );
@@ -119,23 +113,20 @@ export function loadEnv(): ServerEnv {
     logLevel: parseLogLevel(process.env.CQL_STUDIO_SERVER_LOG_LEVEL),
     corsOrigin,
     uiBaseUrl,
-    ssoConfigured,
     ssoIssuerUrl,
-    ssoClientId: requiredWhenSso(
+    ssoClientId: required(
       'CQL_STUDIO_SERVER_SSO_CLIENT_ID',
-      process.env.CQL_STUDIO_SERVER_SSO_CLIENT_ID,
-      ssoConfigured
+      process.env.CQL_STUDIO_SERVER_SSO_CLIENT_ID
     ),
     ssoClientSecret,
     ssoClientSecretPrevious,
-    ssoRedirectUrl: requiredWhenSso(
+    ssoRedirectUrl: required(
       'CQL_STUDIO_SERVER_SSO_REDIRECT_URL',
-      process.env.CQL_STUDIO_SERVER_SSO_REDIRECT_URL,
-      ssoConfigured
+      process.env.CQL_STUDIO_SERVER_SSO_REDIRECT_URL
     ),
     ssoScopes: process.env.CQL_STUDIO_SERVER_SSO_SCOPES?.trim() || 'openid profile email',
     sessionSecret,
-    sessionSecrets: sessionSecret ? [sessionSecret, ...previousSessionSecrets] : [],
+    sessionSecrets: [sessionSecret, ...previousSessionSecrets],
     databaseUrl,
   };
 }

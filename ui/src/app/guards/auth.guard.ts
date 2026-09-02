@@ -10,9 +10,6 @@ export const authGuard: CanActivateFn = async () => {
   if (!auth.loaded()) {
     await auth.refreshSession();
   }
-  if (!auth.ssoEnabled()) {
-    return router.createUrlTree(['/']);
-  }
   if (!auth.isAuthenticated()) {
     auth.login(router.url);
     return false;

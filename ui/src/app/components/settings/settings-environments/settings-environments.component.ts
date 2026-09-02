@@ -8,6 +8,7 @@ import { SettingsService } from '../../../services/settings.service';
 import { CqlEnvironment } from '../../../models/environment.model';
 import { cloneEndpointConfiguration } from '../../../services/endpoint-config.lib';
 import { SettingsEndpointEditorComponent } from '../settings-endpoint-editor/settings-endpoint-editor.component';
+import { ToastService } from '../../../services/toast.service';
 
 @Component({
   selector: 'app-settings-environments',
@@ -16,6 +17,7 @@ import { SettingsEndpointEditorComponent } from '../settings-endpoint-editor/set
 })
 export class SettingsEnvironmentsComponent {
   private readonly environmentSwitchService = inject(EnvironmentSwitchService);
+  private readonly toastService = inject(ToastService);
   protected readonly settingsService = inject(SettingsService);
   protected readonly environmentService = inject(EnvironmentService);
 
@@ -32,7 +34,7 @@ export class SettingsEnvironmentsComponent {
 
   readonly canDeleteSelected = computed(() => {
     const env = this.selectedEnvironment();
-    return !!env && !env.builtIn && this.environments().length > 1;
+    return !!env && !env.builtIn;
   });
 
   readonly isActiveSelected = computed(() => {
@@ -55,18 +57,18 @@ export class SettingsEnvironmentsComponent {
 
   updateSelectedName(name: string): void {
     const env = this.editingEnvironment();
-    if (!env) {
+    if (!env || env.builtIn) {
       return;
     }
-    this.persistEnvironment({ ...env, name });
+    void this.persistEnvironment({ ...env, name });
   }
 
   onEvaluationServerChange(): void {
     const env = this.editingEnvironment();
-    if (!env) {
+    if (!env || env.builtIn) {
       return;
     }
-    this.persistEnvironment({
+    void this.persistEnvironment({
       ...env,
       evaluationServer: cloneEndpointConfiguration(env.evaluationServer)
     });
@@ -74,10 +76,10 @@ export class SettingsEnvironmentsComponent {
 
   onDataEndpointChange(): void {
     const env = this.editingEnvironment();
-    if (!env) {
+    if (!env || env.builtIn) {
       return;
     }
-    this.persistEnvironment({
+    void this.persistEnvironment({
       ...env,
       dataEndpoint: cloneEndpointConfiguration(env.dataEndpoint)
     });
@@ -85,10 +87,10 @@ export class SettingsEnvironmentsComponent {
 
   onTerminologyEndpointChange(): void {
     const env = this.editingEnvironment();
-    if (!env) {
+    if (!env || env.builtIn) {
       return;
     }
-    this.persistEnvironment({
+    void this.persistEnvironment({
       ...env,
       terminologyEndpoint: cloneEndpointConfiguration(env.terminologyEndpoint)
     });
@@ -96,10 +98,10 @@ export class SettingsEnvironmentsComponent {
 
   onContentEndpointChange(): void {
     const env = this.editingEnvironment();
-    if (!env) {
+    if (!env || env.builtIn) {
       return;
     }
-    this.persistEnvironment({
+    void this.persistEnvironment({
       ...env,
       contentEndpoint: cloneEndpointConfiguration(env.contentEndpoint)
     });
@@ -113,43 +115,70 @@ export class SettingsEnvironmentsComponent {
     this.environmentSwitchService.activateEnvironment(env.id);
   }
 
-  duplicateSelected(): void {
+  async duplicateSelected(): Promise<void> {
     const env = this.selectedEnvironment();
     if (!env) {
       return;
     }
     const copy = this.environmentService.duplicateEnvironment(env.id);
-    if (copy) {
-      this.settingsService.persistEnvironmentToSettings();
-      this.settingsService.saveSettings();
-      this.selectedEnvironmentId.set(copy.id);
+    if (!copy) {
+      return;
+    }
+    try {
+      const saved = await this.settingsService.persistEnvironment(copy);
+      this.selectedEnvironmentId.set(saved.id);
+    } catch (err) {
+      this.environmentService.deleteEnvironment(copy.id);
+      this.toastService.showError(
+        err instanceof Error ? err.message : 'Failed to save environment',
+        'Environment'
+      );
     }
   }
 
-  deleteSelected(): void {
+  async deleteSelected(): Promise<void> {
     const env = this.selectedEnvironment();
-    if (!env) {
+    if (!env || env.builtIn) {
       return;
     }
-    if (this.environmentService.deleteEnvironment(env.id)) {
-      this.settingsService.persistEnvironmentToSettings();
-      this.settingsService.saveSettings();
+    if (!this.environmentService.deleteEnvironment(env.id)) {
+      return;
+    }
+    try {
+      await this.settingsService.deletePersonalEnvironment(env.id);
       this.selectedEnvironmentId.set(this.activeEnvironmentId());
+    } catch (err) {
+      this.toastService.showError(
+        err instanceof Error ? err.message : 'Failed to delete environment',
+        'Environment'
+      );
+      await this.settingsService.reloadFromServer();
     }
   }
 
   resetBuiltIn(): void {
     this.environmentService.resetBuiltInEnvironment();
-    this.settingsService.persistEnvironmentToSettings();
-    this.settingsService.saveSettings();
     this.selectedEnvironmentId.set(this.activeEnvironmentId());
   }
 
-  private persistEnvironment(updated: CqlEnvironment): void {
+  private async persistEnvironment(updated: CqlEnvironment): Promise<void> {
+    if (updated.builtIn) {
+      return;
+    }
     this.environmentService.updateEnvironment(updated);
     this.editingEnvironment.set(this.cloneEnvironment(updated));
-    this.settingsService.persistEnvironmentToSettings();
-    this.settingsService.saveSettings();
+    try {
+      const saved = await this.settingsService.persistEnvironment(updated);
+      this.editingEnvironment.set(this.cloneEnvironment(saved));
+      if (this.selectedEnvironmentId() === updated.id || !this.selectedEnvironmentId()) {
+        this.selectedEnvironmentId.set(saved.id);
+      }
+    } catch (err) {
+      this.toastService.showError(
+        err instanceof Error ? err.message : 'Failed to save environment',
+        'Environment'
+      );
+    }
   }
 
   private cloneEnvironment(env: CqlEnvironment): CqlEnvironment {

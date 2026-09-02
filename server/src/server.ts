@@ -13,6 +13,7 @@ import { vsacFhirProxyRouter, vsacSiteProxyRouter } from './vsac/proxy.js';
 import { createAuthRouter } from './auth/routes.js';
 import { createTeamRouter } from './team/routes.js';
 import { createActivityRouter, createWorkspaceRouter } from './workspace/routes.js';
+import { createUserSettingsRouter } from './user/routes.js';
 
 async function main(): Promise<void> {
   const env = loadEnv();
@@ -25,8 +26,8 @@ async function main(): Promise<void> {
 
   app.use(
     cors({
-      origin: env.ssoConfigured ? env.corsOrigin : '*',
-      credentials: env.ssoConfigured,
+      origin: env.corsOrigin,
+      credentials: true,
       optionsSuccessStatus: 200,
     })
   );
@@ -35,11 +36,11 @@ async function main(): Promise<void> {
   app.use(cookieParser());
   app.use(pinoHttp({ logger }));
 
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
-      ssoEnabled: env.ssoConfigured,
+      ssoEnabled: true,
     });
   });
 
@@ -47,17 +48,11 @@ async function main(): Promise<void> {
   app.use('/api/ollama', ollamaProxyRouter);
   app.use('/api/vsac/fhir', vsacFhirProxyRouter);
   app.use('/api/vsac/site', vsacSiteProxyRouter);
-
-  if (env.ssoConfigured) {
-    app.use('/api/auth', createAuthRouter(env));
-    app.use('/api/teams', createTeamRouter(env));
-    app.use('/api/workspaces', createWorkspaceRouter(env));
-    app.use('/api/activity', createActivityRouter(env));
-  } else {
-    app.get('/api/auth/session', (_req, res) => {
-      res.json({ enabled: false, user: null });
-    });
-  }
+  app.use('/api/auth', createAuthRouter(env));
+  app.use('/api/teams', createTeamRouter(env));
+  app.use('/api/workspaces', createWorkspaceRouter(env));
+  app.use('/api/activity', createActivityRouter(env));
+  app.use('/api/users', createUserSettingsRouter(env));
 
   app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const oauthErr = err as Error & { error?: string; error_description?: string };
@@ -94,9 +89,9 @@ async function main(): Promise<void> {
       {
         port: env.port,
         nodeEnv: env.nodeEnv,
-        sso: env.ssoConfigured ? 'enabled' : 'disabled',
-        ...(env.ssoConfigured && { uiBaseUrl: env.uiBaseUrl }),
-        corsOrigin: env.ssoConfigured ? `${env.corsOrigin} (credentials)` : '* (allowing all origins)',
+        sso: 'enabled',
+        uiBaseUrl: env.uiBaseUrl,
+        corsOrigin: `${env.corsOrigin} (credentials)`,
       },
       'CQL Studio Server listening'
     );

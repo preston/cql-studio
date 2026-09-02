@@ -86,15 +86,29 @@ export class EnvironmentService {
 
   readonly isPersonalEnvironmentActive = computed(() => this._activeEnvironmentSource() === 'personal');
 
+  /** Replace personal env list while always keeping virtual Default Environment first. Does not change active selection except to repair invalid ids. */
+  syncPersonalEnvironments(personalEnvironments: CqlEnvironment[]): void {
+    const personal = (personalEnvironments ?? [])
+      .filter(env => !env.builtIn && env.id !== BUILT_IN_ENVIRONMENT_ID)
+      .map(env => this.cloneEnvironment({ ...env, builtIn: false }));
+    const normalized = [this.seedBuiltInEnvironment(), ...personal];
+    this._environments.set(normalized);
+    this._activeEnvironmentId.set(
+      this.resolveActiveEnvironmentId(this._activeEnvironmentId(), normalized)
+    );
+  }
+
+  /** @deprecated Prefer syncPersonalEnvironments; active selection is in-memory only. */
   syncFromSettings(
     environments: CqlEnvironment[],
     activeEnvironmentId: string,
     activeEnvironmentSource: ActiveEnvironmentSource = 'personal',
     activeWorkspaceEnvironment: ActiveWorkspaceEnvironmentRef | null = null
   ): void {
-    const normalized = this.normalizeEnvironments(environments);
-    this._environments.set(normalized);
-    this._activeEnvironmentId.set(this.resolveActiveEnvironmentId(activeEnvironmentId, normalized));
+    this.syncPersonalEnvironments(environments);
+    this._activeEnvironmentId.set(
+      this.resolveActiveEnvironmentId(activeEnvironmentId, this._environments())
+    );
     if (activeEnvironmentSource === 'workspace' && activeWorkspaceEnvironment) {
       this._activeEnvironmentSource.set('workspace');
       this._activeWorkspaceEnvironment.set(activeWorkspaceEnvironment);
@@ -238,7 +252,7 @@ export class EnvironmentService {
 
   deleteEnvironment(id: string): boolean {
     const target = this._environments().find(env => env.id === id);
-    if (!target || target.builtIn || this._environments().length <= 1) {
+    if (!target || target.builtIn) {
       return false;
     }
     this._environments.update(envs => envs.filter(env => env.id !== id));
@@ -419,9 +433,10 @@ export class EnvironmentService {
   }
 
   private scrubEndpoint(endpoint: EndpointConfiguration): EndpointConfiguration {
+    const normalized = normalizeEndpointConfiguration(endpoint);
     return {
-      address: endpoint.address ?? '',
-      headers: [...(endpoint.headers ?? [])],
+      address: normalized.address ?? '',
+      headers: [...(normalized.headers ?? [])],
     };
   }
 
@@ -490,10 +505,10 @@ export class EnvironmentService {
   }
 
   private normalizeEnvironments(environments: CqlEnvironment[]): CqlEnvironment[] {
-    if (!environments?.length) {
-      return [this.seedBuiltInEnvironment()];
-    }
-    return environments.map(env => this.cloneEnvironment(env));
+    const personal = (environments ?? [])
+      .filter(env => !env.builtIn && env.id !== BUILT_IN_ENVIRONMENT_ID)
+      .map(env => this.cloneEnvironment({ ...env, builtIn: false }));
+    return [this.seedBuiltInEnvironment(), ...personal];
   }
 
   private resolveActiveEnvironmentId(id: string, environments: CqlEnvironment[]): string {
