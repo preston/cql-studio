@@ -38,7 +38,7 @@
     ]
   },
   "dependencies": {
-    "@angular/cdk": "^22.1.4",
+    "@angular/cdk": "^22.1.5",
     "@angular/common": "^22.1.4",
     "@angular/compiler": "^22.1.4",
     "@angular/core": "^22.1.4",
@@ -87,7 +87,7 @@
     "@angular/compiler-cli": "^22.1.4",
     "@playwright/test": "^1.62.1",
     "@types/fhir": "^0.0.44",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "@types/prismjs": "^1.26.6",
     "@types/semver": "^7.8.0",
     "jsdom": "^30.0.1",
