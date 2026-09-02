@@ -110,10 +110,6 @@ export class NavigationComponent {
     return this.environmentService.isWorkspaceEnvironmentSelected(workspaceId, environmentId);
   }
 
-  signIn(): void {
-    this.authService.login(this.router.url);
-  }
-
   async signOut(): Promise<void> {
     this.environmentSwitchService.clearWorkspaceCatalog();
     await this.authService.logout();
