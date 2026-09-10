@@ -28,6 +28,6 @@ export function getAllShortcuts(isMac: boolean = isMacPlatform()): KeyboardShort
     },
     { key: 'F12', description: 'Go to Definition / Open Terminology' },
     { key: 'Shift+F12', description: 'Find All References' },
-    { key: 'Hover / right-click', description: 'Find References, Peek ValueSet, Rename' }
+    { key: 'Hover / right-click', description: 'Find References, Peek ValueSet, Import from VSAC, Rename' }
   ];
 }

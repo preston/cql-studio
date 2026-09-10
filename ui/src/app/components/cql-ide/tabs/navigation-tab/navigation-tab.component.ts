@@ -37,7 +37,7 @@ export class NavigationTabComponent implements OnInit {
   protected readonly currentPage = signal(1);
   protected readonly totalPages = signal(0);
   protected readonly totalLibraries = signal(0);
-  protected readonly pageSize = signal(5);
+  protected readonly pageSize = signal(10);
   protected readonly librarySortBy = signal<'name' | 'version' | 'date'>('name');
   protected readonly librarySortOrder = signal<'asc' | 'desc'>('asc');
   protected readonly isLoadingLibraries = signal(false);
@@ -354,7 +354,7 @@ export class NavigationTabComponent implements OnInit {
   }
 
   selectPatient(patient: Patient): void {
-    if (patient.id) {
+    if (patient.id && !this.patientService.hasPatient(patient.id)) {
       this.patientService.addPatient(patient);
       this.ideContextService.notifySelectionChanged();
       this.showPatientSearchResults.set(false);
@@ -425,7 +425,7 @@ export class NavigationTabComponent implements OnInit {
   }
 
   selectGroup(group: Group): void {
-    if (group.id) {
+    if (group.id && !this.groupService.hasGroup(group.id)) {
       this.groupService.addGroup(group);
       this.ideContextService.notifySelectionChanged();
       this.showGroupSearchResults.set(false);

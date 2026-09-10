@@ -80,6 +80,12 @@ export class CqlTerminologyExistenceService {
     return promise;
   }
 
+  invalidate(resourceType: CqlTerminologyResourceKind, url: string): void {
+    const key = this.cacheKey(resourceType, url);
+    this.cache.delete(key);
+    this.inFlight.delete(key);
+  }
+
   private async lookup(
     resourceType: CqlTerminologyResourceKind,
     url: string

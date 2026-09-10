@@ -50,6 +50,12 @@ import { TerminologyResourceOpenerService } from '../../../../services/terminolo
 import { TerminologyService } from '../../../../services/terminology.service';
 import { LibraryService } from '../../../../services/library.service';
 import { describeFhirHttpFailure } from '../../../../services/fhir-http-error.lib';
+import {
+  extractVsacCanonicalUrls,
+  isVsacCanonicalUrl,
+  OpenCodeVsacImportService,
+} from '../../../../services/opencode-vsac-import.service';
+import { ToastService } from '../../../../services/toast.service';
 import { createIncludeLibraryCompletionSource } from '../../../../services/cql-include-completion.lib';
 import {
   extractElmHoverTypeInfos,
@@ -217,6 +223,8 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private terminologyExistence = inject(CqlTerminologyExistenceService);
   private terminologyOpener = inject(TerminologyResourceOpenerService);
   private terminologyService = inject(TerminologyService);
+  private vsacImport = inject(OpenCodeVsacImportService);
+  private toastService = inject(ToastService);
   private libraryService = inject(LibraryService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -1106,6 +1114,21 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
           label: 'Peek ValueSet Expansion',
           run: () => this.peekValueset(terminology.declaration.name, knownLocalId, resourceUrl)
         });
+        if (isVsacCanonicalUrl(terminology.declaration.url)) {
+          actions.push({
+            id: 'import-vsac',
+            label: 'VSAC: Import ValueSet',
+            run: () => this.importVsacValueSets([terminology.declaration.url.trim()], terminology.declaration.name)
+          });
+        }
+        const allVsacUrls = extractVsacCanonicalUrls(this.getValue());
+        if (allVsacUrls.length > 0) {
+          actions.push({
+            id: 'import-all-vsac',
+            label: 'VSAC: Import All ValueSets',
+            run: () => this.importVsacValueSets(allVsacUrls, 'all VSAC ValueSets')
+          });
+        }
       }
 
       if (!actions.some(a => a.id === 'find-references')) {
@@ -1402,6 +1425,43 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
         truncated: false,
         error: describeFhirHttpFailure(error) || 'Failed to expand ValueSet'
       });
+    }
+  }
+
+  private async importVsacValueSets(urls: string[], label: string): Promise<void> {
+    const unique = [...new Set(urls.map(url => url.trim()).filter(url => isVsacCanonicalUrl(url)))];
+    if (unique.length === 0) {
+      this.toastService.showWarning('No VSAC ValueSet URLs to import.', 'VSAC Import');
+      return;
+    }
+    this.ideStateService.setExecutionStatus(
+      unique.length === 1
+        ? `Importing VSAC ValueSet (${label})...`
+        : `Importing ${unique.length} VSAC ValueSets...`
+    );
+    try {
+      const summary = await this.vsacImport.importCanonicalUrls(unique);
+      for (const url of unique) {
+        this.terminologyExistence.invalidate('ValueSet', url);
+        void this.terminologyExistence.resolve('ValueSet', url);
+      }
+      const detail = `${summary.imported} imported · ${summary.alreadyPresent} already present on ${summary.target}`;
+      this.toastService.showSuccess(detail, 'VSAC Import');
+      this.ideStateService.addTextOutput(
+        `VSAC Import: ${label}`,
+        detail,
+        'success'
+      );
+      this.ideStateService.setExecutionStatus('VSAC import complete');
+    } catch (error) {
+      const message = describeFhirHttpFailure(error);
+      this.toastService.showError(message, 'VSAC Import');
+      this.ideStateService.addTextOutput(
+        `VSAC Import Failed: ${label}`,
+        message,
+        'error'
+      );
+      this.ideStateService.setExecutionStatus('VSAC import failed');
     }
   }
 

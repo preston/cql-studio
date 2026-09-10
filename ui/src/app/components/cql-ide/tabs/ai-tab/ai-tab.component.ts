@@ -34,6 +34,7 @@ import { LibraryResource } from '../../shared/ide-types';
 import type { AiProviderType } from '../../../../models/settings.model';
 import { Subscription, timer } from 'rxjs';
 import { extractVsacCanonicalUrls, OpenCodeVsacImportService } from '../../../../services/opencode-vsac-import.service';
+import { describeFhirHttpFailure } from '../../../../services/fhir-http-error.lib';
 import { buildOpenCodeProblemsContext } from '../../../../services/opencode-problems-context.lib';
 
 type OpenCodeTimelineItem =
@@ -656,7 +657,7 @@ export class AiTabComponent implements OnInit, OnDestroy {
             kind: 'tool',
             title: 'VSAC terminology import failed',
             status: 'error',
-            detail: error instanceof Error ? error.message : String(error),
+            detail: describeFhirHttpFailure(error),
             endedAt: Date.now(),
           });
           throw error;
@@ -666,7 +667,6 @@ export class AiTabComponent implements OnInit, OnDestroy {
         libraryId: diff.libraryId,
         cqlContent: diff.after,
         save: true,
-        vsacTerminologyReady: vsacReferences.length > 0,
         onSaveComplete: resolve,
       }));
       if (saved) {

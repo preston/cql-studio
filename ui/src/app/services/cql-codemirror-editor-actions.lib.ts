@@ -19,7 +19,9 @@ export type CqlEditorActionId =
   | 'find-references'
   | 'rename-symbol'
   | 'open-terminology'
-  | 'peek-valueset';
+  | 'peek-valueset'
+  | 'import-vsac'
+  | 'import-all-vsac';
 
 export interface CqlEditorAction {
   id: CqlEditorActionId;

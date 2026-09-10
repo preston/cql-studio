@@ -2,7 +2,7 @@
 
 import { Injector, runInInjectionContext } from '@angular/core';
 import type { Bundle, ValueSet } from 'fhir/r4';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { SettingsService } from './settings.service';
 import { TerminologyService } from './terminology.service';
@@ -82,7 +82,67 @@ describe('OpenCode VSAC terminology import', () => {
 
     expect(result.imported).toBe(0);
     expect(result.alreadyPresent).toBe(1);
-    expect(terminologyExpand).toHaveBeenCalledWith({ url: canonical, count: 1 });
+    expect(terminologyExpand).toHaveBeenCalledWith({ id: 'existing', count: 1 });
+    expect(vsacFetch).not.toHaveBeenCalled();
+  });
+
+  it('prefers an expandable sibling when duplicate canonicals exist', async () => {
+    const broken: ValueSet = { resourceType: 'ValueSet', id: 'custom-id', url: canonical, title: 'Broken' };
+    const good: ValueSet = {
+      resourceType: 'ValueSet',
+      id: '2.16.840.1.113883.3.1',
+      url: canonical,
+      title: 'Good',
+      expansion: { timestamp: '2026-09-03T00:00:00Z', total: 2, contains: [{ code: '1' }, { code: '2' }] },
+    };
+    const vsacFetch = vi.fn();
+    const terminologyExpand = vi.fn();
+    const service = serviceWith({
+      terminologySearch: vi.fn(() => of({
+        resourceType: 'Bundle',
+        type: 'searchset',
+        entry: [{ resource: broken }, { resource: good }],
+      } as Bundle)),
+      terminologyExpand,
+      vsacFetch,
+      hasCredentials: false,
+    });
+
+    const result = await service.importCanonicalUrls([canonical]);
+
+    expect(result.imported).toBe(0);
+    expect(result.alreadyPresent).toBe(1);
+    expect(result.items[0]?.title).toBe('Good');
+    expect(terminologyExpand).not.toHaveBeenCalled();
+    expect(vsacFetch).not.toHaveBeenCalled();
+  });
+
+  it('expands by resource id when the search hit lacks an expansion', async () => {
+    const existing: ValueSet = { resourceType: 'ValueSet', id: 'local-id', url: canonical, title: 'Local' };
+    const terminologyExpand = vi.fn((params: { id?: string; url?: string }) => {
+      if (params.id === 'local-id') {
+        return of({
+          ...existing,
+          expansion: { timestamp: '2026-09-03T00:00:00Z', total: 1, contains: [{ code: '1' }] },
+        });
+      }
+      return throwError(() => new Error('ambiguous url'));
+    });
+    const vsacFetch = vi.fn();
+    const service = serviceWith({
+      terminologySearch: vi.fn(() => of({
+        resourceType: 'Bundle', type: 'searchset', entry: [{ resource: existing }],
+      } as Bundle)),
+      terminologyExpand,
+      vsacFetch,
+      hasCredentials: false,
+    });
+
+    const result = await service.importCanonicalUrls([canonical]);
+
+    expect(result.imported).toBe(0);
+    expect(result.alreadyPresent).toBe(1);
+    expect(terminologyExpand).toHaveBeenCalledWith({ id: 'local-id', count: 1 });
     expect(vsacFetch).not.toHaveBeenCalled();
   });
 
@@ -126,7 +186,7 @@ describe('OpenCode VSAC terminology import', () => {
       vsacExpand: vi.fn(() => of(expanded)),
     });
 
-    const result = await service.importForCql(`valueset "Diabetes": '${canonical}'`);
+    const result = await service.importCanonicalUrls([canonical]);
 
     expect(result.imported).toBe(1);
     const posted = terminologyPost.mock.calls[0]?.[0] as Bundle;
@@ -135,10 +195,45 @@ describe('OpenCode VSAC terminology import', () => {
 
   it('refuses to import into an NLM endpoint', async () => {
     const service = serviceWith({
-      terminologySearch: vi.fn(),
+      terminologySearch: vi.fn(() => of({ resourceType: 'Bundle', type: 'searchset' } as Bundle)),
       terminologyUrl: 'https://cts.nlm.nih.gov/fhir',
     });
     await expect(service.importForCql(`valueset "Diabetes": '${canonical}'`))
       .rejects.toThrow(/read-only/);
+  });
+
+  it('allows more than 50 VSAC references when all are already present', async () => {
+    const urls = Array.from({ length: 51 }, (_, i) => `http://cts.nlm.nih.gov/fhir/ValueSet/present.${i}`);
+    const terminologySearch = vi.fn((params: { url: string }) => {
+      const existing: ValueSet = {
+        resourceType: 'ValueSet',
+        id: params.url.split('/').pop(),
+        url: params.url,
+        title: params.url,
+        expansion: { timestamp: '2026-09-03T00:00:00Z', total: 0, contains: [] },
+      };
+      return of({ resourceType: 'Bundle', type: 'searchset', entry: [{ resource: existing }] } as Bundle);
+    });
+    const vsacFetch = vi.fn();
+    const service = serviceWith({ terminologySearch, vsacFetch, hasCredentials: false });
+    const cql = urls.map((url, i) => `valueset "VS${i}": '${url}'`).join('\n');
+
+    const result = await service.importForCql(cql);
+
+    expect(result.imported).toBe(0);
+    expect(result.alreadyPresent).toBe(51);
+    expect(vsacFetch).not.toHaveBeenCalled();
+  });
+
+  it('rejects when more than 50 ValueSets still need importing', async () => {
+    const urls = Array.from({ length: 51 }, (_, i) => `http://cts.nlm.nih.gov/fhir/ValueSet/missing.${i}`);
+    const service = serviceWith({
+      terminologySearch: vi.fn(() => of({ resourceType: 'Bundle', type: 'searchset' } as Bundle)),
+    });
+    const cql = urls.map((url, i) => `valueset "VS${i}": '${url}'`).join('\n');
+
+    await expect(service.importForCql(cql)).rejects.toThrow(
+      /Import requires 51 VSAC ValueSets.*at most 50/,
+    );
   });
 });

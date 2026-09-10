@@ -78,8 +78,6 @@ export interface OpenCodeLibraryChange {
   libraryId: string;
   cqlContent: string;
   save?: boolean;
-  /** The AI review flow already completed the VSAC import gate for this exact content. */
-  vsacTerminologyReady?: boolean;
   mode?: 'review' | 'live' | 'revert';
   baseRevision?: number;
   onSaveComplete?: (saved: boolean) => void;

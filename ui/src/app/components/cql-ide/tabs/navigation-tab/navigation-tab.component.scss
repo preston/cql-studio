@@ -110,6 +110,19 @@
   min-width: 0;
 }
 
+.selected-patient-row[role="button"] {
+  cursor: pointer;
+
+  &:hover:not(.disabled) {
+    background-color: var(--bs-tertiary-bg);
+  }
+
+  &.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
 .selected-patient-remove {
   flex: 0 0 auto;
 }
