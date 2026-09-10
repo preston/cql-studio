@@ -1,8 +1,14 @@
 // Author: Preston Lee
 
-import {Component, ChangeDetectionStrategy, output, OnInit, inject, signal} from '@angular/core';
+import { Component, ChangeDetectionStrategy, output, OnInit, inject, signal, computed, effect, untracked } from '@angular/core';
 import { IdeStateService } from '../../../../services/ide-state.service';
-import { LibraryResource } from '../../shared/ide-types';
+import { libraryIdsForTabCloseAction, type EditorTabCloseAction } from '../../../../services/editor-tab-close.lib';
+
+interface TabContextMenuState {
+  libraryId: string;
+  x: number;
+  y: number;
+}
 
 @Component({
   selector: 'app-editor-tabs',
@@ -10,17 +16,54 @@ import { LibraryResource } from '../../shared/ide-types';
 
   styleUrls: ['./editor-tabs.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:pointerdown)': 'onDocumentPointerDown($event)',
+    '(document:contextmenu)': 'onDocumentContextMenu($event)',
+    '(document:keydown.escape)': 'closeContextMenu()',
+  },
 })
 export class EditorTabsComponent implements OnInit {
   selectLibrary = output<string>();
   closeLibrary = output<string>();
+  closeLibraries = output<string[]>();
   reorderTabs = output<{ fromIndex: number; toIndex: number }>();
 
   protected readonly ideStateService = inject(IdeStateService);
   protected readonly isDragOver = signal(false);
+  protected readonly contextMenu = signal<TabContextMenuState | null>(null);
 
   protected readonly libraryResources = this.ideStateService.libraryResources;
   protected readonly activeLibraryId = this.ideStateService.activeLibraryId;
+
+  protected readonly contextMenuLibraryIndex = computed(() => {
+    const menu = this.contextMenu();
+    if (!menu) return -1;
+    return this.libraryResources().findIndex(library => library.id === menu.libraryId);
+  });
+
+  protected readonly canCloseOthers = computed(() => this.libraryResources().length > 1);
+
+  protected readonly canCloseToTheRight = computed(() => {
+    const index = this.contextMenuLibraryIndex();
+    return index >= 0 && index < this.libraryResources().length - 1;
+  });
+
+  protected readonly canCloseSaved = computed(() =>
+    this.libraryResources().some(library => !library.isDirty)
+  );
+
+  protected readonly canCloseAll = computed(() => this.libraryResources().length > 0);
+
+  constructor() {
+    effect(() => {
+      const menu = this.contextMenu();
+      const resources = this.libraryResources();
+      if (!menu) return;
+      if (!resources.some(library => library.id === menu.libraryId)) {
+        untracked(() => this.contextMenu.set(null));
+      }
+    });
+  }
 
   ngOnInit(): void {
     // Component initialization
@@ -32,10 +75,67 @@ export class EditorTabsComponent implements OnInit {
 
   onCloseLibrary(libraryId: string, event: Event): void {
     event.stopPropagation();
+    this.closeContextMenu();
     this.closeLibrary.emit(libraryId);
   }
 
+  onTabContextMenu(event: MouseEvent, libraryId: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.openContextMenu(event.clientX, event.clientY, libraryId);
+  }
+
+  onTabClick(event: MouseEvent, libraryId: string): void {
+    if (event.altKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.openContextMenu(event.clientX, event.clientY, libraryId);
+      return;
+    }
+    this.closeContextMenu();
+    this.onSelectLibrary(libraryId);
+  }
+
+  onContextMenuAction(action: EditorTabCloseAction, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const menu = this.contextMenu();
+    if (!menu) return;
+
+    const libraryId = menu.libraryId;
+    const ids = libraryIdsForTabCloseAction(action, this.libraryResources(), libraryId);
+    this.closeContextMenu();
+    if (ids.length === 0) return;
+
+    if (action === 'close') {
+      this.closeLibrary.emit(ids[0]);
+      return;
+    }
+    this.closeLibraries.emit(ids);
+  }
+
+  onDocumentPointerDown(event: MouseEvent): void {
+    if (!this.contextMenu()) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.editor-tab-context-menu') || target?.closest('.editor-tab')) return;
+    this.closeContextMenu();
+  }
+
+  onDocumentContextMenu(event: MouseEvent): void {
+    if (!this.contextMenu()) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.editor-tab') || target?.closest('.editor-tab-context-menu')) return;
+    this.closeContextMenu();
+  }
+
+  closeContextMenu(): void {
+    if (this.contextMenu()) {
+      this.contextMenu.set(null);
+    }
+  }
+
   onTabDragStart(event: DragEvent, libraryId: string): void {
+    this.closeContextMenu();
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', libraryId);
@@ -62,7 +162,7 @@ export class EditorTabsComponent implements OnInit {
   onTabDrop(event: DragEvent): void {
     event.preventDefault();
     this.isDragOver.set(false);
-    
+
     try {
       const libraryId = event.dataTransfer?.getData('text/plain');
       if (!libraryId) return;
@@ -85,7 +185,7 @@ export class EditorTabsComponent implements OnInit {
   onTabDropAtPosition(event: DragEvent, targetPosition: number): void {
     event.preventDefault();
     this.isDragOver.set(false);
-    
+
     try {
       const libraryId = event.dataTransfer?.getData('text/plain');
       if (!libraryId) return;
@@ -115,11 +215,20 @@ export class EditorTabsComponent implements OnInit {
     }
   }
 
+  private openContextMenu(clientX: number, clientY: number, libraryId: string): void {
+    this.selectLibrary.emit(libraryId);
+    const menuWidth = 200;
+    const menuHeight = 220;
+    const x = Math.min(clientX, window.innerWidth - menuWidth - 8);
+    const y = Math.min(clientY, window.innerHeight - menuHeight - 8);
+    this.contextMenu.set({ libraryId, x: Math.max(8, x), y: Math.max(8, y) });
+  }
+
   private getDropTargetIndex(event: DragEvent, fromIndex: number): number {
     // Get all tab elements
     const tabElements = Array.from(document.querySelectorAll('.editor-tab'));
     const targetElement = event.target as HTMLElement;
-    
+
     // Find the closest tab element
     const closestTab = targetElement.closest('.editor-tab');
     if (!closestTab) return fromIndex;
@@ -132,12 +241,8 @@ export class EditorTabsComponent implements OnInit {
     const rect = closestTab.getBoundingClientRect();
     const mouseX = event.clientX;
     const tabCenter = rect.left + rect.width / 2;
-    
+
     // If mouse is in the left half, insert before; otherwise insert after
     return mouseX < tabCenter ? targetTabIndex : targetTabIndex + 1;
-  }
-
-  trackByLibraryId(index: number, library: LibraryResource): string {
-    return library.id;
   }
 }

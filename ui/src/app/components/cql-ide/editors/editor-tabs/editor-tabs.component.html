@@ -1,6 +1,6 @@
 <div class="editor-tabs d-flex align-items-stretch border-bottom bg-body-secondary">
   <!-- Drop zone at the beginning -->
-  <div 
+  <div
     class="drop-zone"
     [class.drag-over]="isDragOver()"
     (dragover)="onTabDragOver($event)"
@@ -8,31 +8,32 @@
     (dragleave)="onTabDragLeave($event)"
     (drop)="onTabDropAtPosition($event, 0)"
   ></div>
-  
-  @for (library of libraryResources(); track trackByLibraryId($index, library); let i = $index) {
-    <div 
+
+  @for (library of libraryResources(); track library.id) {
+    <div
       [id]="'cql-editor-tab-' + library.id"
       class="editor-tab d-flex align-items-center px-2 py-0 border-end cursor-pointer"
       [class.active]="library.id === activeLibraryId()"
       [class.dirty]="library.isDirty"
-      (click)="onSelectLibrary(library.id)"
+      (click)="onTabClick($event, library.id)"
+      (contextmenu)="onTabContextMenu($event, library.id)"
       draggable="true"
       (dragstart)="onTabDragStart($event, library.id)"
       (dragover)="onTabDragOver($event)"
       (drop)="onTabDrop($event)"
     >
       <span class="me-2 tab-name">{{ library.name }}</span>
-      <button 
+      <button
         [id]="'cql-editor-close-' + library.id"
-        class="btn-close btn-sm" 
+        class="btn-close btn-sm"
         (click)="onCloseLibrary(library.id, $event)"
         title="Close tab"
       ></button>
     </div>
   }
-  
+
   <!-- Drop zone at the end -->
-  <div 
+  <div
     class="drop-zone"
     [class.drag-over]="isDragOver()"
     (dragover)="onTabDragOver($event)"
@@ -41,3 +42,68 @@
     (drop)="onTabDropAtPosition($event, -1)"
   ></div>
 </div>
+
+@if (contextMenu(); as menu) {
+  <ul
+    id="cql-editor-tab-context-menu"
+    class="dropdown-menu show editor-tab-context-menu"
+    [style.position]="'fixed'"
+    [style.left.px]="menu.x"
+    [style.top.px]="menu.y"
+    role="menu"
+    (pointerdown)="$event.stopPropagation()"
+    (click)="$event.stopPropagation()"
+    (contextmenu)="$event.preventDefault()"
+  >
+    <li role="none">
+      <button
+        id="cql-editor-tab-context-close"
+        type="button"
+        class="dropdown-item"
+        role="menuitem"
+        (click)="onContextMenuAction('close', $event)"
+      >Close</button>
+    </li>
+    <li role="none">
+      <button
+        id="cql-editor-tab-context-close-others"
+        type="button"
+        class="dropdown-item"
+        role="menuitem"
+        [disabled]="!canCloseOthers()"
+        (click)="onContextMenuAction('closeOthers', $event)"
+      >Close Others</button>
+    </li>
+    <li role="none">
+      <button
+        id="cql-editor-tab-context-close-to-the-right"
+        type="button"
+        class="dropdown-item"
+        role="menuitem"
+        [disabled]="!canCloseToTheRight()"
+        (click)="onContextMenuAction('closeToTheRight', $event)"
+      >Close to the Right</button>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li role="none">
+      <button
+        id="cql-editor-tab-context-close-saved"
+        type="button"
+        class="dropdown-item"
+        role="menuitem"
+        [disabled]="!canCloseSaved()"
+        (click)="onContextMenuAction('closeSaved', $event)"
+      >Close Saved</button>
+    </li>
+    <li role="none">
+      <button
+        id="cql-editor-tab-context-close-all"
+        type="button"
+        class="dropdown-item"
+        role="menuitem"
+        [disabled]="!canCloseAll()"
+        (click)="onContextMenuAction('closeAll', $event)"
+      >Close All</button>
+    </li>
+  </ul>
+}

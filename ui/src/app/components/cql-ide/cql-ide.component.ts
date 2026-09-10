@@ -41,6 +41,7 @@ import {
   isMacPlatform as detectMacPlatform
 } from './cql-ide-shortcuts.lib';
 import { CqlAiDiagnosticFixRequest } from '../../services/cql-ai-diagnostic-fix.lib';
+import { nextActiveLibraryIdAfterClose } from '../../services/editor-tab-close.lib';
 
 // Import all the new components
 import { IdeStatusBarComponent } from './ide-status-bar/ide-status-bar.component';
@@ -510,28 +511,27 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   onDeleteLibrary(libraryId: string): void {
+    this.onCloseLibraries([libraryId]);
+  }
+
+  onCloseLibraries(libraryIds: string[]): void {
+    if (libraryIds.length === 0) return;
+
     const resources = this.ideStateService.libraryResources();
-    const wasActive = this.ideStateService.activeLibraryId() === libraryId;
-    let adjacentId: string | null = null;
+    const existingIds = new Set(resources.map(resource => resource.id));
+    const idsToClose = libraryIds.filter(id => existingIds.has(id));
+    if (idsToClose.length === 0) return;
 
-    if (wasActive && resources.length > 1) {
-      const idx = resources.findIndex(r => r.id === libraryId);
-      if (idx >= 0) {
-        if (idx > 0) {
-          adjacentId = resources[idx - 1].id;
-        } else {
-          adjacentId = resources[idx + 1].id;
-        }
-      }
+    const nextActiveId = nextActiveLibraryIdAfterClose(
+      resources,
+      this.ideStateService.activeLibraryId(),
+      idsToClose
+    );
+    if (nextActiveId !== undefined) {
+      this.ideStateService.selectLibraryResource(nextActiveId);
     }
 
-    if (wasActive && adjacentId) {
-      this.ideStateService.selectLibraryResource(adjacentId);
-    } else if (wasActive) {
-      this.ideStateService.selectLibraryResource(null);
-    }
-
-    this.ideStateService.removeLibraryResource(libraryId);
+    this.ideStateService.removeLibraryResources(idsToClose);
   }
 
   // Translation

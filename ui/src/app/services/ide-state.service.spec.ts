@@ -97,3 +97,37 @@ describe('IdeStateService triggerReload', () => {
     expect(second?.libraryId).toBe('lib-1');
   });
 });
+
+describe('IdeStateService removeLibraryResources', () => {
+  it('removes many libraries in one update', () => {
+    const service = new IdeStateService();
+    service.addLibraryResource({
+      id: 'a', name: 'A', description: '', cqlContent: '', originalContent: '',
+      isActive: false, isDirty: false, library: null,
+    });
+    service.addLibraryResource({
+      id: 'b', name: 'B', description: '', cqlContent: '', originalContent: '',
+      isActive: false, isDirty: true, library: null,
+    });
+    service.addLibraryResource({
+      id: 'c', name: 'C', description: '', cqlContent: '', originalContent: '',
+      isActive: false, isDirty: false, library: null,
+    });
+
+    service.removeLibraryResources(['a', 'c']);
+
+    expect(service.libraryResources().map(library => library.id)).toEqual(['b']);
+  });
+
+  it('no-ops on an empty id list', () => {
+    const service = new IdeStateService();
+    service.addLibraryResource({
+      id: 'a', name: 'A', description: '', cqlContent: '', originalContent: '',
+      isActive: false, isDirty: false, library: null,
+    });
+
+    service.removeLibraryResources([]);
+
+    expect(service.libraryResources()).toHaveLength(1);
+  });
+});

@@ -580,8 +580,14 @@ export class IdeStateService {
   }
 
   removeLibraryResource(libraryId: string): void {
-    this._libraryResources.update(resources => 
-      resources.filter(r => r.id !== libraryId)
+    this.removeLibraryResources([libraryId]);
+  }
+
+  removeLibraryResources(libraryIds: readonly string[]): void {
+    if (libraryIds.length === 0) return;
+    const idSet = new Set(libraryIds);
+    this._libraryResources.update(resources =>
+      resources.filter(resource => !idSet.has(resource.id))
     );
   }
 
